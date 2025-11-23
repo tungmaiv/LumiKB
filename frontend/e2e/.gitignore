@@ -1,0 +1,9 @@
+# Auth state (contains session tokens)
+.auth/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Trace files
+*.zip

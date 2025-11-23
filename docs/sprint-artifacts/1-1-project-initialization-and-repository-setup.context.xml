@@ -1,0 +1,180 @@
+<story-context id="bmad/bmm/workflows/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1</storyId>
+    <title>Project Initialization and Repository Setup</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-1-project-initialization-and-repository-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>the project repository initialized with proper structure</iWant>
+    <soThat>I have a consistent foundation for all subsequent development</soThat>
+    <tasks>
+      <task id="1" ac="2">Create root project structure</task>
+      <task id="2" ac="1,4">Initialize Next.js frontend</task>
+      <task id="3" ac="1,5">Initialize FastAPI backend</task>
+      <task id="4" ac="2">Create backend directory structure</task>
+      <task id="5" ac="3">Configure pre-commit hooks</task>
+      <task id="6" ac="2">Create infrastructure scaffolding</task>
+      <task id="7" ac="1,2,3,4,5">Verify complete setup</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given a new development environment When I clone the repository and run setup commands Then both frontend and backend start successfully</ac>
+    <ac id="2">Given the project is initialized When I inspect the directory structure Then it matches the architecture specification with frontend/, backend/, infrastructure/, docs/ directories</ac>
+    <ac id="3">Given the repository is cloned When I check tooling configuration Then TypeScript strict mode, ESLint, Prettier, ruff, and pre-commit hooks are configured</ac>
+    <ac id="4">Given the frontend is initialized When I verify package versions Then Next.js 15.x, React 19.x, Tailwind 4.x, Zustand 5.0+, shadcn/ui are present</ac>
+    <ac id="5">Given the backend is initialized When I verify Python environment Then Python 3.11, FastAPI, uvicorn, SQLAlchemy 2.0, asyncpg, pydantic-settings are installed with venv</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Project Structure</section>
+        <snippet>Defines the complete lumikb/ directory structure with frontend/, backend/, infrastructure/, docs/ directories and their internal organization.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Project Initialization</section>
+        <snippet>Contains starter template commands: create-next-app@latest with TypeScript/Tailwind/ESLint flags, shadcn@latest init, Python 3.11 venv setup with FastAPI dependencies.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Technology Stack Details</section>
+        <snippet>Specifies exact versions: Python 3.11, FastAPI >=0.115.0, Next.js 15.x, React 19.x, Tailwind 4.x, Zustand >=5.0.0, with version pinning strategy.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Deprecated Components to Avoid</section>
+        <snippet>Lists deprecated packages: tailwindcss-animate (use tw-animate-css), pydantic.BaseSettings (use pydantic_settings), fastapi-users[sqlalchemy2] (use [sqlalchemy]).</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>LumiKB Coding Standards</title>
+        <section>Python Standards (Backend)</section>
+        <snippet>Python 3.11 required, use pyproject.toml, venv for development. Black formatter, type hints required, async/await patterns, structlog logging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>LumiKB Coding Standards</title>
+        <section>TypeScript Standards (Frontend)</section>
+        <snippet>Node.js 20+, TypeScript strict mode, Next.js 15 App Router. Prettier formatting, kebab-case files, PascalCase components, Zustand for state.</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>LumiKB Coding Standards</title>
+        <section>Git and Version Control</section>
+        <snippet>Branch naming: feature/, fix/, refactor/. Commit message format: type(scope): description. PR guidelines for focused changes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epics</title>
+        <section>Epic 1 Story 1.1</section>
+        <snippet>Original story definition with acceptance criteria for project initialization, directory structure, tooling configuration, and version verification.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>LumiKB PRD</title>
+        <section>Technical Type</section>
+        <snippet>SaaS B2B Platform for Banking and Financial Services. High complexity classification with compliance requirements (SOC 2, GDPR, PCI-DSS).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Detailed Design</section>
+        <snippet>Services, data models, APIs, and workflows for Foundation &amp; Authentication epic. Includes PostgreSQL schema, SQLAlchemy models, Pydantic schemas.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Greenfield project - no existing code artifacts yet -->
+      <note>This is a greenfield project initialization story. No existing code to reference.</note>
+    </code>
+
+    <dependencies>
+      <!-- Expected dependencies to be installed -->
+      <frontend>
+        <package name="next" version="15.x" />
+        <package name="react" version="19.x" />
+        <package name="typescript" version="latest" />
+        <package name="tailwindcss" version="4.x" />
+        <package name="tw-animate-css" version="latest" />
+        <package name="zustand" version=">=5.0.0" />
+        <package name="eslint" version="latest" />
+        <package name="prettier" version="latest" />
+      </frontend>
+      <backend>
+        <package name="fastapi" version=">=0.115.0,<1.0.0" />
+        <package name="uvicorn" version=">=0.32.0" extra="standard" />
+        <package name="pydantic" version=">=2.7.0,<3.0.0" />
+        <package name="pydantic-settings" version=">=2.0.0" />
+        <package name="sqlalchemy" version=">=2.0.44" extra="asyncio" />
+        <package name="asyncpg" version=">=0.30.0" />
+        <package name="ruff" version="latest" />
+      </backend>
+      <tooling>
+        <package name="pre-commit" version="latest" />
+      </tooling>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="version">Python 3.11 required (redis-py >=7.1.0 compatibility)</constraint>
+    <constraint type="version">Next.js 15.x with App Router (not Pages Router)</constraint>
+    <constraint type="version">Use tw-animate-css (tailwindcss-animate is deprecated)</constraint>
+    <constraint type="version">Use pydantic_settings.BaseSettings (not pydantic.BaseSettings)</constraint>
+    <constraint type="version">Use fastapi-users[sqlalchemy] (not [sqlalchemy2])</constraint>
+    <constraint type="architecture">Monorepo structure with frontend/, backend/, infrastructure/, docs/ at root</constraint>
+    <constraint type="architecture">Backend follows layered architecture: api/ -> services/ -> repositories/ -> models/</constraint>
+    <constraint type="tooling">TypeScript strict mode enabled</constraint>
+    <constraint type="tooling">ESLint + Prettier for frontend, ruff for backend</constraint>
+    <constraint type="tooling">Pre-commit hooks for all code quality checks</constraint>
+    <constraint type="naming">Python: snake_case files, PascalCase classes</constraint>
+    <constraint type="naming">TypeScript: kebab-case files, PascalCase components</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- No existing interfaces - greenfield project -->
+    <note>Greenfield project. Story will CREATE interfaces, not consume them.</note>
+    <expectedOutput>
+      <interface name="FastAPI main.py" kind="entrypoint" path="backend/app/main.py">
+        Minimal FastAPI application with health check endpoint
+      </interface>
+      <interface name="Next.js App" kind="entrypoint" path="frontend/src/app/page.tsx">
+        Next.js App Router root page
+      </interface>
+    </expectedOutput>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: pytest for unit/integration tests in backend/tests/. Use pytest-asyncio for async tests.
+      Frontend: Jest + React Testing Library in frontend/__tests__/. E2E with Playwright in frontend/e2e/.
+      All tests must pass before merge. Coverage targets to be defined in subsequent stories.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/</location>
+      <location>backend/tests/integration/</location>
+      <location>frontend/__tests__/</location>
+      <location>frontend/e2e/</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Verify frontend dev server starts on port 3000</idea>
+      <idea ac="1">Verify backend dev server starts on port 8000</idea>
+      <idea ac="2">Check all expected directories exist after setup</idea>
+      <idea ac="3">Verify pre-commit hooks execute on git commit</idea>
+      <idea ac="4">Parse package.json and verify version constraints</idea>
+      <idea ac="5">Parse pyproject.toml and verify dependencies listed</idea>
+    </ideas>
+  </tests>
+</story-context>

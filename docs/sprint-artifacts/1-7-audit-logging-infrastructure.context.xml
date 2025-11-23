@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context File
+  Generated: 2025-11-23
+  Story: 1-7-audit-logging-infrastructure
+  Status: ready-for-dev
+-->
+<story-context version="1.0">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: STORY METADATA                                     -->
+  <!-- ============================================================ -->
+  <story-metadata>
+    <story-key>1-7-audit-logging-infrastructure</story-key>
+    <epic-id>1</epic-id>
+    <story-id>7</story-id>
+    <title>Audit Logging Infrastructure</title>
+    <user-story>
+      <as-a>compliance officer</as-a>
+      <i-want>all significant actions logged immutably</i-want>
+      <so-that>we can demonstrate compliance and investigate issues</so-that>
+    </user-story>
+    <priority>High</priority>
+    <status>ready-for-dev</status>
+    <prerequisites>
+      <prerequisite story-id="1-2">Database Schema and Migration Setup (DONE)</prerequisite>
+    </prerequisites>
+    <functional-requirements>
+      <fr id="FR53">System logs every document upload with user, timestamp, and metadata</fr>
+      <fr id="FR56">System logs every user management action</fr>
+      <fr id="FR57">Audit logs are immutable and tamper-evident</fr>
+    </functional-requirements>
+  </story-metadata>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: ACCEPTANCE CRITERIA                                -->
+  <!-- ============================================================ -->
+  <acceptance-criteria>
+    <criterion id="AC1" type="functional">
+      <description>Given any auditable action occurs (login, logout, user change, etc.), when the action completes, then an audit event is written to audit.events table</description>
+      <verification>Integration test verifying audit event creation after login/logout/register actions</verification>
+    </criterion>
+    <criterion id="AC2" type="functional">
+      <description>Each audit event contains: timestamp (UTC), user_id (if authenticated), action (e.g., "user.login", "user.created"), resource_type and resource_id (if applicable), details (JSON with context), ip_address</description>
+      <verification>Unit test verifying AuditEvent model fields match schema</verification>
+    </criterion>
+    <criterion id="AC3" type="security">
+      <description>The audit_writer role can only INSERT (no UPDATE, DELETE)</description>
+      <verification>Database migration with GRANT INSERT ONLY on audit.events</verification>
+    </criterion>
+    <criterion id="AC4" type="functional">
+      <description>Audit events are written via a dedicated AuditService</description>
+      <verification>Code review: all audit writes go through AuditService</verification>
+    </criterion>
+    <criterion id="AC5" type="non-functional">
+      <description>Given high request volume, when audit logging occurs, then it does not significantly impact request latency (async write)</description>
+      <verification>Async background task pattern used; no blocking in request path</verification>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: EXISTING CODE CONTEXT                              -->
+  <!-- ============================================================ -->
+  <existing-code>
+    <component name="AuditEvent Model" path="backend/app/models/audit.py" status="IMPLEMENTED">
+      <description>SQLAlchemy model for audit events in the 'audit' schema</description>
+      <key-elements>
+        <element>Table: audit.events</element>
+        <element>Columns: id (UUID), timestamp (TIMESTAMPTZ), user_id (UUID nullable), action (VARCHAR 50), resource_type (VARCHAR 50), resource_id (UUID nullable), details (JSONB), ip_address (INET)</element>
+        <element>Indexes: idx_audit_user, idx_audit_timestamp, idx_audit_resource</element>
+      </key-elements>
+      <interface>
+        <![CDATA[
+class AuditEvent(Base):
+    __tablename__ = "events"
+    __table_args__ = (
+        Index("idx_audit_user", "user_id"),
+        Index("idx_audit_timestamp", "timestamp"),
+        Index("idx_audit_resource", "resource_type", "resource_id"),
+        {"schema": "audit"},
+    )
+    id: Mapped[uuid.UUID]
+    timestamp: Mapped[datetime]
+    user_id: Mapped[uuid.UUID | None]
+    action: Mapped[str]
+    resource_type: Mapped[str]
+    resource_id: Mapped[uuid.UUID | None]
+    details: Mapped[dict[str, Any] | None]
+    ip_address: Mapped[str | None]
+        ]]>
+      </interface>
+    </component>
+
+    <component name="AuditRepository" path="backend/app/repositories/audit_repo.py" status="IMPLEMENTED">
+      <description>Repository for INSERT-only audit event database operations</description>
+      <key-elements>
+        <element>create_event() method for inserting audit events</element>
+        <element>Uses raw INSERT statement (no ORM update/delete)</element>
+      </key-elements>
+      <interface>
+        <![CDATA[
+class AuditRepository:
+    def __init__(self, session: AsyncSession) -> None
+    async def create_event(
+        self,
+        action: str,
+        resource_type: str,
+        user_id: UUID | None = None,
+        resource_id: UUID | None = None,
+        details: dict[str, Any] | None = None,
+        ip_address: str | None = None,
+    ) -> None
+        ]]>
+      </interface>
+    </component>
+
+    <component name="AuditService" path="backend/app/services/audit_service.py" status="IMPLEMENTED">
+      <description>Fire-and-forget audit logging service with singleton pattern</description>
+      <key-elements>
+        <element>Creates dedicated database session for each log operation</element>
+        <element>Never raises exceptions to caller (fire-and-forget)</element>
+        <element>Logs errors via structlog</element>
+        <element>Singleton instance: audit_service</element>
+      </key-elements>
+      <interface>
+        <![CDATA[
+class AuditService:
+    async def log_event(
+        self,
+        action: str,
+        resource_type: str,
+        user_id: UUID | None = None,
+        resource_id: UUID | None = None,
+        details: dict[str, Any] | None = None,
+        ip_address: str | None = None,
+    ) -> None
+
+audit_service = AuditService()  # Singleton
+        ]]>
+      </interface>
+    </component>
+
+    <component name="Auth API Integration" path="backend/app/api/v1/auth.py" status="IMPLEMENTED">
+      <description>Authentication endpoints with audit logging integration</description>
+      <key-elements>
+        <element>_log_audit_event() helper using BackgroundTasks</element>
+        <element>Actions logged: user.registered, user.login, user.login_failed, user.logout, user.password_reset_requested, user.password_reset</element>
+      </key-elements>
+      <usage-pattern>
+        <![CDATA[
+# Fire-and-forget audit logging in request handlers
+background_tasks.add_task(_log_audit_event, "user.login", user.id, ip_address)
+
+async def _log_audit_event(action: str, user_id: UUID | None, ip_address: str, details: dict | None = None) -> None:
+    from app.services.audit_service import audit_service
+    await audit_service.log_event(
+        action=action,
+        user_id=user_id,
+        resource_type="user",
+        resource_id=user_id,
+        details=details,
+        ip_address=ip_address,
+    )
+        ]]>
+      </usage-pattern>
+    </component>
+
+    <component name="Admin API Integration" path="backend/app/api/v1/admin.py" status="IMPLEMENTED">
+      <description>Admin endpoints with audit logging for user management</description>
+      <key-elements>
+        <element>Actions logged: user.admin_created, user.activated, user.deactivated</element>
+        <element>Tracks both admin user (actor) and target user (resource)</element>
+      </key-elements>
+    </component>
+
+    <component name="Users API Integration" path="backend/app/api/v1/users.py" status="IMPLEMENTED">
+      <description>User profile endpoints with audit logging</description>
+      <key-elements>
+        <element>Actions logged: user.profile_updated</element>
+        <element>Details include list of updated fields</element>
+      </key-elements>
+    </component>
+  </existing-code>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: TECHNICAL REQUIREMENTS                             -->
+  <!-- ============================================================ -->
+  <technical-requirements>
+    <requirement type="architecture">
+      <title>Audit Schema Isolation</title>
+      <description>Audit events stored in separate 'audit' schema for security isolation</description>
+      <rationale>Enables separate permission management and prevents accidental modification</rationale>
+    </requirement>
+
+    <requirement type="database">
+      <title>INSERT-Only Permissions</title>
+      <description>Application database role should have INSERT-only permission on audit.events</description>
+      <implementation>
+        <![CDATA[
+-- In migration file (to be created)
+REVOKE ALL ON audit.events FROM lumikb_app;
+GRANT INSERT ON audit.events TO lumikb_app;
+        ]]>
+      </implementation>
+    </requirement>
+
+    <requirement type="performance">
+      <title>Async Audit Writes</title>
+      <description>Audit logging must not block request processing</description>
+      <implementation>
+        <![CDATA[
+# Use FastAPI BackgroundTasks for fire-and-forget logging
+background_tasks.add_task(_log_audit_event, action, user_id, ip_address)
+        ]]>
+      </implementation>
+    </requirement>
+
+    <requirement type="logging">
+      <title>Structured Logging with structlog</title>
+      <description>Use structlog for all audit-related application logs</description>
+      <rationale>Enables consistent, queryable log format across the application</rationale>
+    </requirement>
+  </technical-requirements>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: DEPENDENCIES AND FRAMEWORKS                        -->
+  <!-- ============================================================ -->
+  <dependencies>
+    <dependency name="structlog" version=">=25.5.0,<26.0.0" purpose="Structured logging">
+      <usage>Logger creation and event logging</usage>
+    </dependency>
+    <dependency name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" purpose="Async database operations">
+      <usage>AuditEvent model, AuditRepository</usage>
+    </dependency>
+    <dependency name="fastapi" version=">=0.115.0,<1.0.0" purpose="Web framework">
+      <usage>BackgroundTasks for async audit writes</usage>
+    </dependency>
+    <dependency name="asyncpg" version=">=0.30.0,<1.0.0" purpose="PostgreSQL async driver">
+      <usage>Database connectivity for audit writes</usage>
+    </dependency>
+  </dependencies>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: AUDIT ACTION CATALOG                               -->
+  <!-- ============================================================ -->
+  <audit-action-catalog>
+    <category name="Authentication" resource-type="user">
+      <action name="user.registered" description="New user account created via self-registration" />
+      <action name="user.login" description="Successful user login" />
+      <action name="user.login_failed" description="Failed login attempt (bad credentials)" />
+      <action name="user.logout" description="User logged out" />
+      <action name="user.password_reset_requested" description="Password reset token generated" />
+      <action name="user.password_reset" description="Password successfully reset" />
+    </category>
+    <category name="User Management" resource-type="user">
+      <action name="user.admin_created" description="User created by administrator" />
+      <action name="user.activated" description="User account activated by admin" />
+      <action name="user.deactivated" description="User account deactivated by admin" />
+      <action name="user.profile_updated" description="User updated their own profile" />
+    </category>
+    <category name="Future Actions (Epic 2+)" resource-type="various">
+      <action name="kb.created" description="Knowledge base created (Epic 2)" />
+      <action name="kb.deleted" description="Knowledge base deleted (Epic 2)" />
+      <action name="document.uploaded" description="Document uploaded (Epic 2)" />
+      <action name="document.deleted" description="Document deleted (Epic 2)" />
+      <action name="search.query" description="Search query executed (Epic 3)" />
+      <action name="generation.request" description="Content generation request (Epic 4)" />
+    </category>
+  </audit-action-catalog>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 7: IMPLEMENTATION TASKS                               -->
+  <!-- ============================================================ -->
+  <implementation-tasks>
+    <task id="T1" priority="high" status="MOSTLY_DONE">
+      <title>Verify AuditEvent Model</title>
+      <description>Ensure AuditEvent model matches architecture spec</description>
+      <verification>Review backend/app/models/audit.py against architecture.md</verification>
+      <notes>Model is already implemented with correct schema</notes>
+    </task>
+
+    <task id="T2" priority="high" status="MOSTLY_DONE">
+      <title>Verify AuditRepository</title>
+      <description>Ensure AuditRepository implements INSERT-only pattern</description>
+      <verification>Review backend/app/repositories/audit_repo.py</verification>
+      <notes>Repository is implemented; only uses INSERT statement</notes>
+    </task>
+
+    <task id="T3" priority="high" status="MOSTLY_DONE">
+      <title>Verify AuditService</title>
+      <description>Ensure AuditService implements fire-and-forget pattern</description>
+      <verification>Review backend/app/services/audit_service.py</verification>
+      <notes>Service is implemented with error handling that doesn't propagate</notes>
+    </task>
+
+    <task id="T4" priority="high" status="TODO">
+      <title>Create Database Migration for INSERT-Only Permissions</title>
+      <description>Create Alembic migration to restrict audit.events to INSERT-only for app role</description>
+      <implementation-notes>
+        <![CDATA[
+# Migration should include:
+1. Create audit_writer role (if using separate role)
+2. REVOKE ALL ON audit.events FROM public
+3. GRANT INSERT ON audit.events TO lumikb_app (or audit_writer)
+4. Ensure no UPDATE/DELETE permissions exist
+        ]]>
+      </implementation-notes>
+    </task>
+
+    <task id="T5" priority="medium" status="MOSTLY_DONE">
+      <title>Verify Auth Endpoint Audit Integration</title>
+      <description>Ensure all auth endpoints log audit events</description>
+      <verification>Review backend/app/api/v1/auth.py for audit logging calls</verification>
+      <notes>All auth actions are logged via BackgroundTasks</notes>
+    </task>
+
+    <task id="T6" priority="medium" status="MOSTLY_DONE">
+      <title>Verify Admin Endpoint Audit Integration</title>
+      <description>Ensure all admin user management endpoints log audit events</description>
+      <verification>Review backend/app/api/v1/admin.py for audit logging calls</verification>
+      <notes>Admin actions are logged with actor/target distinction</notes>
+    </task>
+
+    <task id="T7" priority="high" status="TODO">
+      <title>Write Integration Tests for Audit Logging</title>
+      <description>Create comprehensive tests verifying audit events are created</description>
+      <test-cases>
+        <case id="TC1">Verify audit event created on user registration</case>
+        <case id="TC2">Verify audit event created on login success</case>
+        <case id="TC3">Verify audit event created on login failure</case>
+        <case id="TC4">Verify audit event created on logout</case>
+        <case id="TC5">Verify audit event created on profile update</case>
+        <case id="TC6">Verify audit event created on admin user creation</case>
+        <case id="TC7">Verify audit event created on user activation/deactivation</case>
+        <case id="TC8">Verify audit event fields are correctly populated</case>
+        <case id="TC9">Verify audit logging does not block request (async)</case>
+      </test-cases>
+    </task>
+
+    <task id="T8" priority="low" status="TODO">
+      <title>Document Audit Action Standards</title>
+      <description>Add docstrings documenting audit action naming conventions</description>
+      <notes>Convention: {resource_type}.{action_verb} (e.g., user.login, kb.created)</notes>
+    </task>
+  </implementation-tasks>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 8: TESTING STRATEGY                                   -->
+  <!-- ============================================================ -->
+  <testing-strategy>
+    <test-type name="Unit Tests">
+      <description>Test AuditService and AuditRepository in isolation</description>
+      <location>backend/tests/unit/test_audit_service.py</location>
+      <coverage>
+        <item>AuditService.log_event() creates event with correct fields</item>
+        <item>AuditService handles database errors gracefully (no propagation)</item>
+        <item>AuditRepository.create_event() executes INSERT statement</item>
+      </coverage>
+    </test-type>
+
+    <test-type name="Integration Tests">
+      <description>Test audit logging through API endpoints</description>
+      <location>backend/tests/integration/test_audit.py</location>
+      <fixtures-required>
+        <fixture>auth_client (from conftest.py)</fixture>
+        <fixture>db_session (from conftest.py)</fixture>
+        <fixture>registered_user (from test_auth.py pattern)</fixture>
+      </fixtures-required>
+      <coverage>
+        <item>Registration creates audit event</item>
+        <item>Login creates audit event</item>
+        <item>Failed login creates audit event</item>
+        <item>Logout creates audit event</item>
+        <item>Profile update creates audit event</item>
+        <item>Admin user creation creates audit event</item>
+        <item>User deactivation creates audit event</item>
+      </coverage>
+    </test-type>
+
+    <test-type name="Performance Tests">
+      <description>Verify async audit logging doesn't impact request latency</description>
+      <approach>
+        <item>Time requests with and without audit logging</item>
+        <item>Verify difference is minimal (&lt;5ms overhead)</item>
+      </approach>
+    </test-type>
+
+    <existing-test-patterns>
+      <pattern name="Fixture Setup" source="backend/tests/conftest.py">
+        <description>Use test_engine, setup_database, db_session fixtures</description>
+      </pattern>
+      <pattern name="Auth Client" source="backend/tests/integration/test_auth.py">
+        <description>Use auth_client fixture with database and redis overrides</description>
+      </pattern>
+      <pattern name="Async Tests" source="pytest-asyncio">
+        <description>asyncio_mode = "auto" configured in pyproject.toml</description>
+      </pattern>
+    </existing-test-patterns>
+  </testing-strategy>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 9: CONSTRAINTS AND CONSIDERATIONS                     -->
+  <!-- ============================================================ -->
+  <constraints>
+    <constraint type="security">
+      <title>Immutability</title>
+      <description>Audit logs must be immutable - no UPDATE or DELETE allowed</description>
+      <enforcement>Database permissions + code review</enforcement>
+    </constraint>
+
+    <constraint type="performance">
+      <title>No Request Blocking</title>
+      <description>Audit writes must not block HTTP response</description>
+      <enforcement>BackgroundTasks pattern + code review</enforcement>
+    </constraint>
+
+    <constraint type="data-integrity">
+      <title>Timestamp Accuracy</title>
+      <description>All timestamps must be UTC with timezone</description>
+      <enforcement>server_default=func.now() in model</enforcement>
+    </constraint>
+
+    <constraint type="storage">
+      <title>Schema Isolation</title>
+      <description>Audit events must be in separate 'audit' schema</description>
+      <enforcement>Model __table_args__ includes {"schema": "audit"}</enforcement>
+    </constraint>
+  </constraints>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 10: DEFINITION OF DONE                                -->
+  <!-- ============================================================ -->
+  <definition-of-done>
+    <criterion id="DOD1">All acceptance criteria verified with passing tests</criterion>
+    <criterion id="DOD2">AuditService singleton pattern documented and tested</criterion>
+    <criterion id="DOD3">Database migration for INSERT-only permissions created</criterion>
+    <criterion id="DOD4">Integration tests verify audit events for all auth/admin actions</criterion>
+    <criterion id="DOD5">Code follows existing patterns (structlog, BackgroundTasks)</criterion>
+    <criterion id="DOD6">No breaking changes to existing API contracts</criterion>
+    <criterion id="DOD7">All tests pass: `pytest backend/tests/`</criterion>
+    <criterion id="DOD8">Code passes linting: `ruff check backend/`</criterion>
+  </definition-of-done>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 11: QUICK REFERENCE                                   -->
+  <!-- ============================================================ -->
+  <quick-reference>
+    <file-locations>
+      <file purpose="Audit Model">backend/app/models/audit.py</file>
+      <file purpose="Audit Repository">backend/app/repositories/audit_repo.py</file>
+      <file purpose="Audit Service">backend/app/services/audit_service.py</file>
+      <file purpose="Auth API (audit integration)">backend/app/api/v1/auth.py</file>
+      <file purpose="Admin API (audit integration)">backend/app/api/v1/admin.py</file>
+      <file purpose="Users API (audit integration)">backend/app/api/v1/users.py</file>
+      <file purpose="Database Config">backend/app/core/database.py</file>
+      <file purpose="Test Fixtures">backend/tests/conftest.py</file>
+    </file-locations>
+
+    <key-commands>
+      <command purpose="Run tests">cd backend && pytest tests/</command>
+      <command purpose="Run specific test">cd backend && pytest tests/integration/test_audit.py -v</command>
+      <command purpose="Lint code">cd backend && ruff check app/</command>
+      <command purpose="Create migration">cd backend && alembic revision --autogenerate -m "audit_permissions"</command>
+      <command purpose="Apply migrations">cd backend && alembic upgrade head</command>
+    </key-commands>
+
+    <audit-usage-example>
+      <![CDATA[
+# In any API endpoint:
+from fastapi import BackgroundTasks
+
+@router.post("/some-action")
+async def some_action(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(current_active_user),
+):
+    # ... do the action ...
+
+    # Fire-and-forget audit logging
+    ip_address = get_client_ip(request)
+    background_tasks.add_task(
+        _log_audit_event,
+        "resource.action",
+        user.id,
+        ip_address,
+        {"key": "value"}  # optional details
+    )
+
+    return result
+
+async def _log_audit_event(action, user_id, ip_address, details=None):
+    from app.services.audit_service import audit_service
+    await audit_service.log_event(
+        action=action,
+        user_id=user_id,
+        resource_type="resource",
+        resource_id=user_id,
+        details=details,
+        ip_address=ip_address,
+    )
+      ]]>
+    </audit-usage-example>
+  </quick-reference>
+
+</story-context>

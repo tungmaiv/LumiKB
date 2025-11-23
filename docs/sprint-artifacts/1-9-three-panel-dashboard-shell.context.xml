@@ -1,0 +1,575 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context XML for Story 1.9: Three-Panel Dashboard Shell
+  Generated: 2025-11-23
+  Epic: 1 - Foundation & Authentication
+  Story Key: 1-9-three-panel-dashboard-shell
+
+  This context document assembles all relevant documentation and existing code
+  for implementing the three-panel dashboard layout with responsive design.
+-->
+<story-context story-key="1-9-three-panel-dashboard-shell" epic="1" generated="2025-11-23">
+
+  <story-definition>
+    <title>Three-Panel Dashboard Shell</title>
+    <user-story>
+      As a **user**,
+      I want **to see the main application layout after login**,
+      So that **I understand how to navigate LumiKB**.
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC1">
+        Given I am logged in
+        When I navigate to the dashboard
+        Then I see a three-panel layout:
+        - Left sidebar (260px): KB navigation area with placeholder content
+        - Center panel (flexible): Main content area with welcome message
+        - Right panel (320px): Citations panel with placeholder content (collapsible)
+      </criterion>
+      <criterion id="AC2">
+        Given I am viewing the dashboard
+        When I look at the header
+        Then I see:
+        - LumiKB logo on the left
+        - Search bar placeholder in the center (disabled, shows "Search coming soon...")
+        - User menu with profile and logout options on the right
+      </criterion>
+      <criterion id="AC3">
+        Given the viewport is desktop (1280px+)
+        When I view the dashboard
+        Then all three panels are visible simultaneously
+        And the layout fills the viewport height
+      </criterion>
+      <criterion id="AC4">
+        Given the viewport is laptop (1024-1279px)
+        When I view the dashboard
+        Then the citations panel becomes a toggleable tab/button
+        And the sidebar and center panel remain visible
+      </criterion>
+      <criterion id="AC5">
+        Given the viewport is tablet (768-1023px)
+        When I view the dashboard
+        Then the sidebar is hidden by default
+        And a hamburger menu button appears in the header
+        And clicking it opens the sidebar as a drawer overlay
+      </criterion>
+      <criterion id="AC6">
+        Given the viewport is mobile (&lt;768px)
+        When I view the dashboard
+        Then only the center panel is visible
+        And bottom navigation shows icons for sidebar and citations
+        And the header is simplified
+      </criterion>
+      <criterion id="AC7">
+        Given I am viewing the right panel (citations)
+        When I click the collapse button
+        Then the panel hides
+        And an expand button appears
+        And the center panel expands to fill the space
+      </criterion>
+      <criterion id="AC8">
+        Given I am on the dashboard
+        When I click the dark mode toggle in the user menu
+        Then the entire application switches to dark mode
+        And my preference is persisted in localStorage
+      </criterion>
+      <criterion id="AC9">
+        And all panels have proper visual hierarchy:
+        - Sidebar has subtle background (bg-muted/50) and border-right
+        - Center panel has white/dark background
+        - Citations panel has subtle background and border-left
+        - Header is sticky with backdrop blur
+      </criterion>
+    </acceptance-criteria>
+
+    <prerequisites>
+      <prerequisite story="1.8" status="complete">Frontend Authentication UI - Complete with login/register forms and AuthGuard</prerequisite>
+    </prerequisites>
+
+    <technical-notes>
+      - Use Tailwind CSS for responsive breakpoints
+      - Collapsible panels using Radix UI Collapsible
+      - Reference: ux-design-specification.md Section 4 - Design Direction
+    </technical-notes>
+
+    <tasks>
+      <task id="1" acs="1,7,9">
+        <title>Install required shadcn/ui components</title>
+        <subtasks>
+          <subtask>Run `npx shadcn@latest add sheet separator scroll-area tooltip switch`</subtask>
+          <subtask>These components provide drawer (Sheet), panel dividers (Separator), scrollable areas (ScrollArea), hover hints (Tooltip), and dark mode toggle (Switch)</subtask>
+          <subtask>Verify imports work</subtask>
+        </subtasks>
+      </task>
+      <task id="2" acs="1,3,9">
+        <title>Create three-panel layout component</title>
+        <subtasks>
+          <subtask>Create `frontend/src/components/layout/dashboard-layout.tsx`</subtask>
+          <subtask>Structure with CSS Grid: `grid-template-columns: 260px 1fr 320px`</subtask>
+          <subtask>Full viewport height: `min-h-screen` with sticky header</subtask>
+          <subtask>Export `DashboardLayout` component that accepts `children` for center panel</subtask>
+        </subtasks>
+      </task>
+      <task id="3" acs="2">
+        <title>Create Header component</title>
+        <subtasks>
+          <subtask>Create `frontend/src/components/layout/header.tsx`</subtask>
+          <subtask>Include LumiKB logo (text logo with primary color)</subtask>
+          <subtask>Include disabled search bar placeholder with tooltip "Search coming soon..."</subtask>
+          <subtask>Include UserMenu component (already exists)</subtask>
+          <subtask>Add `Cmd/Ctrl+K` keyboard shortcut hint (disabled, for future Epic 3)</subtask>
+          <subtask>Sticky positioning with backdrop blur: `sticky top-0 z-50 backdrop-blur`</subtask>
+        </subtasks>
+      </task>
+      <task id="4" acs="1,5,6">
+        <title>Create KB Sidebar component</title>
+        <subtasks>
+          <subtask>Create `frontend/src/components/layout/kb-sidebar.tsx`</subtask>
+          <subtask>Header section: "Knowledge Bases" title + "New KB" button (disabled)</subtask>
+          <subtask>Scrollable list area using ScrollArea component</subtask>
+          <subtask>Placeholder KB items (3-4 example items with icons, names, doc counts)</subtask>
+          <subtask>Footer section: storage usage indicator (placeholder)</subtask>
+          <subtask>Style: `w-[260px] border-r bg-muted/50`</subtask>
+        </subtasks>
+      </task>
+      <task id="5" acs="1,7">
+        <title>Create Citations Panel component</title>
+        <subtasks>
+          <subtask>Create `frontend/src/components/layout/citations-panel.tsx`</subtask>
+          <subtask>Header: "Citations" title + collapse button</subtask>
+          <subtask>Empty state: "Citations will appear here when you ask questions"</subtask>
+          <subtask>Collapse/expand functionality using local state</subtask>
+          <subtask>Style: `w-[320px] border-l bg-muted/30`</subtask>
+          <subtask>Accept `isCollapsed` and `onToggle` props for controlled mode</subtask>
+        </subtasks>
+      </task>
+      <task id="6" acs="3,4,5,6">
+        <title>Create responsive behavior hooks</title>
+        <subtasks>
+          <subtask>Create `frontend/src/hooks/use-media-query.ts` custom hook</subtask>
+          <subtask>Create `frontend/src/hooks/use-responsive-layout.ts` that returns: isDesktop (>=1280px), isLaptop (1024-1279px), isTablet (768-1023px), isMobile (&lt;768px)</subtask>
+          <subtask>Use `window.matchMedia` with SSR safety</subtask>
+        </subtasks>
+      </task>
+      <task id="7" acs="3,4,5,6">
+        <title>Implement responsive layout variants</title>
+        <subtasks>
+          <subtask>Desktop: Full three-panel layout</subtask>
+          <subtask>Laptop: Citations panel becomes floating button/popover</subtask>
+          <subtask>Tablet: Sidebar in Sheet (drawer), triggered by hamburger menu</subtask>
+          <subtask>Mobile: Single column, bottom navigation bar</subtask>
+          <subtask>Create `frontend/src/components/layout/mobile-nav.tsx` for bottom navigation</subtask>
+        </subtasks>
+      </task>
+      <task id="8" acs="8">
+        <title>Add dark mode toggle to UserMenu</title>
+        <subtasks>
+          <subtask>Update `frontend/src/components/layout/user-menu.tsx` to include theme toggle</subtask>
+          <subtask>Create `frontend/src/lib/stores/theme-store.ts` with Zustand: theme state ('light'|'dark'|'system'), setTheme(), toggleTheme()</subtask>
+          <subtask>Persist to localStorage with key `lumikb-theme`</subtask>
+          <subtask>Update `frontend/src/app/layout.tsx` to apply theme class to html element</subtask>
+          <subtask>Use `next-themes` package OR manual implementation</subtask>
+        </subtasks>
+      </task>
+      <task id="9" acs="1,9">
+        <title>Update dashboard page to use new layout</title>
+        <subtasks>
+          <subtask>Refactor `frontend/src/app/(protected)/dashboard/page.tsx`</subtask>
+          <subtask>Use `DashboardLayout` as wrapper</subtask>
+          <subtask>Center panel content: Welcome message, quick stats (placeholders)</subtask>
+          <subtask>Remove old header (now in DashboardLayout)</subtask>
+        </subtasks>
+      </task>
+      <task id="10" acs="1,2">
+        <title>Create placeholder components for future features</title>
+        <subtasks>
+          <subtask>Create `frontend/src/components/kb/kb-selector-item.tsx` (placeholder)</subtask>
+          <subtask>Create `frontend/src/components/search/search-bar.tsx` (disabled placeholder)</subtask>
+          <subtask>Create `frontend/src/components/citations/citation-card.tsx` (placeholder)</subtask>
+          <subtask>These components will be implemented fully in later epics</subtask>
+        </subtasks>
+      </task>
+      <task id="11" acs="1-9">
+        <title>Write tests for layout components</title>
+        <subtasks>
+          <subtask>Create `frontend/src/components/layout/__tests__/dashboard-layout.test.tsx`: Renders three panels on desktop, Sidebar collapses on tablet, Mobile shows bottom navigation</subtask>
+          <subtask>Create `frontend/src/components/layout/__tests__/header.test.tsx`: Renders logo, search placeholder, user menu; Search bar is disabled</subtask>
+          <subtask>Create `frontend/src/hooks/__tests__/use-responsive-layout.test.ts`: Returns correct breakpoint values</subtask>
+        </subtasks>
+      </task>
+      <task id="12" acs="1-9">
+        <title>Run linting, type-check, and verification</title>
+        <subtasks>
+          <subtask>Run `npm run lint` and fix any errors</subtask>
+          <subtask>Run `npm run type-check` and fix any TypeScript errors</subtask>
+          <subtask>Run `npm run test:run` and ensure all tests pass</subtask>
+          <subtask>Run `npm run build` to verify production build</subtask>
+          <subtask>Manual test: Resize viewport and verify responsive behavior</subtask>
+          <subtask>Manual test: Toggle dark mode and verify persistence</subtask>
+          <subtask>Manual test: Collapse/expand citations panel</subtask>
+          <subtask>Manual test: Open sidebar drawer on tablet/mobile</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story-definition>
+
+  <architecture-context>
+    <frontend-stack>
+      <framework>Next.js 15 (App Router)</framework>
+      <ui-library>shadcn/ui with Radix primitives</ui-library>
+      <styling>Tailwind CSS 4</styling>
+      <state-management>Zustand</state-management>
+      <form-handling>react-hook-form + zod</form-handling>
+      <icons>lucide-react</icons>
+    </frontend-stack>
+
+    <project-structure>
+      <path purpose="pages">frontend/src/app/</path>
+      <path purpose="components">frontend/src/components/</path>
+      <path purpose="ui-components">frontend/src/components/ui/</path>
+      <path purpose="layout-components">frontend/src/components/layout/</path>
+      <path purpose="hooks">frontend/src/lib/hooks/</path>
+      <path purpose="stores">frontend/src/lib/stores/</path>
+      <path purpose="types">frontend/src/types/</path>
+    </project-structure>
+
+    <responsive-breakpoints>
+      <breakpoint name="sm" value="640px">Mobile</breakpoint>
+      <breakpoint name="md" value="768px">Tablet</breakpoint>
+      <breakpoint name="lg" value="1024px">Laptop</breakpoint>
+      <breakpoint name="xl" value="1280px">Desktop</breakpoint>
+      <breakpoint name="2xl" value="1536px">Large Desktop</breakpoint>
+    </responsive-breakpoints>
+
+    <panel-specifications>
+      <left-sidebar width="260px" collapsible="true">
+        <purpose>Knowledge Base navigation</purpose>
+        <behavior-tablet>Drawer (off-canvas)</behavior-tablet>
+        <behavior-mobile>Hidden, accessible via hamburger</behavior-mobile>
+      </left-sidebar>
+      <center-panel width="flexible" min-width="400px">
+        <purpose>Main content area - search results, chat, documents</purpose>
+        <behavior>Always visible, adapts to available space</behavior>
+      </center-panel>
+      <right-panel width="320px" collapsible="true">
+        <purpose>Citations panel - source references</purpose>
+        <behavior-laptop>Tab-based toggle</behavior-laptop>
+        <behavior-tablet>Overlay/modal</behavior-tablet>
+        <behavior-mobile>Full screen takeover</behavior-mobile>
+      </right-panel>
+    </panel-specifications>
+  </architecture-context>
+
+  <ux-design-context>
+    <color-theme name="Trust Blue">
+      <primary>#0066CC (Trust Blue)</primary>
+      <primary-dark>#004C99</primary-dark>
+      <primary-light>#E6F0FA</primary-light>
+      <background-light>#FFFFFF</background-light>
+      <background-dark>#0F172A</background-dark>
+      <text-primary>#1A1A1A (light) / #F8FAFC (dark)</text-primary>
+      <text-muted>#6B7280 (light) / #94A3B8 (dark)</text-muted>
+      <border>#E5E5E5 (light) / #334155 (dark)</border>
+      <success>#10B981</success>
+      <warning>#F59E0B</warning>
+      <error>#EF4444</error>
+    </color-theme>
+
+    <layout-principles>
+      <principle>Three-panel layout with collapsible sidebars</principle>
+      <principle>Mobile-first responsive design</principle>
+      <principle>Consistent 16px base spacing</principle>
+      <principle>Clear visual hierarchy</principle>
+      <principle>Accessibility-first (WCAG 2.1 AA)</principle>
+    </layout-principles>
+
+    <header-specifications height="64px">
+      <logo position="left">LumiKB text logo with brand color</logo>
+      <search-bar position="center" width="max-content(400px)">
+        <state>Disabled placeholder until Epic 3</state>
+        <placeholder-text>Search knowledge bases... (Coming Soon)</placeholder-text>
+      </search-bar>
+      <user-menu position="right">
+        <items>
+          <item>Profile (disabled for MVP)</item>
+          <item>Dark Mode Toggle</item>
+          <item>Logout</item>
+        </items>
+      </user-menu>
+    </header-specifications>
+
+    <sidebar-specifications>
+      <kb-selector-section>
+        <header>Knowledge Bases</header>
+        <item-format>
+          <icon>Permission indicator (eye/pencil/gear)</icon>
+          <name>KB Name</name>
+          <doc-count>Document count badge</doc-count>
+        </item-format>
+        <placeholder-content>
+          <text>No knowledge bases yet</text>
+          <subtext>Coming in Epic 2</subtext>
+        </placeholder-content>
+      </kb-selector-section>
+    </sidebar-specifications>
+
+    <citations-panel-specifications>
+      <placeholder-content>
+        <text>Citations will appear here</text>
+        <subtext>Search to see source references</subtext>
+        <subtext>Coming in Epic 3</subtext>
+      </placeholder-content>
+      <collapse-button position="top-right">
+        <icon>ChevronRight when collapsed, ChevronLeft when expanded</icon>
+      </collapse-button>
+    </citations-panel-specifications>
+  </ux-design-context>
+
+  <existing-code-context>
+    <file path="frontend/src/app/(protected)/layout.tsx" purpose="Protected route wrapper">
+      <summary>Simple wrapper using AuthGuard component</summary>
+      <code><![CDATA[
+import { AuthGuard } from "@/components/auth/auth-guard";
+
+export default function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <AuthGuard>{children}</AuthGuard>;
+}
+]]></code>
+    </file>
+
+    <file path="frontend/src/app/(protected)/dashboard/page.tsx" purpose="Current dashboard - TO BE REPLACED">
+      <summary>Basic dashboard with header and card grid - needs to become three-panel layout</summary>
+      <current-state>
+        - Has header with logo and UserMenu
+        - Has welcome message with user email
+        - Has placeholder cards for KB, Documents, Search
+        - MISSING: Three-panel layout, sidebar, citations panel, responsive design
+      </current-state>
+    </file>
+
+    <file path="frontend/src/components/layout/user-menu.tsx" purpose="User dropdown menu - REUSE">
+      <summary>Complete user dropdown with avatar, email, role, and logout</summary>
+      <note>Add dark mode toggle to this component</note>
+    </file>
+
+    <file path="frontend/src/lib/stores/auth-store.ts" purpose="Auth state - REUSE">
+      <summary>Zustand store with user state, login/logout/register actions</summary>
+      <exports>
+        - useAuthStore (full store)
+        - useUser (selector for user)
+        - useIsAuthenticated (selector)
+        - useAuthLoading (selector)
+        - useAuthError (selector)
+      </exports>
+    </file>
+
+    <file path="frontend/src/app/globals.css" purpose="Theme variables - ALREADY CONFIGURED">
+      <summary>Trust Blue theme CSS variables for light/dark modes</summary>
+      <note>Sidebar variables already defined, dark mode variables ready</note>
+    </file>
+
+    <installed-shadcn-components>
+      <component>button</component>
+      <component>input</component>
+      <component>card</component>
+      <component>label</component>
+      <component>form</component>
+      <component>dropdown-menu</component>
+      <component>avatar</component>
+      <component>sonner (toast)</component>
+    </installed-shadcn-components>
+
+    <needed-shadcn-components note="Install before implementation">
+      <component>sheet (for mobile drawer)</component>
+      <component>collapsible (for panel collapse)</component>
+      <component>separator</component>
+      <component>tooltip (for icon buttons)</component>
+      <component>scroll-area (for sidebar scrolling)</component>
+    </needed-shadcn-components>
+  </existing-code-context>
+
+  <implementation-guidance>
+    <component-structure>
+      <new-component path="frontend/src/components/layout/dashboard-layout.tsx">
+        <purpose>Main three-panel layout container</purpose>
+        <responsibilities>
+          - Render header, sidebar, main content, citations panel
+          - Manage panel collapse state
+          - Handle responsive breakpoints
+        </responsibilities>
+      </new-component>
+
+      <new-component path="frontend/src/components/layout/header.tsx">
+        <purpose>Application header</purpose>
+        <responsibilities>
+          - Logo
+          - Search bar (disabled placeholder)
+          - User menu integration
+          - Mobile menu toggle button
+        </responsibilities>
+      </new-component>
+
+      <new-component path="frontend/src/components/layout/sidebar.tsx">
+        <purpose>Left sidebar with KB navigation</purpose>
+        <responsibilities>
+          - KB list placeholder
+          - Collapsible behavior
+          - Responsive: drawer on tablet/mobile
+        </responsibilities>
+      </new-component>
+
+      <new-component path="frontend/src/components/layout/citations-panel.tsx">
+        <purpose>Right citations panel</purpose>
+        <responsibilities>
+          - Placeholder content
+          - Collapsible behavior
+          - Responsive: tab on laptop, overlay on mobile
+        </responsibilities>
+      </new-component>
+
+      <modify-component path="frontend/src/components/layout/user-menu.tsx">
+        <change>Add dark mode toggle menu item</change>
+        <dependency>next-themes (already installed)</dependency>
+      </modify-component>
+
+      <new-hook path="frontend/src/lib/hooks/use-media-query.ts">
+        <purpose>Responsive breakpoint detection</purpose>
+      </new-hook>
+
+      <new-store path="frontend/src/lib/stores/layout-store.ts">
+        <purpose>Panel collapse state management</purpose>
+        <state>
+          - isSidebarOpen: boolean
+          - isCitationsPanelOpen: boolean
+          - setSidebarOpen: (open: boolean) => void
+          - setCitationsPanelOpen: (open: boolean) => void
+          - toggleSidebar: () => void
+          - toggleCitationsPanel: () => void
+        </state>
+      </new-store>
+    </component-structure>
+
+    <responsive-implementation>
+      <breakpoint name="xl" min="1280px">
+        <sidebar>Visible, 260px fixed</sidebar>
+        <citations>Visible, 320px fixed</citations>
+        <center>Flexible, fills remaining space</center>
+      </breakpoint>
+      <breakpoint name="lg" range="1024-1279px">
+        <sidebar>Visible, 260px fixed</sidebar>
+        <citations>Tab toggle, overlay when open</citations>
+        <center>Flexible</center>
+      </breakpoint>
+      <breakpoint name="md" range="768-1023px">
+        <sidebar>Sheet/drawer, triggered by hamburger</sidebar>
+        <citations>Sheet/drawer or modal</citations>
+        <center>Full width</center>
+      </breakpoint>
+      <breakpoint name="sm" max="767px">
+        <sidebar>Hidden, sheet on hamburger</sidebar>
+        <citations>Full screen takeover</citations>
+        <center>Full width</center>
+        <nav>Bottom navigation bar</nav>
+      </breakpoint>
+    </responsive-implementation>
+
+    <tailwind-classes-reference>
+      <three-panel-desktop>
+        <container>flex h-screen</container>
+        <sidebar>w-[260px] shrink-0 border-r bg-sidebar</sidebar>
+        <center>flex-1 min-w-0 overflow-auto</center>
+        <citations>w-[320px] shrink-0 border-l bg-background</citations>
+      </three-panel-desktop>
+      <responsive-hide>
+        <sidebar-hide>hidden lg:block</sidebar-hide>
+        <citations-hide>hidden xl:block</citations-hide>
+      </responsive-hide>
+    </tailwind-classes-reference>
+  </implementation-guidance>
+
+  <coding-standards>
+    <typescript>
+      <rule>Use strict mode</rule>
+      <rule>Explicit return types for functions</rule>
+      <rule>Interface for component props</rule>
+      <rule>PascalCase for components, camelCase for functions</rule>
+      <rule>kebab-case for file names</rule>
+    </typescript>
+
+    <react>
+      <rule>Functional components with hooks</rule>
+      <rule>Props interface defined above component</rule>
+      <rule>Use 'use client' directive only when needed</rule>
+      <rule>Avoid inline styles - use Tailwind classes</rule>
+    </react>
+
+    <file-organization>
+      <rule>One component per file</rule>
+      <rule>Co-locate tests in __tests__ subdirectory</rule>
+      <rule>Group related components in folders</rule>
+    </file-organization>
+  </coding-standards>
+
+  <testing-requirements>
+    <test-framework>Vitest + React Testing Library</test-framework>
+    <test-files>
+      <test path="frontend/src/components/layout/__tests__/dashboard-layout.test.tsx">
+        <case>Renders three-panel layout on desktop</case>
+        <case>Hides sidebar on mobile</case>
+        <case>Citations panel collapses correctly</case>
+        <case>Responsive breakpoints work correctly</case>
+      </test>
+      <test path="frontend/src/components/layout/__tests__/header.test.tsx">
+        <case>Renders logo</case>
+        <case>Renders disabled search bar</case>
+        <case>Renders user menu</case>
+      </test>
+      <test path="frontend/src/components/layout/__tests__/sidebar.test.tsx">
+        <case>Renders KB placeholder content</case>
+        <case>Opens as drawer on mobile</case>
+      </test>
+      <test path="frontend/src/hooks/__tests__/use-responsive-layout.test.ts">
+        <case>Returns isDesktop true for viewport >= 1280px</case>
+        <case>Returns isLaptop true for viewport 1024-1279px</case>
+        <case>Returns isTablet true for viewport 768-1023px</case>
+        <case>Returns isMobile true for viewport &lt; 768px</case>
+      </test>
+    </test-files>
+  </testing-requirements>
+
+  <definition-of-done>
+    <item>Three-panel layout renders correctly on desktop (1280px+)</item>
+    <item>Layout responds correctly at all breakpoints (1024px, 768px, 640px)</item>
+    <item>Sidebar collapses to drawer on tablet/mobile</item>
+    <item>Citations panel collapses/toggles appropriately per breakpoint</item>
+    <item>Header contains logo, disabled search bar, user menu</item>
+    <item>Dark mode toggle in user menu works</item>
+    <item>Panel states persist across navigation</item>
+    <item>All components follow coding standards</item>
+    <item>Tests pass for layout components</item>
+    <item>No TypeScript errors</item>
+    <item>Lint passes</item>
+  </definition-of-done>
+
+  <out-of-scope>
+    <item>Actual KB list functionality (Epic 2)</item>
+    <item>Working search functionality (Epic 3)</item>
+    <item>Actual citation display (Epic 3)</item>
+    <item>Bottom navigation implementation (can be placeholder)</item>
+    <item>Profile page functionality</item>
+  </out-of-scope>
+
+  <dependencies-to-install>
+    <shadcn-component>sheet</shadcn-component>
+    <shadcn-component>separator</shadcn-component>
+    <shadcn-component>scroll-area</shadcn-component>
+    <shadcn-component>tooltip</shadcn-component>
+    <shadcn-component>switch</shadcn-component>
+  </dependencies-to-install>
+
+</story-context>

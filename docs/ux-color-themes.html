@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LumiKB - Color Theme Explorer</title>
+  <style>
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: #f5f5f5;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      opacity: 0.8;
+      font-size: 1.1rem;
+    }
+
+    .controls {
+      background: white;
+      padding: 1rem 2rem;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #e5e5e5;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .control-btn {
+      padding: 0.75rem 1.5rem;
+      border: 2px solid #e5e5e5;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+      border-color: #0066cc;
+      color: #0066cc;
+    }
+
+    .control-btn.active {
+      background: #0066cc;
+      border-color: #0066cc;
+      color: white;
+    }
+
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      background: #f5f5f5;
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .mode-toggle button {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .mode-toggle button.active {
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .themes-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+      gap: 2rem;
+    }
+
+    .theme-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .theme-card:hover {
+      box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+      transform: translateY(-4px);
+    }
+
+    .theme-card.selected {
+      border-color: #0066cc;
+    }
+
+    .theme-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .theme-header h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .theme-header p {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .theme-tags {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      padding: 0.25rem 0.75rem;
+      background: #f0f0f0;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    .palette-section {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .palette-section h3 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .color-swatch {
+      width: 80px;
+      text-align: center;
+    }
+
+    .swatch-box {
+      width: 80px;
+      height: 50px;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s;
+      position: relative;
+    }
+
+    .swatch-box:hover {
+      transform: scale(1.05);
+    }
+
+    .swatch-box.copied::after {
+      content: 'Copied!';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.75rem;
+    }
+
+    .swatch-label {
+      font-size: 0.7rem;
+      color: #888;
+    }
+
+    .swatch-hex {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: #555;
+    }
+
+    .component-preview {
+      padding: 1.5rem;
+    }
+
+    .component-preview h3 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+
+    .preview-area {
+      border-radius: 12px;
+      padding: 2rem;
+      min-height: 300px;
+    }
+
+    /* Theme-specific preview areas */
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid currentColor;
+      border-color: inherit;
+      opacity: 0.2;
+    }
+
+    .preview-logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .preview-nav {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .preview-nav-item {
+      font-size: 0.9rem;
+      opacity: 0.7;
+      cursor: pointer;
+    }
+
+    .preview-nav-item:hover {
+      opacity: 1;
+    }
+
+    .preview-search {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .preview-search input {
+      flex: 1;
+      padding: 0.875rem 1rem;
+      border-radius: 8px;
+      border: 1px solid;
+      font-size: 0.95rem;
+      background: transparent;
+    }
+
+    .preview-btn {
+      padding: 0.875rem 1.5rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preview-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .preview-btn-secondary {
+      background: transparent;
+      border: 1px solid;
+    }
+
+    .preview-card {
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid;
+    }
+
+    .preview-card-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .preview-card-meta {
+      font-size: 0.85rem;
+      opacity: 0.6;
+      margin-bottom: 0.75rem;
+    }
+
+    .preview-card-text {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .preview-badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .preview-citations {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .preview-citation {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .preview-alert {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .preview-confidence {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .confidence-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    /* Comparison View */
+    .comparison-view {
+      display: none;
+    }
+
+    .comparison-view.active {
+      display: block;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    /* Dark mode preview toggle */
+    .dark-preview .preview-area {
+      color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .theme-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        padding: 1rem;
+      }
+    }
+
+    /* Selection indicator */
+    .select-btn {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      background: #f5f5f5;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .select-btn:hover {
+      background: #e5e5e5;
+    }
+
+    .theme-card.selected .select-btn {
+      background: #0066cc;
+      color: white;
+    }
+
+    /* Theme Details Modal */
+    .theme-details {
+      padding: 1.5rem;
+      background: #fafafa;
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .theme-details h4 {
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .css-vars {
+      background: #1a1a2e;
+      color: #e5e5e5;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      overflow-x: auto;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>LumiKB Color Theme Explorer</h1>
+    <p>Choose a visual direction for LumiKB - Banking & Financial Services platform</p>
+  </div>
+
+  <div class="controls">
+    <div class="mode-toggle">
+      <button class="active" onclick="setMode('light')">Light Mode</button>
+      <button onclick="setMode('dark')">Dark Mode</button>
+    </div>
+    <button class="control-btn active" onclick="setView('grid')">Grid View</button>
+    <button class="control-btn" onclick="setView('comparison')">Compare</button>
+  </div>
+
+  <div class="themes-container">
+    <div class="theme-grid" id="themeGrid">
+      <!-- Theme 1: Trust Blue -->
+      <div class="theme-card" data-theme="trust-blue">
+        <div class="theme-header">
+          <h2>1. Trust Blue</h2>
+          <p>Classic enterprise - professional, reliable, inspires confidence. The safe choice for banking/finance.</p>
+          <div class="theme-tags">
+            <span class="tag">Enterprise</span>
+            <span class="tag">Professional</span>
+            <span class="tag">Trustworthy</span>
+            <span class="tag">Conservative</span>
+          </div>
+        </div>
+        <div class="palette-section">
+          <h3>Primary Palette</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #0066CC" onclick="copyColor('#0066CC')"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#0066CC</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #004C99" onclick="copyColor('#004C99')"></div>
+              <div class="swatch-label">Primary Dark</div>
+              <div class="swatch-hex">#004C99</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #E6F0FA" onclick="copyColor('#E6F0FA')"></div>
+              <div class="swatch-label">Primary Light</div>
+              <div class="swatch-hex">#E6F0FA</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #1A1A1A" onclick="copyColor('#1A1A1A')"></div>
+              <div class="swatch-label">Text</div>
+              <div class="swatch-hex">#1A1A1A</div>
+            </div>
+          </div>
+          <h3>Semantic Colors</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #10B981" onclick="copyColor('#10B981')"></div>
+              <div class="swatch-label">Success</div>
+              <div class="swatch-hex">#10B981</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #F59E0B" onclick="copyColor('#F59E0B')"></div>
+              <div class="swatch-label">Warning</div>
+              <div class="swatch-hex">#F59E0B</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #EF4444" onclick="copyColor('#EF4444')"></div>
+              <div class="swatch-label">Error</div>
+              <div class="swatch-hex">#EF4444</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #6366F1" onclick="copyColor('#6366F1')"></div>
+              <div class="swatch-label">Accent</div>
+              <div class="swatch-hex">#6366F1</div>
+            </div>
+          </div>
+        </div>
+        <div class="component-preview">
+          <h3>Live Preview</h3>
+          <div class="preview-area" style="background: #FFFFFF; color: #1A1A1A; border: 1px solid #E5E5E5;">
+            <div class="preview-header" style="border-color: #E5E5E5;">
+              <div class="preview-logo" style="color: #0066CC;">LumiKB</div>
+              <div class="preview-nav">
+                <span class="preview-nav-item">Knowledge Bases</span>
+                <span class="preview-nav-item">Search</span>
+              </div>
+            </div>
+            <div class="preview-search">
+              <input type="text" placeholder="Ask about authentication for banking clients..." style="border-color: #E5E5E5; color: #1A1A1A;">
+              <button class="preview-btn" style="background: #0066CC; color: white;">Search</button>
+            </div>
+            <div class="preview-card" style="border-color: #E5E5E5; background: #FAFAFA;">
+              <div class="preview-card-title">
+                <span style="color: #0066CC;">Acme Bank Technical Proposal.pdf</span>
+                <span class="preview-badge" style="background: #E6F0FA; color: #0066CC;">92% match</span>
+              </div>
+              <div class="preview-card-meta">Proposals KB - Updated 2 weeks ago</div>
+              <div class="preview-card-text">"OAuth 2.0 with PKCE flow and biometric fallback for mobile..."</div>
+              <div class="preview-citations">
+                <span class="preview-citation" style="background: #0066CC; color: white;">[1]</span>
+                <span class="preview-citation" style="background: #E6F0FA; color: #0066CC;">[2]</span>
+              </div>
+            </div>
+            <div class="preview-confidence">
+              <span>Confidence:</span>
+              <div class="confidence-bar" style="background: #E5E5E5;">
+                <div class="confidence-fill" style="width: 85%; background: #10B981;"></div>
+              </div>
+              <span>85%</span>
+            </div>
+          </div>
+        </div>
+        <div class="theme-details">
+          <h4>CSS Variables (Tailwind)</h4>
+          <div class="css-vars">--primary: 210 100% 40%;
+--primary-foreground: 0 0% 100%;
+--secondary: 210 40% 96%;
+--accent: 239 84% 67%;
+--background: 0 0% 100%;
+--foreground: 0 0% 10%;</div>
+        </div>
+        <button class="select-btn" onclick="selectTheme('trust-blue')">Select This Theme</button>
+      </div>
+
+      <!-- Theme 2: Midnight Slate -->
+      <div class="theme-card" data-theme="midnight-slate">
+        <div class="theme-header">
+          <h2>2. Midnight Slate</h2>
+          <p>Modern sophistication - dark-mode first, contemporary, tech-forward. Notion/Linear aesthetic.</p>
+          <div class="theme-tags">
+            <span class="tag">Modern</span>
+            <span class="tag">Sophisticated</span>
+            <span class="tag">Tech-forward</span>
+            <span class="tag">Dark Mode</span>
+          </div>
+        </div>
+        <div class="palette-section">
+          <h3>Primary Palette</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #8B5CF6" onclick="copyColor('#8B5CF6')"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#8B5CF6</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #1E1E2E" onclick="copyColor('#1E1E2E')"></div>
+              <div class="swatch-label">Background</div>
+              <div class="swatch-hex">#1E1E2E</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #2D2D3F" onclick="copyColor('#2D2D3F')"></div>
+              <div class="swatch-label">Surface</div>
+              <div class="swatch-hex">#2D2D3F</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #F8F8F8" onclick="copyColor('#F8F8F8')"></div>
+              <div class="swatch-label">Text</div>
+              <div class="swatch-hex">#F8F8F8</div>
+            </div>
+          </div>
+          <h3>Semantic Colors</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #22C55E" onclick="copyColor('#22C55E')"></div>
+              <div class="swatch-label">Success</div>
+              <div class="swatch-hex">#22C55E</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #FBBF24" onclick="copyColor('#FBBF24')"></div>
+              <div class="swatch-label">Warning</div>
+              <div class="swatch-hex">#FBBF24</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #F43F5E" onclick="copyColor('#F43F5E')"></div>
+              <div class="swatch-label">Error</div>
+              <div class="swatch-hex">#F43F5E</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #06B6D4" onclick="copyColor('#06B6D4')"></div>
+              <div class="swatch-label">Accent</div>
+              <div class="swatch-hex">#06B6D4</div>
+            </div>
+          </div>
+        </div>
+        <div class="component-preview">
+          <h3>Live Preview</h3>
+          <div class="preview-area" style="background: #1E1E2E; color: #F8F8F8;">
+            <div class="preview-header" style="border-color: #3D3D4F;">
+              <div class="preview-logo" style="color: #8B5CF6;">LumiKB</div>
+              <div class="preview-nav">
+                <span class="preview-nav-item">Knowledge Bases</span>
+                <span class="preview-nav-item">Search</span>
+              </div>
+            </div>
+            <div class="preview-search">
+              <input type="text" placeholder="Ask about authentication for banking clients..." style="border-color: #3D3D4F; background: #2D2D3F; color: #F8F8F8;">
+              <button class="preview-btn" style="background: #8B5CF6; color: white;">Search</button>
+            </div>
+            <div class="preview-card" style="border-color: #3D3D4F; background: #2D2D3F;">
+              <div class="preview-card-title">
+                <span style="color: #8B5CF6;">Acme Bank Technical Proposal.pdf</span>
+                <span class="preview-badge" style="background: rgba(139, 92, 246, 0.2); color: #A78BFA;">92% match</span>
+              </div>
+              <div class="preview-card-meta" style="color: #888;">Proposals KB - Updated 2 weeks ago</div>
+              <div class="preview-card-text" style="color: #CCC;">"OAuth 2.0 with PKCE flow and biometric fallback for mobile..."</div>
+              <div class="preview-citations">
+                <span class="preview-citation" style="background: #8B5CF6; color: white;">[1]</span>
+                <span class="preview-citation" style="background: rgba(139, 92, 246, 0.2); color: #A78BFA;">[2]</span>
+              </div>
+            </div>
+            <div class="preview-confidence">
+              <span>Confidence:</span>
+              <div class="confidence-bar" style="background: #3D3D4F;">
+                <div class="confidence-fill" style="width: 85%; background: #22C55E;"></div>
+              </div>
+              <span>85%</span>
+            </div>
+          </div>
+        </div>
+        <div class="theme-details">
+          <h4>CSS Variables (Tailwind)</h4>
+          <div class="css-vars">--primary: 263 70% 66%;
+--primary-foreground: 0 0% 100%;
+--secondary: 240 10% 17%;
+--accent: 187 85% 43%;
+--background: 240 21% 15%;
+--foreground: 0 0% 97%;</div>
+        </div>
+        <button class="select-btn" onclick="selectTheme('midnight-slate')">Select This Theme</button>
+      </div>
+
+      <!-- Theme 3: Ocean Teal -->
+      <div class="theme-card" data-theme="ocean-teal">
+        <div class="theme-header">
+          <h2>3. Ocean Teal</h2>
+          <p>Calm and focused - reduces cognitive load, ideal for deep work. Think Notion's calming aesthetic.</p>
+          <div class="theme-tags">
+            <span class="tag">Calm</span>
+            <span class="tag">Focused</span>
+            <span class="tag">Approachable</span>
+            <span class="tag">Minimal</span>
+          </div>
+        </div>
+        <div class="palette-section">
+          <h3>Primary Palette</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #0D9488" onclick="copyColor('#0D9488')"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#0D9488</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #115E59" onclick="copyColor('#115E59')"></div>
+              <div class="swatch-label">Primary Dark</div>
+              <div class="swatch-hex">#115E59</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #F0FDFA" onclick="copyColor('#F0FDFA')"></div>
+              <div class="swatch-label">Primary Light</div>
+              <div class="swatch-hex">#F0FDFA</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #1F2937" onclick="copyColor('#1F2937')"></div>
+              <div class="swatch-label">Text</div>
+              <div class="swatch-hex">#1F2937</div>
+            </div>
+          </div>
+          <h3>Semantic Colors</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #059669" onclick="copyColor('#059669')"></div>
+              <div class="swatch-label">Success</div>
+              <div class="swatch-hex">#059669</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #D97706" onclick="copyColor('#D97706')"></div>
+              <div class="swatch-label">Warning</div>
+              <div class="swatch-hex">#D97706</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #DC2626" onclick="copyColor('#DC2626')"></div>
+              <div class="swatch-label">Error</div>
+              <div class="swatch-hex">#DC2626</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #7C3AED" onclick="copyColor('#7C3AED')"></div>
+              <div class="swatch-label">Accent</div>
+              <div class="swatch-hex">#7C3AED</div>
+            </div>
+          </div>
+        </div>
+        <div class="component-preview">
+          <h3>Live Preview</h3>
+          <div class="preview-area" style="background: #FAFAFA; color: #1F2937; border: 1px solid #E5E7EB;">
+            <div class="preview-header" style="border-color: #E5E7EB;">
+              <div class="preview-logo" style="color: #0D9488;">LumiKB</div>
+              <div class="preview-nav">
+                <span class="preview-nav-item">Knowledge Bases</span>
+                <span class="preview-nav-item">Search</span>
+              </div>
+            </div>
+            <div class="preview-search">
+              <input type="text" placeholder="Ask about authentication for banking clients..." style="border-color: #E5E7EB; color: #1F2937;">
+              <button class="preview-btn" style="background: #0D9488; color: white;">Search</button>
+            </div>
+            <div class="preview-card" style="border-color: #E5E7EB; background: #FFFFFF;">
+              <div class="preview-card-title">
+                <span style="color: #0D9488;">Acme Bank Technical Proposal.pdf</span>
+                <span class="preview-badge" style="background: #F0FDFA; color: #0D9488;">92% match</span>
+              </div>
+              <div class="preview-card-meta">Proposals KB - Updated 2 weeks ago</div>
+              <div class="preview-card-text">"OAuth 2.0 with PKCE flow and biometric fallback for mobile..."</div>
+              <div class="preview-citations">
+                <span class="preview-citation" style="background: #0D9488; color: white;">[1]</span>
+                <span class="preview-citation" style="background: #F0FDFA; color: #0D9488;">[2]</span>
+              </div>
+            </div>
+            <div class="preview-confidence">
+              <span>Confidence:</span>
+              <div class="confidence-bar" style="background: #E5E7EB;">
+                <div class="confidence-fill" style="width: 85%; background: #059669;"></div>
+              </div>
+              <span>85%</span>
+            </div>
+          </div>
+        </div>
+        <div class="theme-details">
+          <h4>CSS Variables (Tailwind)</h4>
+          <div class="css-vars">--primary: 174 84% 29%;
+--primary-foreground: 0 0% 100%;
+--secondary: 174 100% 97%;
+--accent: 263 70% 58%;
+--background: 0 0% 98%;
+--foreground: 217 33% 17%;</div>
+        </div>
+        <button class="select-btn" onclick="selectTheme('ocean-teal')">Select This Theme</button>
+      </div>
+
+      <!-- Theme 4: Warm Slate -->
+      <div class="theme-card" data-theme="warm-slate">
+        <div class="theme-header">
+          <h2>4. Warm Slate</h2>
+          <p>Balanced warmth - professional without being cold. Inviting yet enterprise-appropriate.</p>
+          <div class="theme-tags">
+            <span class="tag">Balanced</span>
+            <span class="tag">Warm</span>
+            <span class="tag">Professional</span>
+            <span class="tag">Inviting</span>
+          </div>
+        </div>
+        <div class="palette-section">
+          <h3>Primary Palette</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #6366F1" onclick="copyColor('#6366F1')"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#6366F1</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #4F46E5" onclick="copyColor('#4F46E5')"></div>
+              <div class="swatch-label">Primary Dark</div>
+              <div class="swatch-hex">#4F46E5</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #FFFBEB" onclick="copyColor('#FFFBEB')"></div>
+              <div class="swatch-label">Warm Accent</div>
+              <div class="swatch-hex">#FFFBEB</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #334155" onclick="copyColor('#334155')"></div>
+              <div class="swatch-label">Text</div>
+              <div class="swatch-hex">#334155</div>
+            </div>
+          </div>
+          <h3>Semantic Colors</h3>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #10B981" onclick="copyColor('#10B981')"></div>
+              <div class="swatch-label">Success</div>
+              <div class="swatch-hex">#10B981</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #F59E0B" onclick="copyColor('#F59E0B')"></div>
+              <div class="swatch-label">Warning</div>
+              <div class="swatch-hex">#F59E0B</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #EF4444" onclick="copyColor('#EF4444')"></div>
+              <div class="swatch-label">Error</div>
+              <div class="swatch-hex">#EF4444</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: #EC4899" onclick="copyColor('#EC4899')"></div>
+              <div class="swatch-label">Accent</div>
+              <div class="swatch-hex">#EC4899</div>
+            </div>
+          </div>
+        </div>
+        <div class="component-preview">
+          <h3>Live Preview</h3>
+          <div class="preview-area" style="background: #FEFEFE; color: #334155; border: 1px solid #E2E8F0;">
+            <div class="preview-header" style="border-color: #E2E8F0;">
+              <div class="preview-logo" style="color: #6366F1;">LumiKB</div>
+              <div class="preview-nav">
+                <span class="preview-nav-item">Knowledge Bases</span>
+                <span class="preview-nav-item">Search</span>
+              </div>
+            </div>
+            <div class="preview-search">
+              <input type="text" placeholder="Ask about authentication for banking clients..." style="border-color: #E2E8F0; color: #334155;">
+              <button class="preview-btn" style="background: #6366F1; color: white;">Search</button>
+            </div>
+            <div class="preview-card" style="border-color: #E2E8F0; background: #F8FAFC;">
+              <div class="preview-card-title">
+                <span style="color: #6366F1;">Acme Bank Technical Proposal.pdf</span>
+                <span class="preview-badge" style="background: #EEF2FF; color: #6366F1;">92% match</span>
+              </div>
+              <div class="preview-card-meta">Proposals KB - Updated 2 weeks ago</div>
+              <div class="preview-card-text">"OAuth 2.0 with PKCE flow and biometric fallback for mobile..."</div>
+              <div class="preview-citations">
+                <span class="preview-citation" style="background: #6366F1; color: white;">[1]</span>
+                <span class="preview-citation" style="background: #EEF2FF; color: #6366F1;">[2]</span>
+              </div>
+            </div>
+            <div class="preview-confidence">
+              <span>Confidence:</span>
+              <div class="confidence-bar" style="background: #E2E8F0;">
+                <div class="confidence-fill" style="width: 85%; background: #10B981;"></div>
+              </div>
+              <span>85%</span>
+            </div>
+          </div>
+        </div>
+        <div class="theme-details">
+          <h4>CSS Variables (Tailwind)</h4>
+          <div class="css-vars">--primary: 239 84% 67%;
+--primary-foreground: 0 0% 100%;
+--secondary: 226 100% 97%;
+--accent: 330 81% 60%;
+--background: 0 0% 100%;
+--foreground: 215 25% 27%;</div>
+        </div>
+        <button class="select-btn" onclick="selectTheme('warm-slate')">Select This Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedTheme = null;
+    let currentMode = 'light';
+    let currentView = 'grid';
+
+    function copyColor(color) {
+      navigator.clipboard.writeText(color);
+      event.target.classList.add('copied');
+      setTimeout(() => {
+        event.target.classList.remove('copied');
+      }, 1000);
+    }
+
+    function selectTheme(theme) {
+      document.querySelectorAll('.theme-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+      document.querySelector(`[data-theme="${theme}"]`).classList.add('selected');
+      selectedTheme = theme;
+
+      // Store selection
+      console.log(`Selected theme: ${theme}`);
+      alert(`Theme "${theme}" selected! This choice will be used in your UX Design Specification.`);
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-toggle button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      // Would toggle dark mode previews here
+      if (mode === 'dark') {
+        document.body.style.background = '#1a1a1a';
+      } else {
+        document.body.style.background = '#f5f5f5';
+      }
+    }
+
+    function setView(view) {
+      currentView = view;
+      document.querySelectorAll('.control-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      if (view === 'comparison') {
+        document.getElementById('themeGrid').style.gridTemplateColumns = '1fr 1fr';
+      } else {
+        document.getElementById('themeGrid').style.gridTemplateColumns = 'repeat(auto-fit, minmax(600px, 1fr))';
+      }
+    }
+  </script>
+</body>
+</html>

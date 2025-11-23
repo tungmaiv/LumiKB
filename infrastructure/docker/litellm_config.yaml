@@ -1,0 +1,119 @@
+# =============================================================================
+# LiteLLM Proxy Configuration for LumiKB
+# =============================================================================
+# This configuration provides a unified LLM API gateway with model routing,
+# fallback handling, and provider abstraction.
+#
+# Documentation: https://docs.litellm.ai/docs/proxy/configs
+# =============================================================================
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+# Define available models and their routing
+# The proxy will use environment variables for API keys
+
+model_list:
+  # OpenAI Models
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "OpenAI GPT-4o - Latest multimodal model"
+      max_tokens: 128000
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "OpenAI GPT-4o Mini - Fast and cost-effective"
+      max_tokens: 128000
+
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "OpenAI GPT-3.5 Turbo - Fast and affordable"
+      max_tokens: 16385
+
+  # Anthropic Models
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-latest
+      api_key: os.environ/ANTHROPIC_API_KEY
+    model_info:
+      description: "Anthropic Claude 3.5 Sonnet - Balanced performance"
+      max_tokens: 200000
+
+  - model_name: claude-3-5-haiku
+    litellm_params:
+      model: anthropic/claude-3-5-haiku-latest
+      api_key: os.environ/ANTHROPIC_API_KEY
+    model_info:
+      description: "Anthropic Claude 3.5 Haiku - Fast and efficient"
+      max_tokens: 200000
+
+  # Default model aliases for application use
+  - model_name: default
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "Default model for general use"
+
+  - model_name: embedding
+    litellm_params:
+      model: openai/text-embedding-3-small
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "Default embedding model for document processing"
+
+# =============================================================================
+# Router Settings
+# =============================================================================
+# Configure load balancing and fallback behavior
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 3
+  timeout: 120
+  retry_after: 5
+
+  # Fallback configuration
+  fallbacks:
+    - gpt-4o: [claude-3-5-sonnet, gpt-4o-mini]
+    - claude-3-5-sonnet: [gpt-4o, gpt-4o-mini]
+
+# =============================================================================
+# General Settings
+# =============================================================================
+
+general_settings:
+  # Master key for admin access (set via LITELLM_MASTER_KEY env var)
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # Enable request/response logging
+  store_model_in_db: false
+
+  # Health check configuration
+  health_check_interval: 30
+
+# =============================================================================
+# Litellm Settings
+# =============================================================================
+
+litellm_settings:
+  # Drop unsupported params instead of erroring
+  drop_params: true
+
+  # Set default max tokens if not specified
+  max_tokens: 4096
+
+  # Request timeout
+  request_timeout: 120
+
+  # Enable streaming by default
+  stream: true

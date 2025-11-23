@@ -1,0 +1,205 @@
+<story-context id="1-8-frontend-authentication-ui" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>8</storyId>
+    <title>Frontend Authentication UI</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-8-frontend-authentication-ui.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>a clean login and registration interface</iWant>
+    <soThat>I can access LumiKB easily</soThat>
+    <tasks>
+      <task id="T1">Install required dependencies: react-hook-form, @hookform/resolvers, zod, shadcn/ui components (button, input, card, label, form)</task>
+      <task id="T2">Configure Trust Blue color theme in globals.css (--primary: #0066CC, --text-primary: #1A1A1A, etc.)</task>
+      <task id="T3">Create API client (frontend/src/lib/api/client.ts) with fetch wrapper and credentials: 'include'</task>
+      <task id="T4">Create auth API functions (frontend/src/lib/api/auth.ts) for login, register, logout, getCurrentUser</task>
+      <task id="T5">Create Zustand auth store (frontend/src/lib/stores/auth-store.ts) with user state and actions</task>
+      <task id="T6">Create login form component (frontend/src/components/auth/login-form.tsx) with react-hook-form + zod</task>
+      <task id="T7">Create registration form component (frontend/src/components/auth/register-form.tsx) with validation</task>
+      <task id="T8">Create auth pages using App Router: (auth)/login/page.tsx, (auth)/register/page.tsx, (auth)/layout.tsx</task>
+      <task id="T9">Create auth protection component (frontend/src/components/auth/auth-guard.tsx) for protected routes</task>
+      <task id="T10">Add logout functionality with user menu dropdown component</task>
+      <task id="T11">Update root layout with auth initialization (checkAuth on mount)</task>
+      <task id="T12">Create basic dashboard placeholder as protected home page</task>
+      <task id="T13">Write tests for auth components (login-form.test.tsx, register-form.test.tsx)</task>
+      <task id="T14">Run linting, type-check, and manual verification of all AC</task>
+    </tasks>
+    <taskReference>Full task breakdown with subtasks available in: docs/sprint-artifacts/1-8-frontend-authentication-ui.md</taskReference>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Given I navigate to /login, When the page loads, Then I see a login form with email and password fields and the design follows the Trust Blue color theme (#0066CC primary, #1A1A1A text, #FFFFFF background)</criterion>
+    <criterion id="AC2">Given I enter valid credentials and submit, When authentication succeeds (POST /api/v1/auth/login returns 200), Then I am redirected to the dashboard (/) and my auth state is stored in Zustand and the httpOnly cookie is automatically included in subsequent requests</criterion>
+    <criterion id="AC3">Given I enter invalid credentials, When authentication fails (POST /api/v1/auth/login returns 400), Then I see a clear error message ("Invalid email or password") and the form is not cleared and focus returns to the email field</criterion>
+    <criterion id="AC4">Given I click "Create Account", When the registration form loads (/register), Then I can enter email and password and validation shows password requirements (minimum 8 characters) and a confirm password field matches</criterion>
+    <criterion id="AC5">Given I submit valid registration data, When registration succeeds (POST /api/v1/auth/register returns 201), Then I see a success message and I am redirected to /login</criterion>
+    <criterion id="AC6">Given I am logged in, When I click logout, Then POST /api/v1/auth/logout is called and my auth state is cleared from Zustand and I am redirected to /login</criterion>
+    <criterion id="AC7">Given I am not authenticated, When I try to access a protected route, Then I am redirected to /login and the originally requested URL is preserved for post-login redirect</criterion>
+    <criterion id="AC8">All forms use shadcn/ui components (Input, Button, Card, Label, Form) and validation is handled with react-hook-form and error messages follow UX patterns (inline below field, red text)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" sections="FR1-FR8">User Account and Access requirements</doc>
+      <doc path="docs/architecture.md" sections="Security Architecture, Frontend Architecture">System design and patterns</doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" sections="APIs and Interfaces, Frontend Dependencies">Technical specifications for auth endpoints and dependencies</doc>
+      <doc path="docs/ux-design-specification.md" sections="3.1 Color System, 7.1 Consistency Rules">Trust Blue theme and UX patterns</doc>
+      <doc path="docs/coding-standards.md" sections="TypeScript Standards Frontend, Testing Standards">Frontend coding conventions and testing requirements</doc>
+      <doc path="docs/epics.md" sections="Story 1.8">Original story definition and acceptance criteria</doc>
+    </docs>
+    <code>
+      <file path="backend/app/api/v1/auth.py" purpose="Backend auth API endpoints - register, login, logout, password reset">
+        <endpoints>
+          <endpoint method="POST" path="/api/v1/auth/register" request="{email, password}" response="UserRead" errors="400 (email exists), 422 (validation)"/>
+          <endpoint method="POST" path="/api/v1/auth/login" request="{username, password}" response="Set-Cookie: JWT" errors="400 (bad credentials), 429 (rate limited)"/>
+          <endpoint method="POST" path="/api/v1/auth/logout" request="-" response="200 OK" errors="401 (not authenticated)"/>
+        </endpoints>
+      </file>
+      <file path="backend/app/schemas/user.py" purpose="User Pydantic schemas">
+        <schemas>
+          <schema name="UserRead">id, email, is_active, is_superuser, is_verified, created_at</schema>
+          <schema name="UserCreate">email (EmailStr), password (min_length=8)</schema>
+        </schemas>
+      </file>
+      <file path="frontend/src/app/layout.tsx" purpose="Root layout with font configuration"/>
+      <file path="frontend/src/app/page.tsx" purpose="Current home page - will redirect to auth or dashboard"/>
+      <file path="frontend/src/lib/utils.ts" purpose="Utility functions including cn() for className merging"/>
+      <file path="frontend/src/app/globals.css" purpose="Global CSS with Tailwind theme variables"/>
+    </code>
+    <dependencies>
+      <current>
+        <dep name="next" version="16.0.3" purpose="React framework with App Router"/>
+        <dep name="react" version="19.2.0" purpose="UI library"/>
+        <dep name="zustand" version="5.0.8" purpose="State management - USE FOR AUTH STATE"/>
+        <dep name="lucide-react" version="0.554.0" purpose="Icons"/>
+        <dep name="tailwindcss" version="4" purpose="Styling"/>
+        <dep name="tw-animate-css" version="1.4.0" purpose="Animations"/>
+        <dep name="clsx" version="2.1.1" purpose="Class name utility"/>
+        <dep name="tailwind-merge" version="3.4.0" purpose="Tailwind class merging"/>
+      </current>
+      <required>
+        <dep name="react-hook-form" purpose="Form state management - INSTALL REQUIRED"/>
+        <dep name="@hookform/resolvers" purpose="Zod resolver for react-hook-form - INSTALL REQUIRED"/>
+        <dep name="zod" purpose="Schema validation - INSTALL REQUIRED"/>
+        <dep name="shadcn/ui components" components="Button, Input, Label, Card, Form, Toast" purpose="UI components - ADD VIA npx shadcn@latest add"/>
+      </required>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" type="architectural">Use Next.js 15 App Router (NOT Pages Router) - route groups for (auth) and (dashboard)</constraint>
+    <constraint id="C2" type="architectural">Store auth state in Zustand store with httpOnly cookie for JWT</constraint>
+    <constraint id="C3" type="styling">Apply Trust Blue color theme: Primary #0066CC, Background #FFFFFF, Text Primary #1A1A1A</constraint>
+    <constraint id="C4" type="styling">Use shadcn/ui components with new-york style (per components.json)</constraint>
+    <constraint id="C5" type="security">JWT cookie is httpOnly - frontend cannot access token directly, rely on cookie-based auth</constraint>
+    <constraint id="C6" type="validation">Password minimum 8 characters (enforced by backend and frontend)</constraint>
+    <constraint id="C7" type="api">Backend API is at /api/v1/* - use fetch or axios with credentials: 'include' for cookies</constraint>
+    <constraint id="C8" type="responsive">Layout must be responsive: Desktop (1280px+), Laptop (1024-1279px), Tablet (768-1023px), Mobile (&lt;768px)</constraint>
+  </constraints>
+
+  <interfaces>
+    <backendApi>
+      <baseUrl>/api/v1</baseUrl>
+      <authEndpoints>
+        <register method="POST" path="/auth/register">
+          <request>{ "email": "string (EmailStr)", "password": "string (min 8 chars)" }</request>
+          <response>{ "id": "UUID", "email": "string", "is_active": "bool", "is_superuser": "bool", "is_verified": "bool", "created_at": "datetime" }</response>
+          <errors>
+            <error code="400" detail="REGISTER_USER_ALREADY_EXISTS"/>
+            <error code="422" detail="Validation error"/>
+          </errors>
+        </register>
+        <login method="POST" path="/auth/login">
+          <request contentType="application/x-www-form-urlencoded">username=email&amp;password=password</request>
+          <response>Set-Cookie: lumikb_auth=JWT; HttpOnly; Secure; SameSite=Lax</response>
+          <errors>
+            <error code="400" detail="LOGIN_BAD_CREDENTIALS"/>
+            <error code="429" detail="Too many failed login attempts"/>
+          </errors>
+        </login>
+        <logout method="POST" path="/auth/logout">
+          <request>None (requires authentication via cookie)</request>
+          <response>200 OK with cleared cookie</response>
+          <errors>
+            <error code="401" detail="Not authenticated"/>
+          </errors>
+        </logout>
+      </authEndpoints>
+      <userEndpoints>
+        <me method="GET" path="/users/me">
+          <request>None (requires authentication via cookie)</request>
+          <response>UserRead schema</response>
+        </me>
+      </userEndpoints>
+    </backendApi>
+    <zustandStore>
+      <authStore>
+        <state>
+          <field name="user" type="User | null">Current authenticated user</field>
+          <field name="isLoading" type="boolean">Auth state loading</field>
+          <field name="isAuthenticated" type="boolean">Derived from user !== null</field>
+        </state>
+        <actions>
+          <action name="login(email, password)">POST /auth/login, then fetch user</action>
+          <action name="register(email, password)">POST /auth/register, then login</action>
+          <action name="logout()">POST /auth/logout, clear user state</action>
+          <action name="checkAuth()">GET /users/me to verify session</action>
+        </actions>
+      </authStore>
+    </zustandStore>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Frontend Auth Coverage Target: 70%</standard>
+      <standard>Use Vitest or Jest for unit tests</standard>
+      <standard>Use Playwright for E2E tests</standard>
+      <standard>Test both success and failure paths</standard>
+    </standards>
+    <locations>
+      <location path="frontend/__tests__/components/auth/">Component unit tests</location>
+      <location path="frontend/__tests__/stores/">Zustand store tests</location>
+      <location path="frontend/e2e/">Playwright E2E tests</location>
+    </locations>
+    <ideas>
+      <testIdea priority="P0">Test login form submission with valid credentials redirects to dashboard</testIdea>
+      <testIdea priority="P0">Test login form shows error message for invalid credentials</testIdea>
+      <testIdea priority="P0">Test registration form validates password length (min 8 chars)</testIdea>
+      <testIdea priority="P0">Test registration form shows error for duplicate email</testIdea>
+      <testIdea priority="P1">Test logout clears user state and redirects to login</testIdea>
+      <testIdea priority="P1">Test auth state persists across page refresh (cookie-based)</testIdea>
+      <testIdea priority="P2">Test rate limiting shows appropriate error after 5 failed attempts</testIdea>
+      <testIdea priority="P2">Visual regression test on login/register pages</testIdea>
+    </ideas>
+  </tests>
+
+  <implementationNotes>
+    <note type="setup">
+      1. Install required dependencies:
+         npm install react-hook-form @hookform/resolvers zod
+         npx shadcn@latest add button input label card form toast
+    </note>
+    <note type="routing">
+      2. Create route groups:
+         src/app/(auth)/login/page.tsx
+         src/app/(auth)/register/page.tsx
+         src/app/(auth)/layout.tsx (centered card layout)
+         src/app/(dashboard)/layout.tsx (three-panel layout - Story 1.9)
+    </note>
+    <note type="state">
+      3. Create auth store at src/stores/auth-store.ts using Zustand
+    </note>
+    <note type="api">
+      4. Create API client at src/lib/api.ts with base fetch wrapper
+    </note>
+    <note type="theme">
+      5. Update CSS variables in globals.css for Trust Blue theme:
+         --primary: oklch(0.51 0.18 252); /* #0066CC approximation */
+    </note>
+  </implementationNotes>
+</story-context>

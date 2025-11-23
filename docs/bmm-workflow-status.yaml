@@ -1,0 +1,132 @@
+# BMM Workflow Status - LumiKB
+# Generated: 2025-11-22
+# Track: BMad Method (Greenfield)
+
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/product-brief.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+generated: "2025-11-22"
+project: "LumiKB"
+project_type: "Enterprise RAG Knowledge Base Platform"
+selected_track: "bmad-method"
+field_type: "greenfield"
+workflow_path: "method-greenfield.yaml"
+
+workflow_status:
+  # Phase 0: Discovery (Optional)
+  - phase: 0
+    name: "Discovery"
+    workflows:
+      - id: "brainstorm-project"
+        status: "docs/04-brainstorming-session-results-2025-11-22.md"
+        agent: "analyst"
+        command: "brainstorm-project"
+        completed_date: "2025-11-22"
+        notes: "25 capabilities identified, MATCH→MERGE→MAKE pattern, 3 MVP phases"
+
+      - id: "research"
+        status: "optional"
+        agent: "analyst"
+        command: "research"
+
+      - id: "product-brief"
+        status: "docs/product-brief-LumiKB-2025-11-22.md"
+        agent: "analyst"
+        command: "product-brief"
+        completed_date: "2025-11-22"
+        notes: "Enterprise platform for Banking & Finance, internal-first then productize"
+
+  # Phase 1: Planning
+  - phase: 1
+    name: "Planning"
+    workflows:
+      - id: "prd"
+        status: "docs/prd.md"
+        agent: "pm"
+        command: "prd"
+        completed_date: "2025-11-22"
+        notes: "58 FRs, 6 NFR categories, FinTech/Banking HIGH complexity domain"
+
+      - id: "validate-prd"
+        status: "docs/validation-report-prd-complete-2025-11-23.md"
+        agent: "pm"
+        command: "validate-prd"
+        completed_date: "2025-11-23"
+        notes: "PRD validation completed with comprehensive review"
+
+      - id: "create-design"
+        status: "docs/ux-design-specification.md"
+        condition: "if_has_ui"
+        agent: "ux-designer"
+        command: "create-design"
+        completed_date: "2025-11-22"
+        notes: "Three-panel NotebookLM style, Trust Blue theme, shadcn/ui, WCAG AA"
+
+  # Phase 2: Solutioning
+  - phase: 2
+    name: "Solutioning"
+    workflows:
+      - id: "create-architecture"
+        status: "docs/architecture.md"
+        agent: "architect"
+        command: "architecture"
+        completed_date: "2025-11-22"
+        notes: "Python+FastAPI backend, Next.js frontend, PostgreSQL+Qdrant+MinIO, Citation Assembly + Transactional Outbox patterns"
+
+      - id: "create-epics-and-stories"
+        status: "docs/epics.md"
+        agent: "pm"
+        command: "create-epics-and-stories"
+        completed_date: "2025-11-23"
+        notes: "52 stories across 5 epics - Foundation, KB Management, Search, Chat/Gen, Admin"
+
+      - id: "test-design"
+        status: "recommended"
+        agent: "tea"
+        command: "test-design"
+        output: "System-level testability review"
+
+      - id: "validate-architecture"
+        status: "optional"
+        agent: "architect"
+        command: "validate-architecture"
+
+      - id: "implementation-readiness"
+        status: "docs/implementation-readiness-report-2025-11-23.md"
+        agent: "architect"
+        command: "implementation-readiness"
+        completed_date: "2025-11-23"
+        notes: "APPROVED - All artifacts aligned, 52 stories cover 100% of 66 FRs, no blocking gaps"
+
+  # Phase 3: Implementation
+  - phase: 3
+    name: "Implementation"
+    workflows:
+      - id: "sprint-planning"
+        status: "required"
+        agent: "sm"
+        command: "sprint-planning"
+        notes: "Creates sprint plan - subsequent work tracked in sprint-status.yaml"
+
+# Next recommended action
+next_workflow:
+  id: "sprint-planning"
+  name: "Sprint Planning"
+  agent: "sm"
+  command: "/bmad:bmm:workflows:sprint-planning"
+  reason: "Implementation readiness approved - begin sprint planning for Epic 1"
+  alternative:
+    id: "test-design"
+    name: "Test Design Review"
+    agent: "tea"
+    command: "/bmad:bmm:agents:tea"
+    reason: "Optional - review testability before implementation (recommended before Epic 3)"

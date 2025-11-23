@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Story Context: 1-6-admin-user-management-backend
+Generated: 2025-11-23
+For: Admin User Management Backend
+Epic: 1 - Foundation & Authentication
+-->
+<story-context story-key="1-6-admin-user-management-backend" epic="1" version="1.0">
+
+  <!-- ============================================ -->
+  <!-- SECTION 1: STORY DEFINITION                  -->
+  <!-- ============================================ -->
+  <story>
+    <id>1.6</id>
+    <title>Admin User Management Backend</title>
+    <as-a>administrator</as-a>
+    <i-want>to manage user accounts</i-want>
+    <so-that>I can control who has access to the system</so-that>
+    <status>drafted</status>
+
+    <acceptance-criteria>
+      <ac id="1">Given I am logged in as an admin (is_superuser=True) When I call GET /api/v1/admin/users Then I receive a paginated list of all users And default pagination is 20 per page And I can specify skip and limit query parameters</ac>
+      <ac id="2">Given I am logged in as an admin When I call GET /api/v1/admin/users Then each user in the response includes: id, email, is_active, is_superuser, is_verified, created_at</ac>
+      <ac id="3">Given I am logged in as an admin When I call POST /api/v1/admin/users with valid email and password Then a new user account is created And the response contains the created UserRead And the action is logged to audit.events with action "user.admin_created"</ac>
+      <ac id="4">Given I am logged in as an admin When I call POST /api/v1/admin/users with an email that already exists Then I receive a 409 Conflict error with appropriate detail message</ac>
+      <ac id="5">Given I am logged in as an admin When I call PATCH /api/v1/admin/users/{id} with {"is_active": false} Then the user's is_active flag is set to false And the deactivated user cannot log in And the action is logged to audit.events with action "user.deactivated"</ac>
+      <ac id="6">Given I am logged in as an admin When I call PATCH /api/v1/admin/users/{id} with {"is_active": true} Then the user's is_active flag is set to true And the action is logged to audit.events with action "user.activated"</ac>
+      <ac id="7">Given I am logged in as an admin When I call PATCH /api/v1/admin/users/{id} for a non-existent user Then I receive a 404 Not Found error</ac>
+      <ac id="8">Given I am NOT an admin (regular user) When I try to access any /api/v1/admin/* endpoint Then I receive a 403 Forbidden response</ac>
+      <ac id="9">Given I am NOT authenticated When I try to access any /api/v1/admin/* endpoint Then I receive a 401 Unauthorized response</ac>
+      <ac id="10">Given any admin user management action occurs (create, activate, deactivate) When the action completes Then an audit event is written to audit.events table with: user_id (admin), action, resource_type="user", resource_id (target user), details</ac>
+    </acceptance-criteria>
+
+    <tasks>
+      <task id="1" acs="8,9">
+        <title>Create admin router file</title>
+        <subtasks>
+          <subtask>Create backend/app/api/v1/admin.py with router prefix /admin</subtask>
+          <subtask>Add admin-only dependency that checks current_user.is_superuser</subtask>
+          <subtask>Return 403 Forbidden if user is not superuser</subtask>
+          <subtask>Include router in backend/app/api/v1/__init__.py</subtask>
+        </subtasks>
+      </task>
+
+      <task id="2" acs="1,2">
+        <title>Implement GET /admin/users endpoint</title>
+        <subtasks>
+          <subtask>Create GET /api/v1/admin/users endpoint</subtask>
+          <subtask>Accept skip (default 0) and limit (default 20, max 100) query parameters</subtask>
+          <subtask>Query all users from database with pagination</subtask>
+          <subtask>Return response with data array of UserRead and meta pagination info</subtask>
+          <subtask>Meta should include: total, page, per_page, total_pages</subtask>
+        </subtasks>
+      </task>
+
+      <task id="3" acs="3,4,10">
+        <title>Implement POST /admin/users endpoint</title>
+        <subtasks>
+          <subtask>Create POST /api/v1/admin/users endpoint accepting UserCreate schema</subtask>
+          <subtask>Check email uniqueness before creation</subtask>
+          <subtask>Hash password using FastAPI-Users password helper (argon2)</subtask>
+          <subtask>Create user record in database</subtask>
+          <subtask>Log "user.admin_created" audit event with admin user_id and created user details</subtask>
+          <subtask>Return 409 Conflict for duplicate email</subtask>
+          <subtask>Return UserRead on success</subtask>
+        </subtasks>
+      </task>
+
+      <task id="4" acs="5,6,7,10">
+        <title>Implement PATCH /admin/users/{id} endpoint</title>
+        <subtasks>
+          <subtask>Create PATCH /api/v1/admin/users/{id} endpoint</subtask>
+          <subtask>Accept partial update schema with is_active field</subtask>
+          <subtask>Validate user exists, return 404 if not found</subtask>
+          <subtask>Update user's is_active status</subtask>
+          <subtask>Log "user.deactivated" or "user.activated" audit event based on change</subtask>
+          <subtask>Return updated UserRead</subtask>
+        </subtasks>
+      </task>
+
+      <task id="5" acs="5,6">
+        <title>Create AdminUserUpdate schema</title>
+        <subtasks>
+          <subtask>Create AdminUserUpdate Pydantic schema in backend/app/schemas/user.py</subtask>
+          <subtask>Include optional is_active: bool field</subtask>
+          <subtask>Consider future extensibility (is_superuser, is_verified changes)</subtask>
+        </subtasks>
+      </task>
+
+      <task id="6" acs="1,2">
+        <title>Create PaginatedResponse schema</title>
+        <subtasks>
+          <subtask>Create PaginatedResponse generic schema in backend/app/schemas/common.py</subtask>
+          <subtask>Include: data (list), meta (total, page, per_page, total_pages)</subtask>
+          <subtask>Reuse across all paginated endpoints</subtask>
+        </subtasks>
+      </task>
+
+      <task id="7" acs="1,2,3,4,5,6,7,8,9,10">
+        <title>Write integration tests</title>
+        <subtasks>
+          <subtask>Create backend/tests/integration/test_admin_users.py</subtask>
+          <subtask>Test GET /admin/users returns paginated list</subtask>
+          <subtask>Test GET /admin/users respects skip/limit parameters</subtask>
+          <subtask>Test POST /admin/users creates new user</subtask>
+          <subtask>Test POST /admin/users with duplicate email returns 409</subtask>
+          <subtask>Test PATCH /admin/users/{id} deactivates user</subtask>
+          <subtask>Test PATCH /admin/users/{id} activates user</subtask>
+          <subtask>Test PATCH /admin/users/{id} with invalid id returns 404</subtask>
+          <subtask>Test non-admin user gets 403 on all admin endpoints</subtask>
+          <subtask>Test unauthenticated user gets 401 on all admin endpoints</subtask>
+          <subtask>Test audit events are created for admin actions</subtask>
+        </subtasks>
+      </task>
+
+      <task id="8" acs="5">
+        <title>Verify deactivated user cannot login</title>
+        <subtasks>
+          <subtask>Write test that deactivates user then attempts login</subtask>
+          <subtask>Verify login fails with appropriate error</subtask>
+        </subtasks>
+      </task>
+
+      <task id="9" acs="1,2,3,4,5,6,7,8,9,10">
+        <title>Run full test suite and verify</title>
+        <subtasks>
+          <subtask>Run pytest - ensure all tests pass</subtask>
+          <subtask>Verify no regressions in existing auth tests</subtask>
+          <subtask>Check audit.events table has correct entries</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <!-- ============================================ -->
+  <!-- SECTION 2: EXISTING CODE ARTIFACTS           -->
+  <!-- ============================================ -->
+  <existing-code>
+
+    <!-- Auth Configuration -->
+    <file path="backend/app/core/auth.py" relevance="critical">
+      <description>FastAPI-Users authentication configuration with UserManager, JWT strategy, and cookie transport</description>
+      <key-exports>
+        <export name="UserManager" type="class">Custom user manager extending FastAPI-Users BaseUserManager with hooks</export>
+        <export name="get_user_manager" type="dependency">FastAPI dependency yielding UserManager instance</export>
+        <export name="get_jwt_strategy" type="function">Creates JWT strategy with configured settings</export>
+        <export name="cookie_transport" type="CookieTransport">httpOnly cookie configuration</export>
+        <export name="auth_backend" type="AuthenticationBackend">Cookie + JWT authentication backend</export>
+        <export name="fastapi_users" type="FastAPIUsers">Main FastAPI-Users instance</export>
+        <export name="current_active_user" type="dependency">Dependency for authenticated active user</export>
+        <export name="current_superuser" type="dependency">Dependency for authenticated superuser - USE THIS FOR ADMIN</export>
+      </key-exports>
+      <usage-pattern>
+        <![CDATA[
+from app.core.auth import current_active_user, current_superuser
+
+# For admin-only endpoints:
+@router.get("/admin/users")
+async def list_users(user: User = Depends(current_superuser)):
+    # Only superusers reach here, others get 403
+
+# For authenticated users:
+@router.get("/me")
+async def get_me(user: User = Depends(current_active_user)):
+    # Any active authenticated user
+        ]]>
+      </usage-pattern>
+    </file>
+
+    <!-- User Model -->
+    <file path="backend/app/models/user.py" relevance="critical">
+      <description>User SQLAlchemy model extending FastAPI-Users base</description>
+      <key-columns>
+        <column name="id" type="UUID">Primary key (from FastAPI-Users)</column>
+        <column name="email" type="str">Unique, indexed (from FastAPI-Users)</column>
+        <column name="hashed_password" type="str">Argon2 hash (from FastAPI-Users)</column>
+        <column name="is_active" type="bool">Account active flag (default True)</column>
+        <column name="is_superuser" type="bool">Admin flag (default False) - CHECK THIS FOR ADMIN ACCESS</column>
+        <column name="is_verified" type="bool">Email verified flag (default False)</column>
+        <column name="created_at" type="datetime">Record creation timestamp</column>
+        <column name="updated_at" type="datetime">Last update timestamp (auto-updated)</column>
+      </key-columns>
+    </file>
+
+    <!-- User Schemas -->
+    <file path="backend/app/schemas/user.py" relevance="high">
+      <description>Pydantic schemas for user API request/response</description>
+      <key-schemas>
+        <schema name="UserRead">Response schema: id, email, is_active, is_superuser, is_verified, created_at</schema>
+        <schema name="UserCreate">Request schema: email, password (min 8 chars)</schema>
+        <schema name="UserUpdate">Update schema: optional email, password</schema>
+      </key-schemas>
+      <note>Need to add AdminUserUpdate schema with is_active field for PATCH /admin/users/{id}</note>
+    </file>
+
+    <!-- Audit Service -->
+    <file path="backend/app/services/audit_service.py" relevance="critical">
+      <description>Fire-and-forget async audit logging service</description>
+      <key-exports>
+        <export name="AuditService" type="class">Service class with log_event method</export>
+        <export name="audit_service" type="singleton">Pre-instantiated service for use throughout app</export>
+      </key-exports>
+      <usage-pattern>
+        <![CDATA[
+from app.services.audit_service import audit_service
+
+# In background task (fire-and-forget pattern):
+background_tasks.add_task(
+    _log_audit_event,
+    "user.admin_created",  # action
+    admin_user.id,          # user_id (who did it)
+    ip_address,
+    {"target_user_id": str(new_user.id), "email": new_user.email}
+)
+
+async def _log_audit_event(action: str, user_id: UUID, ip_address: str, details: dict = None):
+    await audit_service.log_event(
+        action=action,
+        user_id=user_id,
+        resource_type="user",
+        resource_id=target_user_id,  # The user being acted upon
+        details=details,
+        ip_address=ip_address,
+    )
+        ]]>
+      </usage-pattern>
+    </file>
+
+    <!-- Users Router (Pattern Reference) -->
+    <file path="backend/app/api/v1/users.py" relevance="high">
+      <description>Existing users router - use as pattern for admin router</description>
+      <patterns>
+        <pattern name="audit-logging">Uses background_tasks.add_task() for fire-and-forget audit</pattern>
+        <pattern name="ip-extraction">Uses get_client_ip(request) from app.core.redis</pattern>
+        <pattern name="user-manager">Uses get_user_manager dependency for user operations</pattern>
+        <pattern name="email-uniqueness">Manual check before update to return proper error</pattern>
+      </patterns>
+    </file>
+
+    <!-- Redis Utilities -->
+    <file path="backend/app/core/redis.py" relevance="medium">
+      <description>Redis client and utilities</description>
+      <key-exports>
+        <export name="get_client_ip" type="function">Extract client IP from request</export>
+        <export name="RedisSessionStore" type="class">Session storage (for session invalidation)</export>
+        <export name="invalidate_all_user_sessions" type="method">Call when deactivating user</export>
+      </key-exports>
+    </file>
+
+    <!-- Database Session -->
+    <file path="backend/app/core/database.py" relevance="high">
+      <description>Database engine and session configuration</description>
+      <key-exports>
+        <export name="get_async_session" type="dependency">FastAPI dependency for async session</export>
+        <export name="async_session_factory" type="sessionmaker">For direct session creation</export>
+      </key-exports>
+    </file>
+
+    <!-- API Router Registration -->
+    <file path="backend/app/api/v1/__init__.py" relevance="high">
+      <description>API v1 router exports - MUST ADD admin_router here</description>
+      <current-exports>auth_router, users_router</current-exports>
+      <needed-change>Add: from app.api.v1.admin import router as admin_router</needed-change>
+    </file>
+
+    <!-- Main App -->
+    <file path="backend/app/main.py" relevance="medium">
+      <description>FastAPI application entry - MUST register admin router</description>
+      <needed-change>Include admin_router in app.include_router()</needed-change>
+    </file>
+
+  </existing-code>
+
+  <!-- ============================================ -->
+  <!-- SECTION 3: API CONTRACTS                     -->
+  <!-- ============================================ -->
+  <api-contracts>
+
+    <endpoint method="GET" path="/api/v1/admin/users">
+      <description>List all users with pagination (admin only)</description>
+      <auth>Requires current_superuser (is_superuser=True)</auth>
+      <query-params>
+        <param name="skip" type="int" default="0">Number of records to skip</param>
+        <param name="limit" type="int" default="20" max="100">Number of records to return</param>
+      </query-params>
+      <response status="200">
+        <![CDATA[
+{
+  "data": [
+    {
+      "id": "uuid",
+      "email": "string",
+      "is_active": true,
+      "is_superuser": false,
+      "is_verified": false,
+      "created_at": "2025-11-23T10:30:00Z"
+    }
+  ],
+  "meta": {
+    "total": 150,
+    "page": 1,
+    "per_page": 20,
+    "total_pages": 8
+  }
+}
+        ]]>
+      </response>
+      <errors>
+        <error status="401">Not authenticated</error>
+        <error status="403">Not admin (is_superuser=False)</error>
+      </errors>
+    </endpoint>
+
+    <endpoint method="POST" path="/api/v1/admin/users">
+      <description>Create new user (admin only)</description>
+      <auth>Requires current_superuser</auth>
+      <request-body>
+        <![CDATA[
+{
+  "email": "newuser@example.com",
+  "password": "securepassword123"
+}
+        ]]>
+      </request-body>
+      <response status="201">UserRead schema</response>
+      <errors>
+        <error status="400">Invalid email format or password too short</error>
+        <error status="401">Not authenticated</error>
+        <error status="403">Not admin</error>
+        <error status="409">Email already exists</error>
+      </errors>
+      <audit-action>user.admin_created</audit-action>
+    </endpoint>
+
+    <endpoint method="PATCH" path="/api/v1/admin/users/{user_id}">
+      <description>Update user status (admin only)</description>
+      <auth>Requires current_superuser</auth>
+      <path-params>
+        <param name="user_id" type="UUID">Target user ID</param>
+      </path-params>
+      <request-body>
+        <![CDATA[
+{
+  "is_active": false
+}
+        ]]>
+      </request-body>
+      <response status="200">Updated UserRead schema</response>
+      <errors>
+        <error status="401">Not authenticated</error>
+        <error status="403">Not admin</error>
+        <error status="404">User not found</error>
+      </errors>
+      <audit-actions>
+        <action condition="is_active=false">user.deactivated</action>
+        <action condition="is_active=true">user.activated</action>
+      </audit-actions>
+    </endpoint>
+
+  </api-contracts>
+
+  <!-- ============================================ -->
+  <!-- SECTION 4: SCHEMAS TO CREATE                 -->
+  <!-- ============================================ -->
+  <schemas-to-create>
+
+    <schema name="AdminUserUpdate" file="backend/app/schemas/user.py">
+      <description>Schema for admin user updates (activation/deactivation)</description>
+      <fields>
+        <field name="is_active" type="bool | None" default="None">Account active status</field>
+      </fields>
+      <code>
+        <![CDATA[
+class AdminUserUpdate(BaseModel):
+    """Schema for admin user updates."""
+    is_active: bool | None = None
+        ]]>
+      </code>
+    </schema>
+
+    <schema name="PaginatedResponse" file="backend/app/schemas/common.py">
+      <description>Generic paginated response schema</description>
+      <note>Create new file: backend/app/schemas/common.py</note>
+      <code>
+        <![CDATA[
+from typing import Generic, TypeVar
+from pydantic import BaseModel
+
+T = TypeVar("T")
+
+class PaginationMeta(BaseModel):
+    """Pagination metadata."""
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Generic paginated response."""
+    data: list[T]
+    meta: PaginationMeta
+        ]]>
+      </code>
+    </schema>
+
+  </schemas-to-create>
+
+  <!-- ============================================ -->
+  <!-- SECTION 5: FILES TO CREATE/MODIFY            -->
+  <!-- ============================================ -->
+  <file-operations>
+
+    <create path="backend/app/api/v1/admin.py">
+      <description>Admin API router with user management endpoints</description>
+      <structure>
+        <![CDATA[
+- Router with prefix="/admin", tags=["admin"]
+- GET /users - list all users with pagination
+- POST /users - create new user
+- PATCH /users/{user_id} - update user (activate/deactivate)
+- All endpoints require current_superuser dependency
+- Fire-and-forget audit logging via BackgroundTasks
+        ]]>
+      </structure>
+    </create>
+
+    <create path="backend/app/schemas/common.py">
+      <description>Common schemas including PaginatedResponse</description>
+    </create>
+
+    <create path="backend/tests/integration/test_admin_users.py">
+      <description>Integration tests for admin user management</description>
+      <test-count>11 tests minimum</test-count>
+    </create>
+
+    <modify path="backend/app/schemas/user.py">
+      <change>Add AdminUserUpdate schema</change>
+    </modify>
+
+    <modify path="backend/app/api/v1/__init__.py">
+      <change>Export admin_router</change>
+    </modify>
+
+    <modify path="backend/app/main.py">
+      <change>Include admin_router in app</change>
+    </modify>
+
+  </file-operations>
+
+  <!-- ============================================ -->
+  <!-- SECTION 6: DEPENDENCIES AND FRAMEWORKS       -->
+  <!-- ============================================ -->
+  <dependencies>
+
+    <python-packages>
+      <package name="fastapi" version=">=0.115.0,<1.0.0" />
+      <package name="fastapi-users[sqlalchemy]" version=">=14.0.0,<15.0.0" />
+      <package name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" />
+      <package name="pydantic" version=">=2.7.0,<3.0.0" />
+      <package name="structlog" version=">=25.5.0,<26.0.0" />
+      <package name="redis" version=">=7.1.0,<8.0.0" />
+    </python-packages>
+
+    <testing>
+      <package name="pytest" version=">=8.0.0" />
+      <package name="pytest-asyncio" version=">=0.24.0" />
+      <package name="httpx" version=">=0.27.0" />
+    </testing>
+
+  </dependencies>
+
+  <!-- ============================================ -->
+  <!-- SECTION 7: TESTING REQUIREMENTS              -->
+  <!-- ============================================ -->
+  <testing>
+
+    <test-file path="backend/tests/integration/test_admin_users.py">
+      <fixtures>
+        <fixture name="auth_client">Test client with database and redis overrides (from test_auth.py)</fixture>
+        <fixture name="registered_user">Regular test user</fixture>
+        <fixture name="admin_user">Superuser for admin tests</fixture>
+      </fixtures>
+
+      <test-cases>
+        <test name="test_get_users_returns_paginated_list" ac="1,2">Admin can list users with pagination</test>
+        <test name="test_get_users_respects_skip_limit" ac="1">Pagination parameters work</test>
+        <test name="test_post_users_creates_new_user" ac="3,10">Admin can create user, audit logged</test>
+        <test name="test_post_users_duplicate_email_returns_409" ac="4">Duplicate email rejected</test>
+        <test name="test_patch_users_deactivates_user" ac="5,10">Admin can deactivate, audit logged</test>
+        <test name="test_patch_users_activates_user" ac="6,10">Admin can activate, audit logged</test>
+        <test name="test_patch_users_nonexistent_returns_404" ac="7">Invalid user ID returns 404</test>
+        <test name="test_admin_endpoints_non_admin_returns_403" ac="8">Regular user gets 403</test>
+        <test name="test_admin_endpoints_unauthenticated_returns_401" ac="9">No auth returns 401</test>
+        <test name="test_deactivated_user_cannot_login" ac="5">Verify deactivated user blocked</test>
+        <test name="test_audit_events_created_for_admin_actions" ac="10">Verify audit entries</test>
+      </test-cases>
+    </test-file>
+
+    <testing-patterns>
+      <pattern name="admin-user-fixture">
+        <![CDATA[
+@pytest.fixture
+async def admin_user(auth_client: AsyncClient) -> dict:
+    """Create an admin (superuser) test user."""
+    # First create via registration
+    response = await auth_client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@example.com", "password": "adminpassword123"},
+    )
+    user_data = response.json()
+
+    # Manually set is_superuser=True in database
+    # (Use db_session fixture to update the user)
+    return {"email": "admin@example.com", "password": "adminpassword123", "user": user_data}
+        ]]>
+      </pattern>
+
+      <pattern name="login-as-admin">
+        <![CDATA[
+# Login as admin to get auth cookie
+login_response = await auth_client.post(
+    "/api/v1/auth/login",
+    data={"username": admin_user["email"], "password": admin_user["password"]},
+)
+admin_cookies = login_response.cookies
+
+# Make admin request
+response = await auth_client.get(
+    "/api/v1/admin/users",
+    cookies=admin_cookies,
+)
+        ]]>
+      </pattern>
+    </testing-patterns>
+
+    <run-commands>
+      <command>pytest tests/integration/test_admin_users.py -v</command>
+      <command>pytest tests/integration/ -v --tb=short</command>
+      <command>pytest --cov=app --cov-report=html</command>
+    </run-commands>
+
+  </testing>
+
+  <!-- ============================================ -->
+  <!-- SECTION 8: IMPLEMENTATION NOTES              -->
+  <!-- ============================================ -->
+  <implementation-notes>
+
+    <critical-patterns>
+      <pattern name="admin-dependency">
+        <description>Use current_superuser dependency from auth.py for admin-only access</description>
+        <code>
+          <![CDATA[
+from app.core.auth import current_superuser
+
+@router.get("/users")
+async def list_users(
+    admin: User = Depends(current_superuser),  # Handles 401/403 automatically
+    session: AsyncSession = Depends(get_async_session),
+):
+    # Only superusers reach this code
+          ]]>
+        </code>
+      </pattern>
+
+      <pattern name="pagination-query">
+        <description>Database query with count and pagination</description>
+        <code>
+          <![CDATA[
+from sqlalchemy import select, func
+
+# Get total count
+count_result = await session.execute(select(func.count(User.id)))
+total = count_result.scalar()
+
+# Get paginated results
+result = await session.execute(
+    select(User)
+    .order_by(User.created_at.desc())
+    .offset(skip)
+    .limit(limit)
+)
+users = result.scalars().all()
+
+# Calculate pagination meta
+page = (skip // limit) + 1 if limit > 0 else 1
+total_pages = (total + limit - 1) // limit if limit > 0 else 1
+          ]]>
+        </code>
+      </pattern>
+
+      <pattern name="create-user-with-password-helper">
+        <description>Create user with proper password hashing using FastAPI-Users</description>
+        <code>
+          <![CDATA[
+from app.core.auth import get_user_manager
+
+@router.post("/users", status_code=201)
+async def create_user(
+    user_data: UserCreate,
+    admin: User = Depends(current_superuser),
+    user_manager: UserManager = Depends(get_user_manager),
+    background_tasks: BackgroundTasks,
+    request: Request,
+):
+    # Check email uniqueness
+    existing = await session.execute(select(User).where(User.email == user_data.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    # Create user via user_manager (handles password hashing)
+    new_user = await user_manager.create(user_data, request=request)
+
+    # Audit log
+    background_tasks.add_task(_log_audit_event, "user.admin_created", admin.id, ...)
+
+    return new_user
+          ]]>
+        </code>
+      </pattern>
+
+      <pattern name="deactivation-with-session-invalidation">
+        <description>Deactivate user and invalidate their sessions</description>
+        <code>
+          <![CDATA[
+from app.core.redis import RedisClient, RedisSessionStore
+
+# Update user
+user.is_active = False
+await session.commit()
+await session.refresh(user)
+
+# Invalidate sessions (fire-and-forget in background)
+async def invalidate_sessions(user_id: UUID):
+    redis = await RedisClient.get_client()
+    session_store = RedisSessionStore(redis)
+    await session_store.delete_session(str(user_id))
+
+background_tasks.add_task(invalidate_sessions, user.id)
+          ]]>
+        </code>
+      </pattern>
+    </critical-patterns>
+
+    <audit-action-names>
+      <action name="user.admin_created">When admin creates a new user</action>
+      <action name="user.deactivated">When admin deactivates a user (is_active=False)</action>
+      <action name="user.activated">When admin reactivates a user (is_active=True)</action>
+    </audit-action-names>
+
+    <error-responses>
+      <error status="401" detail="Unauthorized">Not authenticated (missing/invalid JWT)</error>
+      <error status="403" detail="Forbidden">User is not superuser</error>
+      <error status="404" detail="User not found">Target user_id does not exist</error>
+      <error status="409" detail="Email already registered">Duplicate email on create</error>
+    </error-responses>
+
+    <advisory-notes-from-previous-story>
+      <note>Consider adding rate limiting to forgot-password endpoint (not required for MVP, can address post-Epic 1)</note>
+      <note>Token extraction in tests could be improved by mocking UserManager.forgot_password return value</note>
+    </advisory-notes-from-previous-story>
+
+  </implementation-notes>
+
+  <!-- ============================================ -->
+  <!-- SECTION 9: REFERENCE LINKS                   -->
+  <!-- ============================================ -->
+  <references>
+    <ref type="prd" path="docs/prd.md#FR5">FR5 - Admin user management</ref>
+    <ref type="prd" path="docs/prd.md#FR56">FR56 - User management audit logging</ref>
+    <ref type="architecture" path="docs/architecture.md#Security-Architecture">Admin role via is_superuser</ref>
+    <ref type="architecture" path="docs/architecture.md#API-Contracts">Response format</ref>
+    <ref type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-1.md#APIs-and-Interfaces">Endpoint contracts</ref>
+    <ref type="epics" path="docs/epics.md#Story-1.6">Story definition</ref>
+    <ref type="previous-story" path="docs/sprint-artifacts/1-5-user-profile-and-password-management-backend.md">Previous story learnings</ref>
+  </references>
+
+</story-context>

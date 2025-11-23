@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LumiKB - Design Direction Mockups</title>
+  <style>
+    :root {
+      --primary: #0066CC;
+      --primary-dark: #004C99;
+      --primary-light: #E6F0FA;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --accent: #6366F1;
+      --bg: #FFFFFF;
+      --surface: #FAFAFA;
+      --border: #E5E5E5;
+      --text: #1A1A1A;
+      --text-secondary: #6B7280;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'SF Mono', Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background: #f5f5f5;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .header p { opacity: 0.8; font-size: 0.95rem; }
+
+    .nav-controls {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover, .nav-btn.active {
+      background: white;
+      color: #1a1a2e;
+    }
+
+    .mockup-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .direction-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      margin-bottom: 3rem;
+    }
+
+    .direction-header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .direction-title h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+
+    .direction-title p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .direction-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      padding: 0.25rem 0.75rem;
+      background: var(--surface);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .mockup-frame {
+      background: #e5e5e5;
+      padding: 1.5rem;
+    }
+
+    .browser-chrome {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+
+    .browser-bar {
+      background: #f5f5f5;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #FF5F57; }
+    .dot-yellow { background: #FEBC2E; }
+    .dot-green { background: #28C840; }
+
+    .browser-url {
+      flex: 1;
+      background: white;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .mockup-content {
+      min-height: 600px;
+      background: var(--bg);
+    }
+
+    /* Direction 1: Three-Panel NotebookLM */
+    .three-panel {
+      display: grid;
+      grid-template-columns: 260px 1fr 320px;
+      height: 600px;
+    }
+
+    .panel-sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .panel-main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-citations {
+      background: white;
+      border-left: 1px solid var(--border);
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kb-item {
+      padding: 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .kb-item:hover { background: white; }
+    .kb-item.active { background: var(--primary-light); color: var(--primary); }
+
+    .kb-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-light);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .kb-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .kb-count {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .main-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .search-input {
+      padding: 0.625rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 300px;
+      font-size: 0.9rem;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .btn {
+      padding: 0.625rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .chat-message {
+      margin-bottom: 1.5rem;
+    }
+
+    .message-user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .message-user .message-bubble {
+      background: var(--primary);
+      color: white;
+      border-radius: 16px 16px 4px 16px;
+    }
+
+    .message-ai .message-bubble {
+      background: var(--surface);
+      border-radius: 16px 16px 16px 4px;
+      border: 1px solid var(--border);
+    }
+
+    .message-bubble {
+      padding: 1rem 1.25rem;
+      max-width: 85%;
+      font-size: 0.95rem;
+    }
+
+    .citation-inline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--primary);
+      color: white;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin: 0 2px;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+
+    .citation-inline:hover {
+      background: var(--primary-dark);
+    }
+
+    .confidence-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .confidence-track {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      max-width: 150px;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      background: var(--success);
+      border-radius: 2px;
+    }
+
+    .chat-input-area {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      background: white;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 0.875rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.95rem;
+      resize: none;
+    }
+
+    .chat-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .citation-panel-header {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .citation-card {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .citation-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0,102,204,0.1);
+    }
+
+    .citation-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: var(--primary);
+      color: white;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+
+    .citation-title {
+      font-weight: 500;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+      color: var(--primary);
+    }
+
+    .citation-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .citation-excerpt {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      border-left: 2px solid var(--primary-light);
+      padding-left: 0.75rem;
+    }
+
+    /* Direction 2: Command-First (Linear style) */
+    .command-first {
+      height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .command-header {
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+    }
+
+    .command-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .command-palette {
+      width: 100%;
+      max-width: 640px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .command-input-area {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .command-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      font-size: 1.1rem;
+      background: transparent;
+    }
+
+    .command-input:focus { outline: none; }
+
+    .command-results {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .command-section {
+      padding: 0.5rem 0;
+    }
+
+    .command-section-title {
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .command-item {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .command-item:hover, .command-item.active {
+      background: var(--primary-light);
+    }
+
+    .command-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--surface);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .command-text {
+      flex: 1;
+    }
+
+    .command-text-primary { font-weight: 500; font-size: 0.9rem; }
+    .command-text-secondary { font-size: 0.8rem; color: var(--text-secondary); }
+
+    .command-shortcut {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      background: var(--surface);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* Direction 3: Dashboard-First */
+    .dashboard-first {
+      height: 600px;
+      display: flex;
+    }
+
+    .dashboard-nav {
+      width: 64px;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem 0;
+    }
+
+    .nav-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .nav-icon:hover, .nav-icon.active {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    .dashboard-content {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .dashboard-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-change {
+      font-size: 0.8rem;
+      color: var(--success);
+      margin-top: 0.25rem;
+    }
+
+    .activity-section {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .activity-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .activity-item {
+      padding: 1rem 1.25rem;
+      display: flex;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .activity-item:last-child { border-bottom: none; }
+
+    .activity-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--primary-light);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .activity-content { flex: 1; }
+    .activity-title { font-weight: 500; font-size: 0.9rem; }
+    .activity-meta { font-size: 0.8rem; color: var(--text-secondary); }
+
+    /* Direction 4: Split View Focus */
+    .split-view {
+      height: 600px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .split-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .split-panel:first-child { border-right: 1px solid var(--border); }
+
+    .split-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+    }
+
+    .split-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .doc-preview {
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+
+    .doc-highlight {
+      background: #FEF3C7;
+      padding: 0.125rem 0.25rem;
+      border-radius: 2px;
+    }
+
+    .draft-content {
+      font-size: 0.95rem;
+      line-height: 1.8;
+    }
+
+    .draft-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .draft-heading {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--primary);
+    }
+
+    /* Direction descriptions */
+    .direction-desc {
+      padding: 1.5rem 2rem;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .desc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+
+    .desc-item h4 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .desc-item p {
+      font-size: 0.9rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .three-panel { grid-template-columns: 220px 1fr 280px; }
+      .desc-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .three-panel { grid-template-columns: 1fr; }
+      .split-view { grid-template-columns: 1fr; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>LumiKB Design Direction Mockups</h1>
+    <p>Explore different layout and interaction approaches for your knowledge platform</p>
+    <div class="nav-controls">
+      <button class="nav-btn active" onclick="scrollToDirection('three-panel')">1. Three-Panel</button>
+      <button class="nav-btn" onclick="scrollToDirection('command-first')">2. Command-First</button>
+      <button class="nav-btn" onclick="scrollToDirection('dashboard-first')">3. Dashboard</button>
+      <button class="nav-btn" onclick="scrollToDirection('split-view')">4. Split View</button>
+    </div>
+  </div>
+
+  <div class="mockup-container">
+    <!-- Direction 1: Three-Panel NotebookLM Style -->
+    <div class="direction-card" id="three-panel">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h2>1. Three-Panel (NotebookLM Style)</h2>
+          <p>Inspired by NotebookLM - Knowledge Base sidebar, Chat center, Citations right. Optimized for research and verification.</p>
+        </div>
+        <div class="direction-meta">
+          <span class="meta-tag">Recommended</span>
+          <span class="meta-tag">Research-Focused</span>
+          <span class="meta-tag">Citation-Centric</span>
+        </div>
+      </div>
+      <div class="mockup-frame">
+        <div class="browser-chrome">
+          <div class="browser-bar">
+            <div class="browser-dots">
+              <div class="dot dot-red"></div>
+              <div class="dot dot-yellow"></div>
+              <div class="dot dot-green"></div>
+            </div>
+            <div class="browser-url">lumikb.app/knowledge-bases/proposals</div>
+          </div>
+          <div class="mockup-content three-panel">
+            <div class="panel-sidebar">
+              <div class="sidebar-header">
+                Knowledge Bases
+                <span style="cursor:pointer;">+</span>
+              </div>
+              <div class="kb-item active">
+                <div class="kb-icon">📁</div>
+                <div>
+                  <div class="kb-name">Proposals</div>
+                  <div class="kb-count">156 documents</div>
+                </div>
+              </div>
+              <div class="kb-item">
+                <div class="kb-icon">📁</div>
+                <div>
+                  <div class="kb-name">Technical Docs</div>
+                  <div class="kb-count">89 documents</div>
+                </div>
+              </div>
+              <div class="kb-item">
+                <div class="kb-icon">📁</div>
+                <div>
+                  <div class="kb-name">Templates</div>
+                  <div class="kb-count">23 documents</div>
+                </div>
+              </div>
+              <div class="kb-item">
+                <div class="kb-icon">📁</div>
+                <div>
+                  <div class="kb-name">Security Standards</div>
+                  <div class="kb-count">45 documents</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel-main">
+              <div class="main-header">
+                <div class="logo">LumiKB</div>
+                <div class="header-actions">
+                  <input type="text" class="search-input" placeholder="Search all knowledge bases... (Cmd+K)">
+                  <button class="btn btn-secondary">New Chat</button>
+                </div>
+              </div>
+              <div class="chat-area">
+                <div class="chat-message message-user">
+                  <div class="message-bubble">
+                    How did we handle authentication for banking clients?
+                  </div>
+                </div>
+                <div class="chat-message message-ai">
+                  <div class="message-bubble">
+                    <p>Based on your documents, here's how authentication was handled for banking clients:</p>
+                    <p style="margin-top:0.75rem;">Our authentication approach uses <strong>OAuth 2.0 with PKCE flow</strong> <span class="citation-inline">1</span> for secure token-based access. We support multi-factor authentication through TOTP and hardware tokens <span class="citation-inline">2</span>, with biometric fallback for mobile users <span class="citation-inline">3</span>.</p>
+                    <p style="margin-top:0.75rem;">For Acme Bank specifically, we implemented a custom SSO integration <span class="citation-inline">1</span> that met their compliance requirements.</p>
+                    <div class="confidence-bar">
+                      <span>Confidence:</span>
+                      <div class="confidence-track">
+                        <div class="confidence-fill" style="width:85%"></div>
+                      </div>
+                      <span>85%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="chat-input-area">
+                <div class="chat-input-container">
+                  <textarea class="chat-input" placeholder="Ask a follow-up question..." rows="1"></textarea>
+                  <button class="btn btn-primary">Send</button>
+                  <button class="btn btn-secondary">Generate Draft</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel-citations">
+              <div class="citation-panel-header">
+                Citations (3)
+                <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Verify All</button>
+              </div>
+              <div class="citation-card">
+                <div class="citation-title">
+                  <span class="citation-number">1</span>
+                  Acme Bank Technical Proposal.pdf
+                </div>
+                <div class="citation-meta">Pages 14-16 - Updated 2 weeks ago</div>
+                <div class="citation-excerpt">"OAuth 2.0 with PKCE flow provides secure token-based authentication without exposing credentials..."</div>
+              </div>
+              <div class="citation-card">
+                <div class="citation-title">
+                  <span class="citation-number">2</span>
+                  Security Standards Guide.docx
+                </div>
+                <div class="citation-meta">Page 8 - Updated 1 month ago</div>
+                <div class="citation-excerpt">"Multi-factor authentication requirements include TOTP apps and physical hardware tokens..."</div>
+              </div>
+              <div class="citation-card">
+                <div class="citation-title">
+                  <span class="citation-number">3</span>
+                  Mobile Auth Implementation.md
+                </div>
+                <div class="citation-meta">Section 4 - Updated 3 weeks ago</div>
+                <div class="citation-excerpt">"Biometric fallback using FaceID and TouchID for approved mobile devices..."</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="direction-desc">
+        <div class="desc-grid">
+          <div class="desc-item">
+            <h4>Layout</h4>
+            <p>Three-panel: KB sidebar, Chat center, Citations right</p>
+          </div>
+          <div class="desc-item">
+            <h4>Best For</h4>
+            <p>Research, verification, methodical work</p>
+          </div>
+          <div class="desc-item">
+            <h4>Density</h4>
+            <p>Balanced - information rich but organized</p>
+          </div>
+          <div class="desc-item">
+            <h4>Primary Action</h4>
+            <p>Chat with instant citation visibility</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Direction 2: Command-First -->
+    <div class="direction-card" id="command-first">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h2>2. Command-First (Linear Style)</h2>
+          <p>Keyboard-centric with command palette as primary interface. Power users can do everything without touching the mouse.</p>
+        </div>
+        <div class="direction-meta">
+          <span class="meta-tag">Power Users</span>
+          <span class="meta-tag">Keyboard-First</span>
+          <span class="meta-tag">Minimal</span>
+        </div>
+      </div>
+      <div class="mockup-frame">
+        <div class="browser-chrome">
+          <div class="browser-bar">
+            <div class="browser-dots">
+              <div class="dot dot-red"></div>
+              <div class="dot dot-yellow"></div>
+              <div class="dot dot-green"></div>
+            </div>
+            <div class="browser-url">lumikb.app</div>
+          </div>
+          <div class="mockup-content command-first">
+            <div class="command-header">
+              <div class="logo">LumiKB</div>
+              <div style="display:flex;gap:1rem;align-items:center;">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">Press <span class="command-shortcut">Cmd + K</span> to search</span>
+              </div>
+            </div>
+            <div class="command-center">
+              <div class="command-palette">
+                <div class="command-input-area">
+                  <input type="text" class="command-input" placeholder="Type a command or search..." value="authentication banking">
+                </div>
+                <div class="command-results">
+                  <div class="command-section">
+                    <div class="command-section-title">Search Results</div>
+                    <div class="command-item active">
+                      <div class="command-icon">📄</div>
+                      <div class="command-text">
+                        <div class="command-text-primary">Acme Bank Technical Proposal.pdf</div>
+                        <div class="command-text-secondary">Proposals KB - 92% match</div>
+                      </div>
+                      <span class="command-shortcut">Enter</span>
+                    </div>
+                    <div class="command-item">
+                      <div class="command-icon">📄</div>
+                      <div class="command-text">
+                        <div class="command-text-primary">Security Standards Guide.docx</div>
+                        <div class="command-text-secondary">Technical KB - 87% match</div>
+                      </div>
+                    </div>
+                    <div class="command-item">
+                      <div class="command-icon">📄</div>
+                      <div class="command-text">
+                        <div class="command-text-primary">Mobile Auth Implementation.md</div>
+                        <div class="command-text-secondary">Technical KB - 78% match</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="command-section">
+                    <div class="command-section-title">Actions</div>
+                    <div class="command-item">
+                      <div class="command-icon">💬</div>
+                      <div class="command-text">
+                        <div class="command-text-primary">Ask AI about these results</div>
+                        <div class="command-text-secondary">Start a chat with context</div>
+                      </div>
+                      <span class="command-shortcut">Tab</span>
+                    </div>
+                    <div class="command-item">
+                      <div class="command-icon">📝</div>
+                      <div class="command-text">
+                        <div class="command-text-primary">Generate draft from results</div>
+                        <div class="command-text-secondary">Create document with citations</div>
+                      </div>
+                      <span class="command-shortcut">Cmd+G</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="direction-desc">
+        <div class="desc-grid">
+          <div class="desc-item">
+            <h4>Layout</h4>
+            <p>Centered command palette, minimal chrome</p>
+          </div>
+          <div class="desc-item">
+            <h4>Best For</h4>
+            <p>Power users, quick lookups, keyboard warriors</p>
+          </div>
+          <div class="desc-item">
+            <h4>Density</h4>
+            <p>Sparse - focus on current task only</p>
+          </div>
+          <div class="desc-item">
+            <h4>Primary Action</h4>
+            <p>Search everything via Cmd+K</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Direction 3: Dashboard-First -->
+    <div class="direction-card" id="dashboard-first">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h2>3. Dashboard-First (Admin Style)</h2>
+          <p>Start with an overview dashboard showing recent activity, stats, and quick actions. Good for managers and admins.</p>
+        </div>
+        <div class="direction-meta">
+          <span class="meta-tag">Admin Focus</span>
+          <span class="meta-tag">Overview-First</span>
+          <span class="meta-tag">Metrics</span>
+        </div>
+      </div>
+      <div class="mockup-frame">
+        <div class="browser-chrome">
+          <div class="browser-bar">
+            <div class="browser-dots">
+              <div class="dot dot-red"></div>
+              <div class="dot dot-yellow"></div>
+              <div class="dot dot-green"></div>
+            </div>
+            <div class="browser-url">lumikb.app/dashboard</div>
+          </div>
+          <div class="mockup-content dashboard-first">
+            <div class="dashboard-nav">
+              <div class="nav-icon active" title="Dashboard">🏠</div>
+              <div class="nav-icon" title="Search">🔍</div>
+              <div class="nav-icon" title="Knowledge Bases">📁</div>
+              <div class="nav-icon" title="Generate">📝</div>
+              <div class="nav-icon" title="Settings">⚙️</div>
+            </div>
+            <div class="dashboard-content">
+              <div class="dashboard-header">
+                <div class="dashboard-title">Dashboard</div>
+                <div style="display:flex;gap:0.75rem;">
+                  <input type="text" class="search-input" placeholder="Quick search..." style="width:250px;">
+                  <button class="btn btn-primary">New Chat</button>
+                </div>
+              </div>
+              <div class="dashboard-grid">
+                <div class="stat-card">
+                  <div class="stat-label">Total Documents</div>
+                  <div class="stat-value">313</div>
+                  <div class="stat-change">+12 this week</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Queries Today</div>
+                  <div class="stat-value">47</div>
+                  <div class="stat-change">+23% vs yesterday</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Drafts Generated</div>
+                  <div class="stat-value">8</div>
+                  <div class="stat-change">2 pending review</div>
+                </div>
+              </div>
+              <div class="activity-section">
+                <div class="activity-header">Recent Activity</div>
+                <div class="activity-item">
+                  <div class="activity-icon">💬</div>
+                  <div class="activity-content">
+                    <div class="activity-title">Asked about authentication for banking</div>
+                    <div class="activity-meta">5 minutes ago - Found 3 relevant documents</div>
+                  </div>
+                </div>
+                <div class="activity-item">
+                  <div class="activity-icon">📄</div>
+                  <div class="activity-content">
+                    <div class="activity-title">Uploaded "Q4 Security Audit.pdf"</div>
+                    <div class="activity-meta">2 hours ago - Added to Security Standards KB</div>
+                  </div>
+                </div>
+                <div class="activity-item">
+                  <div class="activity-icon">📝</div>
+                  <div class="activity-content">
+                    <div class="activity-title">Generated RFP Response Draft</div>
+                    <div class="activity-meta">Yesterday - Used 5 source documents</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="direction-desc">
+        <div class="desc-grid">
+          <div class="desc-item">
+            <h4>Layout</h4>
+            <p>Icon sidebar, dashboard center, quick stats</p>
+          </div>
+          <div class="desc-item">
+            <h4>Best For</h4>
+            <p>Admins, managers, overview-seekers</p>
+          </div>
+          <div class="desc-item">
+            <h4>Density</h4>
+            <p>Medium - metrics and activity visible</p>
+          </div>
+          <div class="desc-item">
+            <h4>Primary Action</h4>
+            <p>Navigate to task from dashboard</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Direction 4: Split View -->
+    <div class="direction-card" id="split-view">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h2>4. Split View (Compare Mode)</h2>
+          <p>Side-by-side view for source verification and draft editing. Ideal for the VERIFY stage of the workflow.</p>
+        </div>
+        <div class="direction-meta">
+          <span class="meta-tag">Verification</span>
+          <span class="meta-tag">Side-by-Side</span>
+          <span class="meta-tag">Editing</span>
+        </div>
+      </div>
+      <div class="mockup-frame">
+        <div class="browser-chrome">
+          <div class="browser-bar">
+            <div class="browser-dots">
+              <div class="dot dot-red"></div>
+              <div class="dot dot-yellow"></div>
+              <div class="dot dot-green"></div>
+            </div>
+            <div class="browser-url">lumikb.app/draft/rfp-response-acme</div>
+          </div>
+          <div class="mockup-content split-view">
+            <div class="split-panel">
+              <div class="split-header">
+                <span>📄 Source: Acme Bank Technical Proposal.pdf</span>
+                <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Open Full</button>
+              </div>
+              <div class="split-content">
+                <div class="doc-preview">
+                  <h3 style="margin-bottom:1rem;color:var(--primary);">4. Authentication Architecture</h3>
+                  <p style="margin-bottom:1rem;">Our proposed authentication solution leverages industry-standard protocols to ensure both security and usability.</p>
+                  <p style="margin-bottom:1rem;"><span class="doc-highlight">OAuth 2.0 with PKCE flow</span> provides secure token-based authentication without exposing credentials to the client application. This approach is particularly suitable for banking environments where security is paramount.</p>
+                  <p style="margin-bottom:1rem;">We support <span class="doc-highlight">multi-factor authentication (MFA)</span> through multiple channels:</p>
+                  <ul style="margin-left:1.5rem;margin-bottom:1rem;">
+                    <li>Time-based One-Time Passwords (TOTP)</li>
+                    <li>Physical hardware tokens</li>
+                    <li>SMS verification (as backup)</li>
+                  </ul>
+                  <p>For mobile applications, we implement <span class="doc-highlight">biometric authentication</span> as a secure and convenient fallback mechanism.</p>
+                </div>
+              </div>
+            </div>
+            <div class="split-panel">
+              <div class="split-header">
+                <span>📝 Draft: RFP Response Section 4.2</span>
+                <div style="display:flex;gap:0.5rem;">
+                  <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Regenerate</button>
+                  <button class="btn btn-primary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Export</button>
+                </div>
+              </div>
+              <div class="split-content">
+                <div class="draft-content">
+                  <div class="draft-section">
+                    <div class="draft-heading">4.2 Authentication Approach</div>
+                    <p style="margin-bottom:1rem;">Our authentication solution leverages <strong>OAuth 2.0 with PKCE flow</strong> <span class="citation-inline">1</span>, providing secure token-based access without exposing credentials to client applications.</p>
+                    <p style="margin-bottom:1rem;">We support <strong>multi-factor authentication</strong> <span class="citation-inline">2</span> through:</p>
+                    <ul style="margin-left:1.5rem;margin-bottom:1rem;">
+                      <li>TOTP-based authenticator apps</li>
+                      <li>Physical hardware tokens (YubiKey, etc.)</li>
+                      <li>SMS verification as backup channel</li>
+                    </ul>
+                    <p>Mobile users benefit from <strong>biometric authentication</strong> <span class="citation-inline">3</span> including FaceID and TouchID integration for approved devices.</p>
+                  </div>
+                  <div style="background:var(--primary-light);padding:1rem;border-radius:8px;margin-top:1rem;">
+                    <div style="font-size:0.85rem;font-weight:500;margin-bottom:0.5rem;">✅ All citations verified</div>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);">3 sources used - Confidence: 88%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="direction-desc">
+        <div class="desc-grid">
+          <div class="desc-item">
+            <h4>Layout</h4>
+            <p>50/50 split, source left, draft right</p>
+          </div>
+          <div class="desc-item">
+            <h4>Best For</h4>
+            <p>Verification, editing, comparing</p>
+          </div>
+          <div class="desc-item">
+            <h4>Density</h4>
+            <p>High - full content visibility</p>
+          </div>
+          <div class="desc-item">
+            <h4>Primary Action</h4>
+            <p>Verify and edit side-by-side</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function scrollToDirection(id) {
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

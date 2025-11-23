@@ -1,0 +1,257 @@
+<story-context id="1-3-docker-compose-development-environment" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Docker Compose Development Environment</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-3-docker-compose-development-environment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a complete local development environment via Docker Compose</iWant>
+    <soThat>all services can be started with a single command</soThat>
+    <tasks>
+      <task id="1" ac="1">
+        <title>Create Docker Compose configuration</title>
+        <subtasks>
+          <subtask>Create/update infrastructure/docker/docker-compose.yml with all services</subtask>
+          <subtask>Configure PostgreSQL 16 service with health check</subtask>
+          <subtask>Configure Redis >=7.0.0 service with health check</subtask>
+          <subtask>Configure MinIO (latest) service with health check and console</subtask>
+          <subtask>Configure Qdrant >=1.10.0 service with health check (REST and gRPC ports)</subtask>
+          <subtask>Configure LiteLLM Proxy service with health check</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="1,5">
+        <title>Configure service networking</title>
+        <subtasks>
+          <subtask>Create dedicated Docker network for service isolation</subtask>
+          <subtask>Ensure all services are on the same network</subtask>
+          <subtask>Map appropriate ports for development access</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="3">
+        <title>Configure named volumes for persistence</title>
+        <subtasks>
+          <subtask>Create named volume for PostgreSQL data</subtask>
+          <subtask>Create named volume for Redis data</subtask>
+          <subtask>Create named volume for MinIO data</subtask>
+          <subtask>Create named volume for Qdrant data</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="4">
+        <title>Create environment configuration</title>
+        <subtasks>
+          <subtask>Create infrastructure/docker/.env.example with all required variables</subtask>
+          <subtask>Document each environment variable with comments</subtask>
+          <subtask>Include default development values where appropriate</subtask>
+          <subtask>Add instructions for copying to .env</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="1">
+        <title>Configure LiteLLM Proxy</title>
+        <subtasks>
+          <subtask>Create infrastructure/docker/litellm_config.yaml for LiteLLM configuration</subtask>
+          <subtask>Configure model routing and fallback settings</subtask>
+          <subtask>Set up health check endpoint</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="1,2,5">
+        <title>Verify services and health checks</title>
+        <subtasks>
+          <subtask>Run docker compose up -d and verify all services start</subtask>
+          <subtask>Verify health checks pass for all services</subtask>
+          <subtask>Test PostgreSQL connectivity from backend</subtask>
+          <subtask>Test Redis connectivity from backend</subtask>
+          <subtask>Test MinIO connectivity (create bucket, upload file)</subtask>
+          <subtask>Test Qdrant connectivity (create collection, query)</subtask>
+          <subtask>Test LiteLLM connectivity (if API key available)</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="4">
+        <title>Document startup and usage</title>
+        <subtasks>
+          <subtask>Add comments in docker-compose.yml explaining each service</subtask>
+          <subtask>Update README or add DEVELOPMENT.md with setup instructions</subtask>
+          <subtask>Document common troubleshooting scenarios</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">
+      <given>Docker and Docker Compose are installed</given>
+      <when>I run docker compose up -d from the infrastructure/docker directory</when>
+      <then>All required services start successfully: PostgreSQL (5432), Redis (6379), MinIO (9000, 9001), Qdrant (6333, 6334), LiteLLM Proxy (4000)</then>
+    </criterion>
+    <criterion id="2">
+      <given>All services are running</given>
+      <when>I check their status</when>
+      <then>Health checks pass for all services</then>
+    </criterion>
+    <criterion id="3">
+      <given>The services are running</given>
+      <when>I stop and restart Docker Compose</when>
+      <then>Data persists in named volumes</then>
+    </criterion>
+    <criterion id="4">
+      <given>The repository is cloned</given>
+      <when>I check the infrastructure/docker directory</when>
+      <then>.env.example documents all required environment variables</then>
+    </criterion>
+    <criterion id="5">
+      <given>The services are healthy</given>
+      <when>The backend application starts</when>
+      <then>It can connect to PostgreSQL, Redis, MinIO, and Qdrant successfully</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Deployment Architecture</section>
+        <snippet>Docker Compose services: frontend (3000), backend (8000), celery-worker, celery-beat, postgres (5432), qdrant (6333/6334), minio (9000/9001), redis (6379), litellm (4000)</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Environment Configuration</section>
+        <snippet>DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/lumikb, QDRANT_HOST/PORT, MINIO_ENDPOINT, REDIS_URL, LITELLM_URL environment variables documented</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Infrastructure Dependencies</section>
+        <snippet>PostgreSQL 16 (5432), Redis >=7.0.0 (6379), MinIO latest (9000, 9001), Qdrant >=1.10.0 (6333, 6334), LiteLLM latest (4000)</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epics</title>
+        <section>Story 1.3</section>
+        <snippet>Docker Compose development environment with all services, health checks, named volumes, and .env.example documentation</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>LumiKB Coding Standards</title>
+        <section>Security Standards - Secrets Management</section>
+        <snippet>Never commit secrets to version control. Use environment variables. Use .env.example to document required variables without values.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/1-2-database-schema-and-migration-setup.md</path>
+        <title>Story 1.2 (Previous)</title>
+        <section>Dev Agent Record</section>
+        <snippet>PostgreSQL already added to docker-compose.yml. DATABASE_URL in config.py. Database session factory in database.py.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>infrastructure/docker/docker-compose.yml</path>
+        <kind>config</kind>
+        <symbol>services</symbol>
+        <lines>1-31</lines>
+        <reason>Existing Docker Compose with PostgreSQL only - needs Redis, MinIO, Qdrant, LiteLLM services added</reason>
+      </file>
+      <file>
+        <path>backend/app/core/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings</symbol>
+        <lines>1-38</lines>
+        <reason>Application settings with DATABASE_URL - needs REDIS_URL, MINIO_*, QDRANT_*, LITELLM_* settings added for connectivity testing</reason>
+      </file>
+      <file>
+        <path>backend/app/core/database.py</path>
+        <kind>module</kind>
+        <symbol>async_session_maker</symbol>
+        <reason>Database connection pattern - reference for implementing similar connection utilities for Redis, MinIO, Qdrant</reason>
+      </file>
+      <file>
+        <path>backend/pyproject.toml</path>
+        <kind>config</kind>
+        <symbol>dependencies</symbol>
+        <lines>23-65</lines>
+        <reason>Project dependencies - redis, boto3, qdrant-client packages defined in [all] optional dependencies</reason>
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="redis" version=">=7.1.0,&lt;8.0.0" optional="all">Redis client for cache, sessions, Celery broker</package>
+        <package name="boto3" version=">=1.35.0" optional="all">MinIO/S3 client for object storage</package>
+        <package name="qdrant-client" version=">=1.10.0,&lt;2.0.0" optional="all">Qdrant vector database client</package>
+        <package name="litellm" version=">=1.50.0,&lt;2.0.0" optional="all">LiteLLM client for LLM gateway</package>
+        <package name="celery" version=">=5.5.0,&lt;6.0.0" optional="all">Task queue (uses Redis as broker)</package>
+      </python>
+      <docker>
+        <image name="postgres" version="16">PostgreSQL database</image>
+        <image name="redis" version="7-alpine">Redis cache and message broker</image>
+        <image name="minio/minio" version="latest">S3-compatible object storage</image>
+        <image name="qdrant/qdrant" version="latest">Vector database</image>
+        <image name="ghcr.io/berriai/litellm" version="main-latest">LLM proxy gateway</image>
+      </docker>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="version">Python 3.11 required - redis-py >=7.1.0 needs Python >=3.10</constraint>
+    <constraint type="architecture">Services must be on same Docker network for inter-service communication</constraint>
+    <constraint type="security">Use environment variables for all credentials, never commit secrets</constraint>
+    <constraint type="pattern">Follow existing config.py pattern with LUMIKB_ prefix for environment variables</constraint>
+    <constraint type="persistence">All stateful services (PostgreSQL, Redis, MinIO, Qdrant) must use named volumes</constraint>
+    <constraint type="health">All services must have health checks for orchestration readiness</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>PostgreSQL</name>
+      <kind>database</kind>
+      <signature>postgresql+asyncpg://user:pass@postgres:5432/lumikb</signature>
+      <path>infrastructure/docker/docker-compose.yml</path>
+    </interface>
+    <interface>
+      <name>Redis</name>
+      <kind>cache</kind>
+      <signature>redis://redis:6379/0</signature>
+      <path>infrastructure/docker/docker-compose.yml</path>
+    </interface>
+    <interface>
+      <name>MinIO</name>
+      <kind>object-storage</kind>
+      <signature>http://minio:9000 (S3-compatible API)</signature>
+      <path>infrastructure/docker/docker-compose.yml</path>
+    </interface>
+    <interface>
+      <name>Qdrant</name>
+      <kind>vector-database</kind>
+      <signature>http://qdrant:6333 (REST), qdrant:6334 (gRPC)</signature>
+      <path>infrastructure/docker/docker-compose.yml</path>
+    </interface>
+    <interface>
+      <name>LiteLLM</name>
+      <kind>llm-gateway</kind>
+      <signature>http://litellm:4000 (OpenAI-compatible API)</signature>
+      <path>infrastructure/docker/docker-compose.yml</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend tests use pytest with pytest-asyncio (asyncio_mode="auto"). Integration tests in backend/tests/integration/. Use ruff for linting (ruff check .), mypy for type checking. All tests run with pytest -v --tb=short. Coverage tracked with pytest-cov targeting backend/app/.
+    </standards>
+    <locations>
+      <location>backend/tests/integration/</location>
+      <location>backend/tests/unit/</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test: Run docker compose up -d, verify all 5 services are running (docker compose ps)</idea>
+      <idea ac="2">Test: Query health endpoints for each service (PostgreSQL pg_isready, Redis PING, MinIO /minio/health/live, Qdrant /health, LiteLLM /health)</idea>
+      <idea ac="3">Test: Write data to each service, restart containers, verify data persistence</idea>
+      <idea ac="4">Test: Verify .env.example contains POSTGRES_*, REDIS_*, MINIO_*, QDRANT_*, LITELLM_* variables with comments</idea>
+      <idea ac="5">Test: Create Python script to test connectivity to PostgreSQL (asyncpg), Redis (redis-py), MinIO (boto3), Qdrant (qdrant-client)</idea>
+    </ideas>
+  </tests>
+</story-context>

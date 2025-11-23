@@ -1,0 +1,261 @@
+<story-context id="1-2-database-schema-and-migration-setup" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>2</storyId>
+    <title>Database Schema and Migration Setup</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-2-database-schema-and-migration-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>the PostgreSQL database schema established with migrations</iWant>
+    <soThat>data models are versioned and reproducible</soThat>
+    <tasks>
+      <task id="1" ac="4,5">
+        <title>Install and configure Alembic</title>
+        <subtasks>
+          <subtask>Add alembic to backend dependencies in pyproject.toml</subtask>
+          <subtask>Run `alembic init alembic` to create migration directory</subtask>
+          <subtask>Configure alembic.ini with async PostgreSQL connection</subtask>
+          <subtask>Configure alembic/env.py for async SQLAlchemy with target_metadata</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="2">
+        <title>Create SQLAlchemy base and models</title>
+        <subtasks>
+          <subtask>Create backend/app/models/base.py with Base declarative class</subtask>
+          <subtask>Create backend/app/models/user.py with User model (FastAPI-Users compatible)</subtask>
+          <subtask>Create backend/app/models/knowledge_base.py with KnowledgeBase model</subtask>
+          <subtask>Create backend/app/models/permission.py with KBPermission model</subtask>
+          <subtask>Create backend/app/models/document.py with Document model</subtask>
+          <subtask>Create backend/app/models/outbox.py with Outbox model</subtask>
+          <subtask>Create backend/app/models/audit.py with AuditEvent model</subtask>
+          <subtask>Update backend/app/models/__init__.py to export all models</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="1,2">
+        <title>Create initial migration</title>
+        <subtasks>
+          <subtask>Generate migration: alembic revision --autogenerate -m "initial_schema"</subtask>
+          <subtask>Review generated migration for correctness</subtask>
+          <subtask>Add enum types for document_status and permission_level</subtask>
+          <subtask>Add foreign key constraints with ON DELETE CASCADE where appropriate</subtask>
+          <subtask>Add indexes: outbox_unprocessed, audit_user, audit_timestamp, audit_resource</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="3">
+        <title>Create audit schema and role</title>
+        <subtasks>
+          <subtask>Create separate migration for audit schema</subtask>
+          <subtask>Create audit schema: CREATE SCHEMA audit</subtask>
+          <subtask>Create audit_writer role with INSERT-only permissions</subtask>
+          <subtask>Grant appropriate permissions to application role</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="1">
+        <title>Configure database connection</title>
+        <subtasks>
+          <subtask>Update backend/app/core/config.py with DATABASE_URL setting</subtask>
+          <subtask>Create backend/app/core/database.py with async engine and session factory</subtask>
+          <subtask>Create async session dependency for FastAPI</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="1,2,3,4,5">
+        <title>Verify migrations</title>
+        <subtasks>
+          <subtask>Start PostgreSQL via Docker Compose</subtask>
+          <subtask>Run alembic upgrade head and verify success</subtask>
+          <subtask>Verify all tables exist with correct columns</subtask>
+          <subtask>Verify audit.events table has INSERT-only constraint</subtask>
+          <subtask>Test rollback with alembic downgrade -1</subtask>
+          <subtask>Test re-upgrade with alembic upgrade head</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="1">
+        <title>Create test fixtures</title>
+        <subtasks>
+          <subtask>Create test database configuration</subtask>
+          <subtask>Update conftest.py with database fixtures</subtask>
+          <subtask>Create migration test to verify upgrade/downgrade cycle</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given PostgreSQL is running via Docker Compose When I run `alembic upgrade head` Then all tables are created successfully</ac>
+    <ac id="2">Given the database migrations have run When I inspect the database Then the following tables exist with correct schemas: users (id, email, hashed_password, is_active, is_superuser, is_verified, created_at, updated_at), knowledge_bases (id, name, description, owner_id, status, created_at, updated_at), kb_permissions (id, user_id, kb_id, permission_level, created_at), documents (id, kb_id, name, file_path, status, chunk_count, last_error, created_at, updated_at), outbox (id, event_type, aggregate_id, payload, created_at, processed_at, attempts, last_error), audit.events (id, timestamp, user_id, action, resource_type, resource_id, details, ip_address)</ac>
+    <ac id="3">Given the audit schema exists When I check role permissions Then the audit_writer role has INSERT-only permissions on audit.events</ac>
+    <ac id="4">Given I need to modify the schema When I create a new migration Then `alembic revision --autogenerate` creates a valid migration file</ac>
+    <ac id="5">Given I want to roll back changes When I run `alembic downgrade -1` Then the previous migration is reverted cleanly</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>PostgreSQL Schema</section>
+        <snippet>Complete SQL schema definitions for users, knowledge_bases, kb_permissions, documents, outbox, and audit.events tables with all columns, constraints, and indexes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>SQLAlchemy Models</section>
+        <snippet>Model examples showing FastAPI-Users compatible User model extending SQLAlchemyBaseUserTableUUID with timestamps.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Data Architecture</section>
+        <snippet>Entity relationships and table design including users, knowledge_bases, documents with foreign key relationships and constraints.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>PostgreSQL Tables</section>
+        <snippet>Table purposes: users for auth, knowledge_bases for collections, documents for files, kb_permissions for access control, outbox for event processing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Audit Schema</section>
+        <snippet>Audit table design with INSERT-only permissions for immutability, audit_writer role, and indexes for user_id, timestamp, resource queries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epics</title>
+        <section>Story 1.2</section>
+        <snippet>Original story definition: Database schema with migrations, Alembic setup, audit schema with INSERT-only permissions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>Coding Standards</title>
+        <section>Database Standards</section>
+        <snippet>Use SQLAlchemy 2.0 style with mapped_column() and type annotations. UUID primary keys. TIMESTAMPTZ for timestamps.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/1-1-project-initialization-and-repository-setup.md</path>
+        <title>Story 1.1 (Previous)</title>
+        <section>Dev Agent Record</section>
+        <snippet>Project structure created with backend/app/ directories. Python 3.13 used. pydantic_settings with LUMIKB_ prefix. pytest-asyncio configured.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>backend/app/core/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings</symbol>
+        <lines>1-39</lines>
+        <reason>Existing config class to extend with DATABASE_URL. Already has database_url field at line 27. Uses pydantic_settings.BaseSettings with LUMIKB_ env prefix.</reason>
+      </file>
+      <file>
+        <path>backend/app/models/__init__.py</path>
+        <kind>module</kind>
+        <symbol>models</symbol>
+        <lines>1-2</lines>
+        <reason>Empty models module. All SQLAlchemy models will be created here and exported from this __init__.py.</reason>
+      </file>
+      <file>
+        <path>backend/app/main.py</path>
+        <kind>entrypoint</kind>
+        <symbol>app</symbol>
+        <lines>1-37</lines>
+        <reason>FastAPI app instance. Database session dependency will integrate here. Health check may need DB connectivity check.</reason>
+      </file>
+      <file>
+        <path>backend/tests/conftest.py</path>
+        <kind>test-fixtures</kind>
+        <symbol>client</symbol>
+        <lines>1-15</lines>
+        <reason>Existing test fixtures. Needs database fixtures added: async engine, test session, migration runner.</reason>
+      </file>
+      <file>
+        <path>backend/pyproject.toml</path>
+        <kind>config</kind>
+        <symbol>dependencies</symbol>
+        <lines>23-35</lines>
+        <reason>Alembic already in dependencies (line 32). SQLAlchemy with asyncio extra and asyncpg driver present.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.115.0,&lt;1.0.0" />
+        <package name="uvicorn" version=">=0.32.0,&lt;1.0.0" extra="standard" />
+        <package name="pydantic" version=">=2.7.0,&lt;3.0.0" />
+        <package name="pydantic-settings" version=">=2.0.0,&lt;3.0.0" />
+        <package name="sqlalchemy" version=">=2.0.44,&lt;3.0.0" extra="asyncio" />
+        <package name="asyncpg" version=">=0.30.0,&lt;1.0.0" />
+        <package name="alembic" version=">=1.14.0,&lt;2.0.0" />
+        <package name="structlog" version=">=25.5.0,&lt;26.0.0" />
+        <package name="pytest" version=">=8.0.0" dev="true" />
+        <package name="pytest-asyncio" version=">=0.24.0" dev="true" />
+        <package name="pytest-cov" version=">=5.0.0" dev="true" />
+        <package name="httpx" version=">=0.27.0" dev="true" />
+      </python>
+      <infrastructure>
+        <service name="PostgreSQL" version="16" port="5432" note="Docker Compose from Story 1.3, can use external for now" />
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern">Use SQLAlchemy 2.0 style with Mapped[] and mapped_column() type annotations</constraint>
+    <constraint type="pattern">All primary keys must be UUID using gen_random_uuid() default</constraint>
+    <constraint type="pattern">All tables must have created_at and updated_at TIMESTAMPTZ columns</constraint>
+    <constraint type="pattern">Use async SQLAlchemy with asyncpg driver</constraint>
+    <constraint type="security">Audit schema must use INSERT-only permissions (no UPDATE/DELETE)</constraint>
+    <constraint type="security">audit_writer role has only GRANT INSERT ON audit.events</constraint>
+    <constraint type="naming">Environment variables use LUMIKB_ prefix (per config.py)</constraint>
+    <constraint type="framework">FastAPI-Users compatible User model extending SQLAlchemyBaseUserTableUUID</constraint>
+    <constraint type="version">Python 3.11+ required (redis-py compatibility, 3.13 currently used)</constraint>
+    <constraint type="version">Alembic >=1.14.0 for async support</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AsyncSession</name>
+      <kind>dependency</kind>
+      <signature>async def get_async_session() -> AsyncGenerator[AsyncSession, None]</signature>
+      <path>backend/app/core/database.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>Base</name>
+      <kind>class</kind>
+      <signature>class Base(DeclarativeBase): pass</signature>
+      <path>backend/app/models/base.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>User</name>
+      <kind>model</kind>
+      <signature>class User(SQLAlchemyBaseUserTableUUID, Base)</signature>
+      <path>backend/app/models/user.py (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use pytest with pytest-asyncio for async tests. Tests located in backend/tests/. Unit tests in tests/unit/, integration tests in tests/integration/. asyncio_mode = "auto" configured in pyproject.toml. Use httpx AsyncClient for API testing. Target 80% coverage for critical paths.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/</location>
+      <location>backend/tests/integration/</location>
+      <location>backend/tests/conftest.py</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test alembic upgrade head creates all expected tables</idea>
+      <idea ac="2">Test each table has correct columns and types by inspecting metadata</idea>
+      <idea ac="2">Test foreign key constraints exist between tables</idea>
+      <idea ac="3">Test audit_writer role can INSERT into audit.events</idea>
+      <idea ac="3">Test audit_writer role CANNOT UPDATE or DELETE from audit.events</idea>
+      <idea ac="4">Test alembic revision --autogenerate detects model changes</idea>
+      <idea ac="5">Test alembic downgrade -1 reverts last migration cleanly</idea>
+      <idea ac="5">Test alembic upgrade head after downgrade restores schema</idea>
+      <idea>Test async session factory yields working sessions</idea>
+      <idea>Test database connection string parsing from config</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,254 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>10</storyId>
+    <title>Demo Knowledge Base Seeding</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-10-demo-knowledge-base-seeding.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>first-time user</asA>
+    <iWant>to explore a sample Knowledge Base immediately</iWant>
+    <soThat>I can understand LumiKB's value before uploading my own documents</soThat>
+    <tasks>
+      <task id="1" ac="2">Create demo documents content - 4 markdown files in infrastructure/seed/demo-docs/</task>
+      <task id="2" ac="3,6">Generate pre-computed embeddings - create generate-embeddings.py script</task>
+      <task id="3" ac="1,3,7,8">Create seed data script - seed-data.py with idempotent operations</task>
+      <task id="4" ac="3,6">Create Qdrant collection setup - kb_{demo_kb_id} with 1536 dimensions</task>
+      <task id="5" ac="4">Create auto-grant permission mechanism for demo KB</task>
+      <task id="6" ac="4,5">Update sidebar to show demo KB - connect kb-sidebar.tsx to real API</task>
+      <task id="7" ac="1,8">Create shell script wrapper - seed-data.sh and Makefile target</task>
+      <task id="8" ac="1-8">Write tests for seed functionality</task>
+      <task id="9" ac="1">Update Docker Compose for seeding</task>
+      <task id="10" ac="1-8">Verification and documentation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Given the system is freshly deployed When the seed script runs Then a "Sample Knowledge Base" is created with name, description, status "active", and owner (demo user or admin)</criterion>
+    <criterion id="2">Given the seed script has run When the demo KB exists Then it contains 3-5 demo documents covering: Getting Started, Citations and Trust, KB Management Guide, Search and Q&amp;A Features</criterion>
+    <criterion id="3">Given demo documents are seeded When the seeding process completes Then each document is processed: file in MinIO at kb-{demo_kb_id}/{doc_id}/{filename}, document record with status "READY", pre-computed embeddings in Qdrant collection kb_{demo_kb_id}</criterion>
+    <criterion id="4">Given a new user registers or logs in When they view the KB list Then they see "Sample Knowledge Base" with READ permission automatically granted</criterion>
+    <criterion id="5">Given the demo KB exists When any user accesses it Then they can browse document list and see metadata (name, size, status, chunk count)</criterion>
+    <criterion id="6">Given pre-computed embeddings are loaded When semantic search is implemented (Epic 3) Then users can search demo KB and get meaningful results with citations</criterion>
+    <criterion id="7">Given a demo user doesn't exist When the seed script runs Then it creates demo user: demo@lumikb.local, password from env var or demo123, is_superuser false, is_verified true</criterion>
+    <criterion id="8">Given the seed script is run multiple times When the demo KB already exists Then the script is idempotent - skips creation and logs "Demo KB already exists"</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>FR8c - Sample Knowledge Base</section>
+        <snippet>System provides a sample Knowledge Base with demo documents for immediate value demonstration. First-time users see Getting Started wizard.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Qdrant Collections (lines 1016-1022)</section>
+        <snippet>One collection per Knowledge Base: kb_{kb_id}. Vector dimension: 1536 (OpenAI ada-002) or configurable. Payload includes: document_id, document_name, page, section, char_start, char_end, text.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Transactional Outbox Pattern (lines 439-520)</section>
+        <snippet>Document status state machine: PENDING -> PROCESSING -> READY/FAILED -> ARCHIVED. Document operations touch PostgreSQL, MinIO, and Qdrant with eventual consistency guarantees.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Story 1.10 Seeding Mechanism</section>
+        <snippet>Uses direct Qdrant API to insert pre-computed embeddings (not the full processing pipeline from Epic 2). Pre-computed embeddings stored in infrastructure/seed/demo-embeddings.json.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epic Breakdown</title>
+        <section>Story 1.10: Demo Knowledge Base Seeding (lines 507-538)</section>
+        <snippet>Seed script creates demo user if not exists, creates demo KB with documents, inserts pre-computed vectors into Qdrant. Demo KB should be visible to all users with READ permission.</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>LumiKB Coding Standards</title>
+        <section>Python Standards (lines 49-100)</section>
+        <snippet>Python 3.11 required. Use type hints, async/await for I/O, snake_case for files/functions, PascalCase for classes. Use structlog for logging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Empty State Strategy (lines 276-290)</section>
+        <snippet>Sample Knowledge Base pre-populated with example documents. Shows what good results look like. Can be explored before uploading own content.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/app/models/knowledge_base.py</path>
+        <kind>model</kind>
+        <symbol>KnowledgeBase</symbol>
+        <reason>SQLAlchemy model for knowledge_bases table - seed script will create instances of this model</reason>
+      </file>
+      <file>
+        <path>backend/app/models/document.py</path>
+        <kind>model</kind>
+        <symbol>Document, DocumentStatus</symbol>
+        <reason>SQLAlchemy model for documents table with status enum (PENDING, PROCESSING, READY, FAILED, ARCHIVED) - seed script creates documents with READY status</reason>
+      </file>
+      <file>
+        <path>backend/app/models/permission.py</path>
+        <kind>model</kind>
+        <symbol>KBPermission, PermissionLevel</symbol>
+        <reason>Permission model with READ/WRITE/ADMIN levels - seed script grants READ permission to all users for demo KB</reason>
+      </file>
+      <file>
+        <path>backend/app/models/user.py</path>
+        <kind>model</kind>
+        <symbol>User</symbol>
+        <reason>FastAPI-Users compatible user model - seed script creates demo user with this model</reason>
+      </file>
+      <file>
+        <path>backend/app/core/database.py</path>
+        <kind>infrastructure</kind>
+        <symbol>engine, async_session_factory, get_async_session</symbol>
+        <reason>Database session management - seed script needs to use async sessions for database operations</reason>
+      </file>
+      <file>
+        <path>backend/app/core/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings, settings</symbol>
+        <reason>Application settings including database_url, minio_*, qdrant_* - seed script reads these for connections</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/layout/kb-sidebar.tsx</path>
+        <kind>component</kind>
+        <symbol>KbSidebar</symbol>
+        <lines>10-15</lines>
+        <reason>Currently uses placeholderKbs array - needs to be connected to real API to show demo KB</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/kb/kb-selector-item.tsx</path>
+        <kind>component</kind>
+        <symbol>KbSelectorItem</symbol>
+        <reason>KB item component with permission display - ready to show demo KB with READ permission icon</reason>
+      </file>
+      <file>
+        <path>infrastructure/docker/docker-compose.yml</path>
+        <kind>config</kind>
+        <symbol>postgres, redis, minio, qdrant services</symbol>
+        <reason>Docker services - seed script depends on postgres, minio, and qdrant being available</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0,&lt;1.0.0">Web framework</package>
+        <package name="sqlalchemy[asyncio]" version=">=2.0.44,&lt;3.0.0">ORM for database access</package>
+        <package name="asyncpg" version=">=0.30.0,&lt;1.0.0">PostgreSQL async driver</package>
+        <package name="pydantic" version=">=2.7.0,&lt;3.0.0">Data validation</package>
+        <package name="pydantic-settings" version=">=2.0.0,&lt;3.0.0">Configuration management</package>
+        <package name="fastapi-users[sqlalchemy]" version=">=14.0.0,&lt;15.0.0">User management</package>
+        <package name="argon2-cffi" version=">=23.1.0,&lt;24.0.0">Password hashing for demo user</package>
+        <package name="structlog" version=">=25.5.0,&lt;26.0.0">Structured logging</package>
+        <package name="qdrant-client" version=">=1.10.0,&lt;2.0.0" optional="all">Vector database client for seeding embeddings</package>
+        <package name="boto3" version=">=1.35.0" optional="all">S3/MinIO client for document storage</package>
+        <package name="litellm" version=">=1.50.0,&lt;2.0.0" optional="all">LLM client for embedding generation</package>
+      </backend>
+      <frontend>
+        <package name="next" version="16.0.3">React framework</package>
+        <package name="react" version="19.2.0">UI library</package>
+        <package name="zustand" version="^5.0.8">State management for KB selection</package>
+        <package name="lucide-react" version="^0.554.0">Icons for permission display</package>
+      </frontend>
+      <infrastructure>
+        <service name="PostgreSQL" version="16" port="5432">Primary database for KB, documents, permissions</service>
+        <service name="MinIO" version="latest" port="9000,9001">Object storage for demo document files</service>
+        <service name="Qdrant" version="latest" port="6333,6334">Vector database for pre-computed embeddings</service>
+        <service name="Redis" version="7-alpine" port="6379">Sessions and cache</service>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="tech-spec">Seeding uses direct Qdrant API for pre-computed embeddings, NOT the full processing pipeline from Epic 2</constraint>
+    <constraint source="architecture">Demo docs location: infrastructure/seed/demo-docs/</constraint>
+    <constraint source="architecture">Pre-computed embeddings file: infrastructure/seed/demo-embeddings.json</constraint>
+    <constraint source="architecture">Embedding model: text-embedding-ada-002 (1536 dimensions) or configurable</constraint>
+    <constraint source="architecture">MinIO bucket naming: kb-{kb_id} per Knowledge Base</constraint>
+    <constraint source="architecture">Qdrant collection naming: kb_{kb_id} per Knowledge Base</constraint>
+    <constraint source="architecture">Permission model: READ, WRITE, ADMIN levels</constraint>
+    <constraint source="coding-standards">Python 3.11 required for redis-py compatibility</constraint>
+    <constraint source="coding-standards">Use type hints on all functions, async/await for I/O operations</constraint>
+    <constraint source="coding-standards">Use structlog with request context pattern for logging</constraint>
+    <constraint source="story">Script must be idempotent - running twice should not duplicate data</constraint>
+    <constraint source="story">Demo user password should be configurable via environment variable</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>KnowledgeBase SQLAlchemy Model</name>
+      <kind>ORM model</kind>
+      <signature>class KnowledgeBase(UUIDPrimaryKeyMixin, TimestampMixin, Base): name, description, owner_id, status, documents, permissions</signature>
+      <path>backend/app/models/knowledge_base.py</path>
+    </interface>
+    <interface>
+      <name>Document SQLAlchemy Model</name>
+      <kind>ORM model</kind>
+      <signature>class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base): kb_id, name, file_path, status (DocumentStatus enum), chunk_count, last_error</signature>
+      <path>backend/app/models/document.py</path>
+    </interface>
+    <interface>
+      <name>KBPermission SQLAlchemy Model</name>
+      <kind>ORM model</kind>
+      <signature>class KBPermission(Base): user_id, kb_id, permission_level (PermissionLevel enum: READ, WRITE, ADMIN)</signature>
+      <path>backend/app/models/permission.py</path>
+    </interface>
+    <interface>
+      <name>User SQLAlchemy Model</name>
+      <kind>ORM model</kind>
+      <signature>class User(SQLAlchemyBaseUserTableUUID, Base): email, hashed_password, is_active, is_superuser, is_verified, created_at, updated_at</signature>
+      <path>backend/app/models/user.py</path>
+    </interface>
+    <interface>
+      <name>Async Session Factory</name>
+      <kind>database</kind>
+      <signature>async_session_factory: async_sessionmaker[AsyncSession]</signature>
+      <path>backend/app/core/database.py</path>
+    </interface>
+    <interface>
+      <name>Settings</name>
+      <kind>config</kind>
+      <signature>settings.database_url, settings.minio_endpoint, settings.minio_access_key, settings.minio_secret_key, settings.qdrant_host, settings.qdrant_port</signature>
+      <path>backend/app/core/config.py</path>
+    </interface>
+    <interface>
+      <name>Qdrant Vector Payload</name>
+      <kind>data structure</kind>
+      <signature>{ document_id: UUID, document_name: str, page_number: int|null, section_header: str, chunk_text: str, char_start: int, char_end: int }</signature>
+      <path>architecture.md (Citation Assembly System)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend uses pytest with pytest-asyncio for async tests. Frontend uses Vitest with React Testing Library. Test files follow pattern test_*.py (backend) and *.test.tsx (frontend). Integration tests marked with @pytest.mark.integration. All tests must pass before story completion. Coverage target: 80% for new code.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/</location>
+      <location>backend/tests/integration/</location>
+      <location>frontend/src/**/__tests__/</location>
+    </locations>
+    <ideas>
+      <idea ac="1,7">test_seed_creates_demo_user - verify demo user created with correct email, is_verified=True, is_superuser=False</idea>
+      <idea ac="1">test_seed_creates_demo_kb - verify KB created with correct name, description, status="active"</idea>
+      <idea ac="8">test_seed_idempotent - run seed twice, verify no duplicate KB or user created</idea>
+      <idea ac="3">test_seed_creates_document_records - verify documents created with status=READY and correct metadata</idea>
+      <idea ac="4">test_seed_grants_read_permission - verify new users get READ permission on demo KB</idea>
+      <idea ac="3">test_seed_uploads_to_minio - verify demo doc files exist in MinIO bucket</idea>
+      <idea ac="3,6">test_seed_inserts_vectors - verify vectors inserted into Qdrant collection with correct payload structure</idea>
+      <idea ac="5">test_kb_sidebar_shows_demo_kb - frontend component test verifying demo KB appears after API call</idea>
+    </ideas>
+  </tests>
+</story-context>

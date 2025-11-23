@@ -1,0 +1,175 @@
+<story-context id="1-4-user-registration-and-authentication-backend" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>User Registration and Authentication Backend</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-4-user-registration-and-authentication-backend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to create an account and log in securely</iWant>
+    <soThat>I can access the LumiKB application</soThat>
+    <tasks>
+      <task id="1" ac="1-7">Add authentication dependencies to backend
+        <subtask>Add fastapi-users[sqlalchemy]>=14.0.0,<15.0.0 to pyproject.toml</subtask>
+        <subtask>Add argon2-cffi>=23.1.0,<24.0.0 for password hashing</subtask>
+        <subtask>Add redis>=7.1.0,<8.0.0 (async support)</subtask>
+        <subtask>Run pip install -e ".[dev]" to install</subtask>
+        <subtask>Verify imports: from fastapi_users import FastAPIUsers</subtask>
+      </task>
+      <task id="2" ac="1,2">Create Pydantic schemas for authentication
+        <subtask>Create backend/app/schemas/user.py with UserRead, UserCreate, UserUpdate</subtask>
+        <subtask>Create backend/app/schemas/__init__.py exports</subtask>
+      </task>
+      <task id="3" ac="1-7">Implement FastAPI-Users configuration
+        <subtask>Create backend/app/core/auth.py with UserManager, JWT strategy, cookie transport</subtask>
+        <subtask>Create backend/app/core/users.py with get_user_db, auth_backend</subtask>
+      </task>
+      <task id="4" ac="3,5,7">Implement Redis session storage
+        <subtask>Create backend/app/core/redis.py with RedisSessionStore class</subtask>
+        <subtask>Methods: store_session, get_session, invalidate_session</subtask>
+        <subtask>Methods: increment_failed_attempts, get_failed_attempts, reset_failed_attempts</subtask>
+      </task>
+      <task id="5" ac="1-7">Create authentication API routes
+        <subtask>Create backend/app/api/v1/auth.py router</subtask>
+        <subtask>POST /api/v1/auth/register, /login, /logout</subtask>
+        <subtask>Add rate limiting for login endpoint</subtask>
+        <subtask>Wire audit logging calls</subtask>
+      </task>
+      <task id="6" ac="6">Create users API routes
+        <subtask>Create backend/app/api/v1/users.py</subtask>
+        <subtask>GET /api/v1/users/me - current user profile</subtask>
+        <subtask>Export current_active_user dependency</subtask>
+      </task>
+      <task id="7" ac="8">Implement basic Audit Service stub
+        <subtask>Create backend/app/services/audit_service.py with AuditService class</subtask>
+        <subtask>Create backend/app/repositories/audit_repo.py</subtask>
+        <subtask>Async fire-and-forget pattern</subtask>
+      </task>
+      <task id="8" ac="1-7">Wire routers into main application
+        <subtask>Update backend/app/main.py with auth and users routers</subtask>
+        <subtask>Add startup/shutdown events for Redis</subtask>
+        <subtask>Update backend/app/api/v1/__init__.py exports</subtask>
+      </task>
+      <task id="9" ac="1-8">Write integration tests
+        <subtask>Create backend/tests/integration/test_auth.py</subtask>
+        <subtask>Test registration, login, logout, rate limiting, audit</subtask>
+        <subtask>Add pytest fixtures for test user creation</subtask>
+      </task>
+      <task id="10" ac="1-8">Verify all acceptance criteria
+        <subtask>Manual verification via API docs</subtask>
+        <subtask>Verify audit.events table records</subtask>
+        <subtask>Run full test suite</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Given registration endpoint, When submit valid email/password (min 8 chars) to POST /api/v1/auth/register, Then account created with argon2 hash, receive UserRead response</criterion>
+    <criterion id="2">Given duplicate email, When call POST /api/v1/auth/register, Then receive 400 error with REGISTER_USER_ALREADY_EXISTS</criterion>
+    <criterion id="3">Given valid account, When submit credentials to POST /api/v1/auth/login, Then receive 200, JWT in httpOnly/Secure/SameSite=Lax cookie, session stored in Redis</criterion>
+    <criterion id="4">Given incorrect credentials, When call POST /api/v1/auth/login, Then receive 400 with LOGIN_BAD_CREDENTIALS, failed attempts tracked in Redis</criterion>
+    <criterion id="5">Given 5+ failed logins in 15 minutes, When attempt another login, Then receive 429 Too Many Requests</criterion>
+    <criterion id="6">Given logged in (valid JWT cookie), When access protected endpoint GET /api/v1/users/me, Then JWT validated and request proceeds</criterion>
+    <criterion id="7">Given logged in, When call POST /api/v1/auth/logout, Then session invalidated in Redis, JWT cookie cleared, receive 200</criterion>
+    <criterion id="8">Given any auth event (register, login, logout, login_failed), When action completes, Then audit event written to audit.events asynchronously</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="System Architecture" section="Authentication-Flow" snippet="JWT tokens with 60-min expiry, httpOnly cookies, Redis session storage for metadata and rate limiting" />
+      <doc path="docs/architecture.md" title="System Architecture" section="Security-Requirements" snippet="Argon2 password hashing, rate limiting (5 attempts/15 min per IP), CSRF via SameSite cookies" />
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="User-Registration-Flow" snippet="Sequence: validate input, check uniqueness, hash password (argon2), INSERT user, async audit log" />
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="User-Login-Flow" snippet="Validate credentials, generate JWT, store session in Redis, set httpOnly cookie, async audit" />
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="APIs-and-Interfaces" snippet="POST /auth/register, /login, /logout; GET /users/me; error codes 400, 401, 429" />
+      <doc path="docs/epics.md" title="Epics" section="Story-1.4" snippet="User registration and authentication backend with JWT, Redis sessions, rate limiting, audit logging" />
+      <doc path="docs/coding-standards.md" title="Coding Standards" section="Python-Standards-Backend" snippet="Python 3.11, type hints, async/await for I/O, structlog logging, Pydantic validation" />
+      <doc path="docs/prd.md" title="PRD" section="FR1-FR8" snippet="User Account & Access requirements including registration, login, password management" />
+    </docs>
+    <code>
+      <file path="backend/app/models/user.py" kind="model" symbol="User" lines="17-59" reason="FastAPI-Users compatible User model with timestamps, already defined" />
+      <file path="backend/app/models/audit.py" kind="model" symbol="AuditEvent" lines="14-63" reason="Audit event model in audit schema, INSERT-only pattern" />
+      <file path="backend/app/core/config.py" kind="config" symbol="Settings" lines="6-60" reason="App settings including redis_url, secret_key, jwt_algorithm, jwt_expiry_minutes" />
+      <file path="backend/app/core/database.py" kind="database" symbol="get_async_session" lines="24-42" reason="Async session factory for database operations" />
+      <file path="backend/app/main.py" kind="app" symbol="app" lines="1-37" reason="FastAPI app entry point, will add auth/users routers here" />
+      <file path="backend/app/api/v1/__init__.py" kind="router" symbol="module" lines="1" reason="Router exports, will add auth and users routers" />
+      <file path="backend/tests/conftest.py" kind="test-fixture" symbol="db_session,client" lines="30-88" reason="Test fixtures for database and HTTP client" />
+      <file path="backend/tests/integration/test_service_connectivity.py" kind="test" symbol="test_redis_connectivity" lines="37-58" reason="Pattern for Redis connectivity testing" />
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="fastapi" version=">=0.115.0,<1.0.0" />
+        <package name="pydantic" version=">=2.7.0,<3.0.0" />
+        <package name="pydantic-settings" version=">=2.0.0,<3.0.0" />
+        <package name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" />
+        <package name="asyncpg" version=">=0.30.0,<1.0.0" />
+        <package name="structlog" version=">=25.5.0,<26.0.0" />
+        <!-- To be added by this story -->
+        <package name="fastapi-users[sqlalchemy]" version=">=14.0.0,<15.0.0" status="to-add" />
+        <package name="argon2-cffi" version=">=23.1.0,<24.0.0" status="to-add" />
+        <package name="redis" version=">=7.1.0,<8.0.0" status="to-add" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="library">Use fastapi-users[sqlalchemy] NOT fastapi-users[sqlalchemy2] (deprecated extra)</constraint>
+    <constraint type="python">Python 3.11+ required for redis-py >=7.1.0 async support</constraint>
+    <constraint type="auth">JWT tokens in httpOnly + Secure + SameSite=Lax cookies (NOT bearer headers)</constraint>
+    <constraint type="password">Argon2 password hashing (~500ms target per hash)</constraint>
+    <constraint type="session">Redis session TTL must match JWT expiry (60 minutes)</constraint>
+    <constraint type="rate-limit">5 failed login attempts per IP per 15 minutes, then 429</constraint>
+    <constraint type="audit">Audit logging must be async fire-and-forget (not blocking)</constraint>
+    <constraint type="config">Use pydantic_settings.BaseSettings (NOT pydantic.BaseSettings)</constraint>
+    <constraint type="env">Environment variables use LUMIKB_ prefix</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/v1/auth/register" kind="REST endpoint" signature="(email: str, password: str) -> UserRead | 400 | 409" path="backend/app/api/v1/auth.py" />
+    <interface name="POST /api/v1/auth/login" kind="REST endpoint" signature="(email: str, password: str) -> 200 + Set-Cookie | 400 | 429" path="backend/app/api/v1/auth.py" />
+    <interface name="POST /api/v1/auth/logout" kind="REST endpoint" signature="() -> 200 | 401" path="backend/app/api/v1/auth.py" />
+    <interface name="GET /api/v1/users/me" kind="REST endpoint" signature="() -> UserRead | 401" path="backend/app/api/v1/users.py" />
+    <interface name="UserManager" kind="class" signature="BaseUserManager[User, UUID]" path="backend/app/core/auth.py" />
+    <interface name="RedisSessionStore" kind="class" signature="store_session, get_session, invalidate_session, increment_failed_attempts, get_failed_attempts, reset_failed_attempts" path="backend/app/core/redis.py" />
+    <interface name="AuditService" kind="class" signature="log_event(action, user_id, resource_type, resource_id, details, ip_address)" path="backend/app/services/audit_service.py" />
+    <interface name="current_active_user" kind="dependency" signature="Depends -> User" path="backend/app/core/auth.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      pytest with pytest-asyncio for async tests. Integration tests marked with @pytest.mark.integration.
+      Use httpx AsyncClient for API testing. Fixtures in conftest.py provide db_session and client.
+      Each test function should be isolated with fresh database state via rollback.
+      Follow naming convention: test_{action}_{scenario}_returns_{expected}.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/</location>
+      <location>backend/tests/integration/</location>
+      <location>backend/tests/integration/test_auth.py (new)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">test_register_valid_email_password_creates_user_returns_201</idea>
+      <idea ac="1">test_register_returns_user_read_with_id_email_is_active_created_at</idea>
+      <idea ac="2">test_register_duplicate_email_returns_400_already_exists</idea>
+      <idea ac="2">test_register_weak_password_returns_422</idea>
+      <idea ac="3">test_login_valid_credentials_returns_200_sets_cookie</idea>
+      <idea ac="3">test_login_sets_httponly_secure_samesite_cookie</idea>
+      <idea ac="3">test_login_stores_session_in_redis</idea>
+      <idea ac="4">test_login_invalid_credentials_returns_400</idea>
+      <idea ac="4">test_login_tracks_failed_attempts_in_redis</idea>
+      <idea ac="5">test_login_rate_limited_after_5_failures_returns_429</idea>
+      <idea ac="6">test_users_me_with_valid_token_returns_user</idea>
+      <idea ac="6">test_users_me_without_token_returns_401</idea>
+      <idea ac="7">test_logout_clears_session_and_cookie</idea>
+      <idea ac="7">test_logout_returns_200</idea>
+      <idea ac="8">test_register_creates_audit_event</idea>
+      <idea ac="8">test_login_creates_audit_event</idea>
+      <idea ac="8">test_login_failed_creates_audit_event</idea>
+      <idea ac="8">test_logout_creates_audit_event</idea>
+    </ideas>
+  </tests>
+</story-context>
