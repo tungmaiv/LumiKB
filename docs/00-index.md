@@ -3,6 +3,19 @@
 > Auto-generated index of all project documentation, ordered by creation date.
 
 **Last Updated:** 2025-11-23
+**Repository:** https://github.com/tungmaiv/LumiKB
+
+---
+
+## Project Status
+
+| Metric | Value |
+|--------|-------|
+| Current Epic | Epic 1: Foundation & Authentication |
+| Epic 1 Status | **COMPLETED** (10/10 stories) |
+| Epic 1 Retrospective | Completed |
+| Next Epic | Epic 2: Knowledge Base & Document Management |
+| Total Progress | 10/52 stories (19%) |
 
 ---
 
@@ -21,6 +34,8 @@
 | 9 | [epics.md](epics.md) | Epic Breakdown - 5 epics, 52 stories, FR traceability | 2025-11-22 | Active |
 | 10 | [coding-standards.md](coding-standards.md) | Coding Standards - Python/TypeScript conventions, API patterns, testing | 2025-11-22 | Active |
 | 11 | [bmm-workflow-status.yaml](bmm-workflow-status.yaml) | BMM Workflow Status - Project progress tracking through BMad Method phases | 2025-11-22 | Active |
+| 12 | [test-framework-specification.md](test-framework-specification.md) | Test Framework Specification - pytest, testcontainers, markers, CI/CD | 2025-11-23 | Active |
+| 13 | [handover-tea-test-framework.md](handover-tea-test-framework.md) | TEA Handover - Test framework implementation guide | 2025-11-23 | Complete |
 
 ---
 
@@ -45,6 +60,7 @@
 
 ### Standards & Guidelines
 - [coding-standards.md](coding-standards.md) - **Coding Standards** (Python, TypeScript, API, Database, Git)
+- [test-framework-specification.md](test-framework-specification.md) - **Test Framework Specification** (markers, fixtures, CI/CD)
 
 ### UX & Design
 - [ux-design-specification.md](ux-design-specification.md) - Complete UX specification with wireframes, component library, user flows
@@ -56,13 +72,26 @@
 
 ## Sprint Artifacts
 
-| # | Artifact | Description | Created | Status |
-|---|----------|-------------|---------|--------|
-| 1 | [sprint-artifacts/sprint-status.yaml](sprint-artifacts/sprint-status.yaml) | Sprint Status Tracking - All epics and stories with status | 2025-11-23 | Active |
-| 2 | [sprint-artifacts/tech-spec-epic-1.md](sprint-artifacts/tech-spec-epic-1.md) | Epic 1 Tech Spec - Foundation & Authentication detailed design | 2025-11-23 | Active |
-| 3 | [sprint-artifacts/1-1-project-initialization-and-repository-setup.md](sprint-artifacts/1-1-project-initialization-and-repository-setup.md) | Story 1.1 - Project Initialization (ready-for-dev) | 2025-11-23 | Ready |
-| 4 | [sprint-artifacts/1-1-project-initialization-and-repository-setup.context.xml](sprint-artifacts/1-1-project-initialization-and-repository-setup.context.xml) | Story 1.1 Context - Technical context for dev agent | 2025-11-23 | Ready |
-| 5 | [sprint-artifacts/validation-report-1-1-2025-11-23.md](sprint-artifacts/validation-report-1-1-2025-11-23.md) | Story 1.1 Validation - Quality validation report | 2025-11-23 | Complete |
+| # | Artifact | Description | Status |
+|---|----------|-------------|--------|
+| 1 | [sprint-artifacts/sprint-status.yaml](sprint-artifacts/sprint-status.yaml) | Sprint Status Tracking - All epics and stories with status | Active |
+| 2 | [sprint-artifacts/tech-spec-epic-1.md](sprint-artifacts/tech-spec-epic-1.md) | Epic 1 Tech Spec - Foundation & Authentication detailed design | Complete |
+| 3 | [sprint-artifacts/epic-1-retrospective.md](sprint-artifacts/epic-1-retrospective.md) | Epic 1 Retrospective - What went well, challenges, action items | Complete |
+
+### Epic 1 Stories (All Complete)
+
+| Story | Title | Status |
+|-------|-------|--------|
+| 1-1 | Project Initialization and Repository Setup | Done |
+| 1-2 | Database Schema and Migration Setup | Done |
+| 1-3 | Docker Compose Development Environment | Done |
+| 1-4 | User Registration and Authentication Backend | Done |
+| 1-5 | User Profile and Password Management Backend | Done |
+| 1-6 | Admin User Management Backend | Done |
+| 1-7 | Audit Logging Infrastructure | Done |
+| 1-8 | Frontend Authentication UI | Done |
+| 1-9 | Three-Panel Dashboard Shell | Done |
+| 1-10 | Demo Knowledge Base Seeding | Done |
 
 ---
 
@@ -81,25 +110,76 @@
 
 ---
 
+## Technical Stack
+
+### Backend
+- **Framework:** FastAPI + Pydantic v2
+- **ORM:** SQLAlchemy 2.0 async
+- **Auth:** FastAPI-Users with JWT cookies
+- **Database:** PostgreSQL 16
+- **Cache:** Redis 7
+- **Migrations:** Alembic
+
+### Frontend
+- **Framework:** Next.js 15 (App Router)
+- **UI Library:** shadcn/ui + Tailwind CSS
+- **State:** Zustand
+- **Forms:** React Hook Form + Zod
+
+### Infrastructure
+- **Container:** Docker Compose
+- **Object Storage:** MinIO
+- **Vector DB:** Qdrant
+- **LLM Proxy:** LiteLLM
+
+### Testing
+- **Backend:** pytest, pytest-asyncio, testcontainers
+- **Frontend:** Vitest, React Testing Library
+- **E2E:** Playwright
+
+---
+
 ## Folders
 
 | Folder | Purpose | Contents |
 |--------|---------|----------|
-| [sprint-artifacts/](sprint-artifacts/) | Sprint deliverables and artifacts | Sprint status, tech specs, stories, contexts |
+| [sprint-artifacts/](sprint-artifacts/) | Sprint deliverables and artifacts | Sprint status, tech specs, stories, retrospectives |
 
 ---
 
 ## Current Sprint Status
 
-| Epic | Status | Stories Ready | Stories Done |
-|------|--------|---------------|--------------|
-| Epic 1: Foundation & Authentication | **contexted** | 1 | 0 |
-| Epic 2: Knowledge Base & Document Management | backlog | 0 | 0 |
-| Epic 3: Semantic Search & Citations | backlog | 0 | 0 |
-| Epic 4: Chat & Document Generation | backlog | 0 | 0 |
-| Epic 5: Administration & Polish | backlog | 0 | 0 |
+| Epic | Status | Stories Done | Total |
+|------|--------|--------------|-------|
+| Epic 1: Foundation & Authentication | **COMPLETED** | 10 | 10 |
+| Epic 2: Knowledge Base & Document Management | backlog | 0 | 12 |
+| Epic 3: Semantic Search & Citations | backlog | 0 | 11 |
+| Epic 4: Chat & Document Generation | backlog | 0 | 10 |
+| Epic 5: Administration & Polish | backlog | 0 | 9 |
 
-**Next Action:** Story 1.1 (Project Initialization) is ready-for-dev
+**Next Action:** Context Epic 2, then begin Story 2-1 (Knowledge Base CRUD Backend)
+
+---
+
+## Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/tungmaiv/LumiKB.git
+cd LumiKB
+
+# Start infrastructure
+make dev
+
+# Run backend (in separate terminal)
+make dev-backend
+
+# Run frontend (in separate terminal)
+make dev-frontend
+
+# Run tests
+make test-all
+```
 
 ---
 
