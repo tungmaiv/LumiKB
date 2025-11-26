@@ -3,14 +3,20 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { DraftSelectionPanel } from '../draft-selection-panel';
-import { useDraftStore } from '@/lib/stores/draft-store';
+import { useDraftStore, type DraftResult } from '@/lib/stores/draft-store';
 import { toast } from 'sonner';
 
 // Mock dependencies
 vi.mock('@/lib/stores/draft-store');
 vi.mock('sonner');
+
+// Mock store type
+type MockDraftStore = {
+  selectedResults: DraftResult[];
+  clearAll: () => void;
+};
 
 describe('DraftSelectionPanel', () => {
   beforeEach(() => {
@@ -19,7 +25,7 @@ describe('DraftSelectionPanel', () => {
 
   it('renders when there are selected results', () => {
     // Arrange
-    (useDraftStore as any).mockReturnValue({
+    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
       selectedResults: [
         {
           chunkId: '1',
@@ -44,7 +50,7 @@ describe('DraftSelectionPanel', () => {
 
   it('hides when there are no selected results', () => {
     // Arrange
-    (useDraftStore as any).mockReturnValue({
+    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
       selectedResults: [],
       clearAll: vi.fn(),
     });
@@ -58,7 +64,7 @@ describe('DraftSelectionPanel', () => {
 
   it('displays correct count for multiple results', () => {
     // Arrange
-    (useDraftStore as any).mockReturnValue({
+    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
       selectedResults: [
         { chunkId: '1', documentName: 'Doc 1' /* other fields */ },
         { chunkId: '2', documentName: 'Doc 2' /* other fields */ },
@@ -77,7 +83,7 @@ describe('DraftSelectionPanel', () => {
   it('calls clearAll when Clear All button clicked', () => {
     // Arrange
     const clearAllMock = vi.fn();
-    (useDraftStore as any).mockReturnValue({
+    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
       selectedResults: [{ chunkId: '1' /* other fields */ }],
       clearAll: clearAllMock,
     });
@@ -94,7 +100,7 @@ describe('DraftSelectionPanel', () => {
 
   it('shows placeholder toast when Start Draft clicked', () => {
     // Arrange
-    (useDraftStore as any).mockReturnValue({
+    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
       selectedResults: [{ chunkId: '1' /* other fields */ }],
       clearAll: vi.fn(),
     });

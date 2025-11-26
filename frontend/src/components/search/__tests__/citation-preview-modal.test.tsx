@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { CitationPreviewModal } from '../citation-preview-modal';
 import type { Citation } from '../citation-card';
 
@@ -47,7 +47,7 @@ describe('CitationPreviewModal', () => {
     const onOpenChange = vi.fn();
     const onOpenDocument = vi.fn();
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       text: async () => 'Before text. This is a test excerpt from the document. After text.',
     });
@@ -69,7 +69,7 @@ describe('CitationPreviewModal', () => {
     const onOpenChange = vi.fn();
     const onOpenDocument = vi.fn();
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       text: async () => 'Before text. This is a test excerpt from the document. After text.',
     });
@@ -92,7 +92,7 @@ describe('CitationPreviewModal', () => {
     const onOpenChange = vi.fn();
     const onOpenDocument = vi.fn();
 
-    (global.fetch as any).mockImplementationOnce(
+    (global.fetch as Mock).mockImplementationOnce(
       () =>
         new Promise((resolve) =>
           setTimeout(
@@ -123,7 +123,7 @@ describe('CitationPreviewModal', () => {
     const onOpenChange = vi.fn();
     const onOpenDocument = vi.fn();
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: false,
       status: 404,
     });
@@ -152,7 +152,7 @@ describe('CitationPreviewModal', () => {
     const onOpenDocument = vi.fn();
     const user = userEvent.setup();
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       text: async () => 'Content',
     });
@@ -177,7 +177,7 @@ describe('CitationPreviewModal', () => {
     const onOpenDocument = vi.fn();
     const user = userEvent.setup();
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       text: async () => 'Content',
     });
@@ -207,7 +207,7 @@ describe('CitationPreviewModal', () => {
     const onOpenDocument = vi.fn();
     const user = userEvent.setup();
 
-    (global.fetch as any).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       text: async () => 'Content',
     });
