@@ -1,0 +1,546 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document
+  Generated: 2025-11-24
+  Story: 2-5-document-processing-worker-parsing
+  Epic: 2 - Knowledge Base & Document Management
+-->
+<story-context story-key="2-5-document-processing-worker-parsing" epic="2" story="5">
+
+  <!-- ================================================================== -->
+  <!-- STORY METADATA -->
+  <!-- ================================================================== -->
+  <metadata>
+    <title>Document Processing Worker - Parsing</title>
+    <epic-name>Knowledge Base and Document Management</epic-name>
+    <status>drafted</status>
+    <generated>2025-11-24</generated>
+    <source>docs/sprint-artifacts/2-5-document-processing-worker-parsing.md</source>
+  </metadata>
+
+  <!-- ================================================================== -->
+  <!-- STORY DEFINITION -->
+  <!-- ================================================================== -->
+  <story>
+    <as-a>system</as-a>
+    <i-want>to parse uploaded documents and extract text</i-want>
+    <so-that>content can be chunked and embedded for semantic search</so-that>
+  </story>
+
+  <!-- ================================================================== -->
+  <!-- ACCEPTANCE CRITERIA -->
+  <!-- ================================================================== -->
+  <acceptance-criteria>
+    <ac id="1" title="Document Processing Initialization">
+      <given>A document is in PENDING status with an outbox event `document.process`</given>
+      <when>The Celery worker picks up the processing event</when>
+      <then>
+        - The document status is updated to `PROCESSING`
+        - `processing_started_at` timestamp is set
+        - The file is downloaded from MinIO using the stored `file_path`
+        - File checksum is validated against the stored checksum
+      </then>
+    </ac>
+
+    <ac id="2" title="PDF Document Parsing">
+      <given>A PDF document</given>
+      <when>Parsing completes</when>
+      <then>
+        - Text content is extracted using `unstructured.partition_pdf()`
+        - Page numbers are extracted and preserved in metadata
+        - Any images/figures are noted but text is prioritized
+      </then>
+    </ac>
+
+    <ac id="3" title="DOCX Document Parsing">
+      <given>A DOCX document</given>
+      <when>Parsing completes</when>
+      <then>
+        - Text content is extracted using `unstructured.partition_docx()`
+        - Section headers are extracted and preserved
+        - Text formatting is converted to plain text
+      </then>
+    </ac>
+
+    <ac id="4" title="Markdown Document Parsing">
+      <given>A Markdown document</given>
+      <when>Parsing completes</when>
+      <then>
+        - Text content is extracted using `unstructured.partition_md()`
+        - Heading structure is extracted and preserved
+      </then>
+    </ac>
+
+    <ac id="5" title="Minimum Content Validation">
+      <given>Parsing extracts less than 100 characters of text</given>
+      <when>Validation runs</when>
+      <then>
+        - Document status is set to `FAILED`
+        - `last_error` is set to "No text content found (extracted {n} chars, minimum 100)"
+      </then>
+    </ac>
+
+    <ac id="6" title="Scanned PDF Detection">
+      <given>A scanned PDF (image-only, no extractable text)</given>
+      <when>Parsing completes</when>
+      <then>
+        - Document status is set to `FAILED`
+        - `last_error` is set to "Document appears to be scanned (OCR required - MVP 2)"
+      </then>
+    </ac>
+
+    <ac id="7" title="Password-Protected PDF Handling">
+      <given>A password-protected PDF</given>
+      <when>Parsing fails</when>
+      <then>
+        - Document status is set to `FAILED`
+        - `last_error` is set to "Password-protected PDF cannot be processed"
+      </then>
+    </ac>
+
+    <ac id="8" title="Max Retries Exhaustion">
+      <given>Parsing fails for any reason</given>
+      <when>Max retries (3) are exhausted</when>
+      <then>
+        - Document status is set to `FAILED`
+        - `last_error` contains the failure reason
+        - `retry_count` is incremented to reflect total attempts
+        - Outbox event is marked as processed (to stop retries)
+      </then>
+    </ac>
+
+    <ac id="9" title="Successful Parsing Completion">
+      <given>Parsing completes successfully</given>
+      <when>The worker finishes</when>
+      <then>
+        - Parsed content (text + metadata) is stored temporarily for chunking step (Story 2.6)
+        - Worker emits a success log with document_id and extracted_chars count
+        - Temporary files are cleaned up from `/tmp/{task_id}/`
+      </then>
+    </ac>
+  </acceptance-criteria>
+
+  <!-- ================================================================== -->
+  <!-- TASKS -->
+  <!-- ================================================================== -->
+  <tasks>
+    <task id="1" title="Set up Celery worker infrastructure" ac="1">
+      <description>Create Celery configuration with Redis broker</description>
+      <subtasks>
+        <subtask>Create `backend/app/workers/celery_app.py` with Celery configuration</subtask>
+        <subtask>Configure Redis as broker and result backend</subtask>
+        <subtask>Set up task routing and queues: `default`, `document_processing`</subtask>
+        <subtask>Configure task visibility timeout (10 minutes for document processing)</subtask>
+        <subtask>Add `celery` command to `docker-compose.yaml` for worker</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/app/workers/celery_app.py</file>
+        <file action="modify">infrastructure/docker/docker-compose.yml</file>
+      </files>
+    </task>
+
+    <task id="2" title="Create outbox processor task" ac="1">
+      <description>Implement periodic task to poll outbox and dispatch processing</description>
+      <subtasks>
+        <subtask>Create `backend/app/workers/outbox_tasks.py`</subtask>
+        <subtask>Implement `process_outbox_events()` periodic task (runs every 10 seconds)</subtask>
+        <subtask>Query outbox for unprocessed events (`processed_at IS NULL`, `attempts &lt; 5`)</subtask>
+        <subtask>Dispatch to appropriate handler based on `event_type`</subtask>
+        <subtask>Mark events as processed or increment attempts on failure</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/app/workers/outbox_tasks.py</file>
+        <file action="modify">backend/app/workers/celery_app.py</file>
+      </files>
+    </task>
+
+    <task id="3" title="Create document parsing task" ac="1, 2, 3, 4, 5, 6, 7, 8, 9">
+      <description>Main Celery task for document processing</description>
+      <subtasks>
+        <subtask>Create `backend/app/workers/document_tasks.py`</subtask>
+        <subtask>Implement `process_document(doc_id: str)` Celery task</subtask>
+        <subtask>Update status to PROCESSING, set `processing_started_at`</subtask>
+        <subtask>Download file from MinIO to `/tmp/{task_id}/`</subtask>
+        <subtask>Validate checksum matches stored value</subtask>
+        <subtask>Parse based on MIME type (PDF, DOCX, MD)</subtask>
+        <subtask>Validate extracted text length >= 100 chars</subtask>
+        <subtask>Store parsed content for next step</subtask>
+        <subtask>Handle all failure modes with appropriate error messages</subtask>
+        <subtask>Configure task with `bind=True`, `max_retries=3`, `retry_backoff=True`</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/app/workers/document_tasks.py</file>
+      </files>
+    </task>
+
+    <task id="4" title="Create unstructured parsing utilities" ac="2, 3, 4, 6, 7">
+      <description>Parsing utilities using unstructured library</description>
+      <subtasks>
+        <subtask>Create `backend/app/workers/parsing.py`</subtask>
+        <subtask>Implement `parse_pdf(file_path: str) -> ParsedContent` with strategy="auto"</subtask>
+        <subtask>Extract page numbers from element metadata</subtask>
+        <subtask>Detect scanned PDFs (no text elements extracted)</subtask>
+        <subtask>Handle password-protected PDFs (catch exception)</subtask>
+        <subtask>Implement `parse_docx(file_path: str) -> ParsedContent`</subtask>
+        <subtask>Extract section headers from Title/Heading elements</subtask>
+        <subtask>Implement `parse_markdown(file_path: str) -> ParsedContent`</subtask>
+        <subtask>Extract heading structure</subtask>
+        <subtask>Define `ParsedContent` dataclass with: `text`, `elements`, `metadata`</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/app/workers/parsing.py</file>
+      </files>
+    </task>
+
+    <task id="5" title="Create parsed content storage mechanism" ac="9">
+      <description>Storage for passing parsed content to chunking task (Story 2.6)</description>
+      <subtasks>
+        <subtask>Define strategy for passing parsed content to chunking task</subtask>
+        <subtask>Option A: Store in Redis with TTL (1 hour)</subtask>
+        <subtask>Option B: Store as JSON in MinIO at `{kb_id}/{doc_id}/.parsed.json`</subtask>
+        <subtask>Implement chosen storage approach</subtask>
+        <subtask>Include metadata: `extracted_chars`, `page_count`, `section_count`</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/app/workers/parsed_content_storage.py</file>
+      </files>
+    </task>
+
+    <task id="6" title="Add unstructured library dependencies" ac="2, 3, 4">
+      <description>Add parsing dependencies to project</description>
+      <subtasks>
+        <subtask>Add `unstructured[pdf,docx,md]` to `pyproject.toml`</subtask>
+        <subtask>Add `poppler-utils` to Dockerfile for PDF parsing</subtask>
+        <subtask>Add `tesseract-ocr` placeholder comment (for MVP 2 OCR)</subtask>
+        <subtask>Verify parsing works in Docker environment</subtask>
+      </subtasks>
+      <files>
+        <file action="modify">backend/pyproject.toml</file>
+        <file action="modify">backend/Dockerfile</file>
+      </files>
+    </task>
+
+    <task id="7" title="Update settings for worker configuration" ac="1">
+      <description>Add Celery configuration settings</description>
+      <subtasks>
+        <subtask>Add to `backend/app/core/config.py`: CELERY_BROKER_URL, CELERY_RESULT_BACKEND</subtask>
+        <subtask>Add DOCUMENT_PROCESSING_TIMEOUT (600 seconds)</subtask>
+        <subtask>Add MAX_PARSING_RETRIES (3)</subtask>
+        <subtask>Add environment variables to `.env.example`</subtask>
+      </subtasks>
+      <files>
+        <file action="modify">backend/app/core/config.py</file>
+        <file action="modify">backend/.env.example</file>
+      </files>
+    </task>
+
+    <task id="8" title="Write unit tests for parsing utilities" ac="2, 3, 4, 5, 6, 7">
+      <description>Unit tests for parsing functions</description>
+      <subtasks>
+        <subtask>Create `backend/tests/unit/test_parsing.py`</subtask>
+        <subtask>Test PDF parsing with text extraction and page metadata</subtask>
+        <subtask>Test DOCX parsing with section headers</subtask>
+        <subtask>Test Markdown parsing with heading structure</subtask>
+        <subtask>Test empty document detection (&lt;100 chars)</subtask>
+        <subtask>Test scanned PDF detection (mock unstructured response)</subtask>
+        <subtask>Test password-protected PDF handling (mock exception)</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/tests/unit/test_parsing.py</file>
+      </files>
+    </task>
+
+    <task id="9" title="Write integration tests for document processing" ac="1, 8, 9">
+      <description>Integration tests for full processing flow</description>
+      <subtasks>
+        <subtask>Create `backend/tests/integration/test_document_processing.py`</subtask>
+        <subtask>Test outbox event triggers processing</subtask>
+        <subtask>Test status transitions: PENDING -> PROCESSING -> (success path | FAILED)</subtask>
+        <subtask>Test retry mechanism on transient failures</subtask>
+        <subtask>Test max retries exhaustion marks FAILED</subtask>
+        <subtask>Test cleanup of temporary files</subtask>
+        <subtask>Use test fixtures: `sample.pdf`, `sample.docx`, `sample.md`</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/tests/integration/test_document_processing.py</file>
+        <file action="create">backend/tests/fixtures/sample.pdf</file>
+        <file action="create">backend/tests/fixtures/sample.docx</file>
+        <file action="create">backend/tests/fixtures/sample.md</file>
+      </files>
+    </task>
+
+    <task id="10" title="Add worker health check endpoint" ac="1">
+      <description>Health check for Celery worker availability</description>
+      <subtasks>
+        <subtask>Add `GET /api/v1/health/workers` endpoint</subtask>
+        <subtask>Check Celery worker availability via `ping` task</subtask>
+        <subtask>Return worker count and queue depth</subtask>
+      </subtasks>
+      <files>
+        <file action="create">backend/app/api/v1/health.py</file>
+        <file action="modify">backend/app/api/v1/__init__.py</file>
+      </files>
+    </task>
+  </tasks>
+
+  <!-- ================================================================== -->
+  <!-- ARCHITECTURE CONTEXT -->
+  <!-- ================================================================== -->
+  <architecture-context>
+    <patterns>
+      <pattern name="Transactional Outbox">
+        <description>Document.process events are written to outbox table in same transaction as document creation (Story 2-4). Worker polls outbox for reliable, exactly-once processing.</description>
+        <source>docs/architecture.md#Pattern-2-Transactional-Outbox</source>
+        <code-example><![CDATA[
+# Outbox polling with row-level locking
+async def poll_outbox(session: AsyncSession) -> list[Outbox]:
+    """Poll outbox for unprocessed events with locking."""
+    result = await session.execute(
+        select(Outbox)
+        .where(Outbox.processed_at.is_(None))
+        .where(Outbox.event_type == "document.process")
+        .order_by(Outbox.created_at)
+        .limit(10)
+        .with_for_update(skip_locked=True)
+    )
+    return result.scalars().all()
+        ]]></code-example>
+      </pattern>
+
+      <pattern name="Celery Task Pattern">
+        <description>Async task processing with Redis broker. Tasks should be idempotent and handle retries gracefully.</description>
+        <source>docs/architecture.md#Background-Processing</source>
+        <code-example><![CDATA[
+from app.workers.celery_app import celery_app
+
+@celery_app.task(
+    bind=True,
+    autoretry_for=(TransientError,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=3,
+)
+def document_process_task(self, document_id: str) -> None:
+    """Process a document: parse, chunk, store."""
+    # Implementation here
+        ]]></code-example>
+      </pattern>
+
+      <pattern name="Service Layer Pattern">
+        <description>Business logic encapsulated in service classes. Services receive session via dependency injection.</description>
+        <source>docs/coding-standards.md#Python-Standards-Backend</source>
+      </pattern>
+    </patterns>
+
+    <constraints>
+      <constraint>All I/O operations must be async - never block the event loop</constraint>
+      <constraint>Use structlog for all logging with structured key-value pairs</constraint>
+      <constraint>Single transaction for chunk storage + document update</constraint>
+      <constraint>Max retries = 3 with exponential backoff</constraint>
+      <constraint>Celery tasks must be idempotent</constraint>
+    </constraints>
+  </architecture-context>
+
+  <!-- ================================================================== -->
+  <!-- EXISTING CODE ARTIFACTS -->
+  <!-- ================================================================== -->
+  <existing-code>
+    <artifact name="Document Model" path="backend/app/models/document.py">
+      <description>SQLAlchemy model for documents with status, chunk_count, retry_count, last_error fields. Status enum: PENDING, PROCESSING, READY, FAILED, ARCHIVED.</description>
+      <relevant-fields>
+        <field name="status" type="DocumentStatus">Processing status - transitions managed by worker</field>
+        <field name="chunk_count" type="int">Updated after chunking completes</field>
+        <field name="processing_started_at" type="datetime">Set when processing begins</field>
+        <field name="processing_completed_at" type="datetime">Set when processing succeeds</field>
+        <field name="last_error" type="str">Error message on failure</field>
+        <field name="retry_count" type="int">Incremented on each retry</field>
+      </relevant-fields>
+    </artifact>
+
+    <artifact name="Outbox Model" path="backend/app/models/outbox.py">
+      <description>Transactional outbox for reliable event processing. Events created in same transaction as document.</description>
+      <relevant-fields>
+        <field name="event_type" type="str">Filter by "document.process"</field>
+        <field name="aggregate_id" type="UUID">The document_id</field>
+        <field name="aggregate_type" type="str">"document"</field>
+        <field name="payload" type="JSONB">Contains document_id, kb_id, file_path, mime_type, checksum</field>
+        <field name="processed_at" type="datetime">NULL until processed</field>
+        <field name="attempts" type="int">Incremented on each attempt</field>
+        <field name="last_error" type="str">Error message if failed</field>
+      </relevant-fields>
+    </artifact>
+
+    <artifact name="MinIO Service" path="backend/app/integrations/minio_client.py">
+      <description>S3-compatible object storage client. Has upload_file(), delete_file(), file_exists(). Needs download_file() for worker.</description>
+      <key-methods>
+        <method name="upload_file">Upload file to kb-{uuid} bucket</method>
+        <method name="delete_file">Delete file from storage</method>
+        <method name="file_exists">Check if file exists</method>
+        <method name="ensure_bucket_exists">Create bucket if needed</method>
+      </key-methods>
+      <note>Need to add download_file() method for worker to fetch documents</note>
+    </artifact>
+
+    <artifact name="Document Service" path="backend/app/services/document_service.py">
+      <description>Handles document upload flow. Creates Document record and Outbox event in same transaction.</description>
+      <key-methods>
+        <method name="upload">Main upload flow - validates, stores in MinIO, creates records</method>
+        <method name="_validate_file">Validates mime type and size</method>
+        <method name="_check_kb_permission">Checks WRITE permission on KB</method>
+      </key-methods>
+    </artifact>
+
+    <artifact name="Document Schemas" path="backend/app/schemas/document.py">
+      <description>Pydantic schemas for document API. Includes allowed MIME types and size limits.</description>
+      <constants>
+        <constant name="MAX_FILE_SIZE_BYTES">50MB limit</constant>
+        <constant name="ALLOWED_MIME_TYPES">PDF, DOCX, Markdown</constant>
+        <constant name="ALLOWED_EXTENSIONS">.pdf, .docx, .md</constant>
+      </constants>
+    </artifact>
+
+    <artifact name="Workers Package" path="backend/app/workers/__init__.py">
+      <description>Empty package placeholder for Celery workers. Ready for implementation.</description>
+    </artifact>
+
+    <artifact name="Config" path="backend/app/core/config.py">
+      <description>Application settings. Has Redis URL already configured. Needs Celery-specific settings.</description>
+      <relevant-settings>
+        <setting name="redis_url">redis://localhost:6379/0 - Use for Celery broker</setting>
+      </relevant-settings>
+    </artifact>
+
+    <artifact name="Audit Service" path="backend/app/services/audit_service.py">
+      <description>Async audit logging service. Use for document.processed events.</description>
+    </artifact>
+  </existing-code>
+
+  <!-- ================================================================== -->
+  <!-- DEPENDENCIES -->
+  <!-- ================================================================== -->
+  <dependencies>
+    <dependency name="celery" version=">=5.5.0,<6.0.0" group="all">
+      <note>Already in pyproject.toml under [all] extras</note>
+    </dependency>
+    <dependency name="unstructured" version=">=0.16.0,<1.0.0" group="all">
+      <note>Already in pyproject.toml under [all] extras - for PDF/DOCX/MD parsing</note>
+    </dependency>
+    <dependency name="poppler-utils" version="system" group="system">
+      <note>System dependency for PDF parsing - add to Dockerfile</note>
+    </dependency>
+  </dependencies>
+
+  <!-- ================================================================== -->
+  <!-- INFRASTRUCTURE -->
+  <!-- ================================================================== -->
+  <infrastructure>
+    <service name="Redis" role="Celery broker and result backend">
+      <config>redis://localhost:6379/0</config>
+      <docker>lumikb-redis (redis:7-alpine)</docker>
+    </service>
+    <service name="PostgreSQL" role="Document and chunk storage">
+      <docker>lumikb-postgres (postgres:16)</docker>
+    </service>
+    <service name="MinIO" role="Document file storage">
+      <docker>lumikb-minio (minio/minio:latest)</docker>
+    </service>
+    <note>No new infrastructure needed. Celery worker runs as separate process using existing Redis.</note>
+  </infrastructure>
+
+  <!-- ================================================================== -->
+  <!-- TESTING REQUIREMENTS -->
+  <!-- ================================================================== -->
+  <testing-requirements source="docs/testing-backend-specification.md">
+    <test-levels>
+      <level name="unit" marker="pytest.mark.unit" timeout="5s">
+        <scope>Parsing utilities - pure function tests with mocked I/O</scope>
+        <focus>
+          <item>PDF parsing with text extraction and page metadata</item>
+          <item>DOCX parsing with section headers</item>
+          <item>Markdown parsing with heading structure</item>
+          <item>Empty document detection (&lt;100 chars)</item>
+          <item>Scanned PDF detection (mock unstructured response)</item>
+          <item>Password-protected PDF handling (mock exception)</item>
+        </focus>
+      </level>
+      <level name="integration" marker="pytest.mark.integration" timeout="30s">
+        <scope>Full processing pipeline with testcontainers (PostgreSQL, Redis)</scope>
+        <focus>
+          <item>Outbox event triggers processing</item>
+          <item>Status transitions: PENDING -> PROCESSING -> (success | FAILED)</item>
+          <item>Retry mechanism on transient failures</item>
+          <item>Max retries exhaustion marks FAILED</item>
+          <item>Cleanup of temporary files</item>
+        </focus>
+      </level>
+    </test-levels>
+    <fixtures>
+      <fixture name="sample.pdf" path="tests/fixtures/sample.pdf">Test PDF file</fixture>
+      <fixture name="sample.docx" path="tests/fixtures/sample.docx">Test DOCX file</fixture>
+      <fixture name="sample.md" path="tests/fixtures/sample.md">Test Markdown file</fixture>
+    </fixtures>
+    <factories>
+      <factory name="create_document" path="tests/factories/document_factory.py">Existing</factory>
+      <factory name="create_outbox_event" path="tests/factories/__init__.py">May need to add</factory>
+    </factories>
+  </testing-requirements>
+
+  <!-- ================================================================== -->
+  <!-- FILE MANIFEST -->
+  <!-- ================================================================== -->
+  <file-manifest>
+    <files-to-create>
+      <file>backend/app/workers/celery_app.py</file>
+      <file>backend/app/workers/outbox_tasks.py</file>
+      <file>backend/app/workers/document_tasks.py</file>
+      <file>backend/app/workers/parsing.py</file>
+      <file>backend/app/workers/parsed_content_storage.py</file>
+      <file>backend/app/api/v1/health.py</file>
+      <file>backend/tests/unit/test_parsing.py</file>
+      <file>backend/tests/integration/test_document_processing.py</file>
+      <file>backend/tests/fixtures/sample.pdf</file>
+      <file>backend/tests/fixtures/sample.docx</file>
+      <file>backend/tests/fixtures/sample.md</file>
+    </files-to-create>
+    <files-to-modify>
+      <file>backend/app/core/config.py</file>
+      <file>backend/app/workers/__init__.py</file>
+      <file>backend/app/api/v1/__init__.py</file>
+      <file>backend/pyproject.toml</file>
+      <file>backend/Dockerfile</file>
+      <file>backend/.env.example</file>
+      <file>infrastructure/docker/docker-compose.yml</file>
+    </files-to-modify>
+  </file-manifest>
+
+  <!-- ================================================================== -->
+  <!-- REFERENCES -->
+  <!-- ================================================================== -->
+  <references>
+    <reference type="tech-spec">docs/sprint-artifacts/tech-spec-epic-2.md</reference>
+    <reference type="architecture">docs/architecture.md</reference>
+    <reference type="epics">docs/epics.md</reference>
+    <reference type="coding-standards">docs/coding-standards.md</reference>
+    <reference type="testing-spec">docs/testing-backend-specification.md</reference>
+    <reference type="story">docs/sprint-artifacts/2-5-document-processing-worker-parsing.md</reference>
+    <reference type="previous-story">docs/sprint-artifacts/2-4-document-upload-api-and-storage.md</reference>
+  </references>
+
+  <!-- ================================================================== -->
+  <!-- LEARNINGS FROM PREVIOUS STORY -->
+  <!-- ================================================================== -->
+  <learnings-from-previous>
+    <learning story="2-4-document-upload-api-and-storage">
+      <item>Outbox pattern established: document.process event created in same transaction as Document record</item>
+      <item>Event payload includes: document_id, kb_id, file_path, mime_type, checksum</item>
+      <item>MinIO file path format: kb-{kb_id}/{doc_id}/{filename}</item>
+      <item>Document model already has status, chunk_count, retry_count, last_error fields</item>
+      <item>DocumentStatus enum already defined with PENDING, PROCESSING, READY, FAILED, ARCHIVED</item>
+    </learning>
+    <learning story="2-3-knowledge-base-list-and-selection-frontend">
+      <item>Integration test patterns established using testcontainers</item>
+      <item>Factory pattern with overrides working well</item>
+    </learning>
+  </learnings-from-previous>
+
+</story-context>

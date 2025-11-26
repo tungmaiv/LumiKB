@@ -1,0 +1,192 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>1</storyId>
+    <title>Knowledge Base CRUD Backend</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-1-knowledge-base-crud-backend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>to create and manage Knowledge Bases via API</iWant>
+    <soThat>I can organize documents into logical collections with proper isolation and lifecycle management</soThat>
+    <tasks>
+      <task id="1" ac="1,2">Create/Update SQLAlchemy models - Review KnowledgeBase model, add settings JSONB field, verify indexes, create migration if needed</task>
+      <task id="2" ac="1,3,4,6">Create Pydantic schemas - KBCreate, KBUpdate, KBSummary, KBResponse with validation rules</task>
+      <task id="3" ac="1-8">Create KBService - create, get, list_for_user, update, archive, check_permission methods with permission hierarchy</task>
+      <task id="4" ac="2,5">Create Qdrant collection management - create_collection, delete_collection, collection_exists</task>
+      <task id="5" ac="1-8">Create API endpoints - POST, GET, PATCH, DELETE on /api/v1/knowledge-bases</task>
+      <task id="6" ac="4,5">Implement audit logging - kb.created, kb.updated, kb.archived events</task>
+      <task id="7" ac="5">Implement outbox event for async Qdrant cleanup on KB archive</task>
+      <task id="8" ac="1-8">Write unit tests - test_kb_service.py, test_kb_schemas.py</task>
+      <task id="9" ac="1-8">Write integration tests - test_knowledge_bases.py with full flows</task>
+      <task id="10" ac="1-8">Verification and linting - ruff, pytest, type hints</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Given logged in admin, When POST /api/v1/knowledge-bases with name/description, Then KB created with UUID id, name (1-255 chars), description (max 2000), owner_id, status=active, settings={}, timestamps</criterion>
+    <criterion id="2">Given KB created, When transaction commits, Then Qdrant collection kb_{uuid} created (1536 dims, Cosine), And ADMIN permission assigned to creator</criterion>
+    <criterion id="3">Given KB exists, When GET /api/v1/knowledge-bases/{id}, Then receive id, name, description, owner_id, status, document_count, total_size_bytes, timestamps</criterion>
+    <criterion id="4">Given ADMIN permission, When PATCH /api/v1/knowledge-bases/{id}, Then name/description updated, updated_at refreshed, action logged to audit.events</criterion>
+    <criterion id="5">Given ADMIN permission, When DELETE /api/v1/knowledge-bases/{id}, Then status=archived, hidden from listings, outbox event created, action logged</criterion>
+    <criterion id="6">Given authenticated user, When GET /api/v1/knowledge-bases, Then paginated list of accessible KBs with id, name, document_count, permission_level, updated_at</criterion>
+    <criterion id="7">Given user without ADMIN permission, When PATCH or DELETE KB, Then 403 Forbidden</criterion>
+    <criterion id="8">Given user with no permission, When GET KB by id, Then 404 Not Found (not 403 to avoid leaking existence)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" title="Product Requirements Document" section="Multi-Tenancy Model">KB-level isolation model, security requirements</doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Transactional Outbox">Outbox pattern for cross-service consistency with document status state machine</doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="Data Models">PostgreSQL schemas for knowledge_bases, kb_permissions, documents, outbox tables</doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="API Endpoints">KB endpoints: POST, GET, PATCH, DELETE specifications with request/response schemas</doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="Qdrant Collection Schema">Collection config: kb_{uuid}, 1536 dimensions, Cosine distance, payload schema</doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="Pydantic Schemas">KBCreate, KBUpdate, KBSummary, KBResponse schema definitions</doc>
+      <doc path="docs/epics.md" title="Epics" section="Story 2.1">Original story definition with acceptance criteria</doc>
+      <doc path="docs/coding-standards.md" title="Coding Standards" section="Python">Type hints, async/await patterns, Pydantic models</doc>
+      <doc path="docs/testing-backend-specification.md" title="Backend Testing" section="Test Levels">pytest markers, unit/integration test patterns, factories</doc>
+    </docs>
+    <code>
+      <file path="backend/app/api/v1/knowledge_bases.py" kind="router" symbol="router" lines="1-233" reason="Existing KB API endpoints (GET /, GET /{id}, GET /{id}/documents) - needs POST, PATCH, DELETE additions">
+        <interfaces>
+          <interface name="list_knowledge_bases" kind="endpoint" signature="GET /api/v1/knowledge-bases -> KnowledgeBaseListResponse" line="26" />
+          <interface name="get_knowledge_base" kind="endpoint" signature="GET /api/v1/knowledge-bases/{kb_id} -> KnowledgeBaseResponse" line="106" />
+          <interface name="list_documents" kind="endpoint" signature="GET /api/v1/knowledge-bases/{kb_id}/documents -> DocumentListResponse" line="154" />
+          <interface name="_get_user_permission" kind="function" signature="async (session, user, kb) -> PermissionLevel | None" line="204" />
+        </interfaces>
+      </file>
+      <file path="backend/app/schemas/knowledge_base.py" kind="schema" symbol="KnowledgeBaseResponse, KnowledgeBaseListResponse, DocumentMetadataResponse" lines="1-52" reason="Existing schemas - needs KBCreate, KBUpdate additions">
+        <interfaces>
+          <interface name="KnowledgeBaseResponse" kind="pydantic" signature="id, name, description, status, document_count, permission_level, created_at, updated_at" line="11" />
+          <interface name="KnowledgeBaseListResponse" kind="pydantic" signature="data: list[KnowledgeBaseResponse]" line="29" />
+          <interface name="DocumentMetadataResponse" kind="pydantic" signature="id, name, status, chunk_count, created_at, updated_at" line="35" />
+          <interface name="DocumentListResponse" kind="pydantic" signature="data: list[DocumentMetadataResponse]" line="48" />
+        </interfaces>
+      </file>
+      <file path="backend/app/models/knowledge_base.py" kind="model" symbol="KnowledgeBase" lines="17-61" reason="SQLAlchemy model - verify settings JSONB field exists">
+        <interfaces>
+          <interface name="KnowledgeBase" kind="sqlalchemy" signature="id, name, description, owner_id, status, created_at, updated_at + relationships" line="17" />
+        </interfaces>
+      </file>
+      <file path="backend/app/models/permission.py" kind="model" symbol="PermissionLevel, KBPermission" lines="19-78" reason="Permission model and enum - reuse for ADMIN > WRITE > READ hierarchy">
+        <interfaces>
+          <interface name="PermissionLevel" kind="enum" signature="READ, WRITE, ADMIN" line="19" />
+          <interface name="KBPermission" kind="sqlalchemy" signature="id, user_id, kb_id, permission_level, created_at" line="27" />
+        </interfaces>
+      </file>
+      <file path="backend/app/models/outbox.py" kind="model" symbol="Outbox" lines="14-66" reason="Outbox model for kb.archived events">
+        <interfaces>
+          <interface name="Outbox" kind="sqlalchemy" signature="id, event_type, aggregate_id, payload, processed_at, attempts, last_error, created_at" line="14" />
+        </interfaces>
+      </file>
+      <file path="backend/app/services/audit_service.py" kind="service" symbol="AuditService, audit_service" lines="14-72" reason="Singleton audit service for kb.created, kb.updated, kb.archived events">
+        <interfaces>
+          <interface name="AuditService.log_event" kind="method" signature="async (action, resource_type, user_id?, resource_id?, details?, ip_address?) -> None" line="21" />
+          <interface name="audit_service" kind="singleton" signature="AuditService instance" line="71" />
+        </interfaces>
+      </file>
+      <file path="backend/app/core/database.py" kind="core" symbol="get_async_session, async_session_factory" reason="Database session dependency injection" />
+      <file path="backend/app/core/auth.py" kind="core" symbol="current_active_user" reason="FastAPI-Users dependency for authenticated user" />
+      <file path="backend/tests/conftest.py" kind="test-fixture" symbol="client" lines="19-28" reason="Shared async test client fixture pattern for API testing">
+        <interfaces>
+          <interface name="client" kind="fixture" signature="async () -> AsyncGenerator[AsyncClient, None]" line="20" />
+        </interfaces>
+      </file>
+      <file path="backend/tests/integration/conftest.py" kind="test-fixture" symbol="db_session, api_client, postgres_container, redis_container" lines="1-242" reason="Integration test fixtures: testcontainers, database sessions, API client with dependency overrides">
+        <interfaces>
+          <interface name="postgres_container" kind="fixture" signature="session-scoped PostgreSQL testcontainer" line="24" />
+          <interface name="redis_container" kind="fixture" signature="session-scoped Redis testcontainer" line="44" />
+          <interface name="test_engine" kind="fixture" signature="async engine with schema creation" line="59" />
+          <interface name="db_session" kind="fixture" signature="function-scoped session with rollback" line="98" />
+          <interface name="api_client" kind="fixture" signature="AsyncClient with dependency overrides" line="154" />
+        </interfaces>
+      </file>
+      <file path="backend/tests/integration/test_seed_data.py" kind="test" reason="Reference for integration test patterns using factories and assertions" />
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.115.0,<1.0.0" />
+        <package name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" />
+        <package name="pydantic" version=">=2.7.0,<3.0.0" />
+        <package name="structlog" version=">=25.5.0,<26.0.0" />
+        <package name="qdrant-client" version=">=1.10.0,<2.0.0" />
+        <package name="pytest" version=">=8.0.0" />
+        <package name="pytest-asyncio" version=">=0.24.0" />
+        <package name="testcontainers[postgres,redis]" version=">=4.0.0" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">One Qdrant collection per KB: kb_{uuid}</constraint>
+    <constraint type="architecture">Vector dimension: 1536 (OpenAI ada-002)</constraint>
+    <constraint type="architecture">Distance metric: Cosine similarity</constraint>
+    <constraint type="architecture">Permission hierarchy: ADMIN > WRITE > READ</constraint>
+    <constraint type="architecture">Soft delete for KBs: status=archived, not hard delete</constraint>
+    <constraint type="architecture">Outbox pattern for async Qdrant cleanup on archive</constraint>
+    <constraint type="security">Return 404 (not 403) when user has no permission to avoid leaking existence</constraint>
+    <constraint type="coding">Type hints on all public functions</constraint>
+    <constraint type="coding">Async/await for all I/O operations</constraint>
+    <constraint type="coding">Pydantic models for all API request/response</constraint>
+    <constraint type="testing">pytestmark on all test files</constraint>
+    <constraint type="testing">Factories for test data generation</constraint>
+    <constraint type="testing">Unit tests < 5s, Integration tests < 30s</constraint>
+    <constraint type="audit">Log all KB CRUD operations with action, resource_type, user_id</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/v1/knowledge-bases" kind="REST" signature="KBCreate -> 201 KBResponse" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="GET /api/v1/knowledge-bases" kind="REST" signature="?page&limit -> KnowledgeBaseListResponse" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="GET /api/v1/knowledge-bases/{id}" kind="REST" signature="UUID -> KnowledgeBaseResponse" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="PATCH /api/v1/knowledge-bases/{id}" kind="REST" signature="KBUpdate -> KBResponse" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="DELETE /api/v1/knowledge-bases/{id}" kind="REST" signature="UUID -> 204" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="KBService.create" kind="method" signature="async (data: KBCreate, user: User) -> KnowledgeBase" path="backend/app/services/kb_service.py" />
+    <interface name="KBService.get" kind="method" signature="async (kb_id: UUID, user: User) -> KnowledgeBase" path="backend/app/services/kb_service.py" />
+    <interface name="KBService.list_for_user" kind="method" signature="async (user: User, page: int, limit: int) -> list[KBSummary]" path="backend/app/services/kb_service.py" />
+    <interface name="KBService.update" kind="method" signature="async (kb_id: UUID, data: KBUpdate, user: User) -> KnowledgeBase" path="backend/app/services/kb_service.py" />
+    <interface name="KBService.archive" kind="method" signature="async (kb_id: UUID, user: User) -> None" path="backend/app/services/kb_service.py" />
+    <interface name="QdrantClient.create_collection" kind="method" signature="async (kb_id: UUID) -> None" path="backend/app/integrations/qdrant_client.py" />
+    <interface name="QdrantClient.delete_collection" kind="method" signature="async (kb_id: UUID) -> None" path="backend/app/integrations/qdrant_client.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Pytest with pytest-asyncio for async tests. All test files MUST have pytestmark at module level (unit or integration).
+      Unit tests use @pytest.mark.unit, run in < 5s, no external dependencies.
+      Integration tests use @pytest.mark.integration, run with testcontainers (PostgreSQL, Redis), < 30s per test.
+      Use factories for test data generation, not fixtures with hardcoded values.
+      HTTP testing via httpx AsyncClient with FastAPI TestClient pattern.
+      Database tests use session rollback for isolation.
+      Coverage target: 80% for backend code.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/</location>
+      <location>backend/tests/integration/</location>
+    </locations>
+    <ideas>
+      <idea ac="1">test_create_kb_sets_correct_fields - verify id, name, description, owner_id, status, settings, timestamps</idea>
+      <idea ac="1">test_create_kb_validates_name_length - name 1-255 chars, description max 2000</idea>
+      <idea ac="2">test_create_kb_creates_qdrant_collection - verify collection kb_{uuid} exists with correct config</idea>
+      <idea ac="2">test_create_kb_assigns_admin_permission - creator gets ADMIN in kb_permissions</idea>
+      <idea ac="3">test_get_kb_returns_document_count - includes count of non-archived documents</idea>
+      <idea ac="3">test_get_kb_returns_total_size_bytes - sum of document file sizes</idea>
+      <idea ac="4">test_update_kb_modifies_name_description - verify changes persist</idea>
+      <idea ac="4">test_update_kb_refreshes_updated_at - timestamp changes</idea>
+      <idea ac="4">test_update_kb_logs_audit_event - kb.updated logged with changed fields</idea>
+      <idea ac="5">test_archive_kb_sets_status_archived - status changes from active to archived</idea>
+      <idea ac="5">test_archive_kb_creates_outbox_event - kb.archived event with collection_name</idea>
+      <idea ac="5">test_archived_kb_excluded_from_list - doesn't appear in GET /</idea>
+      <idea ac="6">test_list_kbs_returns_user_accessible - only KBs user owns or has permission</idea>
+      <idea ac="6">test_list_kbs_includes_permission_level - shows READ, WRITE, or ADMIN</idea>
+      <idea ac="6">test_list_kbs_pagination - page and limit params work</idea>
+      <idea ac="7">test_patch_without_admin_returns_403 - READ/WRITE users cannot update</idea>
+      <idea ac="7">test_delete_without_admin_returns_403 - READ/WRITE users cannot delete</idea>
+      <idea ac="8">test_get_kb_no_permission_returns_404 - not 403 to hide existence</idea>
+      <idea ac="1-8">test_permission_hierarchy - ADMIN > WRITE > READ checks</idea>
+    </ideas>
+  </tests>
+</story-context>

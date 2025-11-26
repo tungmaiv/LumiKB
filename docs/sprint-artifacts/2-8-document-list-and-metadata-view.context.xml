@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 2-8-document-list-and-metadata-view
+  Generated: 2025-11-24
+  Purpose: Provide developer-ready context for implementing Document List and Metadata View
+-->
+<story-context story-id="2.8" epic-id="2">
+  <metadata>
+    <title>Document List and Metadata View</title>
+    <status>ready-for-dev</status>
+    <priority>high</priority>
+    <generated-at>2025-11-24</generated-at>
+  </metadata>
+
+  <!-- ===================================================================== -->
+  <!-- STORY DEFINITION -->
+  <!-- ===================================================================== -->
+  <story-definition>
+    <user-story>
+      <as-a>user</as-a>
+      <i-want>to view all documents in a Knowledge Base with their metadata</i-want>
+      <so-that>I can see what content is available and understand each document's details</so-that>
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC1">Document list shows name, upload date (relative format), file size (human-readable), uploader name/email, status badge, and chunk count (for READY documents)</criterion>
+      <criterion id="AC2">Pagination with 20 documents per page default, pagination controls (Previous/Next, page numbers), navigation between pages, total count display (e.g., "Showing 1-20 of 150 documents")</criterion>
+      <criterion id="AC3">Sortable by name (A-Z, Z-A), date (newest/oldest first), size (largest/smallest first) with visual indication of current sort order</criterion>
+      <criterion id="AC4">Clicking document opens detail modal with full metadata: name, original filename, MIME type, file size, upload date, uploader, status, processing duration (if READY), chunk count (if READY), error message (if FAILED), retry count</criterion>
+      <criterion id="AC5">FAILED documents in detail view show full error message and Retry button; clicking retry triggers reprocessing with toast notification</criterion>
+      <criterion id="AC6">Sort preference preserved within session; page resets to 1 when returning to list</criterion>
+      <criterion id="AC7">Loading skeleton displayed during API requests; no flickering on pagination/sort changes</criterion>
+    </acceptance-criteria>
+  </story-definition>
+
+  <!-- ===================================================================== -->
+  <!-- TECHNICAL SPECIFICATIONS -->
+  <!-- ===================================================================== -->
+  <technical-specs>
+    <api-endpoints>
+      <!-- NEW: Document List Endpoint -->
+      <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents">
+        <description>Get paginated list of documents in a Knowledge Base</description>
+        <authentication>Required - cookie-based session</authentication>
+        <permission>READ on Knowledge Base</permission>
+        <query-params>
+          <param name="page" type="integer" default="1">Page number (1-indexed)</param>
+          <param name="limit" type="integer" default="20" max="100">Documents per page</param>
+          <param name="sort_by" type="string" default="created_at">Sort field: name, created_at, file_size_bytes, status</param>
+          <param name="sort_order" type="string" default="desc">Sort direction: asc, desc</param>
+        </query-params>
+        <response status="200">
+          <field name="data" type="array[DocumentListItem]">Array of document summaries</field>
+          <field name="total" type="integer">Total document count</field>
+          <field name="page" type="integer">Current page</field>
+          <field name="limit" type="integer">Page size</field>
+        </response>
+        <errors>
+          <error status="401">Unauthenticated</error>
+          <error status="404">KB not found or no permission</error>
+        </errors>
+      </endpoint>
+
+      <!-- NEW: Document Detail Endpoint -->
+      <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}">
+        <description>Get full document metadata</description>
+        <authentication>Required - cookie-based session</authentication>
+        <permission>READ on Knowledge Base</permission>
+        <response status="200">
+          <field name="id" type="UUID">Document ID</field>
+          <field name="kb_id" type="UUID">Knowledge Base ID</field>
+          <field name="name" type="string">Display name</field>
+          <field name="original_filename" type="string">Original uploaded filename</field>
+          <field name="mime_type" type="string">MIME type</field>
+          <field name="file_size_bytes" type="integer">File size in bytes</field>
+          <field name="status" type="DocumentStatus">PENDING, PROCESSING, READY, FAILED</field>
+          <field name="chunk_count" type="integer">Number of chunks</field>
+          <field name="processing_started_at" type="datetime|null">Processing start time</field>
+          <field name="processing_completed_at" type="datetime|null">Processing completion time</field>
+          <field name="last_error" type="string|null">Error message if FAILED</field>
+          <field name="retry_count" type="integer">Number of retry attempts</field>
+          <field name="uploaded_by" type="UUID|null">Uploader user ID</field>
+          <field name="uploader_email" type="string|null">Uploader email (joined from users table)</field>
+          <field name="created_at" type="datetime">Upload timestamp</field>
+          <field name="updated_at" type="datetime">Last update timestamp</field>
+        </response>
+        <errors>
+          <error status="401">Unauthenticated</error>
+          <error status="404">Document or KB not found, or no permission</error>
+        </errors>
+      </endpoint>
+
+      <!-- EXISTING: Already Implemented -->
+      <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/status" status="implemented">
+        <description>Get document processing status (for polling)</description>
+        <location>backend/app/api/v1/documents.py:126-172</location>
+      </endpoint>
+
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/retry" status="implemented">
+        <description>Retry failed document processing</description>
+        <location>backend/app/api/v1/documents.py:175-236</location>
+      </endpoint>
+    </api-endpoints>
+
+    <schemas>
+      <!-- EXISTING: Already defined -->
+      <schema name="DocumentStatus" location="backend/app/schemas/document.py:23-30" status="implemented">
+        <values>PENDING, PROCESSING, READY, FAILED, ARCHIVED</values>
+      </schema>
+
+      <schema name="DocumentListItem" location="backend/app/schemas/document.py:71-83" status="implemented">
+        <note>Already exists - reuse for list endpoint response</note>
+        <fields>id, name, original_filename, mime_type, file_size_bytes, status, created_at, updated_at</fields>
+      </schema>
+
+      <schema name="DocumentResponse" location="backend/app/schemas/document.py:47-68" status="implemented">
+        <note>Already exists - extend for detail endpoint to include uploader_email</note>
+      </schema>
+
+      <!-- NEW: Pagination Schema -->
+      <schema name="PaginatedDocuments" status="to-implement">
+        <fields>
+          <field name="data" type="list[DocumentListItem]"/>
+          <field name="total" type="int"/>
+          <field name="page" type="int"/>
+          <field name="limit" type="int"/>
+        </fields>
+      </schema>
+
+      <!-- NEW: Detail Response with uploader -->
+      <schema name="DocumentDetailResponse" status="to-implement">
+        <note>Extends DocumentResponse with uploader_email from joined User</note>
+        <additional-field name="uploader_email" type="str|None"/>
+      </schema>
+    </schemas>
+  </technical-specs>
+
+  <!-- ===================================================================== -->
+  <!-- EXISTING CODE CONTEXT -->
+  <!-- ===================================================================== -->
+  <existing-code>
+    <backend>
+      <file path="backend/app/models/document.py" purpose="Document SQLAlchemy model">
+        <key-fields>
+          id, kb_id, name, original_filename, mime_type, file_size_bytes, file_path,
+          checksum, status, chunk_count, processing_started_at, processing_completed_at,
+          last_error, retry_count, uploaded_by, deleted_at, created_at, updated_at
+        </key-fields>
+        <relationships>
+          <rel name="knowledge_base" target="KnowledgeBase" via="kb_id"/>
+          <rel name="uploader" target="User" via="uploaded_by"/>
+        </relationships>
+      </file>
+
+      <file path="backend/app/services/document_service.py" purpose="Document business logic">
+        <existing-methods>
+          <method name="upload">Upload document with validation and MinIO storage</method>
+          <method name="get_status">Get document status for polling</method>
+          <method name="retry">Retry failed document processing</method>
+          <method name="_check_kb_permission">Check WRITE permission</method>
+          <method name="_check_kb_read_permission">Check READ permission</method>
+        </existing-methods>
+        <methods-to-add>
+          <method name="list_documents">List documents with pagination and sorting</method>
+          <method name="get_document">Get full document details with uploader info</method>
+        </methods-to-add>
+      </file>
+
+      <file path="backend/app/api/v1/documents.py" purpose="Document API routes">
+        <existing-routes>POST /upload, GET /status, POST /retry</existing-routes>
+        <routes-to-add>GET / (list), GET /{doc_id} (detail)</routes-to-add>
+      </file>
+
+      <file path="backend/app/schemas/document.py" purpose="Pydantic schemas">
+        <existing>DocumentStatus, DocumentUploadResponse, DocumentResponse, DocumentListItem, DocumentStatusResponse</existing>
+        <to-add>PaginatedDocuments, DocumentDetailResponse</to-add>
+      </file>
+    </backend>
+
+    <frontend>
+      <file path="frontend/src/components/documents/document-list.tsx" purpose="Document list component">
+        <status>Partially implemented - basic list with status polling</status>
+        <existing-features>
+          - DocumentListItem with status badge
+          - Retry button for FAILED documents
+          - useDocumentStatusPolling hook integration
+          - formatBytes helper
+          - calculateDuration helper
+        </existing-features>
+        <to-implement>
+          - Pagination controls
+          - Sorting controls
+          - Click handler for detail modal
+          - Session persistence for sort/page preferences
+          - Loading skeleton
+          - Empty state
+        </to-implement>
+      </file>
+
+      <file path="frontend/src/components/documents/document-status-badge.tsx" purpose="Status badge component" status="implemented">
+        <features>PENDING, PROCESSING, READY, FAILED states with icons and colors</features>
+      </file>
+
+      <file path="frontend/src/lib/hooks/use-document-status-polling.ts" purpose="Status polling hook" status="implemented">
+        <features>5s polling interval, max 5 concurrent polls, status change callbacks</features>
+      </file>
+
+      <file path="frontend/src/lib/utils/document-toast.ts" purpose="Toast notifications" status="implemented">
+        <features>ready, failed, retry toast messages</features>
+      </file>
+    </frontend>
+  </existing-code>
+
+  <!-- ===================================================================== -->
+  <!-- IMPLEMENTATION TASKS -->
+  <!-- ===================================================================== -->
+  <implementation-tasks>
+    <task id="1" area="backend" priority="P0">
+      <title>Create document list API endpoint</title>
+      <file>backend/app/api/v1/documents.py</file>
+      <details>
+        - Add GET /knowledge-bases/{kb_id}/documents route
+        - Accept page, limit, sort_by, sort_order query params
+        - Return PaginatedDocuments response
+        - Validate sort_by against allowed fields
+        - Limit max page size to 100
+      </details>
+      <acceptance>AC1, AC2, AC3</acceptance>
+    </task>
+
+    <task id="2" area="backend" priority="P0">
+      <title>Create document detail API endpoint</title>
+      <file>backend/app/api/v1/documents.py</file>
+      <details>
+        - Add GET /knowledge-bases/{kb_id}/documents/{doc_id} route
+        - Join User table to get uploader_email
+        - Return DocumentDetailResponse
+      </details>
+      <acceptance>AC4</acceptance>
+    </task>
+
+    <task id="3" area="backend" priority="P0">
+      <title>Create pagination schema</title>
+      <file>backend/app/schemas/document.py</file>
+      <details>
+        - Add PaginatedDocuments schema with data, total, page, limit
+        - Add DocumentDetailResponse extending DocumentResponse with uploader_email
+      </details>
+    </task>
+
+    <task id="4" area="backend" priority="P0">
+      <title>Update document service with list and get methods</title>
+      <file>backend/app/services/document_service.py</file>
+      <details>
+        - Add list_documents method with pagination, sorting, filtering
+        - Add get_document method with uploader join
+        - Exclude deleted documents (deleted_at IS NULL)
+        - Use existing _check_kb_read_permission for authorization
+      </details>
+    </task>
+
+    <task id="5" area="frontend" priority="P1">
+      <title>Update DocumentList component with pagination</title>
+      <file>frontend/src/components/documents/document-list.tsx</file>
+      <details>
+        - Add page state and pagination controls
+        - Use shadcn/ui Pagination component or custom
+        - Display page info (showing X-Y of Z documents)
+        - Handle page change with data refetch
+      </details>
+      <acceptance>AC2</acceptance>
+    </task>
+
+    <task id="6" area="frontend" priority="P1">
+      <title>Add sorting functionality to DocumentList</title>
+      <file>frontend/src/components/documents/document-list.tsx</file>
+      <details>
+        - Add sort dropdown or table header clicks
+        - Sort options: name, date, size, status
+        - Ascending/descending toggle
+        - Update API call with sort params
+      </details>
+      <acceptance>AC3</acceptance>
+    </task>
+
+    <task id="7" area="frontend" priority="P1">
+      <title>Display uploader and relative date</title>
+      <file>frontend/src/components/documents/document-list.tsx</file>
+      <details>
+        - Show uploader email or "You" if current user
+        - Display relative date (e.g., "2 hours ago", "yesterday")
+        - Use date-fns or similar for formatting
+      </details>
+      <acceptance>AC1</acceptance>
+    </task>
+
+    <task id="8" area="frontend" priority="P1">
+      <title>Create DocumentDetailModal component</title>
+      <file>frontend/src/components/documents/document-detail-modal.tsx</file>
+      <details>
+        - Create new component with shadcn/ui Dialog
+        - Display all document metadata fields
+        - Show processing timeline for READY documents
+        - Show error details for FAILED documents
+        - Include Retry button for FAILED status
+      </details>
+      <acceptance>AC4, AC5</acceptance>
+    </task>
+
+    <task id="9" area="frontend" priority="P1">
+      <title>Add useDocuments hook for data fetching</title>
+      <file>frontend/src/lib/hooks/use-documents.ts</file>
+      <details>
+        - Create hook for fetching document list
+        - Accept kbId, page, limit, sortBy, sortOrder
+        - Return data, isLoading, error, refetch
+        - Handle pagination state
+      </details>
+    </task>
+
+    <task id="10" area="frontend" priority="P2">
+      <title>Integration and polish</title>
+      <details>
+        - Add loading skeleton state
+        - Add empty state ("No documents yet")
+        - Persist sort/pagination in sessionStorage
+        - Add loading state when changing pages
+        - Test retry flow from both list and detail views
+      </details>
+      <acceptance>AC6, AC7</acceptance>
+    </task>
+  </implementation-tasks>
+
+  <!-- ===================================================================== -->
+  <!-- TESTING REQUIREMENTS -->
+  <!-- ===================================================================== -->
+  <testing-requirements>
+    <backend-tests>
+      <test-file>backend/tests/integration/test_document_list.py</test-file>
+      <patterns>
+        <pattern>Use pytest.mark.integration marker</pattern>
+        <pattern>Use authenticated_client fixture from existing tests</pattern>
+        <pattern>Use create_document factory for test data</pattern>
+        <pattern>Use create_kb_data and create_knowledge_base factories</pattern>
+        <pattern>Follow AC-based test organization (see test_knowledge_bases.py)</pattern>
+      </patterns>
+      <test-cases>
+        <case>test_list_documents_returns_paginated_response</case>
+        <case>test_list_documents_pagination_params</case>
+        <case>test_list_documents_sort_by_name_asc</case>
+        <case>test_list_documents_sort_by_date_desc</case>
+        <case>test_list_documents_sort_by_size</case>
+        <case>test_list_documents_sort_by_status</case>
+        <case>test_list_documents_excludes_deleted</case>
+        <case>test_list_documents_requires_auth</case>
+        <case>test_list_documents_requires_kb_permission</case>
+        <case>test_get_document_returns_full_metadata</case>
+        <case>test_get_document_includes_uploader_email</case>
+        <case>test_get_document_not_found</case>
+        <case>test_get_document_from_other_kb_404</case>
+      </test-cases>
+    </backend-tests>
+
+    <frontend-tests>
+      <test-file>frontend/src/components/documents/__tests__/document-list.test.tsx</test-file>
+      <patterns>
+        <pattern>Use vitest and @testing-library/react</pattern>
+        <pattern>Mock fetch calls</pattern>
+        <pattern>Test user interactions (click, sort, page change)</pattern>
+        <pattern>Test loading and empty states</pattern>
+      </patterns>
+      <test-cases>
+        <case>renders document list with pagination info</case>
+        <case>handles page change</case>
+        <case>handles sort change</case>
+        <case>shows loading skeleton</case>
+        <case>shows empty state when no documents</case>
+        <case>opens detail modal on document click</case>
+        <case>persists sort preferences to session storage</case>
+      </test-cases>
+    </frontend-tests>
+  </testing-requirements>
+
+  <!-- ===================================================================== -->
+  <!-- CONSTRAINTS AND GUIDELINES -->
+  <!-- ===================================================================== -->
+  <constraints>
+    <constraint type="performance">
+      Pagination must be cursor-based or offset-based with proper indexing.
+      Document counts should use optimized COUNT queries.
+    </constraint>
+    <constraint type="security">
+      All endpoints must verify KB READ permission before returning data.
+      Never leak document existence through 403 responses - use 404.
+    </constraint>
+    <constraint type="ux">
+      Loading states must show within 100ms of user action.
+      Empty states should guide users to upload documents.
+    </constraint>
+    <constraint type="consistency">
+      Use existing DocumentListItem schema - do not duplicate fields.
+      Follow established API response patterns from KB endpoints.
+    </constraint>
+  </constraints>
+
+  <!-- ===================================================================== -->
+  <!-- DEPENDENCIES -->
+  <!-- ===================================================================== -->
+  <dependencies>
+    <dependency type="story" status="completed">Story 2.4: Document Upload API (provides document records)</dependency>
+    <dependency type="story" status="completed">Story 2.5: Document Processing Worker - Parsing</dependency>
+    <dependency type="story" status="completed">Story 2.6: Document Processing Worker - Chunking and Embedding</dependency>
+    <dependency type="story" status="completed">Story 2.7: Document Processing Status and Notifications</dependency>
+    <dependency type="backend" status="implemented">DocumentService with get_status and retry methods</dependency>
+    <dependency type="frontend" status="implemented">DocumentList basic component</dependency>
+    <dependency type="frontend" status="implemented">DocumentStatusBadge component</dependency>
+    <dependency type="frontend" status="implemented">useDocumentStatusPolling hook</dependency>
+  </dependencies>
+
+  <!-- ===================================================================== -->
+  <!-- RELEVANT FILE PATHS -->
+  <!-- ===================================================================== -->
+  <file-references>
+    <category name="backend-models">
+      <file>backend/app/models/document.py</file>
+      <file>backend/app/models/knowledge_base.py</file>
+      <file>backend/app/models/user.py</file>
+    </category>
+    <category name="backend-api">
+      <file>backend/app/api/v1/documents.py</file>
+      <file>backend/app/api/v1/knowledge_bases.py</file>
+    </category>
+    <category name="backend-services">
+      <file>backend/app/services/document_service.py</file>
+      <file>backend/app/services/kb_service.py</file>
+    </category>
+    <category name="backend-schemas">
+      <file>backend/app/schemas/document.py</file>
+      <file>backend/app/schemas/knowledge_base.py</file>
+    </category>
+    <category name="backend-tests">
+      <file>backend/tests/integration/test_knowledge_bases.py</file>
+      <file>backend/tests/integration/test_document_upload.py</file>
+      <file>backend/tests/factories/document_factory.py</file>
+      <file>backend/tests/factories/kb_factory.py</file>
+    </category>
+    <category name="frontend-components">
+      <file>frontend/src/components/documents/document-list.tsx</file>
+      <file>frontend/src/components/documents/document-status-badge.tsx</file>
+      <file>frontend/src/components/documents/index.ts</file>
+    </category>
+    <category name="frontend-hooks">
+      <file>frontend/src/lib/hooks/use-document-status-polling.ts</file>
+    </category>
+    <category name="frontend-utils">
+      <file>frontend/src/lib/utils/document-toast.ts</file>
+    </category>
+  </file-references>
+</story-context>

@@ -1,0 +1,369 @@
+<story-context id="2-9-document-upload-frontend" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>9</storyId>
+    <title>Document Upload Frontend</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-9-document-upload-frontend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with WRITE permission</asA>
+    <iWant>to upload documents via drag-and-drop or file picker</iWant>
+    <soThat>I can easily add content to a Knowledge Base</soThat>
+    <tasks>
+      <task id="1" ac="1,2">Install and configure react-dropzone
+        <subtask>Add react-dropzone dependency to frontend package.json</subtask>
+        <subtask>Configure accepted MIME types: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/markdown</subtask>
+        <subtask>Configure maxSize: 50MB (52428800 bytes)</subtask>
+        <subtask>Add unit test for dropzone configuration</subtask>
+      </task>
+      <task id="2" ac="1,2,6,7">Create UploadDropzone component
+        <subtask>Create frontend/src/components/documents/upload-dropzone.tsx</subtask>
+        <subtask>Implement drag-and-drop visual feedback (isDragActive state)</subtask>
+        <subtask>Implement click-to-open file picker</subtask>
+        <subtask>Add file type validation with clear error messages</subtask>
+        <subtask>Add file size validation (50MB max)</subtask>
+        <subtask>Integrate with existing DocumentList component</subtask>
+        <subtask>Add component tests</subtask>
+      </task>
+      <task id="3" ac="3,4,5">Create UploadProgress component
+        <subtask>Create frontend/src/components/documents/upload-progress.tsx</subtask>
+        <subtask>Display file name, size, and upload percentage</subtask>
+        <subtask>Add progress bar (use shadcn/ui Progress component)</subtask>
+        <subtask>Add cancel button for pending files</subtask>
+        <subtask>Show success/error states per file</subtask>
+        <subtask>Add component tests</subtask>
+      </task>
+      <task id="4" ac="3,4,5">Create useFileUpload hook
+        <subtask>Create frontend/src/lib/hooks/use-file-upload.ts</subtask>
+        <subtask>Manage upload queue state (pending, uploading, completed, failed)</subtask>
+        <subtask>Track upload progress per file using XMLHttpRequest or fetch with ReadableStream</subtask>
+        <subtask>Handle API calls to POST /api/v1/knowledge-bases/{kb_id}/documents</subtask>
+        <subtask>Implement retry logic for failed uploads</subtask>
+        <subtask>Add abort controller for cancellation</subtask>
+        <subtask>Add unit tests for hook</subtask>
+      </task>
+      <task id="5" ac="8">Integrate upload with permission checks
+        <subtask>Check user's permission level on current KB</subtask>
+        <subtask>Conditionally render UploadDropzone based on WRITE/ADMIN permission</subtask>
+        <subtask>Show disabled state or hide entirely for READ-only users</subtask>
+        <subtask>Add test for permission-based rendering</subtask>
+      </task>
+      <task id="6" ac="4,5">Add toast notifications
+        <subtask>Use existing toast infrastructure (sonner)</subtask>
+        <subtask>Add success toast on upload completion</subtask>
+        <subtask>Add error toast on upload failure with error message</subtask>
+        <subtask>Add info toast when document starts processing</subtask>
+      </task>
+      <task id="7" ac="4">Integrate with DocumentList
+        <subtask>Update DocumentList to include UploadDropzone at the top</subtask>
+        <subtask>Trigger document list refetch after successful upload</subtask>
+        <subtask>Ensure newly uploaded document appears with PENDING status</subtask>
+        <subtask>Polling should pick up status changes (reuse useDocumentStatusPolling)</subtask>
+      </task>
+      <task id="8" ac="1,2,3">Add E2E-ready styling and polish
+        <subtask>Style upload zone following UX spec (dashed border, icon, helper text)</subtask>
+        <subtask>Add smooth animations for drag state transitions</subtask>
+        <subtask>Ensure responsive design (works on tablet/mobile)</subtask>
+        <subtask>Add loading skeleton while KB permission is being fetched</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">
+      <given>I have WRITE permission on the active KB</given>
+      <when>I drag a file onto the upload zone</when>
+      <then>
+        <outcome>The zone highlights to indicate drop target (visual feedback)</outcome>
+        <outcome>Releasing the file starts the upload</outcome>
+        <outcome>Only supported formats (PDF, DOCX, MD) are accepted</outcome>
+      </then>
+    </ac>
+    <ac id="2">
+      <given>I click the upload zone</given>
+      <when>The file picker opens</when>
+      <then>
+        <outcome>I can select one or more files (multi-file upload)</outcome>
+        <outcome>Only supported formats are selectable (file filter)</outcome>
+        <outcome>Selected files are queued for upload</outcome>
+      </then>
+    </ac>
+    <ac id="3">
+      <given>Upload is in progress</given>
+      <when>I view the upload zone</when>
+      <then>
+        <outcome>I see a progress bar for each file</outcome>
+        <outcome>File name and size are displayed</outcome>
+        <outcome>I can cancel pending uploads (not in-progress ones)</outcome>
+        <outcome>Progress shows percentage uploaded</outcome>
+      </then>
+    </ac>
+    <ac id="4">
+      <given>Upload completes successfully</given>
+      <when>The response returns</when>
+      <then>
+        <outcome>The document appears in the list with PENDING status</outcome>
+        <outcome>A success toast notification appears</outcome>
+        <outcome>The upload zone resets for next upload</outcome>
+      </then>
+    </ac>
+    <ac id="5">
+      <given>Upload fails</given>
+      <when>An error occurs</when>
+      <then>
+        <outcome>An error toast shows the failure reason</outcome>
+        <outcome>The failed file shows error state in the queue</outcome>
+        <outcome>User can retry the failed upload</outcome>
+      </then>
+    </ac>
+    <ac id="6">
+      <given>I upload a file >50MB</given>
+      <when>Validation runs</when>
+      <then>
+        <outcome>Upload is blocked client-side before sending</outcome>
+        <outcome>Clear error message shows "Maximum file size is 50MB"</outcome>
+      </then>
+    </ac>
+    <ac id="7">
+      <given>I try to upload an unsupported file type</given>
+      <when>Validation runs</when>
+      <then>
+        <outcome>Upload is blocked client-side</outcome>
+        <outcome>Clear error message shows "Supported formats: PDF, DOCX, MD"</outcome>
+      </then>
+    </ac>
+    <ac id="8">
+      <given>I only have READ permission on the KB</given>
+      <when>I view the document list</when>
+      <then>
+        <outcome>The upload zone is hidden or disabled</outcome>
+        <outcome>No upload functionality is accessible</outcome>
+      </then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="Document Endpoints">
+        Upload endpoint: POST /api/v1/knowledge-bases/{kb_id}/documents (multipart/form-data), returns 202 Accepted with DocumentResponse. Supported formats: PDF, DOCX, MD. Max size: 50MB.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="Frontend Components">
+        Required components: upload-dropzone.tsx for drag-drop interface, upload-progress.tsx for upload status tracking.
+      </doc>
+      <doc path="docs/architecture.md" title="LumiKB Architecture" section="Project Structure">
+        Frontend follows Next.js 15 App Router with components in src/components/, hooks in src/lib/hooks/, utilities in src/lib/utils/.
+      </doc>
+      <doc path="docs/coding-standards.md" title="Coding Standards" section="TypeScript">
+        Strict mode enabled, kebab-case for component files, hooks prefixed with 'use', Zustand for global state, useState for local.
+      </doc>
+      <doc path="docs/testing-frontend-specification.md" title="Frontend Testing" section="Overview">
+        Vitest v4+ with @testing-library/react v16+. Co-located tests in __tests__ directories. User-centric testing with accessible queries.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Spec" section="Upload Components">
+        Upload zone visual patterns: dashed border, upload icon, helper text with supported formats.
+      </doc>
+      <doc path="docs/sprint-artifacts/2-8-document-list-and-metadata-view.md" title="Story 2.8" section="Dev Agent Record">
+        Previous story created: DocumentList, DocumentStatusBadge, DocumentDetailModal, useDocuments, useDocumentStatusPolling, showDocumentStatusToast. REUSE these components.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="frontend/src/components/documents/document-list.tsx" kind="component" symbol="DocumentList" reason="Main container to integrate UploadDropzone at top. Has pagination, sorting, status badges. Imports useDocumentStatusPolling and showDocumentStatusToast.">
+        <interface>
+          interface DocumentListProps {
+            kbId: string;
+            userPermission?: 'READ' | 'WRITE' | 'ADMIN';
+          }
+        </interface>
+      </file>
+      <file path="frontend/src/components/documents/document-status-badge.tsx" kind="component" symbol="DocumentStatusBadge" reason="REUSE for newly uploaded documents showing PENDING status">
+        <interface>
+          type DocumentStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'ARCHIVED';
+          interface DocumentStatusBadgeProps {
+            status: DocumentStatus;
+            className?: string;
+          }
+        </interface>
+      </file>
+      <file path="frontend/src/components/documents/index.ts" kind="barrel" reason="UPDATE to export new UploadDropzone and UploadProgress components"/>
+      <file path="frontend/src/lib/hooks/use-documents.ts" kind="hook" symbol="useDocuments" reason="REUSE for refetching document list after upload. Provides refetch() function.">
+        <interface>
+          interface UseDocumentsResult {
+            documents: DocumentListItem[];
+            total: number;
+            totalPages: number;
+            page: number;
+            limit: number;
+            isLoading: boolean;
+            error: string | null;
+            refetch: () => Promise&lt;void&gt;;
+          }
+        </interface>
+      </file>
+      <file path="frontend/src/lib/hooks/use-document-status-polling.ts" kind="hook" symbol="useDocumentStatusPolling" reason="REUSE for polling PENDING/PROCESSING documents after upload"/>
+      <file path="frontend/src/lib/utils/document-toast.ts" kind="utility" symbol="showDocumentStatusToast" reason="REUSE for upload notifications. Extend with 'upload-success' and 'upload-error' if needed.">
+        <interface>
+          type DocumentToastStatus = 'ready' | 'failed' | 'retry';
+          function showDocumentStatusToast(name: string, status: DocumentToastStatus): void;
+        </interface>
+      </file>
+      <file path="backend/app/api/v1/documents.py" kind="api" symbol="upload_document" lines="157-237" reason="Backend upload endpoint. POST /knowledge-bases/{kb_id}/documents. Returns 202 with DocumentUploadResponse.">
+        <interface>
+          POST /api/v1/knowledge-bases/{kb_id}/documents
+          Content-Type: multipart/form-data
+          Body: file (UploadFile)
+          Response 202: { id, name, original_filename, mime_type, file_size_bytes, status, created_at }
+          Response 400: { error: { code, message, details } } - unsupported type
+          Response 413: { error: { code, message, details } } - file too large
+          Response 404: Knowledge Base not found
+        </interface>
+      </file>
+      <file path="backend/app/schemas/document.py" kind="schema" symbol="DocumentUploadResponse" reason="Response schema for upload endpoint"/>
+    </code>
+
+    <dependencies>
+      <frontend>
+        <existing>
+          <dep name="react" version="19.2.0"/>
+          <dep name="next" version="16.0.3"/>
+          <dep name="zustand" version="^5.0.8"/>
+          <dep name="sonner" version="^2.0.7" note="Toast notifications"/>
+          <dep name="date-fns" version="^4.1.0" note="Date formatting"/>
+          <dep name="lucide-react" version="^0.554.0" note="Icons"/>
+          <dep name="@radix-ui/react-dialog" version="^1.1.15"/>
+          <dep name="@radix-ui/react-select" version="^2.2.6"/>
+          <dep name="class-variance-authority" version="^0.7.1"/>
+          <dep name="clsx" version="^2.1.1"/>
+          <dep name="tailwind-merge" version="^3.4.0"/>
+        </existing>
+        <toInstall>
+          <dep name="react-dropzone" version="^14.2.0" note="Drag-and-drop file upload"/>
+        </toInstall>
+        <devDeps>
+          <dep name="vitest" version="^4.0.13"/>
+          <dep name="@testing-library/react" version="^16.3.0"/>
+          <dep name="@testing-library/user-event" version="^14.6.1"/>
+          <dep name="@testing-library/jest-dom" version="^6.9.1"/>
+          <dep name="jsdom" version="^27.2.0"/>
+        </devDeps>
+      </frontend>
+      <backend>
+        <dep name="fastapi" version=">=0.115.0,<1.0.0"/>
+        <dep name="pydantic" version=">=2.7.0,<3.0.0"/>
+        <dep name="structlog" version=">=25.5.0,<26.0.0"/>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="tech-spec-epic-2.md">File size limit: 50MB (52428800 bytes) - validate client-side before upload</constraint>
+    <constraint source="tech-spec-epic-2.md">Supported formats: PDF (application/pdf), DOCX (application/vnd.openxmlformats-officedocument.wordprocessingml.document), MD (text/markdown, text/x-markdown)</constraint>
+    <constraint source="tech-spec-epic-2.md">Permission: WRITE permission required to upload</constraint>
+    <constraint source="architecture.md">State management: Zustand for global state, useState for local component state</constraint>
+    <constraint source="coding-standards.md">Component files: kebab-case naming (upload-dropzone.tsx, not UploadDropzone.tsx)</constraint>
+    <constraint source="coding-standards.md">Hooks: Prefix with 'use' (use-file-upload.ts)</constraint>
+    <constraint source="coding-standards.md">TypeScript: Strict mode enabled</constraint>
+    <constraint source="testing-frontend-specification.md">Tests: Co-located in __tests__ directories, use @testing-library/react</constraint>
+    <constraint source="testing-frontend-specification.md">User interactions: Use userEvent over fireEvent</constraint>
+    <constraint source="testing-frontend-specification.md">Queries: Prefer accessible queries (role, label, text)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Upload Endpoint" kind="REST" path="backend/app/api/v1/documents.py">
+      POST /api/v1/knowledge-bases/{kb_id}/documents
+      Content-Type: multipart/form-data
+      Authorization: Bearer token (via cookie)
+
+      Request Body:
+        file: UploadFile (binary)
+
+      Response 202 Accepted:
+        {
+          id: UUID,
+          name: string,
+          original_filename: string,
+          mime_type: string,
+          file_size_bytes: number,
+          status: "PENDING",
+          created_at: ISO8601
+        }
+
+      Response 400 Bad Request:
+        { error: { code: "UNSUPPORTED_FILE_TYPE", message: string, details: object } }
+
+      Response 413 Request Entity Too Large:
+        { error: { code: "FILE_TOO_LARGE", message: string, details: { max_size_bytes: 52428800 } } }
+
+      Response 404 Not Found:
+        Knowledge Base not found (or no WRITE permission)
+    </interface>
+    <interface name="useDocuments Hook" kind="React Hook" path="frontend/src/lib/hooks/use-documents.ts">
+      function useDocuments(options: {
+        kbId: string;
+        page?: number;
+        limit?: number;
+        sortBy?: SortField;
+        sortOrder?: SortOrder;
+      }): {
+        documents: DocumentListItem[];
+        total: number;
+        totalPages: number;
+        page: number;
+        limit: number;
+        isLoading: boolean;
+        error: string | null;
+        refetch: () => Promise&lt;void&gt;;
+      }
+    </interface>
+    <interface name="showDocumentStatusToast" kind="Utility Function" path="frontend/src/lib/utils/document-toast.ts">
+      function showDocumentStatusToast(name: string, status: 'ready' | 'failed' | 'retry'): void
+
+      Consider extending to support: 'upload-success' | 'upload-error' | 'upload-started'
+    </interface>
+    <interface name="react-dropzone useDropzone" kind="External Hook">
+      const { getRootProps, getInputProps, isDragActive, acceptedFiles, rejectedFiles } = useDropzone({
+        accept: {
+          'application/pdf': ['.pdf'],
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+          'text/markdown': ['.md'],
+          'text/x-markdown': ['.md'],
+        },
+        maxSize: 52428800, // 50MB
+        multiple: true,
+        onDrop: (acceptedFiles, rejectedFiles) => void,
+        onDropRejected: (rejectedFiles) => void,
+      });
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Frontend tests use Vitest v4+ with @testing-library/react v16+. Tests are co-located in __tests__ directories adjacent to source files. Use userEvent over fireEvent for user interactions. Prefer accessible queries (getByRole, getByLabelText, getByText) over test IDs. Execute in under 100ms per unit test. Mock all network requests. 70% minimum coverage target.
+    </standards>
+    <locations>
+      <location>frontend/src/components/documents/__tests__/upload-dropzone.test.tsx</location>
+      <location>frontend/src/components/documents/__tests__/upload-progress.test.tsx</location>
+      <location>frontend/src/lib/hooks/__tests__/use-file-upload.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1,2">Test dropzone renders with correct accept attributes for PDF, DOCX, MD</idea>
+      <idea ac="1">Test isDragActive state adds highlight class when file dragged over</idea>
+      <idea ac="2">Test clicking dropzone opens file picker (mock input click)</idea>
+      <idea ac="2">Test multi-file selection queues all files</idea>
+      <idea ac="6">Test file >50MB shows "Maximum file size is 50MB" error</idea>
+      <idea ac="7">Test unsupported file type shows "Supported formats: PDF, DOCX, MD" error</idea>
+      <idea ac="3">Test upload progress displays file name, size, and percentage</idea>
+      <idea ac="3">Test cancel button removes pending file from queue</idea>
+      <idea ac="4">Test successful upload shows success toast via showDocumentStatusToast</idea>
+      <idea ac="4">Test successful upload calls refetch() on useDocuments</idea>
+      <idea ac="5">Test failed upload shows error toast with error message</idea>
+      <idea ac="5">Test retry button re-attempts failed upload</idea>
+      <idea ac="8">Test UploadDropzone hidden when userPermission is READ</idea>
+      <idea ac="8">Test UploadDropzone visible when userPermission is WRITE or ADMIN</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,9 +1,10 @@
 """Knowledge Base model."""
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, model_repr
@@ -38,6 +39,11 @@ class KnowledgeBase(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(
         String(20),
         server_default="active",
+        nullable=False,
+    )
+    settings: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        server_default="{}",
         nullable=False,
     )
 

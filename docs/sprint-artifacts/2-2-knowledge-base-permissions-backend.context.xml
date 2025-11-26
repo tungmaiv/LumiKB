@@ -1,0 +1,295 @@
+<story-context id="2-2-knowledge-base-permissions-backend" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2</storyId>
+    <title>Knowledge Base Permissions Backend</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-2-knowledge-base-permissions-backend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>to assign users to Knowledge Bases with specific permissions</iWant>
+    <soThat>I can control who can read, write, or manage each KB</soThat>
+    <tasks>
+      <task id="1" ac="1,2">Create Pydantic schemas for permissions
+        <subtask>Create PermissionCreate(user_id: UUID, permission_level: PermissionLevel) schema</subtask>
+        <subtask>Create PermissionResponse(id, user_id, email, kb_id, permission_level, created_at) schema</subtask>
+        <subtask>Create PermissionListResponse for paginated list</subtask>
+        <subtask>Add PermissionLevel enum validation if not already present</subtask>
+      </task>
+      <task id="2" ac="1,2,3,7,8">Extend KBService with permission management methods
+        <subtask>Add grant_permission(kb_id, user_id, level, admin_user) method</subtask>
+        <subtask>Add list_permissions(kb_id, admin_user, page, limit) method</subtask>
+        <subtask>Add revoke_permission(kb_id, user_id, admin_user) method</subtask>
+        <subtask>Implement upsert behavior for grant (update if exists)</subtask>
+        <subtask>Add owner bypass logic to check_permission method</subtask>
+      </task>
+      <task id="3" ac="1,2,3">Create permission API endpoints
+        <subtask>Add POST /api/v1/knowledge-bases/{kb_id}/permissions/ endpoint</subtask>
+        <subtask>Add GET /api/v1/knowledge-bases/{kb_id}/permissions/ endpoint with pagination</subtask>
+        <subtask>Add DELETE /api/v1/knowledge-bases/{kb_id}/permissions/{user_id} endpoint</subtask>
+        <subtask>Require ADMIN permission on KB for all endpoints</subtask>
+        <subtask>Return appropriate HTTP status codes (201, 200, 204, 403, 404)</subtask>
+      </task>
+      <task id="4" ac="4,5,6">Update existing KB endpoints with permission enforcement
+        <subtask>Verify GET /knowledge-bases/{id} returns 404 for no-permission users</subtask>
+        <subtask>Verify PATCH /knowledge-bases/{id} requires ADMIN</subtask>
+        <subtask>Verify DELETE /knowledge-bases/{id} requires ADMIN</subtask>
+        <subtask>Add permission check to document endpoints (for future stories)</subtask>
+      </task>
+      <task id="5" ac="1,3">Implement audit logging
+        <subtask>Log kb.permission_granted with: kb_id, target_user_id, permission_level, granted_by</subtask>
+        <subtask>Log kb.permission_revoked with: kb_id, target_user_id, revoked_by</subtask>
+        <subtask>Use existing AuditService pattern from Story 1.7</subtask>
+      </task>
+      <task id="6" ac="1-8">Write unit tests
+        <subtask>Create backend/tests/unit/test_kb_permissions.py</subtask>
+        <subtask>Test grant permission creates new entry</subtask>
+        <subtask>Test grant permission updates existing (upsert)</subtask>
+        <subtask>Test permission hierarchy (ADMIN > WRITE > READ)</subtask>
+        <subtask>Test owner bypass returns True for owner</subtask>
+        <subtask>Test revoke removes permission</subtask>
+        <subtask>Test revoke non-existent returns False</subtask>
+      </task>
+      <task id="7" ac="1-8">Write integration tests
+        <subtask>Create backend/tests/integration/test_kb_permissions.py</subtask>
+        <subtask>Test POST /permissions creates permission entry</subtask>
+        <subtask>Test POST /permissions updates existing permission</subtask>
+        <subtask>Test GET /permissions returns paginated list</subtask>
+        <subtask>Test DELETE /permissions removes entry</subtask>
+        <subtask>Test DELETE /permissions returns 404 for non-existent</subtask>
+        <subtask>Test READ user cannot upload documents</subtask>
+        <subtask>Test WRITE user cannot delete KB</subtask>
+        <subtask>Test no-permission user gets 404 on KB access</subtask>
+      </task>
+      <task id="8" ac="1-8">Verification and linting
+        <subtask>Run ruff check backend/ and fix issues</subtask>
+        <subtask>Run ruff format backend/</subtask>
+        <subtask>Run pytest backend/tests/unit/ - all pass</subtask>
+        <subtask>Run pytest backend/tests/integration/ - all pass</subtask>
+        <subtask>Verify type hints on all new functions</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given I have ADMIN permission on a KB When I call POST /api/v1/knowledge-bases/{id}/permissions with {"user_id", "permission_level"} Then the user is granted permission, upsert if exists, audit logged as kb.permission_granted, Response: 201 Created</ac>
+    <ac id="2">Given I have ADMIN permission on a KB When I call GET /api/v1/knowledge-bases/{id}/permissions Then I receive paginated list with user_id, email, permission_level, created_at</ac>
+    <ac id="3">Given I have ADMIN permission on a KB When I call DELETE /api/v1/knowledge-bases/{id}/permissions/{user_id} Then permission removed, audit logged as kb.permission_revoked, Response: 204 No Content or 404 if not found</ac>
+    <ac id="4">Given user has READ permission When they try to upload document (POST /documents) Then 403 Forbidden with PERMISSION_DENIED</ac>
+    <ac id="5">Given user has WRITE permission When they try to delete KB (DELETE /knowledge-bases/{id}) Then 403 Forbidden with PERMISSION_DENIED</ac>
+    <ac id="6">Given user has no permission on KB When they try to access via any endpoint Then 404 Not Found (not 403, avoid existence leak)</ac>
+    <ac id="7">Permission hierarchy: ADMIN includes WRITE, WRITE includes READ. Check: user_level >= required_level</ac>
+    <ac id="8">KB owner automatically has ADMIN permission (owner bypass). No explicit kb_permissions entry required for owner.</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>kb_permissions Schema, API Endpoints</section>
+        <snippet>Defines kb_permissions table structure with UNIQUE(kb_id, user_id) constraint, permission management endpoints POST/GET/DELETE.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Authorization Model (lines 1110-1114)</section>
+        <snippet>Defines permission levels (READ, WRITE, ADMIN) and KB Permission capabilities for each level.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epics</title>
+        <section>Story 2.2 (lines 598-632)</section>
+        <snippet>Original story definition with acceptance criteria for permission management.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/2-1-knowledge-base-crud-backend.md</path>
+        <title>Previous Story</title>
+        <section>Dev Agent Record</section>
+        <snippet>KBService created with check_permission method, permission hierarchy (ADMIN=3, WRITE=2, READ=1), test factories.</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing-backend-specification.md</path>
+        <title>Backend Testing Specification</title>
+        <section>Test Levels &amp; Markers</section>
+        <snippet>pytestmark required at module level, @pytest.mark.unit for unit tests, @pytest.mark.integration for integration tests.</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>Coding Standards</title>
+        <section>Python Standards</section>
+        <snippet>Type hints required, async/await for I/O, ruff for linting/formatting.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>backend/app/services/kb_service.py</path>
+        <kind>service</kind>
+        <symbol>KBService</symbol>
+        <lines>28-409</lines>
+        <reason>Main service to extend with grant_permission, list_permissions, revoke_permission methods. check_permission (lines 320-358) needs owner bypass logic.</reason>
+      </file>
+      <file>
+        <path>backend/app/api/v1/knowledge_bases.py</path>
+        <kind>controller</kind>
+        <symbol>router</symbol>
+        <lines>1-361</lines>
+        <reason>Add permission endpoints POST/GET/DELETE at /{kb_id}/permissions/. Follow existing patterns for dependency injection and error handling.</reason>
+      </file>
+      <file>
+        <path>backend/app/models/permission.py</path>
+        <kind>model</kind>
+        <symbol>KBPermission, PermissionLevel</symbol>
+        <lines>1-78</lines>
+        <reason>Existing permission model and enum. Use for permission management operations.</reason>
+      </file>
+      <file>
+        <path>backend/app/schemas/knowledge_base.py</path>
+        <kind>schema</kind>
+        <symbol>KBCreate, KBResponse</symbol>
+        <lines>1-111</lines>
+        <reason>Reference for schema patterns. Need to create PermissionCreate, PermissionResponse schemas (may go in separate permission.py).</reason>
+      </file>
+      <file>
+        <path>backend/app/models/knowledge_base.py</path>
+        <kind>model</kind>
+        <symbol>KnowledgeBase</symbol>
+        <lines>1-67</lines>
+        <reason>KB model with owner_id field needed for owner bypass check.</reason>
+      </file>
+      <file>
+        <path>backend/tests/factories/kb_factory.py</path>
+        <kind>test-factory</kind>
+        <symbol>KBFactory, KBPermissionFactory</symbol>
+        <reason>Use for creating test KBs and permissions in unit/integration tests.</reason>
+      </file>
+      <file>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>audit_service</symbol>
+        <reason>Use audit_service.log_event() for kb.permission_granted and kb.permission_revoked actions.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package>fastapi</package>
+        <version>>=0.115.0,&lt;1.0.0</version>
+      </python>
+      <python>
+        <package>sqlalchemy</package>
+        <version>>=2.0.44,&lt;3.0.0</version>
+      </python>
+      <python>
+        <package>pydantic</package>
+        <version>>=2.7.0,&lt;3.0.0</version>
+      </python>
+      <python>
+        <package>structlog</package>
+        <version>>=25.5.0,&lt;26.0.0</version>
+      </python>
+      <python>
+        <package>pytest</package>
+        <version>>=8.0.0</version>
+      </python>
+      <python>
+        <package>pytest-asyncio</package>
+        <version>>=0.24.0</version>
+      </python>
+      <python>
+        <package>httpx</package>
+        <version>>=0.27.0</version>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern">Permission hierarchy: ADMIN=3, WRITE=2, READ=1. Check user_level >= required_level.</constraint>
+    <constraint type="pattern">Return 404 (not 403) for unauthorized KB access to avoid existence leaking.</constraint>
+    <constraint type="pattern">Owner bypass: KB owner_id == user.id grants implicit ADMIN without kb_permissions entry.</constraint>
+    <constraint type="pattern">Upsert behavior: grant_permission updates existing permission if user already has one.</constraint>
+    <constraint type="pattern">Trailing slashes on routes: /api/v1/knowledge-bases/{kb_id}/permissions/</constraint>
+    <constraint type="pattern">Use Depends(get_kb_service) pattern for dependency injection.</constraint>
+    <constraint type="pattern">Use HTTPException with from None for exception chaining (B904 compliance).</constraint>
+    <constraint type="testing">All test files MUST have pytestmark at module level.</constraint>
+    <constraint type="testing">Unit tests: @pytest.mark.unit, timeout 5s.</constraint>
+    <constraint type="testing">Integration tests: @pytest.mark.integration, timeout 30s.</constraint>
+    <constraint type="testing">Use factories for test data creation.</constraint>
+    <constraint type="linting">Run ruff check and ruff format before completion.</constraint>
+    <constraint type="typing">Type hints required on all new functions.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/knowledge-bases/{kb_id}/permissions/</name>
+      <kind>REST endpoint</kind>
+      <signature>Request: PermissionCreate(user_id: UUID, permission_level: PermissionLevel) | Response: PermissionResponse | 201 Created</signature>
+      <path>backend/app/api/v1/knowledge_bases.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/knowledge-bases/{kb_id}/permissions/</name>
+      <kind>REST endpoint</kind>
+      <signature>Query: ?page=1&amp;limit=20 | Response: PermissionListResponse | 200 OK</signature>
+      <path>backend/app/api/v1/knowledge_bases.py</path>
+    </interface>
+    <interface>
+      <name>DELETE /api/v1/knowledge-bases/{kb_id}/permissions/{user_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>Response: 204 No Content | 404 Not Found</signature>
+      <path>backend/app/api/v1/knowledge_bases.py</path>
+    </interface>
+    <interface>
+      <name>KBService.grant_permission</name>
+      <kind>service method</kind>
+      <signature>async def grant_permission(self, kb_id: UUID, user_id: UUID, level: PermissionLevel, admin: User) -> KBPermission</signature>
+      <path>backend/app/services/kb_service.py</path>
+    </interface>
+    <interface>
+      <name>KBService.list_permissions</name>
+      <kind>service method</kind>
+      <signature>async def list_permissions(self, kb_id: UUID, admin: User, page: int = 1, limit: int = 20) -> tuple[list[PermissionResponse], int]</signature>
+      <path>backend/app/services/kb_service.py</path>
+    </interface>
+    <interface>
+      <name>KBService.revoke_permission</name>
+      <kind>service method</kind>
+      <signature>async def revoke_permission(self, kb_id: UUID, user_id: UUID, admin: User) -> bool</signature>
+      <path>backend/app/services/kb_service.py</path>
+    </interface>
+    <interface>
+      <name>KBService.check_permission (modified)</name>
+      <kind>service method</kind>
+      <signature>Add owner bypass: if kb.owner_id == user.id: return True</signature>
+      <path>backend/app/services/kb_service.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>All tests use pytest with pytest-asyncio. Unit tests marked with @pytest.mark.unit (timeout 5s), integration tests with @pytest.mark.integration (timeout 30s). Every test file MUST declare pytestmark at module level. Use factories (KBFactory, KBPermissionFactory) for test data. Use httpx AsyncClient for API testing. Integration tests use testcontainers for PostgreSQL/Redis isolation.</standards>
+    <locations>
+      <location>backend/tests/unit/test_kb_permissions.py (to create)</location>
+      <location>backend/tests/integration/test_kb_permissions.py (to create)</location>
+      <location>backend/tests/factories/kb_factory.py (existing)</location>
+      <location>backend/tests/conftest.py (existing fixtures)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test grant_permission creates new KBPermission entry with correct fields</idea>
+      <idea ac="1">Test grant_permission updates existing permission (upsert behavior)</idea>
+      <idea ac="1">Test POST /permissions returns 201 with PermissionResponse</idea>
+      <idea ac="2">Test list_permissions returns paginated results with email joined from users</idea>
+      <idea ac="2">Test GET /permissions returns correct pagination metadata</idea>
+      <idea ac="3">Test revoke_permission removes entry from database</idea>
+      <idea ac="3">Test DELETE /permissions returns 204 on success</idea>
+      <idea ac="3">Test DELETE /permissions returns 404 when permission doesn't exist</idea>
+      <idea ac="4">Test READ user gets 403 when trying to POST /documents (future)</idea>
+      <idea ac="5">Test WRITE user gets 403 when trying to DELETE /knowledge-bases/{id}</idea>
+      <idea ac="6">Test user with no permission gets 404 on GET /knowledge-bases/{id}</idea>
+      <idea ac="7">Test permission hierarchy: ADMIN can do WRITE operations, WRITE can do READ operations</idea>
+      <idea ac="8">Test KB owner can access without explicit permission entry</idea>
+      <idea ac="8">Test check_permission returns True for owner even without kb_permissions entry</idea>
+    </ideas>
+  </tests>
+</story-context>

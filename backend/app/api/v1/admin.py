@@ -6,6 +6,7 @@ Provides:
 - PATCH /api/v1/admin/users/{user_id} - Update user status (admin only)
 """
 
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import (
@@ -17,15 +18,30 @@ from fastapi import (
     Request,
     status,
 )
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import UserManager, current_superuser, get_user_manager
 from app.core.database import get_async_session
 from app.core.redis import get_client_ip
+from app.models.outbox import Outbox
 from app.models.user import User
 from app.schemas.common import PaginatedResponse, PaginationMeta
 from app.schemas.user import AdminUserUpdate, UserCreate, UserRead
+from app.workers.outbox_tasks import MAX_OUTBOX_ATTEMPTS
+
+
+class OutboxStats(BaseModel):
+    """Outbox queue statistics response."""
+
+    pending_events: int
+    failed_events: int
+    processed_last_hour: int
+    processed_last_24h: int
+    queue_depth: int
+    average_processing_time_ms: float | None
+
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -252,3 +268,84 @@ async def _log_audit_event(
     except Exception:
         # Audit logging should never fail the request
         pass
+
+
+@router.get(
+    "/outbox/stats",
+    response_model=OutboxStats,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin (is_superuser=False)"},
+    },
+)
+async def get_outbox_stats(
+    _admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session),
+) -> OutboxStats:
+    """Get outbox queue statistics (admin only).
+
+    Args:
+        admin: Current authenticated superuser.
+        session: Database session.
+
+    Returns:
+        OutboxStats: Queue statistics including pending, failed, and processed counts.
+    """
+    now = datetime.now(UTC)
+    one_hour_ago = now - timedelta(hours=1)
+    one_day_ago = now - timedelta(hours=24)
+
+    # Pending events (unprocessed and not failed)
+    pending_result = await session.execute(
+        select(func.count(Outbox.id))
+        .where(Outbox.processed_at.is_(None))
+        .where(Outbox.attempts < MAX_OUTBOX_ATTEMPTS)
+    )
+    pending_events = pending_result.scalar() or 0
+
+    # Failed events (max attempts reached)
+    failed_result = await session.execute(
+        select(func.count(Outbox.id)).where(Outbox.attempts >= MAX_OUTBOX_ATTEMPTS)
+    )
+    failed_events = failed_result.scalar() or 0
+
+    # Processed in last hour
+    processed_hour_result = await session.execute(
+        select(func.count(Outbox.id)).where(Outbox.processed_at >= one_hour_ago)
+    )
+    processed_last_hour = processed_hour_result.scalar() or 0
+
+    # Processed in last 24 hours
+    processed_day_result = await session.execute(
+        select(func.count(Outbox.id)).where(Outbox.processed_at >= one_day_ago)
+    )
+    processed_last_24h = processed_day_result.scalar() or 0
+
+    # Queue depth (same as pending)
+    queue_depth = pending_events
+
+    # Average processing time for last 100 processed events
+    # Calculate as (processed_at - created_at) in milliseconds
+    avg_time_result = await session.execute(
+        select(
+            func.avg(
+                func.extract("epoch", Outbox.processed_at)
+                - func.extract("epoch", Outbox.created_at)
+            )
+            * 1000  # Convert seconds to milliseconds
+        )
+        .where(Outbox.processed_at.isnot(None))
+        .order_by(Outbox.processed_at.desc())
+        .limit(100)
+    )
+    avg_time_ms = avg_time_result.scalar()
+    average_processing_time_ms = float(avg_time_ms) if avg_time_ms else None
+
+    return OutboxStats(
+        pending_events=pending_events,
+        failed_events=failed_events,
+        processed_last_hour=processed_last_hour,
+        processed_last_24h=processed_last_24h,
+        queue_depth=queue_depth,
+        average_processing_time_ms=average_processing_time_ms,
+    )

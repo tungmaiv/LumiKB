@@ -1,0 +1,144 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.2</storyId>
+    <title>Answer Synthesis with Citations Backend</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-25</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/home/tungmv/Projects/LumiKB/docs/sprint-artifacts/3-2-answer-synthesis-with-citations-backend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a user with READ access to a Knowledge Base</asA>
+    <iWant>search results synthesized into a coherent answer with inline citations</iWant>
+    <soThat>I get direct answers rather than just document links, and can verify every claim with source citations</soThat>
+    <tasks>
+      - Task 1: Create CitationService (AC: 2, 3, 8)
+      - Task 2: Extend SearchService with answer synthesis (AC: 1, 4, 5, 7)
+      - Task 3: Update API endpoint (AC: 5)
+      - Task 4: Write unit tests (AC: 1, 2, 3, 4, 6, 8)
+      - Task 5: Write integration tests (AC: 1, 2, 3, 4, 5, 7)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC1" title="LLM Answer Synthesis with Citation Instructions">
+      System passes top-k chunks (default: 5) to LLM via LiteLLM with system prompt instructing citation format [1], [2], [3]. LLM generates coherent answer with inline citation markers.
+    </ac>
+    <ac id="AC2" title="Citation Marker Extraction">
+      CitationService.extract_citations() extracts all [n] markers using regex, returns sorted unique citation numbers, validates all markers have corresponding source chunks. Raises CitationMappingError for orphaned markers.
+    </ac>
+    <ac id="AC3" title="Citation Metadata Assembly">
+      Each Citation includes: number, document_id, document_name, page_number, section_header, excerpt (~200 chars), char_start, char_end, confidence (from relevance_score). Citations ordered by number.
+    </ac>
+    <ac id="AC4" title="Confidence Score Calculation">
+      Composite score (0-1) based on: avg retrieval relevance (40%), number of sources (30%), semantic similarity between query and answer (30%). ≥0.8 = High, 0.5-0.79 = Medium, <0.5 = Low.
+    </ac>
+    <ac id="AC5" title="Response Format with Citations">
+      SearchResponse includes: query, answer (with [n] markers), citations array, confidence, results (from Story 3.1), result_count. Every [n] marker maps to citation.
+    </ac>
+    <ac id="AC6" title="No Hallucination - Answer Grounded in Sources">
+      Every factual claim has citation marker. System prompt instructs: "If information isn't in sources, say 'I don't have information about that in the available documents.'"
+    </ac>
+    <ac id="AC7" title="Error Handling - LLM Failures">
+      On LLM timeout/failure: log error, fallback to raw search results from Story 3.1, return empty answer/citations with confidence=0.0 and warning message.
+    </ac>
+    <ac id="AC8" title="Citation Extraction Error Handling">
+      On extraction error: log warning, return answer without citations, set confidence=0.5, include disclaimer. Does NOT crash or return 500.
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Epic 3 Technical Specification" section="CitationService, LLM System Prompt, SearchService">
+        Core technical spec for Epic 3. Defines CitationService as THE CORE DIFFERENTIATOR. Includes LLM system prompt template for citation instructions, confidence calculation formula (40% relevance + 30% sources + 30% similarity), citation extraction regex pattern, and complete SearchService._synthesize_answer() implementation.
+      </doc>
+      <doc path="docs/architecture.md" title="LumiKB Architecture" section="Citation-First Architecture (ADR-005), Pattern 1: Citation Assembly System">
+        Architectural decision to build citation assembly as core component. Describes citation metadata structure, streaming citation events, and the principle that citations are THE product, not an afterthought. Emphasizes passage-level precision with rich chunk metadata.
+      </doc>
+      <doc path="docs/sprint-artifacts/3-1-semantic-search-backend.md" title="Story 3.1 - Semantic Search Backend" section="Learnings from Previous Story, Dev Notes">
+        Prerequisite story that established SearchService foundation. Confirms SearchResultSchema already includes char_start/char_end fields needed for citations. Unit tests exist with 10 passing tests. Integration tests use @pytest.mark.skip for ATDD RED phase pattern to follow.
+      </doc>
+      <doc path="docs/testing-framework-guideline.md" title="Testing Framework Guideline" section="Test Standards">
+        Testing standards for LumiKB. Use pytest markers (@pytest.mark.unit, @pytest.mark.integration), pytest-asyncio in auto mode, target 85%+ coverage for critical components. LLM mocking with pytest-vcr for deterministic tests.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="backend/app/services/search_service.py" kind="service" symbol="SearchService" lines="24-150" reason="
+        Existing SearchService from Story 3.1. Contains permission checks, embedding generation (_embed_query), Qdrant search (_search_collections), and audit logging. This story extends it with _synthesize_answer() and _calculate_confidence() methods. Already integrates with LiteLLMClient, QdrantClient, PermissionService, and AuditService.
+      "/>
+      <artifact path="backend/app/integrations/litellm_client.py" kind="integration" symbol="LiteLLMEmbeddingClient" lines="47-150" reason="
+        LiteLLM client for embeddings. Provides get_embeddings() with batching and exponential backoff. This story will use LiteLLM for answer synthesis via separate chat completion method (not yet implemented). Model configured in settings.embedding_model.
+      "/>
+      <artifact path="backend/app/schemas/search.py" kind="schema" symbol="SearchResponse" lines="37-43" reason="
+        Current SearchResponse schema with query, results, result_count fields. This story extends it with answer (str), citations (list[Citation]), and confidence (float) fields. SearchResultSchema already includes char_start/char_end needed for citation mapping.
+      "/>
+      <artifact path="backend/tests/unit/test_search_service.py" kind="test" symbol="test_search_*" reason="
+        Existing unit tests for SearchService with 10 passing tests. Mock LiteLLM and Qdrant clients. This story extends with tests for _synthesize_answer(), _calculate_confidence(), and LLM failure fallback scenarios.
+      "/>
+      <artifact path="backend/tests/integration/test_semantic_search.py" kind="test" symbol="test_semantic_search_*" reason="
+        Integration tests for search flow. Currently use @pytest.mark.skip for ATDD RED phase. This story extends with answer synthesis tests, citation metadata validation, and confidence score verification.
+      "/>
+    </code>
+    <dependencies>
+      <backend>
+        <litellm version="≥1.50.0">LLM access for embeddings and answer synthesis</litellm>
+        <langchain-qdrant version="≥1.1.0">Qdrant vector store integration</langchain-qdrant>
+        <qdrant-client version="≥1.10.0">Low-level Qdrant operations (gRPC)</qdrant-client>
+        <redis version="≥7.1.0">Query embedding cache, session storage</redis>
+        <fastapi version="≥0.115.0">REST API framework, SSE streaming</fastapi>
+        <pydantic version="≥2.7.0,&lt;3.0.0">Schema validation</pydantic>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Citation Accuracy is CRITICAL: Every [n] marker MUST map to a valid source chunk. Orphaned markers are a CRITICAL bug that undermines trust.</constraint>
+    <constraint>LLM System Prompt Precision: The system prompt template in tech-spec-epic-3.md is authoritative. Do NOT simplify or paraphrase citation instructions.</constraint>
+    <constraint>Metadata Dependency: Assumes Story 3.1 populates SearchResultSchema with document_id, document_name, page_number, section_header, chunk_text, char_start, char_end, relevance_score. Verified in Story 3.1 completion.</constraint>
+    <constraint>LLM Model Consistency: Use same LLM model configured in settings (default: GPT-4). Different models require testing citation instruction following.</constraint>
+    <constraint>Excerpt Length: Citation excerpts must be ~200 characters (truncate chunk_text with ellipsis "..." if longer).</constraint>
+    <constraint>Error Handling: Graceful degradation required. LLM failure → return raw results. Citation extraction error → return answer without citations + warning. Never return 500 error.</constraint>
+    <constraint>Testing: Unit tests must all PASS immediately (no external dependencies). Integration tests use @pytest.mark.skip until Epic 2 document indexing complete (ATDD RED phase).</constraint>
+  </constraints>
+  <interfaces>
+    <interface name="POST /api/v1/search" kind="REST endpoint" signature="POST /api/v1/search { query, kb_ids, limit } → SearchResponse" path="backend/app/api/v1/search.py">
+      Extended to return SearchResponse with answer, citations, confidence fields. Backward compatible with Story 3.1 - existing results field unchanged.
+    </interface>
+    <interface name="LiteLLMClient.chat_completion" kind="method" signature="async chat_completion(messages: list[dict], temperature: float, max_tokens: int) → str" path="backend/app/integrations/litellm_client.py">
+      New method to implement for LLM answer synthesis. Takes system prompt + user query with context, returns generated text with [n] markers.
+    </interface>
+    <interface name="CitationService.extract_citations" kind="method" signature="extract_citations(answer: str, source_chunks: list[SearchChunk]) → tuple[str, list[Citation]]" path="backend/app/services/citation_service.py">
+      Core citation extraction logic. Parses [n] markers from answer, maps to chunks, builds Citation objects with full metadata.
+    </interface>
+    <interface name="SearchService._synthesize_answer" kind="method" signature="async _synthesize_answer(query: str, chunks: list[SearchChunk]) → str" path="backend/app/services/search_service.py">
+      New method to orchestrate LLM answer synthesis. Builds system prompt with citation instructions, passes top-5 chunks to LiteLLM, returns answer with inline markers.
+    </interface>
+    <interface name="SearchService._calculate_confidence" kind="method" signature="_calculate_confidence(chunks: list[SearchChunk], query: str) → float" path="backend/app/services/search_service.py">
+      New method to calculate confidence score (0-1). Formula: 40% avg relevance + 30% source count + 30% query-answer similarity.
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Backend testing uses pytest with pytest-asyncio (auto mode), pytest-mock for mocking external services. Unit tests target 85%+ coverage for CitationService (critical component). Integration tests marked with @pytest.mark.integration require testcontainers. Use @pytest.mark.skip for tests requiring indexed documents (ATDD RED phase until Epic 2 complete). LLM mocking via pytest-vcr or direct mock of LiteLLMClient for deterministic tests. All async tests use "async def test_..." with await.
+    </standards>
+    <locations>
+      backend/tests/unit/test_citation_service.py (NEW)
+      backend/tests/unit/test_search_service.py (EXTEND)
+      backend/tests/integration/test_semantic_search.py (EXTEND)
+      backend/tests/integration/test_llm_synthesis.py (NEW, optional)
+    </locations>
+    <ideas>
+      <test ac="AC1" type="unit">Mock LiteLLM chat_completion to return answer with [1][2] markers. Verify _synthesize_answer() builds correct system prompt with citation instructions and passes top-5 chunks.</test>
+      <test ac="AC2" type="unit">Test CitationService._find_markers() extracts [1], [2], [3] from "OAuth [1] with MFA [2] and biometric [3]". Returns sorted unique [1,2,3].</test>
+      <test ac="AC2" type="unit">Test extract_citations() raises CitationMappingError when answer has [3] but only 2 chunks provided (orphaned marker).</test>
+      <test ac="AC3" type="unit">Test _map_marker_to_chunk() builds Citation object with all fields: number, document_id, document_name, page_number, section_header, excerpt (truncated to 200 chars), char_start, char_end, confidence.</test>
+      <test ac="AC4" type="unit">Test _calculate_confidence() with various scenarios: 1 source (low score), 3+ sources (high score), high relevance scores (boost confidence), low relevance (reduce confidence).</test>
+      <test ac="AC5" type="integration">Full search flow with mocked LiteLLM returns SearchResponse with answer, citations array, confidence. Every [n] marker in answer has corresponding citation.</test>
+      <test ac="AC6" type="unit">Verify LLM system prompt includes instruction: "If information isn't in sources, say 'I don't have information about that...'". Test with mock where LLM attempts hallucination - log warning.</test>
+      <test ac="AC7" type="unit">Mock LiteLLM timeout. Verify search returns fallback: answer="", citations=[], confidence=0.0, results=raw_search_results, warning message present.</test>
+      <test ac="AC8" type="unit">Mock citation extraction regex failure (malformed markers). Verify returns answer without citations, confidence=0.5, disclaimer in response, does NOT raise exception.</test>
+    </ideas>
+  </tests>
+</story-context>

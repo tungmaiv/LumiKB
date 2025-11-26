@@ -1,0 +1,154 @@
+<story-context id="2-4-document-upload-api-and-storage" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>4</storyId>
+    <title>Document Upload API and Storage</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-4-document-upload-api-and-storage.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with WRITE permission</asA>
+    <iWant>to upload documents to a Knowledge Base</iWant>
+    <soThat>they can be processed and made searchable</soThat>
+    <tasks>
+      <task id="1" ac="1">Create MinIO integration client (backend/app/integrations/minio_client.py)</task>
+      <task id="2" ac="1,2">Create Document model and migration (004_add_documents_table.py)</task>
+      <task id="3" ac="1">Update Outbox model for document events (aggregate_type='document')</task>
+      <task id="4" ac="1,2,3">Create Document Pydantic schemas (backend/app/schemas/document.py)</task>
+      <task id="5" ac="1,2,4,5,6,7">Create DocumentService (backend/app/services/document_service.py)</task>
+      <task id="6" ac="1-7">Create Document upload API endpoint (POST /api/v1/knowledge-bases/{kb_id}/documents)</task>
+      <task id="7" ac="1-7">Create Document factory for tests (backend/tests/factories/document_factory.py)</task>
+      <task id="8" ac="1-7">Write unit tests for DocumentService</task>
+      <task id="9" ac="1-7">Write integration tests for document upload</task>
+      <task id="10" ac="1">Update KB CRUD for document count</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given WRITE permission, When POST /api/v1/knowledge-bases/{kb_id}/documents with file, Then: file uploaded to MinIO (bucket: kb-{kb_id}), document record created status=PENDING, outbox event document.process created, 202 Accepted returned with doc ID, file at path {kb_id}/{doc_id}/{original_filename}</ac>
+    <ac id="2">Given file upload completes, Then: PDF/DOCX/MD formats supported (FR16), 50MB max size, SHA-256 checksum computed and stored, audit logged (FR53)</ac>
+    <ac id="3">Given unsupported file type, Then: 400 Bad Request with allowed formats in error details</ac>
+    <ac id="4">Given file exceeds 50MB, Then: 413 Payload Too Large, no file written to MinIO</ac>
+    <ac id="5">Given zero-byte file, Then: 400 Bad Request with "Empty file not allowed"</ac>
+    <ac id="6">Given NO WRITE permission, Then: 404 Not Found (not 403 for security), no audit event logged</ac>
+    <ac id="7">Given KB does not exist, Then: 404 Not Found</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="API-Endpoints, Data-Models" snippet="Defines POST /api/v1/knowledge-bases/{kb_id}/documents endpoint, Document table schema with status enum, MinIO storage path pattern"/>
+      <doc path="docs/architecture.md" title="System Architecture" section="Pattern-2-Transactional-Outbox" snippet="Outbox pattern for cross-service consistency: PostgreSQL + MinIO + Qdrant coordination via event queue"/>
+      <doc path="docs/architecture.md" title="System Architecture" section="Common-Patterns" snippet="Centralized exception handling, DI patterns, validation via Pydantic"/>
+      <doc path="docs/epics.md" title="Epic Definitions" section="Story-2.4" snippet="Original story definition with acceptance criteria for document upload"/>
+      <doc path="docs/testing-backend-specification.md" title="Test Framework Specification" section="Fixtures-and-Factories" snippet="Factory pattern with faker, testcontainers for integration tests, pytestmark requirements"/>
+      <doc path="docs/sprint-artifacts/2-3-knowledge-base-list-and-selection-frontend.md" title="Previous Story" section="Dev-Agent-Record" snippet="check_permission() method available in KBService, test patterns with factories"/>
+    </docs>
+    <code>
+      <file path="backend/app/models/knowledge_base.py" kind="model" symbol="KnowledgeBase" reason="Parent entity - documents belong to KB, has documents relationship defined"/>
+      <file path="backend/app/models/outbox.py" kind="model" symbol="Outbox" lines="44-47" reason="Outbox model with aggregate_type field already supports document events"/>
+      <file path="backend/app/services/kb_service.py" kind="service" symbol="KBService.check_permission" lines="242-280" reason="Permission checking method to reuse for WRITE permission validation"/>
+      <file path="backend/app/services/kb_service.py" kind="service" symbol="KBService.get" lines="99-117" reason="KB retrieval with permission check - returns None for 404 pattern"/>
+      <file path="backend/app/api/v1/knowledge_bases.py" kind="api" symbol="router" reason="Existing KB router - document endpoint should be added here or in separate documents.py"/>
+      <file path="backend/tests/factories/kb_factory.py" kind="factory" symbol="create_kb_data" reason="Factory pattern to follow for document_factory.py"/>
+      <file path="backend/tests/factories/user_factory.py" kind="factory" symbol="create_user" reason="User factory pattern with faker and overrides"/>
+      <file path="backend/app/integrations/qdrant_client.py" kind="integration" symbol="qdrant_service" reason="Pattern for integration client to follow for minio_client.py"/>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.115.0,<1.0.0" purpose="Web framework"/>
+        <package name="sqlalchemy" version=">=2.0.44,<3.0.0" purpose="ORM"/>
+        <package name="alembic" version=">=1.14.0,<2.0.0" purpose="Migrations"/>
+        <package name="boto3" version=">=1.35.0" purpose="MinIO S3-compatible client" note="In [all] extras"/>
+        <package name="structlog" version=">=25.5.0,<26.0.0" purpose="Logging"/>
+        <package name="pydantic" version=">=2.7.0,<3.0.0" purpose="Validation"/>
+        <package name="pytest" version=">=8.0.0" purpose="Testing" scope="dev"/>
+        <package name="pytest-asyncio" version=">=0.24.0" purpose="Async testing" scope="dev"/>
+        <package name="testcontainers" version=">=4.0.0" purpose="Container isolation" scope="dev"/>
+        <package name="faker" version=">=24.0.0" purpose="Test data generation" scope="dev"/>
+        <package name="httpx" version=">=0.27.0" purpose="HTTP client" scope="dev"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md">File Storage: MinIO with path {kb_id}/{doc_id}/{filename}</constraint>
+    <constraint source="architecture.md">Outbox Pattern: All cross-service ops via transactional outbox</constraint>
+    <constraint source="architecture.md">Error Handling: Centralized exception handler, use NotFoundError/ValidationError</constraint>
+    <constraint source="tech-spec-epic-2.md">Permission Check: Return 404 (not 403) for unauthorized to avoid leaking KB existence</constraint>
+    <constraint source="tech-spec-epic-2.md">Max File Size: 50MB limit per upload</constraint>
+    <constraint source="tech-spec-epic-2.md">Supported Formats: PDF, DOCX, MD only</constraint>
+    <constraint source="tech-spec-epic-2.md">Rate Limiting: 10 uploads/min/user (consideration for future)</constraint>
+    <constraint source="tech-spec-epic-2.md">Document Status: PENDING on upload, processing handled by worker (Story 2-5)</constraint>
+    <constraint source="testing-backend-specification.md">Every test file MUST have pytestmark at module level</constraint>
+    <constraint source="testing-backend-specification.md">Use factories for test data, not hardcoded values</constraint>
+    <constraint source="testing-backend-specification.md">Unit tests &lt;5s, Integration tests &lt;30s timeout</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/v1/knowledge-bases/{kb_id}/documents" kind="REST endpoint">
+      <signature>POST /api/v1/knowledge-bases/{kb_id}/documents
+Content-Type: multipart/form-data
+Body: file (binary)
+Response: 202 Accepted
+{
+  "id": "uuid",
+  "name": "string",
+  "status": "pending",
+  "created_at": "datetime"
+}</signature>
+      <path>backend/app/api/v1/documents.py (NEW) or knowledge_bases.py</path>
+    </interface>
+    <interface name="KBService.check_permission" kind="function">
+      <signature>async def check_permission(kb_id: UUID, user: User, required: PermissionLevel) -> bool</signature>
+      <path>backend/app/services/kb_service.py:242</path>
+    </interface>
+    <interface name="MinIOClient" kind="class">
+      <signature>class MinIOClient:
+    async def upload_file(bucket: str, object_path: str, file: BinaryIO, content_type: str) -> str
+    async def delete_file(bucket: str, object_path: str) -> None
+    async def ensure_bucket_exists(bucket: str) -> None</signature>
+      <path>backend/app/integrations/minio_client.py (NEW)</path>
+    </interface>
+    <interface name="DocumentService.upload" kind="function">
+      <signature>async def upload(kb_id: UUID, file: UploadFile, user: User) -> Document</signature>
+      <path>backend/app/services/document_service.py (NEW)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      pytest with pytest-asyncio for async tests. Every test file has pytestmark (unit or integration).
+      Factories with faker for unique data. Integration tests use testcontainers (PostgreSQL).
+      MinIO integration tests use testcontainers[localstack] or mock.
+      Unit tests mock external services (MinIO, DB). Integration tests use real containers.
+      Follow Arrange-Act-Assert pattern with explicit assertions in test body.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_document_service.py (NEW)</location>
+      <location>backend/tests/integration/test_document_upload.py (NEW)</location>
+      <location>backend/tests/factories/document_factory.py (NEW)</location>
+      <location>backend/tests/fixtures/ (sample.pdf, sample.docx, sample.md)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">test_upload_valid_pdf_creates_document_with_pending_status</idea>
+      <idea ac="1">test_upload_creates_outbox_event_for_processing</idea>
+      <idea ac="1">test_upload_stores_file_in_minio_at_correct_path</idea>
+      <idea ac="2">test_upload_accepts_pdf_docx_md_formats</idea>
+      <idea ac="2">test_upload_computes_sha256_checksum</idea>
+      <idea ac="2">test_upload_logs_audit_event</idea>
+      <idea ac="3">test_upload_unsupported_type_returns_400</idea>
+      <idea ac="3">test_upload_txt_file_rejected</idea>
+      <idea ac="4">test_upload_exceeds_50mb_returns_413</idea>
+      <idea ac="4">test_large_file_not_written_to_minio</idea>
+      <idea ac="5">test_upload_empty_file_returns_400</idea>
+      <idea ac="6">test_upload_without_write_permission_returns_404</idea>
+      <idea ac="6">test_upload_without_permission_no_audit_event</idea>
+      <idea ac="7">test_upload_to_nonexistent_kb_returns_404</idea>
+      <idea ac="1,2">test_integration_full_upload_flow_with_minio</idea>
+      <idea ac="1">test_integration_document_persisted_to_db</idea>
+    </ideas>
+  </tests>
+</story-context>

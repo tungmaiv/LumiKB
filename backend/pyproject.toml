@@ -52,21 +52,28 @@ dev = [
     # Test infrastructure
     "testcontainers[postgres,redis]>=4.0.0",
     "faker>=24.0.0",
+    # Async test support for Celery tasks
+    "nest_asyncio>=1.6.0",
 ]
 all = [
     # Vector & LLM
     "langchain>=0.3.0,<1.0.0",
-    "langchain-qdrant>=1.1.0,<2.0.0",
+    "langchain-core>=0.3.0,<1.0.0",
+    "langchain-text-splitters>=0.3.0,<1.0.0",
+    "langchain-qdrant>=0.1.0,<1.0.0",
     "qdrant-client>=1.10.0,<2.0.0",
     "litellm>=1.50.0,<2.0.0",
-    # Task Queue
+    "tiktoken>=0.8.0,<1.0.0",
+    # Task Queue (redis dep already included above, don't use celery[redis] to avoid version conflict)
     "celery>=5.5.0,<6.0.0",
-    # Document Processing
-    "unstructured>=0.16.0,<1.0.0",
+    # Document Processing - PDF, DOCX, Markdown parsing
+    "unstructured[pdf,docx,md]>=0.16.0,<1.0.0",
     # Monitoring
     "prometheus-client>=0.21.0,<1.0.0",
     # Object Storage
     "boto3>=1.35.0",
+    # Natural Language Processing (Story 3.9 - keyword stemming)
+    "nltk>=3.8.0,<4.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -134,6 +141,13 @@ timeout_method = "thread"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
+    # asyncpg connection cleanup during test teardown - harmless
+    "ignore:coroutine 'Connection._cancel' was never awaited:RuntimeWarning",
+    # LiteLLM async client cleanup during interpreter shutdown - harmless
+    "ignore:There is no current event loop:RuntimeWarning",
+    # Outbox async handlers during mock setup - harmless test artifact
+    "ignore:coroutine '_handle_kb_delete' was never awaited:RuntimeWarning",
+    "ignore:coroutine '_handle_document_reprocess' was never awaited:RuntimeWarning",
 ]
 markers = [
     "unit: Fast tests without external dependencies (<5s each)",

@@ -1,0 +1,358 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.10</storyId>
+    <title>Verify All Citations</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-10-verify-all-citations.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>skeptical user reviewing AI-generated answers</asA>
+    <iWant>to verify all citations in sequence with a systematic workflow</iWant>
+    <soThat>I can efficiently check every source and build confidence in the answer's accuracy</soThat>
+    <tasks>
+      <!-- Frontend Tasks -->
+      <task id="1" ac="1,2,3,6">Create Verification State Management (use-verification.ts Zustand store with persist middleware)</task>
+      <task id="2" ac="1">Create Verify All Button Component (VerifyAllButton with citation count, edge cases for 0/1/2+ citations)</task>
+      <task id="3" ac="2,3,5">Create Verification Controls Panel (VerificationControls with navigation, keyboard shortcuts)</task>
+      <task id="4" ac="1,2,3">Update SearchResultCard with Verification Highlights (highlight current citation, verified checkmarks)</task>
+      <task id="5" ac="2,3">Update CitationCard with Verification State (highlight state, verified badge)</task>
+      <task id="6" ac="4">Update Citation Preview Modal (auto-open, auto-update on navigation)</task>
+      <task id="7" ac="7">Responsive Design (mobile sticky controls, tablet drawer, desktop modal)</task>
+      <task id="8" ac="5">Accessibility Implementation (ARIA labels, keyboard navigation, screen reader support)</task>
+      <task id="9" ac="8">Edge Cases and Error Handling (single/zero citation, deleted source, 20+ citation performance)</task>
+
+      <!-- Testing Tasks -->
+      <task id="10">Frontend Component Tests (10+ tests for verification flow)</task>
+      <task id="11">State Management Tests (7+ tests for use-verification hook)</task>
+      <task id="12" optional="true">Integration Tests (E2E verification flow)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Verify All Mode Activation">
+      - Verify All button visible on answers with ≥2 citations showing count
+      - Button positioned below answer text, above citations panel
+      - Clicking activates verification mode with first citation highlighted
+      - Verification control panel appears with progress, navigation, checkbox, exit
+      - Citation preview auto-opens for first citation
+      - Single-citation answers show "Preview Citation" instead
+      - Button disabled while answer streaming
+    </ac>
+
+    <ac id="2" title="Sequential Citation Navigation">
+      - Next button / → arrow advances to next citation
+      - Previous button / ← arrow returns to previous citation
+      - Citations panel scrolls to current citation automatically
+      - Preview updates to show current citation's source
+      - Progress indicator updates (e.g., "Citation 2 of 7")
+      - Boundaries respected (no next on last, no previous on first)
+    </ac>
+
+    <ac id="3" title="Citation Verification Marking">
+      - Checkbox marks citation as verified with green checkmark badge
+      - Badge appears in both answer text marker and citation card
+      - Progress counter increments (e.g., "3/7 verified" → "4/7 verified")
+      - Verified badges persist across navigation
+      - All verified state shows "All sources verified ✓" message
+      - Answer card displays "All verified ✓" badge when complete
+      - Session persistence via localStorage
+    </ac>
+
+    <ac id="4" title="Verification Preview Integration">
+      - Preview modal auto-opens when verification mode activates
+      - Preview shows source passage with highlighted relevant text
+      - Includes document name, page/section, excerpt (~200 chars context)
+      - Preview updates seamlessly on navigation (no flicker/reopen)
+      - "Open Full Document" navigates to full source with highlight
+      - Preview can be closed/reopened without exiting verification mode
+    </ac>
+
+    <ac id="5" title="Keyboard Shortcuts and Accessibility">
+      - → (Right Arrow): Next citation
+      - ← (Left Arrow): Previous citation
+      - Space/Enter: Toggle verification checkmark
+      - Esc: Exit verification mode
+      - P: Toggle preview open/closed
+      - All elements reachable via Tab navigation with visible focus indicators
+      - Screen reader announces "Citation N of M: [document], [excerpt]"
+      - Screen reader announces "Verified" state and "All N citations verified"
+      - ARIA labels on all interactive elements
+    </ac>
+
+    <ac id="6" title="Exit Verification and State Persistence">
+      - Exit button / Esc deactivates verification mode
+      - Verified checkmarks remain visible after exit
+      - "All verified ✓" badge persists on answer
+      - Re-entry restores state and starts at first unverified citation
+      - localStorage persists state across page refresh (same session)
+      - New browser sessions reset verification state
+    </ac>
+
+    <ac id="7" title="Mobile/Tablet Responsive Behavior">
+      - Mobile (<768px): Sticky bottom controls, full-screen preview, touch targets ≥48x48px
+      - Tablet (768-1023px): Inline controls, drawer preview from right
+      - Desktop (≥1024px): Panel-header controls, centered modal preview, arrow key navigation
+    </ac>
+
+    <ac id="8" title="Edge Cases and Error Handling">
+      - Single citation: "Preview Citation" button (no verification mode)
+      - Zero citations: "No sources cited - use with caution" warning
+      - Deleted/unavailable source: "Source unavailable" error in preview, allow marking
+      - 20+ citations: Smooth performance, no lag, optimized scrolling
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Technical Specification - Epic 3: Semantic Search & Citations</title>
+        <section>Story 3.10 - Verify All Citations (Lines 1054)</section>
+        <snippet>Verification state machine for systematic citation review. Maps to test T3.10.1 Component test for VerifyAllMode.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Product Epics</title>
+        <section>Story 3.10: Verify All Citations (Lines 1325-1360)</section>
+        <snippet>User story defining systematic verification mode with sequential navigation, checkmark verification, and progress tracking. Depends on Story 3.5 citation preview.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Trust Pillars & Citation Verification Pattern</section>
+        <snippet>Trust is earned through transparency - citations are THE feature. Every answer shows sources, relevance explained, one-click verification. Critical moment: citation click must be instant (risk level HIGH).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Three-Panel Layout (Lines 68-117)</section>
+        <snippet>Frontend: Next.js 15 App Router, Zustand state management, shadcn/ui + Radix UI components, Tailwind CSS. Three-panel design: left sidebar (KB selector), center (search/chat), right (sources/citations).</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>Coding Standards</title>
+        <section>React & TypeScript Patterns</section>
+        <snippet>KISS principle (prefer simple over clever), DRY only after 3+ repetitions, no dead code, no backwards-compatibility hacks, trust internal code.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-9-relevance-explanation.md</path>
+        <title>Story 3.9 - Relevance Explanation (Previous Story)</title>
+        <section>Dev Agent Record & Learnings</section>
+        <snippet>Created HighlightedText component, use-explanation hook, Zustand for state, React Query caching (1hr staleTime). Patterns: async state management, expandable panels, progressive enhancement.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>frontend/src/components/search/search-result-card.tsx</path>
+        <kind>component</kind>
+        <symbol>SearchResultCard</symbol>
+        <reason>Main container for answer display with citations panel - needs integration of VerifyAllButton and verification highlights</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/search/citation-card.tsx</path>
+        <kind>component</kind>
+        <symbol>CitationCard</symbol>
+        <reason>Individual citation display in panel - needs highlight state and verified badge integration</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/search/citation-preview-modal.tsx</path>
+        <kind>component</kind>
+        <symbol>CitationPreviewModal</symbol>
+        <reason>Preview modal for citation sources - needs auto-open and seamless update on verification navigation</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/search/citation-marker.tsx</path>
+        <kind>component</kind>
+        <symbol>CitationMarker</symbol>
+        <reason>Inline [n] citation markers in answer text - needs highlight state for current citation</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/lib/hooks/use-explanation.ts</path>
+        <kind>hook</kind>
+        <symbol>useExplanation</symbol>
+        <reason>React Query pattern from Story 3.9 - similar pattern needed for verification state but using Zustand instead</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/highlighted-text.tsx</path>
+        <kind>component</kind>
+        <symbol>HighlightedText</symbol>
+        <reason>Keyword highlighting component from Story 3.9 - may be reused for citation source highlighting</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/button.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Button</symbol>
+        <reason>shadcn/ui Button - used for Verify All, Previous, Next, Exit buttons</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/badge.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Badge</symbol>
+        <reason>shadcn/ui Badge - used for verified checkmarks and progress indicators</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/dialog.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Dialog</symbol>
+        <reason>shadcn/ui Dialog - used for citation preview modal</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/command.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Command</symbol>
+        <reason>cmdk library integration from Story 3.7 - keyboard shortcut patterns to reference</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <frontend>
+        <package name="next" version="16.0.3">Next.js App Router framework</package>
+        <package name="react" version="19.2.0">React 19 with new hooks</package>
+        <package name="zustand" version="^5.0.0">State management (will be added for verification state)</package>
+        <package name="@radix-ui/react-dialog" version="^1.1.15">Dialog primitives for preview modal</package>
+        <package name="@radix-ui/react-progress" version="^1.1.8">Progress indicator for verification counter</package>
+        <package name="lucide-react" version="^0.554.0">Icons (CheckCircle, ChevronLeft, ChevronRight, X, AlertTriangle)</package>
+        <package name="class-variance-authority" version="^0.7.1">Variant-based component styling</package>
+        <package name="tailwind-merge" version="^3.4.0">Tailwind class merging utility</package>
+      </frontend>
+      <backend>
+        <note>Story 3.10 is frontend-only - no backend changes required</note>
+        <note>Reuses existing APIs from Stories 3.2, 3.5, 3.9 (search, citations, preview)</note>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Frontend-only story - do NOT modify backend code</constraint>
+    <constraint>Reuse existing SearchResponse schema with citations array from Story 3.2</constraint>
+    <constraint>Zustand store MUST use persist middleware for session-scoped localStorage</constraint>
+    <constraint>State management: Server state via React Query, client state via Zustand (established pattern from Story 3.9)</constraint>
+    <constraint>Component library: shadcn/ui + Radix UI only - no custom modal implementations</constraint>
+    <constraint>Keyboard shortcuts: Must not conflict with browser defaults (avoid Ctrl+N, Ctrl+T, etc.)</constraint>
+    <constraint>Accessibility: Full keyboard navigation required, ARIA labels on all interactive elements</constraint>
+    <constraint>Responsive design: Mobile-first approach with breakpoints at 768px (tablet) and 1024px (desktop)</constraint>
+    <constraint>Touch targets: Minimum 48x48px on mobile/tablet per accessibility guidelines</constraint>
+    <constraint>Performance: Smooth navigation for 20+ citations - consider React.memo and virtual scrolling if needed</constraint>
+    <constraint>KISS principle: Prefer simple solutions, avoid over-engineering for hypothetical future requirements</constraint>
+    <constraint>No dead code: Delete unused code completely, don't comment it out</constraint>
+    <constraint>Citation state: Session-scoped only (localStorage), NOT persistent across browser sessions</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>SearchResponse (existing API)</name>
+      <kind>TypeScript type</kind>
+      <signature>
+        interface SearchResponse {
+          answer: string;
+          citations: Citation[];
+          confidence: number;
+          isStreaming?: boolean;
+        }
+
+        interface Citation {
+          number: number;
+          documentName: string;
+          documentId: string;
+          page?: number;
+          section?: string;
+          excerpt: string;
+          char_start: number;
+          char_end: number;
+          relevance_score: number;
+        }
+      </signature>
+      <path>frontend/src/types/search.ts (inferred from Story 3.2)</path>
+      <note>Existing API response - verification layer is purely client-side state management</note>
+    </interface>
+    <interface>
+      <name>useVerificationStore (to be created)</name>
+      <kind>Zustand store</kind>
+      <signature>
+        interface VerificationState {
+          activeAnswerId: string | null;
+          currentCitationIndex: number;
+          verifiedCitations: Set&lt;number&gt;;
+          isVerifying: boolean;
+
+          startVerification: (answerId: string, totalCitations: number) =&gt; void;
+          exitVerification: () =&gt; void;
+          navigateNext: () =&gt; void;
+          navigatePrevious: () =&gt; void;
+          toggleVerified: (citationNumber: number) =&gt; void;
+          isAllVerified: () =&gt; boolean;
+          getProgress: () =&gt; { verified: number; total: number };
+        }
+      </signature>
+      <path>frontend/src/lib/hooks/use-verification.ts (new file)</path>
+      <note>State management for verification mode with localStorage persistence via Zustand persist middleware</note>
+    </interface>
+    <interface>
+      <name>VerifyAllButton component props</name>
+      <kind>React component props</kind>
+      <signature>
+        interface VerifyAllButtonProps {
+          answerId: string;
+          citations: Citation[];
+          isStreaming: boolean;
+        }
+      </signature>
+      <path>frontend/src/components/search/verify-all-button.tsx (new file)</path>
+      <note>Trigger component for verification mode activation</note>
+    </interface>
+    <interface>
+      <name>VerificationControls component props</name>
+      <kind>React component props</kind>
+      <signature>
+        interface VerificationControlsProps {
+          citations: Citation[];
+        }
+      </signature>
+      <path>frontend/src/components/search/verification-controls.tsx (new file)</path>
+      <note>Navigation UI with keyboard shortcuts (arrows, space, esc)</note>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing framework: Vitest for unit/component tests, Playwright for E2E (optional).
+      Component testing: React Testing Library patterns - test user interactions, not implementation details.
+      State testing: Test Zustand store actions and selectors directly, mock localStorage for persistence tests.
+      Coverage expectations: All user-facing features must have component tests, all state logic must have unit tests.
+      Accessibility testing: Check ARIA labels, keyboard navigation, screen reader announcements (manual QA for screen readers).
+    </standards>
+    <locations>
+      frontend/src/components/search/__tests__/ - Component tests for verification flow
+      frontend/src/lib/hooks/__tests__/ - Unit tests for use-verification state management
+      e2e/ - Optional integration tests (deferred per story - component tests provide adequate coverage)
+    </locations>
+    <ideas>
+      <test ac="1">Verify All button displays correct text for 0/1/2+ citations</test>
+      <test ac="1">Clicking Verify All activates verification mode and highlights first citation</test>
+      <test ac="2">Arrow keys (→ ←) navigate citations forward/backward</test>
+      <test ac="2">Navigation respects boundaries (no next on last, no previous on first)</test>
+      <test ac="2">Citations panel auto-scrolls to current citation</test>
+      <test ac="3">Checkbox toggles verification state (add/remove from set)</test>
+      <test ac="3">Progress indicator updates correctly (3/7 verified)</test>
+      <test ac="3">All verified message appears when complete</test>
+      <test ac="4">Preview modal auto-opens when verification starts</test>
+      <test ac="4">Preview updates seamlessly on navigation (no flicker)</test>
+      <test ac="5">Keyboard shortcuts trigger correct actions (→ ← Space Esc)</test>
+      <test ac="5">All ARIA labels present and correct</test>
+      <test ac="5">Tab navigation order is logical</test>
+      <test ac="6">Exit button deactivates verification mode</test>
+      <test ac="6">Verified state persists across re-entry</test>
+      <test ac="6">localStorage persistence survives page reload</test>
+      <test ac="7">Mobile layout: sticky bottom controls, full-screen preview</test>
+      <test ac="7">Tablet layout: inline controls, drawer preview</test>
+      <test ac="7">Desktop layout: panel-header controls, modal preview</test>
+      <test ac="8">Single citation shows "Preview Citation" button</test>
+      <test ac="8">Zero citations shows warning badge</test>
+      <test ac="8">Deleted source shows error message in preview</test>
+      <test ac="8">Performance acceptable for 20+ citations (manual QA)</test>
+    </ideas>
+  </tests>
+</story-context>

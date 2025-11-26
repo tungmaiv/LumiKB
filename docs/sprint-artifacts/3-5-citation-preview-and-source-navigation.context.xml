@@ -1,0 +1,1527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context
+  story-id="3.5"
+  story-title="Citation Preview and Source Navigation"
+  epic-id="3"
+  generated="2025-11-25"
+  generator="bmad-story-context-workflow-v6"
+>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 1: STORY OVERVIEW AND OBJECTIVES
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<story-overview>
+  <description>
+    As a user, I want to preview and navigate to cited sources, so that I can verify
+    the information without losing context. This story implements interactive citation
+    features including tooltip previews, click-to-scroll, preview modals, and direct
+    document navigation from Citation Markers and Citation Cards built in Story 3.4.
+  </description>
+
+  <business-value>
+    **THE TRUST MOMENT**: This story completes the citation verification flow that
+    differentiates LumiKB from generic AI tools. Users can instantly verify AI-generated
+    claims by previewing and navigating to exact source passages, building the trust
+    required for enterprise Banking &amp; Financial Services deployments.
+
+    **User Impact:**
+    - Sarah (Sales Rep) can verify RFP examples in &lt;10 seconds from query to source
+    - David (System Engineer) can trust implementation recommendations by checking exact context
+    - Compliance teams can audit source accuracy for regulatory requirements
+  </business-value>
+
+  <functional-requirements>
+    <requirement id="FR28">Source Navigation - Click to view cited document passage</requirement>
+    <requirement id="FR28a">Citation Click Behavior - Marker click scrolls to CitationCard</requirement>
+    <requirement id="FR28b">Source Access - "Open Document" navigates with highlight parameter</requirement>
+    <requirement id="FR43">Citation Provenance - Hover shows document + excerpt tooltip</requirement>
+  </functional-requirements>
+
+  <dependencies>
+    <dependency type="story" id="3.4" status="completed">
+      Search Results UI with Inline Citations - Provides CitationMarker and CitationCard components
+    </dependency>
+    <dependency type="story" id="2.8" status="completed">
+      Document List and Metadata View - Provides document viewing infrastructure
+    </dependency>
+    <dependency type="epic" id="2" status="completed">
+      Document Ingestion - Documents must be indexed with char_start/char_end metadata
+    </dependency>
+  </dependencies>
+
+  <constraints>
+    <constraint type="ui">
+      Preview modal must not block keyboard navigation or screen reader access
+    </constraint>
+    <constraint type="performance">
+      Tooltip must appear within 300ms of hover (perceived as instant)
+    </constraint>
+    <constraint type="ux">
+      Navigation must preserve search context - user should be able to return easily
+    </constraint>
+    <constraint type="accessibility">
+      All interactions must work with keyboard only (Tab, Enter, Escape)
+    </constraint>
+  </constraints>
+</story-overview>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 2: ACCEPTANCE CRITERIA AND TEST SCENARIOS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<acceptance-criteria>
+  <criterion id="AC-3.5.1" priority="P0">
+    <description>Tooltip Hover Preview</description>
+    <given>An answer with citation markers [1], [2], [3] is displayed</given>
+    <when>User hovers over citation marker [1]</when>
+    <then>
+      - Tooltip appears within 300ms
+      - Tooltip displays: document title + truncated excerpt (~50 chars)
+      - Tooltip disappears when mouse leaves
+    </then>
+    <test-coverage>
+      <unit-test>frontend/src/components/search/__tests__/citation-marker.test.tsx::test_tooltip_renders_on_hover</unit-test>
+      <component-test>frontend/src/components/search/__tests__/citation-marker.test.tsx::test_tooltip_content_format</component-test>
+    </test-coverage>
+  </criterion>
+
+  <criterion id="AC-3.5.2" priority="P0">
+    <description>Citation Marker Click → Scroll to Card</description>
+    <given>Right panel shows CitationCards [1], [2], [3]</given>
+    <when>User clicks citation marker [2] in answer text</when>
+    <then>
+      - Right panel scrolls to CitationCard #2
+      - CitationCard #2 is highlighted with blue ring (ring-2 ring-[#0066CC])
+      - Highlight fades after 2 seconds
+      - Card remains in view
+    </then>
+    <test-coverage>
+      <component-test>frontend/src/app/(protected)/search/__tests__/search-page.test.tsx::test_marker_click_scrolls_to_card</component-test>
+      <e2e-test>e2e/search/citation-navigation.spec.ts::test_click_marker_scrolls_citation_panel</e2e-test>
+    </test-coverage>
+  </criterion>
+
+  <criterion id="AC-3.5.3" priority="P0">
+    <description>Citation Card Preview Modal</description>
+    <given>CitationCard is displayed with "Preview" button</given>
+    <when>User clicks "Preview" button</when>
+    <then>
+      - Modal dialog opens (Dialog component from shadcn/ui)
+      - Modal displays:
+        1. Header: Document name + Page/Section context
+        2. Body: Cited passage highlighted (char_start to char_end)
+        3. Context: ±200 chars surrounding the cited passage (dimmed text)
+        4. Footer: "Open Document" and "Close" buttons
+      - Modal is keyboard accessible (Tab navigation, Escape closes)
+      - Modal has ARIA role="dialog" with aria-labelledby
+    </then>
+    <test-coverage>
+      <component-test>frontend/src/components/search/__tests__/citation-preview-modal.test.tsx::test_modal_opens_on_preview_click</component-test>
+      <component-test>frontend/src/components/search/__tests__/citation-preview-modal.test.tsx::test_modal_displays_full_context</component-test>
+      <a11y-test>frontend/src/components/search/__tests__/citation-preview-modal.test.tsx::test_modal_keyboard_navigation</a11y-test>
+    </test-coverage>
+  </criterion>
+
+  <criterion id="AC-3.5.4" priority="P0">
+    <description>Open Document with Highlight</description>
+    <given>User is viewing a CitationCard or preview modal</given>
+    <when>User clicks "Open Document" button</when>
+    <then>
+      - Navigation to /documents/{document_id}?highlight={char_start}-{char_end}
+      - Document viewer scrolls to the highlighted passage
+      - Cited text is highlighted in yellow background
+      - "Back to Search" breadcrumb appears
+      - Navigation completes within 2 seconds
+    </then>
+    <test-coverage>
+      <integration-test>backend/tests/integration/test_document_highlight.py::test_document_endpoint_with_highlight_params</integration-test>
+      <e2e-test>e2e/search/citation-navigation.spec.ts::test_open_document_from_citation</e2e-test>
+    </test-coverage>
+  </criterion>
+
+  <criterion id="AC-3.5.5" priority="P1">
+    <description>Performance Requirements</description>
+    <given>User is interacting with citations</given>
+    <when>Performance measurements are taken</when>
+    <then>
+      - Tooltip appears within 300ms of hover
+      - Scroll to card completes within 500ms
+      - Preview modal opens within 300ms
+      - Document navigation completes within 2 seconds
+      - No layout shifts during interactions
+    </then>
+    <test-coverage>
+      <performance-test>e2e/performance/citation-interactions.spec.ts::test_tooltip_latency</performance-test>
+      <performance-test>e2e/performance/citation-interactions.spec.ts::test_document_navigation_speed</performance-test>
+    </test-coverage>
+  </criterion>
+
+  <criterion id="AC-3.5.6" priority="P0">
+    <description>Accessibility Compliance</description>
+    <given>User is using keyboard only or screen reader</given>
+    <when>Interacting with citation features</when>
+    <then>
+      - Tab key navigates to citation markers
+      - Enter/Space activates marker (scrolls to card)
+      - Tab navigates through modal elements
+      - Escape closes modal
+      - Screen reader announces: "Citation 1, button" for markers
+      - Screen reader announces modal title and content
+      - Focus returns to trigger element when modal closes
+    </then>
+    <test-coverage>
+      <a11y-test>frontend/src/components/search/__tests__/citation-marker.test.tsx::test_keyboard_navigation</a11y-test>
+      <a11y-test>frontend/src/components/search/__tests__/citation-preview-modal.test.tsx::test_screen_reader_announcements</a11y-test>
+    </test-coverage>
+  </criterion>
+</acceptance-criteria>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 3: TECHNICAL CONTEXT FROM ARCHITECTURE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<technical-context>
+  <system-architecture>
+    <arch-decision id="ADR-005" importance="critical">
+      <title>Citation-First Architecture with Rich Metadata</title>
+      <description>
+        Every citation must include char_start and char_end for precise navigation.
+        This metadata is stored in Qdrant during document indexing (Epic 2) and returned
+        in search results.
+      </description>
+      <impact>
+        Frontend can construct exact highlight URLs: /documents/{id}?highlight={start}-{end}
+        Backend document viewer API must support highlight query parameters
+      </impact>
+    </arch-decision>
+
+    <arch-decision id="ADR-003" importance="high">
+      <title>Three-Panel Layout - Citation Panel Synchronization</title>
+      <description>
+        Left panel (KB list), Center panel (search results), Right panel (citations).
+        Citation interactions must synchronize state between center and right panels.
+      </description>
+      <impact>
+        - Click marker in center → highlight card in right panel
+        - State management via React Context or Zustand store
+        - Smooth scroll behavior with scroll-behavior CSS or scrollIntoView API
+      </impact>
+    </arch-decision>
+
+    <integration-point service="Document API" type="backend">
+      <endpoint>GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}</endpoint>
+      <query-params>
+        <param name="highlight" type="string" format="{char_start}-{char_end}">
+          Character range to highlight in document viewer
+        </param>
+      </query-params>
+      <response-format>
+        Document content with metadata, frontend applies highlight based on query param
+      </response-format>
+    </integration-point>
+
+    <integration-point service="Search API" type="backend">
+      <endpoint>POST /api/v1/search</endpoint>
+      <response-schema>
+        CitationSchema includes: char_start, char_end, document_id, excerpt
+      </response-schema>
+      <assumption>
+        Epic 3 Stories 3.1-3.4 must be completed, providing Citation interface and search infrastructure
+      </assumption>
+    </integration-point>
+  </system-architecture>
+
+  <data-models>
+    <interface name="Citation" location="frontend/src/components/search/citation-card.tsx">
+      <field name="number" type="number">Citation sequence number [1], [2], etc.</field>
+      <field name="documentId" type="string">UUID of source document</field>
+      <field name="documentName" type="string">Display name of document</field>
+      <field name="pageNumber" type="number | undefined">Page number if available</field>
+      <field name="sectionHeader" type="string | undefined">Section title if available</field>
+      <field name="excerpt" type="string">~200 char excerpt from source chunk</field>
+      <field name="charStart" type="number">Character offset start in original document</field>
+      <field name="charEnd" type="number">Character offset end in original document</field>
+    </interface>
+
+    <state-management approach="React Context or Zustand">
+      <state-slice name="citationInteraction">
+        <field name="highlightedCitationNumber" type="number | null">
+          Currently highlighted citation (null if none)
+        </field>
+        <field name="previewModalOpen" type="boolean">Modal open state</field>
+        <field name="previewCitation" type="Citation | null">Citation being previewed</field>
+      </state-slice>
+      <actions>
+        - setHighlightedCitation(number: number)
+        - clearHighlight()
+        - openPreviewModal(citation: Citation)
+        - closePreviewModal()
+      </actions>
+    </state-management>
+  </data-models>
+
+  <existing-code-artifacts>
+    <component path="frontend/src/components/search/citation-marker.tsx" status="exists">
+      <description>
+        CitationMarker component from Story 3.4. Renders [n] badge with onClick handler.
+        Currently implements keyboard navigation (Enter/Space) and ARIA labels.
+      </description>
+      <enhancement-needed>
+        Add Tooltip component from @radix-ui/react-tooltip for hover preview.
+        Tooltip content: {documentName} - {excerpt.substring(0, 50)}...
+      </enhancement-needed>
+    </component>
+
+    <component path="frontend/src/components/search/citation-card.tsx" status="exists">
+      <description>
+        CitationCard component from Story 3.4. Displays citation metadata with "Preview" and "Open Document" buttons.
+        Accepts highlighted prop (boolean) for scroll-to-card highlighting.
+      </description>
+      <enhancement-needed>
+        1. Wire up onPreview callback to open preview modal
+        2. Wire up onOpenDocument callback to navigate with highlight params
+        3. Ensure highlighted prop triggers visual ring effect (already styled)
+      </enhancement-needed>
+    </component>
+
+    <component path="frontend/src/components/ui/dialog.tsx" status="exists">
+      <description>
+        shadcn/ui Dialog component (Radix UI primitive). Used for preview modal.
+        Provides: Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+      </description>
+      <usage>
+        Use for CitationPreviewModal. Already includes keyboard navigation, focus trap, ARIA attributes.
+      </usage>
+    </component>
+
+    <component path="frontend/src/components/ui/tooltip.tsx" status="exists">
+      <description>
+        shadcn/ui Tooltip component (Radix UI primitive). Used for citation hover preview.
+        Provides: Tooltip, TooltipTrigger, TooltipContent, TooltipProvider
+      </description>
+      <usage>
+        Wrap CitationMarker with Tooltip. Display {documentName} + {excerpt} in TooltipContent.
+      </usage>
+    </component>
+
+    <api-endpoint path="backend/app/api/v1/documents.py" status="exists">
+      <description>
+        Document API endpoints from Epic 2. Includes document detail endpoint.
+      </description>
+      <enhancement-needed>
+        GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id} must support ?highlight={start}-{end} query param.
+        Frontend will parse this param and apply highlighting in document viewer.
+      </enhancement-needed>
+    </api-endpoint>
+  </existing-code-artifacts>
+</technical-context>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 4: IMPLEMENTATION TASKS AND DETAILED GUIDANCE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<implementation-tasks>
+  <task id="3.5.T1" priority="P0" component="CitationMarker">
+    <title>Enhance CitationMarker with Tooltip Preview</title>
+    <description>
+      Add Tooltip component to CitationMarker for hover preview showing document name + excerpt.
+    </description>
+    <steps>
+      1. Import Tooltip, TooltipTrigger, TooltipContent, TooltipProvider from @/components/ui/tooltip
+      2. Wrap existing Badge in TooltipTrigger
+      3. Add TooltipContent with:
+         - Display: {citation.documentName}
+         - Display: {citation.excerpt.substring(0, 50)}... (truncate to 50 chars)
+         - Style: text-sm, max-w-xs, p-2
+      4. Wrap component in TooltipProvider at parent level
+      5. Ensure tooltip appears within 300ms (Radix default is 700ms, set delayDuration={300})
+    </steps>
+    <acceptance>
+      - Tooltip renders on hover
+      - Tooltip content matches format
+      - Tooltip appears within 300ms
+      - Unit tests pass
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/components/search/citation-marker.tsx (add Tooltip)
+      - frontend/src/components/search/__tests__/citation-marker.test.tsx (add tooltip tests)
+    </files-to-modify>
+    <dependencies>None - can start immediately</dependencies>
+  </task>
+
+  <task id="3.5.T2" priority="P0" component="SearchResultsPage">
+    <title>Implement Click-to-Scroll Citation Highlighting</title>
+    <description>
+      When user clicks CitationMarker in answer text, scroll right panel to corresponding CitationCard and highlight it.
+    </description>
+    <steps>
+      1. Add state: const [highlightedCitation, setHighlightedCitation] = useState&lt;number | null&gt;(null)
+      2. Update CitationMarker onClick to call setHighlightedCitation(number)
+      3. Pass highlighted prop to CitationCard: highlighted={citation.number === highlightedCitation}
+      4. Use scrollIntoView in useEffect when highlightedCitation changes:
+         ```typescript
+         useEffect(() => {
+           if (highlightedCitation !== null) {
+             const card = document.getElementById(`citation-card-${highlightedCitation}`);
+             card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+             // Clear highlight after 2 seconds
+             const timer = setTimeout(() => setHighlightedCitation(null), 2000);
+             return () => clearTimeout(timer);
+           }
+         }, [highlightedCitation]);
+         ```
+      5. Ensure CitationCard has ring-2 ring-[#0066CC] when highlighted (already styled in 3.4)
+    </steps>
+    <acceptance>
+      - Click marker → right panel scrolls to card
+      - Card shows blue ring highlight
+      - Highlight clears after 2 seconds
+      - Component tests pass
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/app/(protected)/search/page.tsx (add scroll logic)
+      - frontend/src/app/(protected)/search/__tests__/search-page.test.tsx (add scroll tests)
+    </files-to-modify>
+    <dependencies>Task 3.5.T1 (if testing tooltip + scroll together)</dependencies>
+  </task>
+
+  <task id="3.5.T3" priority="P0" component="CitationPreviewModal">
+    <title>Create Citation Preview Modal Component</title>
+    <description>
+      New component to display full citation context in a modal dialog.
+    </description>
+    <steps>
+      1. Create frontend/src/components/search/citation-preview-modal.tsx
+      2. Import Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter from @/components/ui/dialog
+      3. Props:
+         - open: boolean
+         - onOpenChange: (open: boolean) =&gt; void
+         - citation: Citation
+         - onOpenDocument: (documentId: string, charStart: number, charEnd: number) =&gt; void
+      4. Layout:
+         - DialogHeader: {citation.documentName} • Page {citation.pageNumber} • {citation.sectionHeader}
+         - Body:
+           * Context before (±200 chars): text-gray-500
+           * Cited passage: bg-yellow-100 font-medium (excerpt from citation)
+           * Context after (±200 chars): text-gray-500
+         - DialogFooter:
+           * Button "Open Document" (primary) → calls onOpenDocument
+           * Button "Close" (secondary) → closes modal
+      5. Implement keyboard navigation:
+         - Escape closes modal
+         - Tab cycles through buttons
+         - Focus returns to trigger on close (Radix handles this)
+      6. Add ARIA:
+         - DialogTitle aria-labelledby="citation-preview-title"
+         - DialogDescription for screen readers
+    </steps>
+    <acceptance>
+      - Modal opens/closes correctly
+      - Displays document name, page, section
+      - Shows cited passage with context
+      - Keyboard navigation works
+      - ARIA labels present
+      - Component tests pass
+    </acceptance>
+    <files-to-create>
+      - frontend/src/components/search/citation-preview-modal.tsx
+      - frontend/src/components/search/__tests__/citation-preview-modal.test.tsx
+    </files-to-create>
+    <dependencies>None</dependencies>
+  </task>
+
+  <task id="3.5.T4" priority="P0" component="CitationCard">
+    <title>Wire Up Preview and Open Document Actions</title>
+    <description>
+      Connect CitationCard buttons to preview modal and document navigation.
+    </description>
+    <steps>
+      1. Update SearchResultsPage to manage modal state:
+         ```typescript
+         const [previewModalOpen, setPreviewModalOpen] = useState(false);
+         const [previewCitation, setPreviewCitation] = useState&lt;Citation | null&gt;(null);
+         ```
+      2. Pass onPreview to CitationCard:
+         ```typescript
+         onPreview={(citation) => {
+           setPreviewCitation(citation);
+           setPreviewModalOpen(true);
+         }}
+         ```
+      3. Pass onOpenDocument to CitationCard:
+         ```typescript
+         onOpenDocument={(documentId, charStart, charEnd) => {
+           router.push(`/documents/${documentId}?highlight=${charStart}-${charEnd}`);
+         }}
+         ```
+      4. Render CitationPreviewModal:
+         ```typescript
+         &lt;CitationPreviewModal
+           open={previewModalOpen}
+           onOpenChange={setPreviewModalOpen}
+           citation={previewCitation}
+           onOpenDocument={handleOpenDocument}
+         /&gt;
+         ```
+    </steps>
+    <acceptance>
+      - Preview button opens modal
+      - Modal shows correct citation
+      - Open Document button navigates with highlight param
+      - Integration tests pass
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/app/(protected)/search/page.tsx (wire up callbacks)
+      - frontend/src/components/search/citation-card.tsx (ensure callbacks are called)
+    </files-to-modify>
+    <dependencies>Task 3.5.T3 (CitationPreviewModal must exist)</dependencies>
+  </task>
+
+  <task id="3.5.T5" priority="P0" component="DocumentViewer">
+    <title>Implement Document Highlight from URL Parameter</title>
+    <description>
+      Parse ?highlight={start}-{end} URL param in document viewer and apply highlighting.
+    </description>
+    <steps>
+      1. In frontend/src/app/(protected)/documents/[id]/page.tsx:
+         - Parse query param: const searchParams = useSearchParams(); const highlight = searchParams.get('highlight');
+         - If highlight exists, parse: const [start, end] = highlight.split('-').map(Number);
+      2. Scroll to highlighted section on mount:
+         ```typescript
+         useEffect(() => {
+           if (start &amp;&amp; end) {
+             // Find element containing char range (implementation depends on document viewer structure)
+             // Apply highlight: bg-yellow-200 or mark element
+             // Scroll into view
+           }
+         }, [start, end]);
+         ```
+      3. Add "Back to Search" breadcrumb if highlight param exists:
+         - Use router.back() or Link to /search (preserve search state if possible)
+      4. Backend: Ensure GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id} returns full text or chunks with char offsets
+    </steps>
+    <acceptance>
+      - URL /documents/{id}?highlight=100-200 highlights chars 100-200
+      - Viewer scrolls to highlighted section
+      - "Back to Search" breadcrumb appears
+      - Integration test passes
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/app/(protected)/documents/[id]/page.tsx (add highlight logic)
+      - backend/app/api/v1/documents.py (ensure full text or chunk data returned)
+    </files-to-modify>
+    <dependencies>Task 3.5.T4 (document navigation must be triggered)</dependencies>
+    <notes>
+      This task complexity depends on existing document viewer implementation. If viewer is not yet built,
+      consider deferring full highlight logic and implementing basic scroll-to-top as MVP.
+    </notes>
+  </task>
+
+  <task id="3.5.T6" priority="P1" component="Performance">
+    <title>Optimize Citation Interaction Performance</title>
+    <description>
+      Ensure tooltip, scroll, and modal interactions meet performance targets.
+    </description>
+    <steps>
+      1. Set Tooltip delayDuration to 300ms (Radix default is 700ms)
+      2. Use CSS scroll-behavior: smooth on citation panel container
+      3. Debounce highlight clearing timeout to avoid rapid re-renders
+      4. Lazy load CitationPreviewModal (React.lazy or dynamic import)
+      5. Add performance.measure for:
+         - Tooltip render time
+         - Scroll completion time
+         - Modal open time
+         - Document navigation time
+      6. Add Playwright tests for performance thresholds
+    </steps>
+    <acceptance>
+      - Tooltip: &lt;300ms
+      - Scroll: &lt;500ms
+      - Modal: &lt;300ms
+      - Document nav: &lt;2s
+      - Performance tests pass
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/components/search/citation-marker.tsx (tooltip delay)
+      - frontend/src/app/(protected)/search/page.tsx (scroll optimization)
+      - e2e/performance/citation-interactions.spec.ts (new performance tests)
+    </files-to-modify>
+    <dependencies>All previous tasks completed</dependencies>
+  </task>
+
+  <task id="3.5.T7" priority="P0" component="Accessibility">
+    <title>Accessibility Compliance and Keyboard Navigation</title>
+    <description>
+      Ensure all citation interactions are fully accessible.
+    </description>
+    <steps>
+      1. Verify CitationMarker:
+         - role="button", tabIndex={0}, aria-label="Citation {number}"
+         - Enter/Space activates (already implemented in 3.4)
+      2. Verify CitationPreviewModal:
+         - Dialog role with aria-labelledby
+         - Focus trap (Radix handles)
+         - Escape closes modal
+         - Focus returns to trigger on close
+      3. Add screen reader announcements:
+         - Use aria-live="polite" for highlight state changes
+         - Announce "Citation 1 highlighted" when card is highlighted
+      4. Test with screen reader (NVDA/JAWS) and keyboard only
+      5. Add Playwright accessibility tests using axe-core
+    </steps>
+    <acceptance>
+      - All interactions work with keyboard only
+      - Screen reader announces all state changes
+      - No accessibility violations (axe-core)
+      - ARIA labels correct
+      - Focus management correct
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/components/search/citation-marker.tsx (verify ARIA)
+      - frontend/src/components/search/citation-preview-modal.tsx (add announcements)
+      - frontend/src/app/(protected)/search/page.tsx (add aria-live regions)
+      - e2e/accessibility/citation-a11y.spec.ts (new a11y tests)
+    </files-to-modify>
+    <dependencies>All component tasks completed</dependencies>
+  </task>
+
+  <task id="3.5.T8" priority="P1" component="UX Polish">
+    <title>UX Refinements and Edge Case Handling</title>
+    <description>
+      Polish user experience and handle edge cases.
+    </description>
+    <steps>
+      1. Smooth highlight transition: Add CSS transition for ring effect
+      2. Handle missing metadata gracefully:
+         - If pageNumber missing, show "Page N/A"
+         - If sectionHeader missing, omit from display
+         - If excerpt too short, show full excerpt without "..."
+      3. Prevent double-click issues on Preview button (debounce)
+      4. Add loading state for document navigation ("Opening document...")
+      5. Add error handling:
+         - Document not found → show error toast
+         - Highlight parse error → navigate without highlight
+      6. Add analytics tracking:
+         - Track "citation_preview_opened"
+         - Track "citation_document_opened"
+         - Track "citation_marker_clicked"
+    </steps>
+    <acceptance>
+      - Smooth transitions
+      - No crashes on missing metadata
+      - Error states handled gracefully
+      - Analytics events fire correctly
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/components/search/citation-card.tsx (error handling)
+      - frontend/src/components/search/citation-preview-modal.tsx (loading states)
+      - frontend/src/app/(protected)/search/page.tsx (analytics)
+    </files-to-modify>
+    <dependencies>Core functionality tasks completed</dependencies>
+  </task>
+
+  <task id="3.5.T9" priority="P0" component="Testing">
+    <title>Comprehensive Test Suite</title>
+    <description>
+      Write unit, component, integration, and E2E tests for all features.
+    </description>
+    <tests>
+      <unit-tests location="frontend/src/components/search/__tests__/">
+        - citation-marker.test.tsx: Tooltip renders, content correct, keyboard events
+        - citation-preview-modal.test.tsx: Modal opens/closes, displays content, keyboard nav
+      </unit-tests>
+      <component-tests location="frontend/src/app/(protected)/search/__tests__/">
+        - search-page.test.tsx: Marker click scrolls to card, highlight appears/fades
+      </component-tests>
+      <integration-tests location="backend/tests/integration/">
+        - test_document_highlight.py: Document API accepts highlight param, returns data
+      </integration-tests>
+      <e2e-tests location="e2e/search/">
+        - citation-navigation.spec.ts: Full flow - click marker → scroll → preview → open document
+        - citation-a11y.spec.ts: Keyboard navigation, screen reader, axe-core
+      </e2e-tests>
+      <performance-tests location="e2e/performance/">
+        - citation-interactions.spec.ts: Measure tooltip, scroll, modal, navigation latency
+      </performance-tests>
+    </tests>
+    <acceptance>
+      - All tests pass
+      - Code coverage &gt;80% for new components
+      - E2E tests validate full user journey
+      - Performance tests validate thresholds
+    </acceptance>
+    <files-to-create>
+      - Multiple test files per test type (see structure above)
+    </files-to-create>
+    <dependencies>All implementation tasks completed</dependencies>
+  </task>
+
+  <task id="3.5.T10" priority="P2" component="Documentation">
+    <title>Update Documentation and Storybook</title>
+    <description>
+      Document new components and interactions for team and future reference.
+    </description>
+    <steps>
+      1. Add CitationPreviewModal to Storybook with all states:
+         - Default state
+         - With page number
+         - Without section header
+         - Long excerpt
+      2. Update UX Design Specification with citation interaction flow diagram
+      3. Add inline code comments for complex logic (scroll, highlight parsing)
+      4. Update README with citation interaction demo GIF
+    </steps>
+    <acceptance>
+      - Storybook stories render correctly
+      - Documentation updated
+      - Code comments clear
+    </acceptance>
+    <files-to-modify>
+      - frontend/src/components/search/citation-preview-modal.stories.tsx (create)
+      - docs/ux-design-specification.md (update)
+      - README.md (add demo)
+    </files-to-modify>
+    <dependencies>All implementation complete</dependencies>
+  </task>
+</implementation-tasks>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 5: TESTING STRATEGY AND COVERAGE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<testing-strategy>
+  <test-pyramid>
+    <level name="unit" coverage="80%" tool="Vitest + React Testing Library">
+      <test-suite name="CitationMarker">
+        - Tooltip renders on hover
+        - Tooltip content format: {documentName} - {excerpt}
+        - Tooltip appears within 300ms (mock timer)
+        - Keyboard events (Enter, Space) trigger onClick
+        - ARIA labels correct
+      </test-suite>
+      <test-suite name="CitationPreviewModal">
+        - Modal opens when open prop is true
+        - Displays document name, page, section
+        - Displays cited passage with context (±200 chars)
+        - Escape key closes modal
+        - Tab navigates through buttons
+        - onOpenDocument called with correct params
+      </test-suite>
+    </level>
+
+    <level name="component" coverage="key-paths" tool="Vitest + React Testing Library">
+      <test-suite name="SearchResultsPage">
+        - Click CitationMarker → setHighlightedCitation called
+        - highlightedCitation state updates → CitationCard receives highlighted prop
+        - scrollIntoView called on correct card element
+        - Highlight clears after 2 seconds (mock timer)
+        - onPreview callback opens modal with correct citation
+        - onOpenDocument callback navigates with highlight param
+      </test-suite>
+    </level>
+
+    <level name="integration" coverage="api-contracts" tool="pytest + httpx">
+      <test-suite name="DocumentAPI">
+        - GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}?highlight=100-200 returns document
+        - highlight param is optional, endpoint works without it
+        - Invalid highlight format (non-numeric) returns 400
+        - Document not found returns 404
+        - Unauthorized user returns 403
+      </test-suite>
+    </level>
+
+    <level name="e2e" coverage="critical-path" tool="Playwright">
+      <test-suite name="CitationNavigation">
+        <scenario name="Full Citation Verification Flow">
+          1. User searches "authentication approach"
+          2. Answer displays with [1], [2] markers
+          3. Hover over [1] → tooltip appears with doc title
+          4. Click [1] → right panel scrolls to CitationCard #1
+          5. Card highlights with blue ring
+          6. Click "Preview" → modal opens
+          7. Modal shows document name, page, section, excerpt with context
+          8. Click "Open Document" → navigates to /documents/{id}?highlight={start}-{end}
+          9. Document viewer highlights cited passage
+          10. "Back to Search" breadcrumb appears
+          11. Click breadcrumb → return to search results
+        </scenario>
+        <scenario name="Keyboard Navigation">
+          1. Tab to citation marker [1]
+          2. Press Enter → scrolls to card
+          3. Tab to "Preview" button
+          4. Press Enter → opens modal
+          5. Tab through modal buttons
+          6. Press Escape → closes modal, focus returns to trigger
+        </scenario>
+      </test-suite>
+
+      <test-suite name="CitationAccessibility">
+        - Run axe-core on search results page with citations
+        - Verify no violations
+        - Verify ARIA labels present
+        - Verify focus management correct
+        - Screen reader test: NVDA announces "Citation 1, button"
+      </test-suite>
+
+      <test-suite name="CitationPerformance">
+        - Measure tooltip appearance time (expect &lt;300ms)
+        - Measure scroll completion time (expect &lt;500ms)
+        - Measure modal open time (expect &lt;300ms)
+        - Measure document navigation time (expect &lt;2s)
+        - Assert performance thresholds met
+      </test-suite>
+    </level>
+  </test-pyramid>
+
+  <test-data>
+    <fixture name="mockCitation">
+      <json><![CDATA[
+{
+  "number": 1,
+  "documentId": "550e8400-e29b-41d4-a716-446655440000",
+  "documentName": "Acme Bank Security Architecture.pdf",
+  "pageNumber": 14,
+  "sectionHeader": "Authentication Methods",
+  "excerpt": "Our authentication approach leverages OAuth 2.0 with PKCE extension for enhanced security. The system supports multi-factor authentication via TOTP and biometric verification.",
+  "charStart": 3450,
+  "charEnd": 3650
+}
+      ]]></json>
+    </fixture>
+
+    <fixture name="mockCitationWithoutPageNumber">
+      <json><![CDATA[
+{
+  "number": 2,
+  "documentId": "550e8400-e29b-41d4-a716-446655440001",
+  "documentName": "API Design Guidelines.md",
+  "pageNumber": null,
+  "sectionHeader": "REST API Best Practices",
+  "excerpt": "All API endpoints must use JSON for request and response payloads. Versioning is handled via URL path (e.g., /api/v1/).",
+  "charStart": 1200,
+  "charEnd": 1350
+}
+      ]]></json>
+    </fixture>
+  </test-data>
+
+  <coverage-goals>
+    <goal type="line-coverage" target="80%" components="CitationMarker, CitationPreviewModal" />
+    <goal type="branch-coverage" target="70%" components="SearchResultsPage scroll logic" />
+    <goal type="integration-coverage" target="100%" endpoints="Document API with highlight param" />
+    <goal type="e2e-coverage" target="100%" scenarios="Full citation verification flow, keyboard navigation" />
+  </coverage-goals>
+
+  <test-execution>
+    <pre-commit>
+      - Run unit tests (fast)
+      - Run component tests
+      - Lint (eslint, prettier)
+      - Type check (tsc --noEmit)
+    </pre-commit>
+    <ci-pipeline>
+      - All unit tests
+      - All component tests
+      - Integration tests (with testcontainers)
+      - E2E tests (on PR to main)
+      - Coverage report (threshold 70%)
+    </ci-pipeline>
+    <manual-qa>
+      - Screen reader test (NVDA on Windows, VoiceOver on Mac)
+      - Keyboard-only navigation
+      - Visual regression test (Percy or similar)
+    </manual-qa>
+  </test-execution>
+</testing-strategy>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 6: UI/UX SPECIFICATIONS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<ui-ux-specifications>
+  <design-system-reference>
+    <ui-library>shadcn/ui (Radix UI primitives + Tailwind CSS)</ui-library>
+    <components-used>
+      - Tooltip (Radix UI Tooltip)
+      - Dialog (Radix UI Dialog)
+      - Badge (custom Tailwind component)
+      - Button (custom Tailwind component)
+      - Card (custom Tailwind component)
+    </components-used>
+    <color-palette>
+      - Primary Blue: #0066CC (citation markers, links)
+      - Hover Blue: #004C99 (darker on hover)
+      - Success Green: #10B981 (verified citations in future)
+      - Yellow Highlight: #FEF3C7 (highlighted document text)
+      - Gray 500: #6B7280 (context text in preview)
+      - Gray 50: #F9FAFB (excerpt background in card)
+    </color-palette>
+    <typography>
+      - Sans-serif system font stack (Tailwind default)
+      - Citation marker: text-sm, font-medium
+      - Tooltip: text-xs
+      - Modal title: text-lg, font-semibold
+      - Modal body: text-sm
+    </typography>
+  </design-system-reference>
+
+  <interaction-patterns>
+    <pattern name="Tooltip Hover">
+      <trigger>Mouse hover over CitationMarker</trigger>
+      <delay>300ms (delayDuration prop)</delay>
+      <behavior>
+        - Tooltip fades in (200ms transition)
+        - Positioned above marker (preferably) or below if space limited
+        - Max width: 16rem (max-w-xs)
+        - Padding: 0.5rem (p-2)
+      </behavior>
+      <dismiss>Mouse leaves marker or marker clicked</dismiss>
+    </pattern>
+
+    <pattern name="Click-to-Scroll">
+      <trigger>Click CitationMarker [n]</trigger>
+      <behavior>
+        - Right panel (citation panel) scrolls smoothly to CitationCard #n
+        - Card receives ring-2 ring-[#0066CC] border-[#0066CC]
+        - Highlight persists for 2 seconds, then fades out
+        - Scroll animation duration: ~500ms
+      </behavior>
+      <edge-case>
+        If card already visible, still apply highlight (no scroll needed)
+      </edge-case>
+    </pattern>
+
+    <pattern name="Preview Modal">
+      <trigger>Click "Preview" button on CitationCard</trigger>
+      <behavior>
+        - Modal overlay fades in (200ms)
+        - Modal content zooms in (200ms scale animation)
+        - Focus moves to modal close button
+        - Backdrop click or Escape closes modal
+        - Focus returns to "Preview" button on close
+      </behavior>
+      <layout>
+        - Max width: 32rem (max-w-lg)
+        - Header: Document name, page, section (one line, ellipsis if overflow)
+        - Body:
+          * Context before (text-gray-500, italic)
+          * Cited passage (bg-yellow-100, font-medium)
+          * Context after (text-gray-500, italic)
+        - Footer: Two buttons (Open Document, Close)
+      </layout>
+    </pattern>
+
+    <pattern name="Document Navigation">
+      <trigger>Click "Open Document" button</trigger>
+      <behavior>
+        - Navigate to /documents/{documentId}?highlight={charStart}-{charEnd}
+        - Loading indicator appears ("Opening document...")
+        - On load, document viewer:
+          * Scrolls to character range
+          * Applies yellow highlight (bg-yellow-200)
+          * Shows "Back to Search" breadcrumb
+      </behavior>
+      <error-handling>
+        - Document not found → Toast error "Document not found"
+        - Highlight parse error → Navigate without highlight, log warning
+      </error-handling>
+    </pattern>
+  </interaction-patterns>
+
+  <responsive-considerations>
+    <breakpoint name="desktop" min-width="1024px">
+      - Three-panel layout: KB list (240px), Search results (flex-grow), Citations (360px)
+      - Tooltip max-width: 16rem
+      - Modal max-width: 32rem
+    </breakpoint>
+    <breakpoint name="tablet" min-width="768px" max-width="1023px">
+      - Two-panel layout: KB list collapsed (icon only), Search results + Citations stacked
+      - Tooltip max-width: 12rem
+      - Modal max-width: 90vw
+    </breakpoint>
+    <breakpoint name="mobile" max-width="767px">
+      - Single-panel layout: KB list drawer, Search results full width, Citations sheet/drawer
+      - Tooltip max-width: 10rem
+      - Modal full-screen or 95vw
+      - Consider bottom sheet for citation preview instead of modal
+    </breakpoint>
+  </responsive-considerations>
+
+  <accessibility-requirements>
+    <keyboard-navigation>
+      - Tab: Navigate to citation markers, Preview buttons, Open Document buttons
+      - Enter/Space: Activate focused element
+      - Escape: Close modal
+      - Arrow keys: (Not used for citation navigation, reserved for text selection)
+    </keyboard-navigation>
+    <screen-reader>
+      - CitationMarker: "Citation 1, button"
+      - CitationCard: "Citation 1, Acme Bank Security Architecture, Page 14, Preview button, Open Document button"
+      - Modal: "Citation preview dialog, Acme Bank Security Architecture, Page 14, Authentication Methods"
+      - aria-live region announces: "Citation 1 highlighted" when card is highlighted
+    </screen-reader>
+    <focus-management>
+      - Focus visible indicator: ring-2 ring-offset-2 (Tailwind default)
+      - Modal open: Focus moves to first focusable element (close button or Open Document button)
+      - Modal close: Focus returns to trigger (Radix handles automatically)
+    </focus-management>
+    <color-contrast>
+      - Citation marker text on #0066CC background: WCAG AAA compliant
+      - Modal text on white background: WCAG AA compliant
+      - Tooltip text on dark background: WCAG AA compliant
+    </color-contrast>
+  </accessibility-requirements>
+</ui-ux-specifications>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 7: DEPENDENCIES AND INTEGRATION
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<dependencies-and-integration>
+  <frontend-dependencies>
+    <dependency package="@radix-ui/react-tooltip" version="^1.2.8" status="installed">
+      Used for citation marker hover preview tooltip
+    </dependency>
+    <dependency package="@radix-ui/react-dialog" version="^1.1.15" status="installed">
+      Used for citation preview modal
+    </dependency>
+    <dependency package="next" version="16.0.3" status="installed">
+      Next.js for routing, useRouter, useSearchParams
+    </dependency>
+    <dependency package="react" version="19.2.0" status="installed">
+      React for component state management
+    </dependency>
+    <dependency package="lucide-react" version="^0.554.0" status="installed">
+      Icon library (if icons needed for buttons)
+    </dependency>
+  </frontend-dependencies>
+
+  <backend-dependencies>
+    <dependency package="fastapi" version=">=0.115.0" status="installed">
+      Document API endpoint framework
+    </dependency>
+    <dependency package="sqlalchemy" version=">=2.0.44" status="installed">
+      Database queries for document retrieval
+    </dependency>
+  </backend-dependencies>
+
+  <story-dependencies>
+    <dependency story="3.4" status="completed" criticality="blocker">
+      <title>Search Results UI with Inline Citations</title>
+      <provides>
+        - CitationMarker component (baseline for enhancement)
+        - CitationCard component (baseline for wiring up actions)
+        - Citation interface (TypeScript type definition)
+        - Search results page structure (three-panel layout)
+      </provides>
+      <impact-if-incomplete>
+        Story 3.5 cannot start without CitationMarker and CitationCard components from 3.4
+      </impact-if-incomplete>
+    </dependency>
+
+    <dependency story="2.8" status="completed" criticality="high">
+      <title>Document List and Metadata View</title>
+      <provides>
+        - Document viewing page at /documents/[id]
+        - Document API endpoint structure
+        - Document metadata display
+      </provides>
+      <impact-if-incomplete>
+        "Open Document" navigation will fail if document viewer doesn't exist.
+        Can stub with placeholder page as temporary workaround.
+      </impact-if-incomplete>
+    </dependency>
+
+    <dependency epic="2" status="completed" criticality="blocker">
+      <title>Document Ingestion and Indexing</title>
+      <provides>
+        - Documents indexed with char_start and char_end metadata in Qdrant
+        - Document full text stored in MinIO or PostgreSQL
+      </provides>
+      <impact-if-incomplete>
+        Citation highlighting cannot work without char_start/char_end metadata from indexing pipeline
+      </impact-if-incomplete>
+    </dependency>
+  </story-dependencies>
+
+  <api-contracts>
+    <contract endpoint="GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}">
+      <request>
+        <path-param name="kb_id" type="UUID">Knowledge Base ID</path-param>
+        <path-param name="doc_id" type="UUID">Document ID</path-param>
+        <query-param name="highlight" type="string" optional="true" format="{charStart}-{charEnd}">
+          Character range to highlight in document viewer
+        </query-param>
+      </request>
+      <response status="200">
+        <json><![CDATA[
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Acme Bank Security Architecture.pdf",
+  "kb_id": "kb-uuid",
+  "content": "Full document text or chunks...",
+  "metadata": {
+    "page_count": 50,
+    "file_size_bytes": 2048576
+  }
+}
+        ]]></json>
+      </response>
+      <response status="404">Document not found or no permission</response>
+      <response status="400">Invalid highlight parameter format</response>
+    </contract>
+
+    <contract endpoint="POST /api/v1/search">
+      <note>
+        Already defined in Story 3.1-3.3. This story consumes the CitationSchema from search response.
+      </note>
+      <response-schema>
+        <field name="citations" type="array">
+          Array of CitationSchema objects with char_start, char_end, document_id, excerpt
+        </field>
+      </response-schema>
+    </contract>
+  </api-contracts>
+
+  <external-integrations>
+    <integration name="Qdrant Vector Database" type="read-only">
+      <purpose>
+        No direct integration in this story. Citations use metadata already retrieved in search results.
+      </purpose>
+    </integration>
+
+    <integration name="MinIO Object Storage" type="read-only">
+      <purpose>
+        Document full text retrieved for highlighting (via backend Document API).
+        Frontend does not directly access MinIO.
+      </purpose>
+    </integration>
+  </external-integrations>
+</dependencies-and-integration>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 8: EDGE CASES AND ERROR HANDLING
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<edge-cases-and-errors>
+  <edge-case id="EC-3.5.1" scenario="Missing Citation Metadata">
+    <description>Citation object has null/undefined pageNumber or sectionHeader</description>
+    <handling>
+      - Display "Page N/A" if pageNumber is null
+      - Omit section header from display if sectionHeader is null
+      - Do not crash or show "undefined"
+    </handling>
+    <test>Unit test CitationCard with incomplete citation data</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.2" scenario="Very Long Excerpt">
+    <description>Citation excerpt exceeds 200 chars</description>
+    <handling>
+      - Truncate to 200 chars with "..." in CitationCard
+      - Show full excerpt in preview modal (no truncation)
+      - Tooltip shows first 50 chars only
+    </handling>
+    <test>Unit test with excerpt of 500+ chars</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.3" scenario="Citation Number Out of Range">
+    <description>User clicks [3] but only 2 citations exist</description>
+    <handling>
+      - scrollIntoView will fail silently (no element found)
+      - Add defensive check: if (citation) before scrolling
+      - Log warning to console
+    </handling>
+    <test>Component test with mismatched citation numbers</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.4" scenario="Document Not Found">
+    <description>User clicks "Open Document" but document has been deleted</description>
+    <handling>
+      - Backend returns 404
+      - Frontend catches error in router navigation
+      - Display toast: "Document not found or no longer available"
+      - Do not navigate away from search page
+    </handling>
+    <test>Integration test with deleted document</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.5" scenario="Invalid Highlight Parameter">
+    <description>URL has malformed highlight param: ?highlight=abc-xyz (non-numeric)</description>
+    <handling>
+      - Frontend parses with error handling: try/catch on Number() conversion
+      - If parse fails, log warning and navigate without highlight
+      - Document loads normally, just no highlighting
+    </handling>
+    <test>E2E test with invalid highlight URL</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.6" scenario="Rapid Citation Clicks">
+    <description>User rapidly clicks multiple citation markers in quick succession</description>
+    <handling>
+      - Each click updates highlightedCitation state, triggering re-render
+      - Last click wins (React state batching)
+      - Ensure timeout cleanup in useEffect to avoid memory leaks
+      - No performance degradation expected (React handles batching)
+    </handling>
+    <test>Component test with rapid state updates (mock timer)</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.7" scenario="Modal Open While Scrolling">
+    <description>User opens preview modal while scroll animation is in progress</description>
+    <handling>
+      - Modal overlay covers entire viewport, halting scroll perception
+      - Scroll completes in background (no conflict)
+      - When modal closes, highlight may have faded (2s timeout)
+      - This is acceptable UX, no action needed
+    </handling>
+    <test>Manual QA - open modal during scroll</test>
+  </edge-case>
+
+  <edge-case id="EC-3.5.8" scenario="Tooltip Overlapping Citation Marker">
+    <description>Tooltip content is so long it overlaps the marker itself</description>
+    <handling>
+      - Set max-width on TooltipContent (max-w-xs = 16rem)
+      - Radix UI automatically positions tooltip to avoid overlap
+      - If tooltip too large for viewport, Radix adjusts position
+    </handling>
+    <test>Visual regression test with very long document name</test>
+  </edge-case>
+
+  <error-handling>
+    <error-type name="Network Failure">
+      <scenario>Document API request fails due to network timeout</scenario>
+      <handling>
+        - Catch error in router navigation or fetch
+        - Display toast: "Failed to load document. Please try again."
+        - Optionally: Retry button in toast
+      </handling>
+    </error-type>
+
+    <error-type name="Permission Denied">
+      <scenario>User loses READ permission on document between search and navigation</scenario>
+      <handling>
+        - Backend returns 403 Forbidden
+        - Display toast: "You no longer have permission to view this document"
+        - Optionally: Refresh search results to remove inaccessible citations
+      </handling>
+    </error-type>
+
+    <error-type name="Browser Compatibility">
+      <scenario>Older browser does not support scrollIntoView with smooth behavior</scenario>
+      <handling>
+        - Use try/catch around scrollIntoView
+        - Fallback to scrollTop = offset (instant scroll)
+        - Or use polyfill: smooth-scroll-into-view-if-needed
+      </handling>
+    </error-type>
+  </error-handling>
+</edge-cases-and-errors>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 9: DEVELOPER NOTES AND GOTCHAS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<developer-notes>
+  <note type="state-management" importance="high">
+    <title>Highlighted Citation State Synchronization</title>
+    <description>
+      The highlightedCitation state must be synchronized between citation marker clicks
+      and the timeout that clears the highlight. Use useEffect cleanup to prevent memory leaks:
+      ```typescript
+      useEffect(() => {
+        if (highlightedCitation !== null) {
+          const timer = setTimeout(() => setHighlightedCitation(null), 2000);
+          return () => clearTimeout(timer); // CRITICAL: cleanup on unmount or state change
+        }
+      }, [highlightedCitation]);
+      ```
+    </description>
+  </note>
+
+  <note type="radix-ui" importance="medium">
+    <title>Radix UI Tooltip DelayDuration</title>
+    <description>
+      Default delayDuration for Radix Tooltip is 700ms. Must set to 300ms for instant feel:
+      ```typescript
+      &lt;TooltipProvider delayDuration={300}&gt;
+        &lt;Tooltip&gt;...&lt;/Tooltip&gt;
+      &lt;/TooltipProvider&gt;
+      ```
+      This prop is on TooltipProvider, not Tooltip component itself.
+    </description>
+  </note>
+
+  <note type="scroll-behavior" importance="high">
+    <title>ScrollIntoView Browser Support</title>
+    <description>
+      scrollIntoView with { behavior: 'smooth' } is supported in modern browsers but may fail
+      in older browsers (Safari &lt;15.4). Wrap in try/catch or use polyfill:
+      ```typescript
+      try {
+        card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {
+        card?.scrollIntoView(); // Fallback to instant scroll
+      }
+      ```
+    </description>
+  </note>
+
+  <note type="focus-management" importance="high">
+    <title>Modal Focus Return</title>
+    <description>
+      Radix Dialog automatically manages focus return, but only if the trigger element still
+      exists in the DOM. If trigger is conditionally rendered, focus may be lost. Ensure
+      "Preview" button remains in DOM when modal is open (do not unmount it).
+    </description>
+  </note>
+
+  <note type="url-params" importance="medium">
+    <title>Document Highlight URL Parameter Format</title>
+    <description>
+      Highlight param format: ?highlight={charStart}-{charEnd}
+      - Use hyphen separator (not comma or colon)
+      - Both values must be integers
+      - Frontend must parse with error handling:
+        ```typescript
+        const [startStr, endStr] = highlight.split('-');
+        const start = parseInt(startStr, 10);
+        const end = parseInt(endStr, 10);
+        if (isNaN(start) || isNaN(end)) {
+          console.warn('Invalid highlight parameter');
+          return; // Skip highlighting
+        }
+        ```
+    </description>
+  </note>
+
+  <note type="testing" importance="high">
+    <title>Testing Scroll Behavior</title>
+    <description>
+      scrollIntoView is difficult to test in jsdom (React Testing Library). Consider:
+      1. Mock scrollIntoView: window.HTMLElement.prototype.scrollIntoView = jest.fn();
+      2. Or use Playwright E2E tests for scroll verification
+      3. Component tests should verify scrollIntoView was called with correct element, not scroll position
+    </description>
+  </note>
+
+  <note type="performance" importance="medium">
+    <title>Debouncing Preview Button</title>
+    <description>
+      Double-clicking "Preview" button can cause modal to open/close rapidly. Add debounce or
+      disable button while modal is opening:
+      ```typescript
+      const [isOpening, setIsOpening] = useState(false);
+      const handlePreview = () => {
+        if (isOpening) return; // Prevent double-click
+        setIsOpening(true);
+        setPreviewModalOpen(true);
+        setTimeout(() => setIsOpening(false), 300); // Re-enable after modal animation
+      };
+      ```
+    </description>
+  </note>
+
+  <gotcha type="css" importance="low">
+    <title>Tooltip Z-Index</title>
+    <description>
+      Radix Tooltip uses Portal (renders at document root), so z-index conflicts are rare.
+      However, if tooltip appears behind modal overlay, explicitly set z-index on TooltipContent:
+      ```typescript
+      &lt;TooltipContent className="z-[100]"&gt;...&lt;/TooltipContent&gt;
+      ```
+    </description>
+  </gotcha>
+
+  <gotcha type="react" importance="medium">
+    <title>useState with Timeout Closure</title>
+    <description>
+      When using setTimeout with useState, be aware of closure capturing stale state. Use
+      functional updates if state depends on previous value:
+      ```typescript
+      // WRONG: May use stale highlightedCitation
+      setTimeout(() => setHighlightedCitation(null), 2000);
+
+      // RIGHT: Functional update ensures latest state
+      setTimeout(() => setHighlightedCitation(prev => prev === citation.number ? null : prev), 2000);
+      ```
+      However, in this story, we always set to null, so closure is not an issue.
+    </description>
+  </gotcha>
+</developer-notes>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 10: DEFINITION OF DONE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<definition-of-done>
+  <checklist>
+    <item category="functionality" status="required">
+      ☐ Tooltip appears on citation marker hover within 300ms
+    </item>
+    <item category="functionality" status="required">
+      ☐ Tooltip displays document name + truncated excerpt (50 chars)
+    </item>
+    <item category="functionality" status="required">
+      ☐ Click citation marker scrolls to corresponding CitationCard
+    </item>
+    <item category="functionality" status="required">
+      ☐ CitationCard highlights with blue ring for 2 seconds
+    </item>
+    <item category="functionality" status="required">
+      ☐ "Preview" button opens CitationPreviewModal
+    </item>
+    <item category="functionality" status="required">
+      ☐ Modal displays document name, page, section, cited passage, context
+    </item>
+    <item category="functionality" status="required">
+      ☐ "Open Document" navigates to /documents/{id}?highlight={start}-{end}
+    </item>
+    <item category="functionality" status="required">
+      ☐ Document viewer highlights cited passage
+    </item>
+    <item category="functionality" status="required">
+      ☐ "Back to Search" breadcrumb appears and works
+    </item>
+
+    <item category="testing" status="required">
+      ☐ All unit tests pass (Vitest)
+    </item>
+    <item category="testing" status="required">
+      ☐ All component tests pass (React Testing Library)
+    </item>
+    <item category="testing" status="required">
+      ☐ Integration tests pass (Document API with highlight param)
+    </item>
+    <item category="testing" status="required">
+      ☐ E2E tests pass (Full citation navigation flow)
+    </item>
+    <item category="testing" status="required">
+      ☐ Code coverage ≥80% for new components
+    </item>
+
+    <item category="accessibility" status="required">
+      ☐ Keyboard navigation works (Tab, Enter, Space, Escape)
+    </item>
+    <item category="accessibility" status="required">
+      ☐ ARIA labels present and correct
+    </item>
+    <item category="accessibility" status="required">
+      ☐ Focus management correct (modal open/close)
+    </item>
+    <item category="accessibility" status="required">
+      ☐ Screen reader announces citation interactions
+    </item>
+    <item category="accessibility" status="required">
+      ☐ axe-core accessibility scan passes (0 violations)
+    </item>
+
+    <item category="performance" status="required">
+      ☐ Tooltip latency &lt;300ms
+    </item>
+    <item category="performance" status="required">
+      ☐ Scroll completion &lt;500ms
+    </item>
+    <item category="performance" status="required">
+      ☐ Modal open latency &lt;300ms
+    </item>
+    <item category="performance" status="required">
+      ☐ Document navigation &lt;2 seconds
+    </item>
+
+    <item category="code-quality" status="required">
+      ☐ Code passes linting (eslint, prettier)
+    </item>
+    <item category="code-quality" status="required">
+      ☐ Type check passes (tsc --noEmit)
+    </item>
+    <item category="code-quality" status="required">
+      ☐ No console errors or warnings
+    </item>
+    <item category="code-quality" status="required">
+      ☐ Code reviewed by peer
+    </item>
+    <item category="code-quality" status="required">
+      ☐ Edge cases handled gracefully
+    </item>
+
+    <item category="documentation" status="optional">
+      ☐ Storybook stories created for CitationPreviewModal
+    </item>
+    <item category="documentation" status="optional">
+      ☐ Inline code comments for complex logic
+    </item>
+    <item category="documentation" status="optional">
+      ☐ README updated with citation interaction demo
+    </item>
+
+    <item category="deployment" status="required">
+      ☐ Feature flag enabled (if applicable)
+    </item>
+    <item category="deployment" status="required">
+      ☐ Smoke tests pass in staging environment
+    </item>
+    <item category="deployment" status="required">
+      ☐ No breaking changes to existing citation components
+    </item>
+  </checklist>
+
+  <acceptance-sign-off>
+    <role name="Scrum Master">Verify all ACs met, tests pass, DoD complete</role>
+    <role name="Tech Lead">Code review, architecture alignment, performance validated</role>
+    <role name="QA">Manual testing, accessibility testing, cross-browser testing</role>
+    <role name="Product Owner">User journey validated, business value delivered</role>
+  </acceptance-sign-off>
+</definition-of-done>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 11: REFERENCES AND ADDITIONAL CONTEXT
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<references>
+  <project-document title="Product Requirements Document" path="docs/prd.md">
+    FR28, FR28a, FR28b (Source Navigation), FR43 (Citation Provenance)
+  </project-document>
+
+  <project-document title="System Architecture" path="docs/architecture.md">
+    ADR-005 (Citation-First Architecture), ADR-003 (Three-Panel Layout)
+  </project-document>
+
+  <project-document title="UX Design Specification" path="docs/ux-design-specification.md">
+    Citation UI patterns, three-panel layout, interaction flows
+  </project-document>
+
+  <project-document title="Epic 3 Technical Specification" path="docs/sprint-artifacts/tech-spec-epic-3.md">
+    Search pipeline, CitationService, citation metadata structure, acceptance criteria
+  </project-document>
+
+  <story-document title="Story 3.4 - Search Results UI with Inline Citations" path="docs/sprint-artifacts/3-4-search-results-ui-with-inline-citations.md">
+    CitationMarker component, CitationCard component, Citation interface baseline
+  </story-document>
+
+  <story-document title="Story 2.8 - Document List and Metadata View" path="docs/sprint-artifacts/2-8-document-list-and-metadata-view.md">
+    Document viewing page structure, Document API endpoints
+  </story-document>
+
+  <external-reference title="Radix UI Tooltip Documentation" url="https://www.radix-ui.com/primitives/docs/components/tooltip">
+    API reference, accessibility features, customization options
+  </external-reference>
+
+  <external-reference title="Radix UI Dialog Documentation" url="https://www.radix-ui.com/primitives/docs/components/dialog">
+    Modal component API, focus management, keyboard interactions
+  </external-reference>
+
+  <external-reference title="MDN scrollIntoView" url="https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView">
+    Browser compatibility, smooth scrolling, scroll options
+  </external-reference>
+
+  <external-reference title="WCAG 2.1 Success Criteria" url="https://www.w3.org/WAI/WCAG21/quickref/">
+    1.4.3 Contrast (Minimum), 2.1.1 Keyboard, 2.4.7 Focus Visible, 4.1.2 Name, Role, Value
+  </external-reference>
+</references>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     END OF STORY CONTEXT
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+</story-context>

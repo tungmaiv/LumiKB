@@ -119,7 +119,11 @@ class TestDemoKBSeeding:
         doc = Document(
             kb_id=kb.id,
             name="01-getting-started.md",
+            original_filename="01-getting-started.md",
+            mime_type="text/markdown",
+            file_size_bytes=2048,
             file_path=f"kb-{kb.id}/01-getting-started.md",
+            checksum="abc123def456" * 5 + "abcd",  # 64 chars
             status=DocumentStatus.READY,
             chunk_count=3,  # Pre-computed chunks
         )

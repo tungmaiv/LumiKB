@@ -1,0 +1,386 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.9</storyId>
+    <title>Relevance Explanation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-9-relevance-explanation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a user reviewing search results</asA>
+    <iWant>to understand WHY each result is relevant to my query</iWant>
+    <soThat>I can quickly identify the most useful information and trust the search quality</soThat>
+    <tasks>
+      <!-- Backend Tasks -->
+      <task id="1">Create Explanation Service (AC: #1, #4)</task>
+      <task id="2">Create Explanation API Endpoint (AC: #4)</task>
+      <task id="3">Add NLTK Stemming Dependency (AC: #2)</task>
+
+      <!-- Frontend Tasks -->
+      <task id="4">Create Highlighted Text Component (AC: #2)</task>
+      <task id="5">Update SearchResultCard Component (AC: #1, #3)</task>
+      <task id="6">Create Explanation API Hook (AC: #4, #5)</task>
+      <task id="7">Update Search API Client (AC: #4)</task>
+      <task id="8">Responsive Design (AC: #8)</task>
+      <task id="9">Accessibility Implementation (AC: #7)</task>
+
+      <!-- Testing Tasks -->
+      <task id="10">Backend Unit Tests (4 tests)</task>
+      <task id="11">Backend Integration Tests (3 tests)</task>
+      <task id="12">Frontend Component Tests (7 tests)</task>
+      <task id="13">Performance Testing (AC: #5)</task>
+      <task id="14">E2E Tests (OPTIONAL)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">
+      <title>Basic Relevance Explanation Displayed</title>
+      <description>
+        - "Relevant because:" section explains matching terms, semantic similarity, and source context
+        - Explanation is concise (1-2 sentences)
+        - Generated automatically without delay
+        - Matching keywords highlighted in excerpt
+      </description>
+      <source>docs/epics.md - Story 3.9, Lines 1293-1323; tech-spec-epic-3.md - Story 3.9 AC, Lines 986-997</source>
+    </criterion>
+
+    <criterion id="AC2">
+      <title>Keyword Highlighting in Excerpts</title>
+      <description>
+        - Keywords from query visually highlighted (yellow background #FFF4E6)
+        - Preserves word boundaries (no partial highlights)
+        - Exact + stemmed matches highlighted
+        - Case-insensitive matching
+      </description>
+      <source>docs/epics.md - FR30a: matching keywords highlighted</source>
+    </criterion>
+
+    <criterion id="AC3">
+      <title>Expandable Detail View</title>
+      <description>
+        - "Show more" expands to show: semantic distance score (0.0-1.0) + quality label, matching concepts (not just keywords), related documents (top 3 from same KB), section context
+        - Clicking related doc triggers similar search
+        - Smooth expand/collapse animation
+      </description>
+      <source>docs/epics.md - FR30a: semantic distance score, related documents</source>
+    </criterion>
+
+    <criterion id="AC4">
+      <title>Explanation Generation API</title>
+      <description>
+        - POST /api/v1/search/explain endpoint
+        - Returns: keywords, explanation, concepts, related_documents, section_context
+        - Explanations cached in Redis (1 hour TTL)
+        - Cache hit rate tracked
+      </description>
+      <source>Story 3.9 - Technical Design, Lines 259-513</source>
+    </criterion>
+
+    <criterion id="AC5">
+      <title>Performance Requirements</title>
+      <description>
+        - 10 explanations complete in &lt; 2 seconds total
+        - Cached explanations return in &lt; 100ms
+        - LLM calls batched (asyncio.gather)
+        - Progressive loading for partial results
+      </description>
+      <source>Story 3.9 - AC5, Lines 173-193</source>
+    </criterion>
+
+    <criterion id="AC6">
+      <title>Error Handling</title>
+      <description>
+        - LLM timeout: fallback to keyword-based explanation
+        - No related docs: section omitted (no empty state)
+        - Graceful degradation maintains core functionality
+      </description>
+      <source>Story 3.9 - AC6, Lines 197-214</source>
+    </criterion>
+
+    <criterion id="AC7">
+      <title>Accessibility</title>
+      <description>
+        - Highlighted text uses &lt;mark&gt; tag (no ARIA labels)
+        - Expand button: aria-label="Show detailed relevance explanation"
+        - Detail panel: role="region" with aria-labelledby
+        - Keyboard navigation for interactive elements
+      </description>
+      <source>Story 3.9 - AC7, Lines 217-234</source>
+    </criterion>
+
+    <criterion id="AC8">
+      <title>Mobile/Tablet Responsive Behavior</title>
+      <description>
+        - Mobile (&lt; 768px): explanation always visible, expands inline
+        - Tablet (768-1023px): 2-column grid for related docs
+        - Desktop (≥ 1024px): 3-column grid for related docs
+        - Touch targets ≥ 44x44px
+      </description>
+      <source>Story 3.9 - AC8, Lines 237-254</source>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>System Architecture - Service Layer</section>
+        <snippet>SearchService and CitationService are core services. SearchService orchestrates semantic search and answer synthesis. CitationService is THE CORE DIFFERENTIATOR - extracts citation markers, maps to source chunks, generates citation metadata.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search &amp; Citations</title>
+        <section>Story 3.9: Relevance Explanation</section>
+        <snippet>Implements transparent relevance reasoning: keyword extraction, LLM-generated explanations, related documents. Caching strategy: Redis 1 hour TTL. Performance target: 10 explanations in &lt; 2 seconds.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>Search Results Pattern</section>
+        <snippet>Trust through transparency: users need to see WHY results are relevant, not just scores. Keyword highlights enable fast scanning. Relevance explanations build confidence in AI-powered search.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-8-search-result-actions.md</path>
+        <title>Story 3.8: Search Result Actions</title>
+        <section>Dev Notes - Component Patterns</section>
+        <snippet>Established patterns: React Query for API caching, graceful degradation, expandable panels with smooth animations, Redis backend cache (1 hour TTL). SearchResultCard component already has action buttons structure.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epics</title>
+        <section>Epic 3 - Story 3.9</section>
+        <snippet>FR30a: System explains WHY each result is relevant with matching keywords highlighted, semantic distance scores, and related documents. Trust building through transparent reasoning.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Backend Services -->
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>service</kind>
+        <symbol>SearchService</symbol>
+        <reason>Existing search service - reference for API patterns, similar search implementation (Story 3.8)</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/citation_service.py</path>
+        <kind>service</kind>
+        <symbol>CitationService</symbol>
+        <reason>Core citation extraction logic - reference for chunk retrieval patterns</reason>
+      </artifact>
+
+      <!-- Backend API -->
+      <artifact>
+        <path>backend/app/api/v1/search.py</path>
+        <kind>router</kind>
+        <symbol>router</symbol>
+        <reason>Search API router - add POST /explain endpoint here</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/search.py</path>
+        <kind>schema</kind>
+        <symbol>SearchRequest, SearchResponse</symbol>
+        <reason>Existing search schemas - add ExplainRequest, ExplanationResponse schemas</reason>
+      </artifact>
+
+      <!-- Backend Integrations -->
+      <artifact>
+        <path>backend/app/integrations/litellm_client.py</path>
+        <kind>integration</kind>
+        <symbol>LiteLLMClient</symbol>
+        <reason>LLM client for explanation generation</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/qdrant_client.py</path>
+        <kind>integration</kind>
+        <symbol>QdrantClient</symbol>
+        <reason>Vector database client for related document search</reason>
+      </artifact>
+
+      <!-- Frontend Components -->
+      <artifact>
+        <path>frontend/src/components/search/search-result-card.tsx</path>
+        <kind>component</kind>
+        <symbol>SearchResultCard</symbol>
+        <reason>MODIFY: Add relevance explanation section and expandable detail panel</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/lib/api/search.ts</path>
+        <kind>api-client</kind>
+        <symbol>searchApi</symbol>
+        <reason>MODIFY: Add explainRelevance() method</reason>
+      </artifact>
+
+      <!-- Testing References -->
+      <artifact>
+        <path>backend/tests/unit/test_search_service.py</path>
+        <kind>test</kind>
+        <symbol>test_semantic_search_*</symbol>
+        <reason>Reference for service testing patterns</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/integration/test_similar_search.py</path>
+        <kind>test</kind>
+        <symbol>test_similar_search_*</symbol>
+        <reason>Story 3.8 integration tests - similar pattern for explanation API tests</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/search/__tests__/search-result-card.test.tsx</path>
+        <kind>test</kind>
+        <symbol>SearchResultCard tests</symbol>
+        <reason>Existing component tests - extend for explanation section</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0,&lt;1.0.0">Web framework for API endpoints</package>
+        <package name="pydantic" version=">=2.7.0,&lt;3.0.0">Schema validation for ExplainRequest/Response</package>
+        <package name="redis" version=">=7.1.0,&lt;8.0.0">Caching layer for explanations</package>
+        <package name="litellm" version=">=1.50.0,&lt;2.0.0">LLM integration for explanation generation</package>
+        <package name="qdrant-client" version=">=1.10.0,&lt;2.0.0">Vector search for related documents</package>
+        <package name="nltk" version=">=3.8.0" required="NEW">Natural Language Toolkit for stemming (keyword extraction)</package>
+        <package name="pytest" version=">=8.0.0">Testing framework</package>
+        <package name="httpx" version=">=0.27.0">HTTP client for API tests</package>
+      </backend>
+      <frontend>
+        <package name="react" version="19.2.0">UI framework</package>
+        <package name="next" version="16.0.3">Next.js app framework</package>
+        <package name="@radix-ui/react-*" version="latest">Accessible UI primitives for buttons, badges</package>
+        <package name="lucide-react" version="^0.554.0">Icons (ChevronDown, ChevronUp)</package>
+        <package name="zustand" version="^5.0.8">State management (if needed for explanation state)</package>
+        <package name="@tanstack/react-query" version="implied">API caching and state management (not in package.json - may need to add)</package>
+        <package name="vitest" version="^4.0.13">Testing framework</package>
+        <package name="@testing-library/react" version="^16.3.0">Component testing utilities</package>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Follow FastAPI service layer pattern: Router → Service → Integration</constraint>
+    <constraint type="architecture">All API routes under /api/v1/search/*</constraint>
+    <constraint type="architecture">Use Pydantic schemas for request/response validation</constraint>
+    <constraint type="performance">10 explanations must complete in &lt; 2 seconds total</constraint>
+    <constraint type="performance">Cached explanations return in &lt; 100ms</constraint>
+    <constraint type="performance">LLM timeout: 5 seconds max, fallback to keyword-only</constraint>
+    <constraint type="caching">Redis TTL: 1 hour for explanations</constraint>
+    <constraint type="caching">Cache key format: explain:{query_hash}:{chunk_id}</constraint>
+    <constraint type="testing">Unit tests for keyword extraction, LLM fallback, related docs</constraint>
+    <constraint type="testing">Integration tests for API endpoint, caching</constraint>
+    <constraint type="testing">Frontend component tests for highlighting, expand/collapse</constraint>
+    <constraint type="coding-standards">KISS principle: simple solutions over clever ones</constraint>
+    <constraint type="coding-standards">No dead code - delete unused code, don't comment out</constraint>
+    <constraint type="coding-standards">No backwards-compatibility hacks</constraint>
+    <constraint type="accessibility">Use semantic HTML (&lt;mark&gt; for highlights)</constraint>
+    <constraint type="accessibility">ARIA labels for interactive elements</constraint>
+    <constraint type="accessibility">Keyboard navigation support</constraint>
+    <constraint type="responsive">Mobile (&lt; 768px): inline expansion</constraint>
+    <constraint type="responsive">Tablet (768-1023px): 2-column grid</constraint>
+    <constraint type="responsive">Desktop (≥ 1024px): 3-column grid</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Backend API -->
+    <interface>
+      <name>POST /api/v1/search/explain</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Request: ExplainRequest { query: str, chunk_id: UUID, chunk_text: str, relevance_score: float, kb_id: UUID }
+        Response: ExplanationResponse { keywords: list[str], explanation: str, concepts: list[str], related_documents: list[RelatedDocument], section_context: str }
+      </signature>
+      <path>backend/app/api/v1/search.py</path>
+    </interface>
+
+    <!-- Backend Service -->
+    <interface>
+      <name>ExplanationService.explain()</name>
+      <kind>service method</kind>
+      <signature>
+        async def explain(query: str, chunk_id: str, chunk_text: str, relevance_score: float, kb_id: str) -> ExplanationResponse
+      </signature>
+      <path>backend/app/services/explanation_service.py (NEW)</path>
+    </interface>
+
+    <!-- Frontend API Client -->
+    <interface>
+      <name>searchApi.explainRelevance()</name>
+      <kind>API client method</kind>
+      <signature>
+        async function explainRelevance(request: ExplainRequest): Promise&lt;ExplanationResponse&gt;
+      </signature>
+      <path>frontend/src/lib/api/search.ts</path>
+    </interface>
+
+    <!-- Frontend Hook -->
+    <interface>
+      <name>useExplanation()</name>
+      <kind>React Query hook</kind>
+      <signature>
+        function useExplanation(query: string, result: SearchResult): UseQueryResult&lt;ExplanationResponse&gt;
+      </signature>
+      <path>frontend/src/lib/hooks/use-explanation.ts (NEW)</path>
+    </interface>
+
+    <!-- Frontend Component -->
+    <interface>
+      <name>HighlightedText</name>
+      <kind>React component</kind>
+      <signature>
+        function HighlightedText({ text, keywords }: { text: string; keywords: string[] }): JSX.Element
+      </signature>
+      <path>frontend/src/components/ui/highlighted-text.tsx (NEW)</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Backend: pytest with pytest-asyncio for async tests. Use testcontainers for PostgreSQL, Redis. Mock external services (LiteLLM, Qdrant) in unit tests. Integration tests use real containers.
+
+      Frontend: Vitest for unit/component tests. @testing-library/react for component rendering. Mock API calls in component tests. E2E tests with Playwright (optional for this story).
+
+      Test file naming: test_*.py (backend), *.test.tsx (frontend). One test file per service/component. Clear test names: test_[what]_[condition]_[expected].
+
+      Coverage: Aim for 80%+ on new code. Focus on critical paths: keyword extraction, LLM fallback, caching, UI interactions.
+    </standards>
+    <locations>
+      backend/tests/unit/test_explanation_service.py (NEW)
+      backend/tests/integration/test_explain_api.py (NEW)
+      frontend/src/components/ui/__tests__/highlighted-text.test.tsx (NEW)
+      frontend/src/components/search/__tests__/explanation-section.test.tsx (NEW)
+      frontend/src/lib/hooks/__tests__/use-explanation.test.ts (NEW)
+    </locations>
+    <ideas>
+      <!-- Backend Unit Tests (AC4) -->
+      <test ac="AC4">test_extract_keywords_with_stemming - Verify "authentication" matches "authenticates" via stemming</test>
+      <test ac="AC4">test_extract_keywords_case_insensitive - Verify "OAuth" matches "oauth"</test>
+      <test ac="AC6">test_generate_explanation_fallback_on_timeout - LLM timeout returns keyword-based fallback</test>
+      <test ac="AC4">test_find_related_documents_excludes_original - Related docs list doesn't include query chunk</test>
+      <test ac="AC4">test_find_related_documents_same_kb_only - Only searches within specified KB</test>
+      <test ac="AC4">test_extract_concepts_from_explanation - Parse capitalized phrases from LLM output</test>
+      <test ac="AC4">test_cache_key_generation - Hash query and chunk ID consistently</test>
+
+      <!-- Backend Integration Tests (AC4, AC5) -->
+      <test ac="AC4">test_explain_endpoint_returns_explanation - Full request/response cycle</test>
+      <test ac="AC5">test_explain_endpoint_caches_result - Second request uses cache, no LLM call</test>
+      <test ac="AC6">test_explain_endpoint_chunk_not_found_404 - Returns 404 if chunk doesn't exist</test>
+      <test ac="AC5">test_explain_batch_performance - 10 explanations in &lt; 2 seconds</test>
+
+      <!-- Frontend Component Tests (AC2, AC3) -->
+      <test ac="AC2">test_highlighted_text_keywords_highlighted - Keywords wrapped in &lt;mark&gt; tags</test>
+      <test ac="AC2">test_highlighted_text_case_insensitive - "OAuth" highlights "OAUTH"</test>
+      <test ac="AC2">test_highlighted_text_word_boundaries - No partial word highlights</test>
+      <test ac="AC2">test_highlighted_text_no_keywords_plain_text - No keywords = plain text render</test>
+      <test ac="AC1">test_explanation_section_renders - "Relevant because:" section appears</test>
+      <test ac="AC3">test_explanation_expand_collapse - Button toggles detail panel</test>
+      <test ac="AC3">test_explanation_related_doc_click - Clicking related doc triggers navigation</test>
+      <test ac="AC1">test_explanation_loading_state - Shows skeleton while fetching</test>
+      <test ac="AC6">test_explanation_error_fallback - Shows fallback message on API error</test>
+
+      <!-- Frontend Hook Tests (AC5) -->
+      <test ac="AC5">test_use_explanation_fetches_from_api - Hook calls explainRelevance API</test>
+      <test ac="AC5">test_use_explanation_caches_result - No refetch on remount (1 hour stale time)</test>
+      <test ac="AC6">test_use_explanation_handles_error - Returns error state on API failure</test>
+    </ideas>
+  </tests>
+</story-context>

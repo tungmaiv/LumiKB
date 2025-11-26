@@ -2,29 +2,45 @@
 
 import { Eye, Pencil, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+export type PermissionLevel = 'READ' | 'WRITE' | 'ADMIN';
 
 interface KbSelectorItemProps {
   name: string;
   documentCount: number;
-  permission: 'viewer' | 'editor' | 'admin';
+  permissionLevel: PermissionLevel;
   isActive?: boolean;
   onClick?: () => void;
 }
 
-const permissionIcons = {
-  viewer: Eye,
-  editor: Pencil,
-  admin: Settings,
+const permissionConfig = {
+  READ: {
+    icon: Eye,
+    tooltip: 'Read access',
+    colorClass: 'text-muted-foreground',
+  },
+  WRITE: {
+    icon: Pencil,
+    tooltip: 'Write access',
+    colorClass: 'text-blue-500',
+  },
+  ADMIN: {
+    icon: Settings,
+    tooltip: 'Admin access',
+    colorClass: 'text-amber-500',
+  },
 };
 
 export function KbSelectorItem({
   name,
   documentCount,
-  permission,
+  permissionLevel,
   isActive = false,
   onClick,
 }: KbSelectorItemProps): React.ReactElement {
-  const Icon = permissionIcons[permission];
+  const config = permissionConfig[permissionLevel];
+  const Icon = config.icon;
 
   return (
     <button
@@ -34,13 +50,30 @@ export function KbSelectorItem({
         'hover:bg-accent hover:text-accent-foreground',
         isActive && 'bg-accent text-accent-foreground'
       )}
+      aria-current={isActive ? 'true' : undefined}
     >
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="shrink-0">
+            <Icon className={cn('h-4 w-4', config.colorClass)} aria-label={config.tooltip} />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p>{config.tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
       <div className="flex-1 truncate">
-        <span className="font-medium">{name}</span>
+        <span className="font-medium" title={name}>
+          {name}
+        </span>
       </div>
-      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-        {documentCount}
+      <span
+        className={cn(
+          'shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs',
+          documentCount === 0 ? 'text-muted-foreground/60' : 'text-muted-foreground'
+        )}
+      >
+        {documentCount} {documentCount === 1 ? 'doc' : 'docs'}
       </span>
     </button>
   );

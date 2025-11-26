@@ -1,0 +1,370 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>6</storyId>
+    <title>Document Processing Worker - Chunking and Embedding</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-6-document-processing-worker-chunking-and-embedding.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to chunk parsed documents and generate embeddings</iWant>
+    <soThat>content can be stored in Qdrant for semantic search</soThat>
+    <tasks>
+      <task id="1" ac="1,6">Create chunking module - chunking.py with RecursiveCharacterTextSplitter, tiktoken tokenizer, metadata preservation</task>
+      <task id="2" ac="2,5,6">Create embedding module - embedding.py with LiteLLM client, batch processing, exponential backoff</task>
+      <task id="3" ac="3,7,8">Create Qdrant indexing module - indexing.py with upsert, orphan cleanup, deterministic point IDs</task>
+      <task id="4" ac="1,2,3,4">Update document_tasks.py - add chunking/embedding/indexing steps, status update to READY</task>
+      <task id="5" ac="3,7,8">Update Qdrant client integration - add upsert_points, delete_points_by_filter methods</task>
+      <task id="6" ac="2,5">Create LiteLLM embedding client - litellm_client.py with retry logic, cost tracking</task>
+      <task id="7" ac="2,5">Add configuration settings - LITELLM_PROXY_URL, EMBEDDING_MODEL, CHUNK_SIZE, etc.</task>
+      <task id="8" ac="1,2,3">Add dependencies - langchain, langchain-text-splitters, tiktoken, litellm, qdrant-client</task>
+      <task id="9" ac="1,6">Write unit tests for chunking - test_chunking.py</task>
+      <task id="10" ac="2,5,6">Write unit tests for embedding - test_embedding.py</task>
+      <task id="11" ac="3,7,8">Write unit tests for indexing - test_indexing.py</task>
+      <task id="12" ac="1,2,3,4,8">Write integration tests - test_chunking_embedding.py with real Qdrant</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">
+      <given>a document has been parsed successfully (.parsed.json exists in MinIO)</given>
+      <when>the chunking step runs</when>
+      <then>
+        - Text is split using LangChain RecursiveCharacterTextSplitter
+        - Target chunk size: 500 tokens, overlap: 50 tokens (10%)
+        - Each chunk retains metadata: document_id, document_name, page_number, section_header, char_start, char_end, chunk_index
+      </then>
+    </ac>
+    <ac id="2">
+      <given>chunks are created</given>
+      <when>the embedding step runs</when>
+      <then>
+        - Embeddings generated via LiteLLM proxy (default: text-embedding-ada-002)
+        - Embedding dimensions: 1536
+        - Batch size: 20 chunks per API request
+        - Rate limit handling: exponential backoff on 429 responses (max 5 retries)
+      </then>
+    </ac>
+    <ac id="3">
+      <given>embeddings are generated</given>
+      <when>the indexing step runs</when>
+      <then>
+        - Vectors upserted to Qdrant collection kb_{kb_id}
+        - Point ID format: {doc_id}_{chunk_index} (deterministic for idempotent retries)
+        - Each point payload includes: document_id, document_name, page_number, section_header, chunk_text, char_start, char_end, chunk_index
+      </then>
+    </ac>
+    <ac id="4">
+      <given>all steps complete successfully</given>
+      <when>the worker finishes</when>
+      <then>
+        - Document status updated to READY
+        - chunk_count set on document record
+        - processing_completed_at timestamp set
+        - Outbox event marked as processed
+        - Parsed content JSON deleted from MinIO (cleanup)
+      </then>
+    </ac>
+    <ac id="5">
+      <given>embedding API returns 429 (rate limit)</given>
+      <when>retry logic runs</when>
+      <then>
+        - Exponential backoff: 30s, 60s, 120s, 240s, 300s (max)
+        - After 5 retries, task fails with document status FAILED
+        - last_error contains "Embedding rate limit exceeded after 5 retries"
+      </then>
+    </ac>
+    <ac id="6">
+      <given>embedding returns token limit exceeded error</given>
+      <when>a single chunk exceeds token limit</when>
+      <then>
+        - Oversized chunk split further (halved recursively until fits)
+        - Re-embedded with smaller chunks
+        - Original metadata preserved with adjusted char_start/char_end
+      </then>
+    </ac>
+    <ac id="7">
+      <given>Qdrant upsert fails</given>
+      <when>max retries (3) exhausted</when>
+      <then>
+        - Document status set to FAILED
+        - last_error contains Qdrant error message
+        - Partial vectors NOT cleaned up (idempotent retry will overwrite)
+      </then>
+    </ac>
+    <ac id="8">
+      <given>this is a document re-upload (existing vectors exist)</given>
+      <when>processing completes</when>
+      <then>
+        - New vectors upserted with same point ID pattern
+        - Old vectors with orphaned chunk indices deleted
+        - Atomic switch: new vectors available before old orphans removed
+      </then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Processing-Pipeline-Detail</section>
+        <snippet>Documents chunking parameters (500 tokens, 50 overlap), embedding batch size (20), Qdrant point ID pattern, and retry configurations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Qdrant-Collection-Schema</section>
+        <snippet>Defines vector payload schema with citation-critical metadata: document_id, document_name, page_number, section_header, chunk_text, char_start, char_end.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Decision-Summary</section>
+        <snippet>Documents LiteLLM for embeddings (text-embedding-ada-002), Qdrant for vectors with langchain-qdrant integration, LangChain text splitters for chunking.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>LumiKB Epics</title>
+        <section>Story-2.6</section>
+        <snippet>Original story definition with acceptance criteria for chunking and embedding worker. Rich metadata is CRITICAL for citation system.</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing-backend-specification.md</path>
+        <title>Test Framework Specification</title>
+        <section>Test-Levels-Markers</section>
+        <snippet>Defines pytest markers (unit, integration), testcontainers for isolation, pytestmark requirement on all files, timeout enforcement.</snippet>
+      </doc>
+      <doc>
+        <path>docs/coding-standards.md</path>
+        <title>Python Coding Standards</title>
+        <section>All</section>
+        <snippet>Documents Python 3.11+ patterns, async/await conventions, structlog usage, and type annotation requirements.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/2-5-document-processing-worker-parsing.md</path>
+        <title>Story 2.5 - Document Processing Worker Parsing</title>
+        <section>Dev-Agent-Record</section>
+        <snippet>Previous story completion notes: Celery worker setup, ParsedContent dataclass, MinIO parsed content storage at {doc_id}/.parsed.json, task configuration patterns.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/app/workers/parsing.py</path>
+        <kind>module</kind>
+        <symbol>ParsedContent, ParsedElement, parse_document</symbol>
+        <lines>32-75</lines>
+        <reason>ParsedContent dataclass is the input to chunking - contains text, elements with metadata (page_number, section_header), and document metadata.</reason>
+      </file>
+      <file>
+        <path>backend/app/workers/parsed_content_storage.py</path>
+        <kind>module</kind>
+        <symbol>load_parsed_content, delete_parsed_content, store_parsed_content</symbol>
+        <lines>79-159</lines>
+        <reason>Provides load_parsed_content() to retrieve parsed JSON from MinIO for chunking, and delete_parsed_content() for cleanup after indexing.</reason>
+      </file>
+      <file>
+        <path>backend/app/workers/document_tasks.py</path>
+        <kind>celery-task</kind>
+        <symbol>process_document, DocumentProcessingError</symbol>
+        <lines>118-380</lines>
+        <reason>Main Celery task that must be extended to add chunking/embedding/indexing steps. Currently ends at parsing - status stays PROCESSING.</reason>
+      </file>
+      <file>
+        <path>backend/app/workers/celery_app.py</path>
+        <kind>celery-config</kind>
+        <symbol>celery_app</symbol>
+        <lines>all</lines>
+        <reason>Celery configuration with Redis broker. New chunking/embedding task may be chained or added to same task.</reason>
+      </file>
+      <file>
+        <path>backend/app/integrations/qdrant_client.py</path>
+        <kind>service</kind>
+        <symbol>QdrantService, qdrant_service, VECTOR_SIZE, DISTANCE_METRIC</symbol>
+        <lines>all</lines>
+        <reason>Existing Qdrant client with create_collection, delete_collection. Must add upsert_points(), delete_points_by_filter() for indexing.</reason>
+      </file>
+      <file>
+        <path>backend/app/integrations/minio_client.py</path>
+        <kind>service</kind>
+        <symbol>minio_service, download_file, file_exists, delete_file</symbol>
+        <lines>all</lines>
+        <reason>Used to download parsed content JSON and delete after successful indexing.</reason>
+      </file>
+      <file>
+        <path>backend/app/models/document.py</path>
+        <kind>model</kind>
+        <symbol>Document, DocumentStatus</symbol>
+        <lines>18-109</lines>
+        <reason>Document model with status, chunk_count, processing_completed_at fields that must be updated on completion.</reason>
+      </file>
+      <file>
+        <path>backend/app/core/config.py</path>
+        <kind>settings</kind>
+        <symbol>Settings, settings</symbol>
+        <lines>all</lines>
+        <reason>Settings class must be extended with LITELLM_PROXY_URL, EMBEDDING_MODEL, EMBEDDING_BATCH_SIZE, CHUNK_SIZE, CHUNK_OVERLAP.</reason>
+      </file>
+      <file>
+        <path>backend/tests/factories/document_factory.py</path>
+        <kind>test-factory</kind>
+        <symbol>DocumentFactory</symbol>
+        <lines>all</lines>
+        <reason>Factory for creating test documents. May need update for chunk_count field testing.</reason>
+      </file>
+      <file>
+        <path>backend/tests/fixtures/sample.md</path>
+        <kind>test-fixture</kind>
+        <symbol>sample markdown file</symbol>
+        <lines>all</lines>
+        <reason>Test fixture for parsed content that can be used for chunking tests.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="langchain" version=">=0.3.0,<1.0.0" action="ADD">LangChain core for text splitting utilities</package>
+        <package name="langchain-text-splitters" version=">=0.3.0,<1.0.0" action="ADD">RecursiveCharacterTextSplitter for semantic chunking</package>
+        <package name="tiktoken" version=">=0.8.0,<1.0.0" action="ADD">Token counting for OpenAI models (cl100k_base encoding)</package>
+        <package name="litellm" version=">=1.50.0,<2.0.0" action="EXISTING">LiteLLM for embedding API calls</package>
+        <package name="qdrant-client" version=">=1.10.0,<2.0.0" action="EXISTING">Qdrant client for vector upsert operations</package>
+        <package name="celery" version=">=5.5.0,<6.0.0" action="EXISTING">Task queue for document processing</package>
+        <package name="structlog" version=">=25.5.0,<26.0.0" action="EXISTING">Structured logging</package>
+        <package name="pydantic" version=">=2.7.0,<3.0.0" action="EXISTING">Data validation</package>
+      </python>
+      <manifest>backend/pyproject.toml</manifest>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      <rule>Document processing pipeline: DOWNLOAD -> PARSE -> CHUNK -> EMBED -> INDEX</rule>
+      <rule>Each KB has isolated Qdrant collection: kb_{kb_uuid}</rule>
+      <rule>Zero-trust between KBs - no cross-collection queries</rule>
+      <rule>Point IDs deterministic for idempotent retries: {doc_uuid}_{chunk_index}</rule>
+    </constraint>
+    <constraint type="performance">
+      <rule>Chunk size target: 500 tokens with 50 token overlap</rule>
+      <rule>Embedding batch size: 20 chunks per API request</rule>
+      <rule>Rate limit retry: exponential backoff 30s, 60s, 120s, 240s, 300s max</rule>
+      <rule>Max embedding retries: 5</rule>
+    </constraint>
+    <constraint type="data-integrity">
+      <rule>Metadata CRITICAL for citation system - preserve page_number, section_header, char_start, char_end</rule>
+      <rule>Cleanup parsed JSON only after successful indexing</rule>
+      <rule>Re-upload: upsert new vectors, then cleanup orphan chunks</rule>
+    </constraint>
+    <constraint type="testing">
+      <rule>All test files MUST have pytestmark at module level</rule>
+      <rule>Unit tests: mock LiteLLM, mock Qdrant</rule>
+      <rule>Integration tests: real Qdrant via testcontainers, mock LiteLLM</rule>
+      <rule>Timeouts: unit < 5s, integration < 30s</rule>
+    </constraint>
+    <constraint type="coding">
+      <rule>Use async/await for IO operations</rule>
+      <rule>Use structlog for logging with context</rule>
+      <rule>Type annotations required on all functions</rule>
+      <rule>Follow ruff linting rules</rule>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ParsedContent</name>
+      <kind>dataclass</kind>
+      <signature>@dataclass ParsedContent: text: str, elements: list[ParsedElement], metadata: dict[str, Any]</signature>
+      <path>backend/app/workers/parsing.py</path>
+      <notes>Input to chunking. Elements contain page_number, section_header in metadata.</notes>
+    </interface>
+    <interface>
+      <name>load_parsed_content</name>
+      <kind>async-function</kind>
+      <signature>async def load_parsed_content(kb_id: UUID, document_id: UUID) -> ParsedContent | None</signature>
+      <path>backend/app/workers/parsed_content_storage.py</path>
+      <notes>Load parsed content from MinIO at {doc_id}/.parsed.json</notes>
+    </interface>
+    <interface>
+      <name>delete_parsed_content</name>
+      <kind>async-function</kind>
+      <signature>async def delete_parsed_content(kb_id: UUID, document_id: UUID) -> bool</signature>
+      <path>backend/app/workers/parsed_content_storage.py</path>
+      <notes>Delete parsed content after successful indexing</notes>
+    </interface>
+    <interface>
+      <name>QdrantService.create_collection</name>
+      <kind>async-method</kind>
+      <signature>async def create_collection(self, kb_id: UUID) -> None</signature>
+      <path>backend/app/integrations/qdrant_client.py</path>
+      <notes>Creates kb_{kb_id} collection. VECTOR_SIZE=1536, DISTANCE=COSINE.</notes>
+    </interface>
+    <interface>
+      <name>QdrantService.upsert_points</name>
+      <kind>async-method</kind>
+      <signature>async def upsert_points(self, kb_id: UUID, points: list[PointStruct]) -> None</signature>
+      <path>backend/app/integrations/qdrant_client.py</path>
+      <notes>TO BE ADDED. Upsert vectors with payload to collection.</notes>
+    </interface>
+    <interface>
+      <name>QdrantService.delete_points_by_filter</name>
+      <kind>async-method</kind>
+      <signature>async def delete_points_by_filter(self, kb_id: UUID, filter: models.Filter) -> int</signature>
+      <path>backend/app/integrations/qdrant_client.py</path>
+      <notes>TO BE ADDED. Delete orphan chunks by document_id and chunk_index > max.</notes>
+    </interface>
+    <interface>
+      <name>DocumentStatus</name>
+      <kind>enum</kind>
+      <signature>class DocumentStatus(str, Enum): PENDING, PROCESSING, READY, FAILED, ARCHIVED</signature>
+      <path>backend/app/models/document.py</path>
+      <notes>Status must transition to READY on success, FAILED on error.</notes>
+    </interface>
+    <interface>
+      <name>LiteLLM Embedding API</name>
+      <kind>REST-endpoint</kind>
+      <signature>POST {LITELLM_PROXY_URL}/embeddings - model: str, input: list[str] -> list[Embedding]</signature>
+      <path>external (LiteLLM proxy)</path>
+      <notes>OpenAI-compatible embedding endpoint. Returns 1536-dim vectors for ada-002.</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests must follow pytest patterns with explicit markers (pytestmark = pytest.mark.unit or integration).
+      Unit tests mock external services (LiteLLM, Qdrant). Integration tests use testcontainers for Qdrant
+      but mock LiteLLM with deterministic embeddings. All async tests use pytest-asyncio with function scope.
+      Factory pattern for test data (DocumentFactory, KBFactory). Timeout enforcement: unit < 5s, integration < 30s.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_chunking.py</location>
+      <location>backend/tests/unit/test_embedding.py</location>
+      <location>backend/tests/unit/test_indexing.py</location>
+      <location>backend/tests/integration/test_chunking_embedding.py</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test chunk size limits (500 tokens target) with various document lengths</idea>
+      <idea ac="1">Test chunk overlap (50 tokens) preservation at boundaries</idea>
+      <idea ac="1">Test metadata preservation (page_number, section_header) through chunking</idea>
+      <idea ac="1">Test char_start/char_end offset accuracy across chunks</idea>
+      <idea ac="2">Test embedding batch processing (groups of 20 chunks)</idea>
+      <idea ac="2">Test embedding dimension validation (1536)</idea>
+      <idea ac="3">Test deterministic point ID generation ({doc_id}_{chunk_index})</idea>
+      <idea ac="3">Test Qdrant payload structure completeness</idea>
+      <idea ac="4">Test status transition PROCESSING -> READY on success</idea>
+      <idea ac="4">Test chunk_count accuracy on document record</idea>
+      <idea ac="4">Test parsed JSON cleanup from MinIO after success</idea>
+      <idea ac="5">Test exponential backoff on 429 responses (mock LiteLLM)</idea>
+      <idea ac="5">Test max retries exceeded -> FAILED status</idea>
+      <idea ac="6">Test oversized chunk recursive splitting</idea>
+      <idea ac="6">Test metadata preservation after re-chunking</idea>
+      <idea ac="7">Test Qdrant error handling and FAILED status</idea>
+      <idea ac="7">Test partial vectors preserved on failure (for idempotent retry)</idea>
+      <idea ac="8">Test re-upload with orphan chunk cleanup</idea>
+      <idea ac="8">Test atomic switch: new vectors before orphan deletion</idea>
+    </ideas>
+  </tests>
+</story-context>

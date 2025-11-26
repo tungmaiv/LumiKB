@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Story Context for 2-10-document-deletion -->
+<!-- Generated: 2025-11-24 -->
+<!-- Purpose: Dynamic context assembly for AI-assisted development -->
+
+<story-context story-id="2-10" epic-id="2">
+
+  <story-summary>
+    <title>Document Deletion</title>
+    <user-story>
+      <as-a>user with WRITE permission</as-a>
+      <i-want>to delete documents from a Knowledge Base</i-want>
+      <so-that>I can remove outdated or incorrect content</so-that>
+    </user-story>
+    <prerequisites>Story 2.6 (Chunking/Embedding), Story 2.8 (Document List)</prerequisites>
+    <references>FR22, FR23</references>
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC1">
+      <given>I have WRITE permission on a KB</given>
+      <when>I click delete on a document</when>
+      <then>a confirmation dialog appears</then>
+    </criterion>
+    <criterion id="AC2">
+      <given>I confirm deletion</given>
+      <when>the delete request completes</when>
+      <then>
+        - Document status is set to ARCHIVED
+        - Outbox event is created for cleanup
+        - Action is logged to audit.events
+      </then>
+    </criterion>
+    <criterion id="AC3">
+      <given>a document is deleted</given>
+      <when>the cleanup worker runs</when>
+      <then>
+        - Vectors are removed from Qdrant
+        - File is removed from MinIO
+        - Document no longer appears in listings or search results
+      </then>
+    </criterion>
+  </acceptance-criteria>
+
+  <architecture-context>
+    <pattern name="soft-delete">
+      Documents use soft-delete pattern: status changes to ARCHIVED immediately,
+      then async cleanup via outbox pattern removes vectors and files.
+    </pattern>
+    <pattern name="outbox">
+      Transactional outbox ensures cleanup completes even if initial request fails.
+      Event types: "document.delete" for cleanup operations.
+      Worker polls every 10 seconds and processes up to 100 events per cycle.
+    </pattern>
+    <pattern name="zero-trust">
+      Permission check required before deletion. Return 404 for both
+      non-existent KB and no-permission scenarios to avoid information leakage.
+    </pattern>
+  </architecture-context>
+
+  <relevant-documents>
+    <document path="docs/architecture.md" sections="Outbox Pattern, Data Deletion Strategy">
+      Defines soft-delete + async cleanup pattern
+    </document>
+    <document path="docs/sprint-artifacts/tech-spec-epic-2.md" sections="Story 2.10">
+      Technical specification for deletion flow
+    </document>
+    <document path="docs/epics.md" section="Story 2.10">
+      Original acceptance criteria and technical notes
+    </document>
+    <document path="docs/testing-backend-specification.md" sections="Test-Levels-&-Markers, Fixtures-&-Factories">
+      Backend testing patterns: pytest markers, testcontainers, factory patterns
+    </document>
+    <document path="docs/testing-frontend-specification.md" sections="Testing-Patterns">
+      Frontend testing: Vitest, Testing Library, component tests
+    </document>
+  </relevant-documents>
+
+  <existing-code>
+    <file path="backend/app/services/document_service.py" purpose="service-layer">
+      <interface name="DocumentService">
+        <method name="upload">Upload document with validation and outbox event</method>
+        <method name="get_status">Get document processing status</method>
+        <method name="retry">Retry failed document processing</method>
+        <method name="list_documents">Paginated document list</method>
+        <method name="get_document">Get full document details</method>
+        <method name="_check_kb_permission">Check WRITE permission on KB</method>
+        <method name="_check_kb_read_permission">Check READ permission on KB</method>
+      </interface>
+      <note>Add delete() method following same pattern as retry() - check permission, update status, create outbox event</note>
+    </file>
+
+    <file path="backend/app/api/v1/documents.py" purpose="api-endpoints">
+      <endpoints>
+        <endpoint method="GET" path="/knowledge-bases/{kb_id}/documents">List documents</endpoint>
+        <endpoint method="GET" path="/knowledge-bases/{kb_id}/documents/{doc_id}">Get document</endpoint>
+        <endpoint method="POST" path="/knowledge-bases/{kb_id}/documents">Upload document</endpoint>
+        <endpoint method="GET" path="/knowledge-bases/{kb_id}/documents/{doc_id}/status">Get status</endpoint>
+        <endpoint method="POST" path="/knowledge-bases/{kb_id}/documents/{doc_id}/retry">Retry processing</endpoint>
+      </endpoints>
+      <note>Add DELETE /knowledge-bases/{kb_id}/documents/{doc_id} endpoint</note>
+    </file>
+
+    <file path="backend/app/models/document.py" purpose="orm-model">
+      <model name="Document">
+        <field name="status">DocumentStatus enum: PENDING, PROCESSING, READY, FAILED, ARCHIVED</field>
+        <field name="deleted_at">Soft-delete timestamp (nullable)</field>
+        <field name="file_path">MinIO storage path</field>
+        <field name="kb_id">Knowledge Base foreign key</field>
+      </model>
+      <note>ARCHIVED status already defined. Set deleted_at on soft delete.</note>
+    </file>
+
+    <file path="backend/app/models/outbox.py" purpose="outbox-pattern">
+      <model name="Outbox">
+        <field name="event_type">Event type string (e.g., "document.process", "document.delete")</field>
+        <field name="aggregate_id">Document UUID</field>
+        <field name="aggregate_type">Resource type ("document")</field>
+        <field name="payload">JSON payload with cleanup details</field>
+      </model>
+    </file>
+
+    <file path="backend/app/workers/document_tasks.py" purpose="celery-worker">
+      <task name="process_document">Full document processing pipeline</task>
+      <helpers>
+        <function name="_update_document_status">Update document status and fields</function>
+        <function name="_mark_outbox_processed">Mark outbox event as processed</function>
+      </helpers>
+      <note>Add delete_document_cleanup task to handle Qdrant and MinIO cleanup</note>
+    </file>
+
+    <file path="backend/app/workers/outbox_tasks.py" purpose="outbox-processor">
+      <task name="process_outbox_events">Periodic task polling outbox</task>
+      <function name="dispatch_event">Routes events to handlers</function>
+      <note>Add "document.delete" event type handling in dispatch_event</note>
+    </file>
+
+    <file path="backend/app/integrations/qdrant_client.py" purpose="vector-db">
+      <service name="QdrantService">
+        <method name="delete_points_by_filter">Delete points matching filter - USE THIS for cleanup</method>
+        <method name="delete_collection">Delete entire KB collection</method>
+        <constant name="VECTOR_SIZE">1536 (OpenAI ada-002)</constant>
+      </service>
+      <note>Use delete_points_by_filter with document_id filter to remove all chunks</note>
+    </file>
+
+    <file path="backend/app/integrations/minio_client.py" purpose="object-storage">
+      <service name="MinIOService">
+        <method name="delete_file">Delete single file from bucket</method>
+        <method name="file_exists">Check if file exists</method>
+      </service>
+      <note>delete_file takes kb_id and object_path, handles bucket name internally</note>
+    </file>
+
+    <file path="backend/app/workers/indexing.py" purpose="vector-indexing">
+      <function name="cleanup_orphan_chunks">Delete chunks by filter - reference for deletion pattern</function>
+    </file>
+
+    <file path="backend/app/services/audit_service.py" purpose="audit-logging">
+      <service name="AuditService">
+        <method name="log_event">Fire-and-forget audit event logging</method>
+      </service>
+      <singleton name="audit_service">Import and use: from app.services.audit_service import audit_service</singleton>
+      <usage>
+        await audit_service.log_event(
+            action="document.deleted",
+            resource_type="document",
+            user_id=user.id,
+            resource_id=document.id,
+            details={"kb_id": str(kb_id), "document_name": document.name}
+        )
+      </usage>
+      <note>Use fire-and-forget pattern - does not block request, handles errors internally</note>
+    </file>
+
+    <file path="frontend/src/components/documents/document-list.tsx" purpose="document-ui">
+      <component name="DocumentList">Paginated document list with status badges</component>
+      <component name="DocumentListItem">Single document row with retry button</component>
+      <note>Add delete button and confirmation dialog</note>
+    </file>
+
+    <file path="frontend/src/lib/hooks/use-documents.ts" purpose="data-fetching">
+      <hook name="useDocuments">Fetch paginated documents with refetch</hook>
+      <note>refetch() can be called after successful deletion</note>
+    </file>
+
+    <file path="frontend/src/lib/utils/document-toast.ts" purpose="notifications">
+      <function name="showDocumentStatusToast">Toast notifications for document events</function>
+      <note>Add 'deleted' status type for deletion confirmation</note>
+    </file>
+  </existing-code>
+
+  <schemas-and-types>
+    <backend>
+      <schema path="backend/app/schemas/document.py">
+        <type name="DocumentStatus">Enum: PENDING, PROCESSING, READY, FAILED, ARCHIVED</type>
+        <type name="DocumentUploadResponse">Upload response with id, name, status</type>
+        <type name="DocumentStatusResponse">Status polling response</type>
+        <type name="DocumentDetailResponse">Full document metadata</type>
+        <note>DELETE endpoint returns 204 No Content - no response schema needed</note>
+      </schema>
+      <existing-schema-snippet>
+        <![CDATA[
+class DocumentStatus(str, Enum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"
+    ARCHIVED = "ARCHIVED"  # Used for soft-deleted documents
+        ]]>
+      </existing-schema-snippet>
+    </backend>
+    <frontend>
+      <type name="DocumentListItem" path="frontend/src/lib/hooks/use-documents.ts">
+        Includes status field with ARCHIVED option
+      </type>
+      <type name="DocumentStatus" path="frontend/src/components/documents/document-status-badge.tsx">
+        Status badge component - may need ARCHIVED state styling
+      </type>
+      <interface-snippets>
+        <![CDATA[
+// Existing type in use-documents.ts - ARCHIVED already included
+export type DocumentStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'ARCHIVED';
+
+// Props for DeleteConfirmDialog component (NEW)
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  documentName: string;
+  onConfirm: () => void;
+  isDeleting?: boolean;
+}
+
+// Extended toast status type (ADD to document-toast.ts)
+type DocumentToastStatus =
+  | 'ready' | 'failed' | 'retry'
+  | 'upload-success' | 'upload-error' | 'upload-started'
+  | 'deleted';  // NEW
+        ]]>
+      </interface-snippets>
+    </frontend>
+  </schemas-and-types>
+
+  <dependencies>
+    <backend>
+      <dependency name="fastapi" version=">=0.115.0">Web framework</dependency>
+      <dependency name="sqlalchemy[asyncio]" version=">=2.0.44">ORM with async support</dependency>
+      <dependency name="celery" version=">=5.5.0">Task queue for async cleanup</dependency>
+      <dependency name="qdrant-client" version=">=1.10.0">Vector database client</dependency>
+      <dependency name="boto3" version=">=1.35.0">MinIO S3-compatible client</dependency>
+      <dependency name="structlog" version=">=25.5.0">Structured logging</dependency>
+    </backend>
+    <frontend>
+      <dependency name="react" version="19.2.0">UI framework</dependency>
+      <dependency name="next" version="16.0.3">React framework</dependency>
+      <dependency name="sonner" version="^2.0.7">Toast notifications</dependency>
+      <dependency name="@radix-ui/react-dialog" version="^1.1.15">Dialog component for confirmation</dependency>
+      <dependency name="lucide-react" version="^0.554.0">Icons (Trash2Icon for delete)</dependency>
+    </frontend>
+  </dependencies>
+
+  <testing-guidance>
+    <backend-tests>
+      <unit-tests>
+        <test name="test_document_service_delete_success">
+          Mock session, verify status change to ARCHIVED, outbox event created
+        </test>
+        <test name="test_document_service_delete_no_permission">
+          User without WRITE permission gets 404
+        </test>
+        <test name="test_document_service_delete_not_found">
+          Non-existent document returns 404
+        </test>
+        <test name="test_delete_cleanup_task">
+          Mock Qdrant and MinIO, verify cleanup operations called
+        </test>
+        <test name="test_outbox_dispatch_delete_event">
+          Verify "document.delete" events dispatched correctly
+        </test>
+      </unit-tests>
+      <integration-tests marker="@pytest.mark.integration">
+        <test name="test_delete_document_api_endpoint">
+          Full API test with auth, verify 204 response and status change
+        </test>
+        <test name="test_delete_document_permission_enforcement">
+          Test with owner, editor, viewer, outsider - only owner/editor succeed
+        </test>
+        <test name="test_delete_cleanup_removes_vectors">
+          Integration with Qdrant testcontainer, verify vectors deleted
+        </test>
+      </integration-tests>
+      <patterns>
+        <pattern>Use DocumentFactory for test data</pattern>
+        <pattern>Use KBFactory for KB with permissions</pattern>
+        <pattern>pytestmark = pytest.mark.unit at module level</pattern>
+        <pattern>Mock external services (Qdrant, MinIO) in unit tests</pattern>
+      </patterns>
+    </backend-tests>
+    <frontend-tests>
+      <unit-tests>
+        <test name="test_delete_button_renders">
+          Delete button visible for documents with WRITE permission
+        </test>
+        <test name="test_confirmation_dialog_opens">
+          Clicking delete opens confirmation dialog
+        </test>
+        <test name="test_confirmation_dialog_cancel">
+          Cancel closes dialog without deletion
+        </test>
+        <test name="test_delete_api_called">
+          Confirming deletion calls DELETE API endpoint
+        </test>
+        <test name="test_toast_on_success">
+          Success toast shown after deletion
+        </test>
+        <test name="test_list_refreshes">
+          Document list refetches after deletion
+        </test>
+      </unit-tests>
+      <patterns>
+        <pattern>Co-locate tests in __tests__ directory</pattern>
+        <pattern>Use Testing Library's userEvent for interactions</pattern>
+        <pattern>Mock fetch for API calls</pattern>
+        <pattern>Test user-visible behavior, not implementation</pattern>
+      </patterns>
+    </frontend-tests>
+  </testing-guidance>
+
+  <implementation-notes>
+    <note priority="high">
+      Soft delete first: Set status=ARCHIVED, deleted_at=now() in same transaction as outbox event.
+      Document immediately hidden from listings (deleted_at IS NULL filter already in place).
+    </note>
+    <note priority="high">
+      Outbox event payload: {"document_id", "kb_id", "file_path"} - all needed for cleanup.
+    </note>
+    <note priority="medium">
+      Frontend confirmation dialog: Use existing @radix-ui/react-dialog.
+      Show document name in dialog for clarity.
+    </note>
+    <note priority="medium">
+      Audit logging: Log "document.deleted" event with user_id, document_id, kb_id.
+    </note>
+    <note priority="low">
+      Consider bulk delete in future epic - this story is single document deletion only.
+    </note>
+  </implementation-notes>
+
+  <api-contract>
+    <endpoint method="DELETE" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}">
+      <description>Soft delete a document and queue cleanup</description>
+      <auth>Requires WRITE permission on KB</auth>
+      <response code="204">No content - deletion queued</response>
+      <response code="404">
+        Document or KB not found (also returned for no permission - security)
+      </response>
+      <response code="400">
+        Document already deleted (status=ARCHIVED)
+      </response>
+    </endpoint>
+  </api-contract>
+
+  <cleanup-task-spec>
+    <task name="delete_document_cleanup">
+      <trigger>Outbox event "document.delete"</trigger>
+      <steps>
+        <step order="1">Delete vectors from Qdrant using document_id filter</step>
+        <step order="2">Delete file from MinIO using kb_id and file_path</step>
+        <step order="3">Mark outbox event as processed</step>
+      </steps>
+      <error-handling>
+        Retry up to 5 times (MAX_OUTBOX_ATTEMPTS). Log errors but continue.
+        Qdrant/MinIO failures are retryable; missing resources are not errors.
+      </error-handling>
+    </task>
+  </cleanup-task-spec>
+
+</story-context>

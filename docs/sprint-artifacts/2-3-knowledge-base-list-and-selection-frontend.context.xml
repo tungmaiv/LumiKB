@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="2-3-knowledge-base-list-and-selection-frontend" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>3</storyId>
+    <title>Knowledge Base List and Selection Frontend</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-3-knowledge-base-list-and-selection-frontend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see and switch between Knowledge Bases I have access to</iWant>
+    <soThat>I can work with different document collections</soThat>
+    <tasks>
+      <task id="1" ac="2">Create KB Zustand store - state for kbs, activeKb, isLoading, error; actions for setKbs, setActiveKb, fetchKbs, createKb</task>
+      <task id="2" ac="1,3">Create API client methods - listKnowledgeBases(), createKnowledgeBase() with TypeScript interfaces</task>
+      <task id="3" ac="1,4,5">Create KBSelectorItem component - display name, doc count, permission icon with tooltip</task>
+      <task id="4" ac="1,2,6,7">Create KBSelector component - fetch on mount, empty state, loading skeletons, Create KB button</task>
+      <task id="5" ac="3">Create KBCreateModal component - shadcn Dialog, react-hook-form + zod validation</task>
+      <task id="6" ac="1,2">Integrate KBSelector into sidebar layout</task>
+      <task id="7" ac="1-7">Write component tests with Testing Library + userEvent</task>
+      <task id="8" ac="2">Write store tests for kb-store</task>
+      <task id="9" ac="1-7">Verification: lint, type-check, test, keyboard navigation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given logged in, When view sidebar, Then see KB list with name, doc count, permission icon from GET /api/v1/knowledge-bases/</ac>
+    <ac id="2">Given multiple KBs, When click different KB, Then it becomes active (highlighted), center panel updates, stored in Zustand</ac>
+    <ac id="3">Given ADMIN permission, When click Create KB button, Then modal with name/description fields, validate, POST creates new KB</ac>
+    <ac id="4">Given KB displayed, When view entry, Then see permission icon (Eye=READ, Pencil=WRITE, Settings=ADMIN) with color and tooltip</ac>
+    <ac id="5">Given KB has zero docs, When view list, Then show "0 documents" with muted styling</ac>
+    <ac id="6">Given no KBs accessible, When view sidebar, Then empty state: "No Knowledge Bases available" + CTA for admins</ac>
+    <ac id="7">Given KB list loading, When component renders, Then show skeleton placeholders matching item shape</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Frontend Components (lines 493-500)</section>
+        <snippet>Defines kb-selector.tsx and kb-create-modal.tsx components for sidebar KB list with permission icons and create dialog.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic and Story Definitions</title>
+        <section>Story 2.3 (lines 635-669)</section>
+        <snippet>Original AC definitions for KB list, selection, and creation frontend features.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Frontend Architecture</section>
+        <snippet>Next.js 15, Zustand for state, shadcn/ui components, react-hook-form + zod for forms.</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing-frontend-specification.md</path>
+        <title>Frontend Testing Standards</title>
+        <section>Test Levels and Directory Structure</section>
+        <snippet>Vitest + Testing Library, co-located __tests__ dirs, userEvent for interactions, accessible queries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Sidebar and KB Selection</section>
+        <snippet>260px sidebar width, active item highlight, 16px icons, skeleton animations, empty state patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/2-2-knowledge-base-permissions-backend.md</path>
+        <title>Previous Story - KB Permissions Backend</title>
+        <section>Dev Agent Record</section>
+        <snippet>API endpoints GET/POST /api/v1/knowledge-bases/ available. Permission levels: READ, WRITE, ADMIN. Owner has implicit ADMIN.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>frontend/src/lib/api/knowledge-bases.ts</path>
+        <kind>api-client</kind>
+        <symbol>fetchKnowledgeBases, KnowledgeBase interface</symbol>
+        <lines>1-55</lines>
+        <reason>EXISTING: API client with fetchKnowledgeBases() and KnowledgeBase interface. NEEDS: createKnowledgeBase() method.</reason>
+      </file>
+      <file>
+        <path>frontend/src/lib/api/client.ts</path>
+        <kind>api-client</kind>
+        <symbol>apiClient, ApiError</symbol>
+        <lines>1-72</lines>
+        <reason>Base API client with error handling. Use for new KB API calls.</reason>
+      </file>
+      <file>
+        <path>frontend/src/lib/stores/auth-store.ts</path>
+        <kind>store</kind>
+        <symbol>useAuthStore, AuthState, AuthActions</symbol>
+        <lines>1-109</lines>
+        <reason>PATTERN: Reference for creating kb-store.ts. Uses create() from zustand, separates State and Actions interfaces.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/kb/kb-selector-item.tsx</path>
+        <kind>component</kind>
+        <symbol>KbSelectorItem, KbSelectorItemProps</symbol>
+        <lines>1-48</lines>
+        <reason>EXISTING: Component with permission icons (Eye/Pencil/Settings). NEEDS: Update permission prop to match API (READ/WRITE/ADMIN vs viewer/editor/admin), add tooltip.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/layout/kb-sidebar.tsx</path>
+        <kind>component</kind>
+        <symbol>KbSidebar, mapPermission</symbol>
+        <lines>1-117</lines>
+        <reason>EXISTING: Sidebar with useState for KBs. NEEDS: Migrate to Zustand store, add active KB selection, enable Create KB button.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/ui/button.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Button</symbol>
+        <reason>shadcn/ui Button component for Create KB button and modal actions.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/ui/form.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Form, FormField, FormItem, FormLabel, FormControl, FormMessage</symbol>
+        <reason>shadcn/ui Form components integrated with react-hook-form for KBCreateModal.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/ui/scroll-area.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>ScrollArea</symbol>
+        <reason>Used in kb-sidebar for scrollable KB list.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/ui/tooltip.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Tooltip, TooltipTrigger, TooltipContent, TooltipProvider</symbol>
+        <reason>For permission icon tooltips in KBSelectorItem.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/auth/__tests__/login-form.test.tsx</path>
+        <kind>test</kind>
+        <symbol>describe, it, render, userEvent</symbol>
+        <reason>PATTERN: Reference for component test structure, userEvent usage, render patterns.</reason>
+      </file>
+      <file>
+        <path>frontend/src/test/test-utils.tsx</path>
+        <kind>test-utility</kind>
+        <symbol>render, customRender</symbol>
+        <reason>Custom render utility with providers for component tests.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="zustand" version="^5.0.8">State management for kb-store</package>
+        <package name="react-hook-form" version="^7.66.1">Form handling for KBCreateModal</package>
+        <package name="@hookform/resolvers" version="^5.2.2">Zod resolver for form validation</package>
+        <package name="zod" version="^4.1.12">Schema validation for form inputs</package>
+        <package name="lucide-react" version="^0.554.0">Icons: Eye, Pencil, Settings, Plus, Database, Loader2</package>
+        <package name="@radix-ui/react-dialog" version="^1.1.15">Dialog primitive for KBCreateModal</package>
+        <package name="@radix-ui/react-tooltip" version="^1.2.8">Tooltip primitive for permission icons</package>
+        <package name="vitest" version="^4.0.13">Test runner</package>
+        <package name="@testing-library/react" version="^16.3.0">Component testing</package>
+        <package name="@testing-library/user-event" version="^14.6.1">User interaction simulation</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Use Zustand for KB state (not useState in components)</constraint>
+    <constraint type="architecture">Follow existing auth-store.ts pattern: separate State and Actions interfaces</constraint>
+    <constraint type="architecture">Use shadcn/ui Dialog component for modals (not custom)</constraint>
+    <constraint type="pattern">API calls through centralized client in lib/api/</constraint>
+    <constraint type="pattern">Co-locate tests in __tests__ directories</constraint>
+    <constraint type="pattern">Use react-hook-form + zod for all forms</constraint>
+    <constraint type="coding">TypeScript strict mode - no any types</constraint>
+    <constraint type="coding">lucide-react for icons - consistent 16px (h-4 w-4)</constraint>
+    <constraint type="ui">Permission colors: muted-foreground for READ, blue-500 for WRITE, amber-500 for ADMIN</constraint>
+    <constraint type="ui">Active KB: bg-accent with text-accent-foreground</constraint>
+    <constraint type="testing">Use userEvent over fireEvent</constraint>
+    <constraint type="testing">Use accessible queries: getByRole, getByLabelText, getByText</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/knowledge-bases/</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/knowledge-bases/ -> { data: KnowledgeBase[] }</signature>
+      <path>backend/app/api/v1/knowledge_bases.py</path>
+      <notes>Returns KBs user has access to with permission_level field</notes>
+    </interface>
+    <interface>
+      <name>POST /api/v1/knowledge-bases/</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/v1/knowledge-bases/ { name: string, description?: string } -> KnowledgeBase</signature>
+      <path>backend/app/api/v1/knowledge_bases.py</path>
+      <notes>Creates new KB, user becomes owner with implicit ADMIN</notes>
+    </interface>
+    <interface>
+      <name>KnowledgeBase</name>
+      <kind>TypeScript interface</kind>
+      <signature>{ id: string; name: string; description: string | null; status: string; document_count: number; permission_level: 'READ' | 'WRITE' | 'ADMIN' | null; created_at: string; updated_at: string }</signature>
+      <path>frontend/src/lib/api/knowledge-bases.ts</path>
+      <notes>Existing interface - already defined in codebase</notes>
+    </interface>
+    <interface>
+      <name>useKBStore</name>
+      <kind>Zustand store hook</kind>
+      <signature>{ kbs: KnowledgeBase[]; activeKb: KnowledgeBase | null; isLoading: boolean; error: string | null; fetchKbs(): Promise&lt;void&gt;; setActiveKb(kb): void; createKb(data): Promise&lt;KnowledgeBase&gt; }</signature>
+      <path>frontend/src/lib/stores/kb-store.ts</path>
+      <notes>TO CREATE - follow auth-store.ts pattern</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Vitest + @testing-library/react. Co-locate tests in __tests__ directories next to components.
+      Use userEvent for interactions (not fireEvent). Use accessible queries (getByRole, getByLabelText).
+      Mock API calls with vi.mock. Tests must execute in &lt;100ms. 70% coverage minimum.
+    </standards>
+    <locations>
+      <location>frontend/src/components/kb/__tests__/</location>
+      <location>frontend/src/lib/stores/__tests__/</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test KBSelector renders list of KBs with names and doc counts</idea>
+      <idea ac="2">Test clicking KB item calls setActiveKb and updates visual state</idea>
+      <idea ac="3">Test KBCreateModal form validation (name required, max lengths)</idea>
+      <idea ac="3">Test KBCreateModal submit calls createKb and closes on success</idea>
+      <idea ac="4">Test KBSelectorItem shows correct icon for each permission level</idea>
+      <idea ac="4">Test permission icon tooltip shows on hover</idea>
+      <idea ac="5">Test document count displays "0 documents" with muted style</idea>
+      <idea ac="6">Test empty state message when kbs array is empty</idea>
+      <idea ac="6">Test Create KB CTA visible when user has admin permission</idea>
+      <idea ac="7">Test loading skeleton renders during fetch</idea>
+      <idea store="kb-store">Test initial state values</idea>
+      <idea store="kb-store">Test fetchKbs updates kbs array and handles errors</idea>
+      <idea store="kb-store">Test createKb adds new KB to list</idea>
+      <idea store="kb-store">Test setActiveKb updates activeKb state</idea>
+    </ideas>
+  </tests>
+
+  <implementationNotes>
+    <note priority="high">EXISTING CODE: kb-selector-item.tsx and kb-sidebar.tsx exist. Modify/extend rather than create from scratch.</note>
+    <note priority="high">kb-selector-item permission prop uses viewer/editor/admin but API returns READ/WRITE/ADMIN. Either update component or keep mapPermission() helper in kb-sidebar.</note>
+    <note priority="high">kb-sidebar currently uses useState for KB state. Migrate to new Zustand kb-store for shared state.</note>
+    <note priority="medium">Create KB button in kb-sidebar is currently disabled. Enable it and wire to KBCreateModal.</note>
+    <note priority="medium">Add Dialog component from shadcn/ui if not already installed: npx shadcn@latest add dialog</note>
+    <note priority="medium">KbSelectorItem needs tooltip added for permission icon (currently no tooltip).</note>
+    <note priority="low">knowledge-bases.ts API client has fetchKnowledgeBases but needs createKnowledgeBase added.</note>
+  </implementationNotes>
+</story-context>

@@ -1,0 +1,349 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.6</storyId>
+    <title>Cross-KB Search</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-6-cross-kb-search.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user searching for information across my organization's knowledge</asA>
+    <iWant>to search ALL my permitted Knowledge Bases at once without selecting them individually</iWant>
+    <soThat>I can find relevant answers without knowing which KB contains the information I need</soThat>
+    <tasks>
+      <task id="T1">Update SearchService to query multiple KB collections in parallel</task>
+      <task id="T2">Merge and rank results from all KBs by relevance score</task>
+      <task id="T3">Add kb_name to SearchResultSchema and populate from DB</task>
+      <task id="T4">Update search API to default kb_ids=None (search all permitted KBs)</task>
+      <task id="T5">Update frontend SearchResultCard to display kb_name</task>
+      <task id="T6">Update frontend search UI to show "Search all KBs" vs "Search in {KB}"</task>
+      <task id="T7">Write integration tests for cross-KB search (test_cross_kb_search.py)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-3.6.1" priority="high">
+      <description>Cross-KB Search Queries All Permitted KBs</description>
+      <detail>When kb_ids is None/omitted, search queries all KBs the user has READ permission for, in parallel. Results include chunks from all relevant KBs.</detail>
+      <testRef>test_cross_kb_search_queries_all_permitted_kbs</testRef>
+      <testRef>test_cross_kb_search_respects_permissions</testRef>
+    </criterion>
+    <criterion id="AC-3.6.2" priority="high">
+      <description>Results Merged and Ranked by Relevance</description>
+      <detail>Results from multiple KBs are merged into single list, ranked by relevance_score (descending). Limit parameter applies to final merged result set (not per-KB).</detail>
+      <testRef>test_cross_kb_results_ranked_by_relevance</testRef>
+      <testRef>test_cross_kb_search_merges_results_with_limit</testRef>
+    </criterion>
+    <criterion id="AC-3.6.3" priority="high">
+      <description>Each Result Shows Source KB Name</description>
+      <detail>Each SearchResultSchema includes kb_id and kb_name fields showing which KB the result came from. Frontend displays KB badge on each result card.</detail>
+      <testRef>test_cross_kb_results_include_kb_name</testRef>
+    </criterion>
+    <criterion id="AC-3.6.4" priority="medium">
+      <description>Performance Within Acceptable Limits</description>
+      <detail>Cross-KB search completes in <5s for integration tests, p95 <3s for production (manual/load test). Queries run in parallel (not sequential).</detail>
+      <testRef>test_cross_kb_search_performance_basic_timing</testRef>
+      <testRef>test_cross_kb_search_uses_parallel_queries</testRef>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" relevance="high">
+        <section>FR24-FR30: Semantic Search Requirements</section>
+        <key>FR24: "Search with natural language across knowledge base", FR25: "View results ranked by relevance", FR26-FR28: Citation display requirements</key>
+        <note>Cross-KB search extends FR24 to search across ALL permitted KBs by default, not just one</note>
+      </doc>
+      <doc path="docs/architecture.md" relevance="high">
+        <section>Qdrant Collections</section>
+        <key>"One collection per Knowledge Base: kb_{kb_id}" - Each KB is a separate Qdrant collection</key>
+        <note>Cross-KB search must query multiple collections and merge results</note>
+      </doc>
+      <doc path="docs/architecture.md" relevance="high">
+        <section>Design Principles</section>
+        <key>KISS, DRY, YAGNI - Prefer simple solutions over clever ones</key>
+        <note>Use asyncio.gather() for parallel queries - standard Python pattern</note>
+      </doc>
+      <doc path="docs/ux-design-specification.md" relevance="high">
+        <section>Novel Pattern 2: Cross-KB Semantic Search</section>
+        <key>"Search all, filter after" - Default searches ALL permitted KBs, users can filter results by KB afterward</key>
+        <key>"Users don't know which KB contains the answer" - This is THE rationale for cross-KB search</key>
+        <detail>UX shows "Search across all Knowledge Bases" with Filter by KB dropdown AFTER results appear</detail>
+      </doc>
+      <doc path="docs/ux-design-specification.md" relevance="medium">
+        <section>Component Library: Search Result Card</section>
+        <key>kb_name display: "Proposals KB • 92% match • 2 weeks ago"</key>
+        <detail>KB name shown as badge before match percentage and timestamp</detail>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" relevance="high">
+        <section>Story 3.6: Cross-KB Search Implementation Details</section>
+        <key>Backend changes: SearchService._search_collections() queries multiple KBs in parallel, merges results by score</key>
+        <key>Frontend changes: SearchResultCard displays kb_name badge, search UI shows "All KBs" default</key>
+        <detail>Acceptance Criteria mapped to test cases in test_cross_kb_search.py</detail>
+      </doc>
+    </docs>
+
+    <code>
+      <module path="backend/app/services/search_service.py" relevance="critical">
+        <class>SearchService</class>
+        <method>search() - Main search orchestrator, currently handles kb_ids parameter</method>
+        <method>_search_sync() - Non-streaming search implementation (lines 112-245)</method>
+        <method>_search_stream() - Streaming search implementation (lines 451-593)</method>
+        <method>_search_collections() - Queries Qdrant collections (lines 306-353)</method>
+        <key>Lines 140-143: "if kb_ids is None: kb_ids = await self.permission_service.get_permitted_kb_ids(user_id, 'READ')" - Already defaults to all permitted KBs!</key>
+        <key>Lines 323-349: _search_collections() iterates through kb_ids and queries each KB sequentially - THIS NEEDS PARALLEL EXECUTION</key>
+        <key>Lines 336-343: Result extraction includes "kb_id" in chunk dict, but kb_name is NOT included yet</key>
+        <note>Current implementation is MOSTLY correct - main change is making collection queries parallel instead of sequential</note>
+        <changes>
+          <change>Update _search_collections() to use asyncio.gather() for parallel Qdrant queries</change>
+          <change>Add kb_name to chunk dict in _search_collections() - fetch from knowledge_bases table via KB IDs</change>
+          <change>Update SearchResultSchema instantiation to include kb_name from chunk data</change>
+        </changes>
+      </module>
+
+      <module path="backend/app/api/v1/search.py" relevance="medium">
+        <endpoint>POST /search - Main search endpoint (lines 15-103)</endpoint>
+        <endpoint>POST /search/quick - Quick search for command palette (lines 106-148)</endpoint>
+        <key>Line 58: kb_ids parameter passed to service.search() - already supports None</key>
+        <note>API endpoint already supports kb_ids=None - no changes needed</note>
+        <changes>
+          <change>NO CHANGES REQUIRED - API already forwards kb_ids correctly</change>
+        </changes>
+      </module>
+
+      <module path="backend/app/schemas/search.py" relevance="high">
+        <class>SearchRequest - Search request schema (lines 8-21)</class>
+        <class>SearchResultSchema - Individual search result (lines 24-36)</class>
+        <class>SearchResponse - Search response with citations (lines 39-48)</class>
+        <key>Line 30: kb_name field already exists in SearchResultSchema!</key>
+        <key>Line 14: kb_ids defaults to None - "If None, searches all permitted KBs"</key>
+        <note>Schema already correct - no changes needed</note>
+        <changes>
+          <change>NO CHANGES REQUIRED - Schema already has kb_name field</change>
+        </changes>
+      </module>
+
+      <module path="backend/app/services/kb_service.py" relevance="medium">
+        <class>KBPermissionService</class>
+        <method>get_permitted_kb_ids() - Returns list of KB IDs user has access to</method>
+        <method>check_permission() - Checks if user has specific permission on a KB</method>
+        <note>Permission checking logic already exists and is used by SearchService</note>
+        <changes>
+          <change>NO CHANGES REQUIRED - Permission service already supports cross-KB access checks</change>
+        </changes>
+      </module>
+
+      <module path="frontend/src/components/search/search-result-card.tsx" relevance="high">
+        <component>SearchResultCard - Displays individual search result</component>
+        <key>Line 14: kbName prop already exists in SearchResult interface!</key>
+        <key>Lines 92-94: kb_name displayed as Badge - ALREADY IMPLEMENTED</key>
+        <note>Frontend component already displays KB name - no changes needed</note>
+        <changes>
+          <change>NO CHANGES REQUIRED - Component already displays kb_name</change>
+        </changes>
+      </module>
+
+      <module path="frontend/src/app/(protected)/search/page.tsx" relevance="medium">
+        <page>Search results page with citations</page>
+        <key>Lines 18-19: kbIds extracted from URL params and passed to useSearchStream()</key>
+        <key>Line 115: "Try different terms or search all Knowledge Bases" - UX message for empty state</key>
+        <key>Line 120: "Search all Knowledge Bases (currently filtered)" - Shows when KB filter active</key>
+        <note>Frontend already supports kb_ids parameter - no major changes needed</note>
+        <changes>
+          <change>Update search UI to show "Searching across N Knowledge Bases" when kb_ids=null</change>
+          <change>Add KB filter dropdown AFTER results appear (future enhancement - not MVP)</change>
+        </changes>
+      </module>
+    </code>
+
+    <dependencies>
+      <dependency type="database">
+        <table>knowledge_bases</table>
+        <field>id (UUID) - KB identifier</field>
+        <field>name (VARCHAR) - KB display name</field>
+        <note>Need to fetch kb_name by joining/querying KB table when assembling results</note>
+      </dependency>
+
+      <dependency type="external">
+        <service>Qdrant (Vector Database)</service>
+        <operation>client.search() - Query individual collection</operation>
+        <note>Each KB has separate collection (kb_{kb_id}). Must query multiple collections in parallel.</note>
+        <concern>Qdrant client may not be thread-safe for concurrent queries - verify with asyncio.gather()</concern>
+      </dependency>
+
+      <dependency type="external">
+        <service>LiteLLM (Embedding Service)</service>
+        <operation>embedding_client.get_embeddings() - Generate query embedding</operation>
+        <note>Query embedding generated ONCE, then reused for all KB searches (already cached in Redis)</note>
+      </dependency>
+
+      <dependency type="library">
+        <package>asyncio</package>
+        <usage>asyncio.gather() for parallel Qdrant collection queries</usage>
+        <note>Standard Python async pattern - no additional dependencies needed</note>
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance" priority="critical">
+      <description>Parallel Query Execution Required</description>
+      <detail>Querying 3 KBs sequentially would take 3x single KB time. MUST use asyncio.gather() to query in parallel. Target: cross-KB time ≈ single KB time + merging overhead.</detail>
+      <validation>test_cross_kb_search_uses_parallel_queries validates parallel vs sequential timing</validation>
+      <risk>R-003 (Cross-KB search performance) - Mitigated by parallel queries</risk>
+    </constraint>
+
+    <constraint type="security" priority="critical">
+      <description>Permission Isolation</description>
+      <detail>Cross-KB search MUST only return results from KBs user has READ permission for. Permission check happens BEFORE querying Qdrant (lines 140-151 in search_service.py).</detail>
+      <validation>test_cross_kb_search_respects_permissions validates cross-tenant isolation</validation>
+      <risk>R-006 (Permission bypass) - Mitigated by existing permission service checks</risk>
+    </constraint>
+
+    <constraint type="architecture" priority="high">
+      <description>Qdrant Collection-per-KB Model</description>
+      <detail>Each KB is a separate Qdrant collection (kb_{kb_id}). Cross-KB search queries N collections and merges results. Cannot use single collection with KB filter (would violate isolation).</detail>
+      <note>Per ADR-002: Collection-per-KB for strong isolation guarantees</note>
+    </constraint>
+
+    <constraint type="compatibility" priority="high">
+      <description>Backward Compatibility</description>
+      <detail>Existing single-KB search (kb_ids=[single_kb]) must continue working. API already supports this - kb_ids parameter is optional.</detail>
+      <note>Frontend can pass kb_ids=[single_kb] for filtered search - no breaking changes</note>
+    </constraint>
+
+    <constraint type="simplicity" priority="medium">
+      <description>KISS Principle</description>
+      <detail>Use standard asyncio.gather() for parallel queries - no complex task queue or worker pool needed for MVP. Keep implementation simple.</detail>
+      <note>Architecture doc: "Boring technology that works" - Proven, stable choices over cutting-edge experiments</note>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/search">
+        <request>
+          <field name="query" type="string" required="true">Natural language search query</field>
+          <field name="kb_ids" type="list[str] | null" required="false" default="null">KB IDs to search. If null, searches all permitted KBs.</field>
+          <field name="limit" type="int" required="false" default="10">Max results across all KBs</field>
+        </request>
+        <response status="200">
+          <field name="query" type="string">Original query</field>
+          <field name="answer" type="string">LLM-synthesized answer with [n] markers</field>
+          <field name="citations" type="list[Citation]">Citation metadata</field>
+          <field name="confidence" type="float">Answer confidence (0-1)</field>
+          <field name="results" type="list[SearchResultSchema]">Search results</field>
+          <field name="result_count" type="int">Total results returned</field>
+        </response>
+        <changes>
+          <change>NO API CHANGES - Existing interface already supports cross-KB search</change>
+        </changes>
+      </endpoint>
+    </api>
+
+    <database>
+      <query purpose="Fetch KB names for results">
+        <sql>SELECT id, name FROM knowledge_bases WHERE id IN (...kb_ids)</sql>
+        <note>Called once in _search_collections() to build kb_id -> kb_name mapping</note>
+        <optimization>Use SQLAlchemy bulk fetch with IN clause - single query for all KBs</optimization>
+      </query>
+    </database>
+
+    <integration>
+      <service name="Qdrant">
+        <operation>client.search(collection_name, query_vector, limit)</operation>
+        <concurrency>Multiple concurrent calls via asyncio.gather()</concurrency>
+        <concern>Verify Qdrant client is async-safe for concurrent queries from same instance</concern>
+        <mitigation>QdrantClient uses httpx AsyncClient internally - should be safe</mitigation>
+      </service>
+    </integration>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>ATDD (Acceptance Test-Driven Development)</standard>
+      <detail>Integration tests in backend/tests/integration/test_cross_kb_search.py define acceptance criteria BEFORE implementation (RED phase).</detail>
+      <standard>TDD Cycle: RED → GREEN → REFACTOR</standard>
+      <detail>Tests written first (RED), implementation makes tests pass (GREEN), then optimize (REFACTOR).</detail>
+      <standard>Testing Framework Guideline</standard>
+      <detail>Per docs/testing-framework-guideline.md: Integration tests use pytest-asyncio, factories for test data, httpx AsyncClient for API calls.</detail>
+    </standards>
+
+    <locations>
+      <integration>
+        <file>backend/tests/integration/test_cross_kb_search.py</file>
+        <coverage>
+          <test>test_cross_kb_search_queries_all_permitted_kbs - AC-3.6.1</test>
+          <test>test_cross_kb_search_respects_permissions - AC-3.6.1 (security)</test>
+          <test>test_cross_kb_results_ranked_by_relevance - AC-3.6.2</test>
+          <test>test_cross_kb_search_merges_results_with_limit - AC-3.6.2</test>
+          <test>test_cross_kb_results_include_kb_name - AC-3.6.3</test>
+          <test>test_cross_kb_search_performance_basic_timing - AC-3.6.4</test>
+          <test>test_cross_kb_search_uses_parallel_queries - AC-3.6.4 (parallel validation)</test>
+          <test>test_cross_kb_search_with_no_results - Edge case</test>
+          <test>test_cross_kb_search_with_explicit_kb_ids - Backward compatibility</test>
+        </coverage>
+      </integration>
+
+      <unit>
+        <file>backend/tests/unit/test_search_service.py</file>
+        <coverage>
+          <test>test_search_collections_parallel_queries - Verify asyncio.gather() usage</test>
+          <test>test_search_collections_kb_name_included - Verify kb_name in results</test>
+          <test>test_search_with_no_kb_ids_defaults_to_all - Verify kb_ids=None behavior</test>
+        </coverage>
+        <note>Existing unit tests may need updates to mock KB name fetching</note>
+      </unit>
+
+      <frontend>
+        <file>frontend/src/components/search/__tests__/search-result-card.test.tsx</file>
+        <coverage>
+          <test>test_kb_name_badge_displayed - Verify kb_name badge renders</test>
+          <test>test_kb_name_badge_color_styling - Verify Trust Blue theme colors</test>
+        </coverage>
+        <note>Frontend tests already exist - verify kb_name display logic</note>
+      </frontend>
+    </locations>
+
+    <ideas>
+      <scenario type="edge_case">
+        <description>User has permission to 10+ KBs - Performance degradation?</description>
+        <test>Create user with 15 KBs, measure cross-KB search latency. Should still complete in <5s.</test>
+        <mitigation>Limit to top-N KBs by activity/size if performance degrades (future optimization)</mitigation>
+      </scenario>
+
+      <scenario type="edge_case">
+        <description>One KB in cross-KB search has no indexed documents (empty collection)</description>
+        <test>Create 3 KBs, KB3 has no documents. Cross-KB search should not fail, just return results from KB1, KB2.</test>
+        <expected>Qdrant search on empty collection returns empty results - no error. Merge logic handles gracefully.</expected>
+      </scenario>
+
+      <scenario type="error_handling">
+        <description>Qdrant connection fails for ONE KB during cross-KB search</description>
+        <test>Mock Qdrant to raise ConnectionError for KB2. Should partial results from KB1, KB3 be returned? Or should entire search fail?</test>
+        <decision>FAIL ENTIRE SEARCH - Per architecture principle: "eventual consistency with guarantees". Partial results could mislead user.</decision>
+      </scenario>
+
+      <scenario type="performance">
+        <description>Measure actual parallelization improvement</description>
+        <test>Benchmark single KB query time (baseline). Then benchmark 3-KB cross-search. Verify cross-KB ≈ 1.5x baseline (not 3x).</test>
+        <note>test_cross_kb_search_uses_parallel_queries validates this</note>
+      </scenario>
+
+      <scenario type="ux">
+        <description>User searches with kb_ids=[] (empty list) - What should happen?</description>
+        <test>POST /search with kb_ids=[] (not null, but empty). Expected: 400 Bad Request with message "kb_ids cannot be empty".</test>
+        <validation>Add validation in SearchRequest schema or service layer</validation>
+      </scenario>
+
+      <scenario type="integration">
+        <description>Cross-KB search with SSE streaming (Story 3.3)</description>
+        <test>POST /search?stream=true with kb_ids=null. Verify streaming works across KBs.</test>
+        <note>Streaming already implemented in _search_stream() - should work with cross-KB without changes</note>
+      </scenario>
+    </ideas>
+  </tests>
+</story-context>

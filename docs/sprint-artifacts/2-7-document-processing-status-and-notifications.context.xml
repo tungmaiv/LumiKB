@@ -1,0 +1,224 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>7</storyId>
+    <title>Document Processing Status and Notifications</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-7-document-processing-status-and-notifications.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see the real-time status of my uploaded documents</iWant>
+    <soThat>I know when they're ready for search and can take action if processing fails</soThat>
+    <tasks>
+      <task id="1" acs="1,2">Create document status API endpoint
+        <subtask>Create GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/status endpoint</subtask>
+        <subtask>Return DocumentStatusResponse with: status, chunk_count, processing_started_at, processing_completed_at, last_error, retry_count</subtask>
+        <subtask>Ensure permission check (user must have at least READ on KB)</subtask>
+        <subtask>Add unit test for endpoint authorization</subtask>
+        <subtask>Add integration test for status transitions</subtask>
+      </task>
+      <task id="2" acs="6">Create document retry API endpoint
+        <subtask>Create POST /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/retry endpoint</subtask>
+        <subtask>Require WRITE permission on KB</subtask>
+        <subtask>Only allow retry on FAILED status documents</subtask>
+        <subtask>Reset retry_count to 0, status to PENDING, clear last_error</subtask>
+        <subtask>Create new outbox event for processing</subtask>
+        <subtask>Return 202 Accepted on success</subtask>
+        <subtask>Return 400 Bad Request if document not in FAILED status</subtask>
+        <subtask>Add audit log entry for retry action</subtask>
+        <subtask>Add unit tests for retry logic</subtask>
+      </task>
+      <task id="3" acs="1">Create DocumentStatusBadge component
+        <subtask>Create frontend/src/components/documents/document-status-badge.tsx</subtask>
+        <subtask>Display status-appropriate icon: clock (pending), spinner (processing), checkmark (ready), error (failed)</subtask>
+        <subtask>Use appropriate colors: gray (pending), blue (processing), green (ready), red (failed)</subtask>
+        <subtask>Show tooltip with error message on hover for FAILED status</subtask>
+        <subtask>Add Vitest unit tests for all status variants</subtask>
+      </task>
+      <task id="4" acs="2,7,8">Create useDocumentStatusPolling hook
+        <subtask>Create frontend/src/lib/hooks/use-document-status-polling.ts</subtask>
+        <subtask>Accept documentId, kbId, initialStatus parameters</subtask>
+        <subtask>Poll every 5 seconds while status is PROCESSING</subtask>
+        <subtask>Stop polling on READY or FAILED</subtask>
+        <subtask>Return { status, chunkCount, error, isPolling, refetch }</subtask>
+        <subtask>Handle cleanup on unmount (cancel pending requests)</subtask>
+        <subtask>Implement max 5 concurrent polling limit across all documents</subtask>
+        <subtask>Add unit tests with MSW mocking</subtask>
+      </task>
+      <task id="5" acs="3,4,6">Create toast notification integration
+        <subtask>Use shadcn/ui toast component (sonner - already installed)</subtask>
+        <subtask>Create showDocumentStatusToast utility function</subtask>
+        <subtask>Success toast: green styling, auto-dismiss in 5s</subtask>
+        <subtask>Error toast: red styling, persist until dismissed</subtask>
+        <subtask>Retry toast: blue styling, auto-dismiss in 3s</subtask>
+        <subtask>Add Vitest tests for toast utility</subtask>
+      </task>
+      <task id="6" acs="1,2,3,4,5,7">Update document list with status polling
+        <subtask>Update or create frontend/src/components/documents/document-list.tsx</subtask>
+        <subtask>Integrate DocumentStatusBadge component for status display</subtask>
+        <subtask>Use useDocumentStatusPolling hook for each PROCESSING document</subtask>
+        <subtask>Show chunk count badge next to status for READY documents</subtask>
+        <subtask>Show processing duration if timestamps available</subtask>
+        <subtask>Add Retry button column for FAILED documents</subtask>
+        <subtask>Wire up retry button to call retry endpoint and show toast</subtask>
+        <subtask>Add component tests</subtask>
+      </task>
+      <task id="7" acs="1,5">Add Pydantic schemas for status response
+        <subtask>Create DocumentStatusResponse schema in backend/app/schemas/document.py</subtask>
+        <subtask>Include all status-related fields with appropriate types (including processing timestamps for duration calculation)</subtask>
+        <subtask>Document response format in schema docstring</subtask>
+        <subtask>Add schema unit tests</subtask>
+      </task>
+      <task id="8" acs="2,3,4,6">Write integration tests for status flow
+        <subtask>Create backend/tests/integration/test_document_status.py</subtask>
+        <subtask>Test GET status endpoint returns correct data for each status</subtask>
+        <subtask>Test retry endpoint creates new outbox event</subtask>
+        <subtask>Test retry endpoint rejects non-FAILED documents</subtask>
+        <subtask>Test permission enforcement on both endpoints</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given I uploaded a document When I view the KB document list Then I see the document with its current status displayed: PENDING ("Queued for processing" with clock icon), PROCESSING ("Processing..." with animated spinner), READY ("Ready" with green checkmark icon), FAILED ("Failed" with red error icon and "Retry" button visible)</ac>
+    <ac id="2">Given a document is in PROCESSING status When I am viewing the KB document list Then: The status badge shows an animated spinner, The UI polls the status endpoint every 5 seconds automatically, Polling stops when status changes to READY or FAILED</ac>
+    <ac id="3">Given a document finishes processing When status changes to READY Then: A success toast notification appears: "Document '{name}' is ready for search", The document row updates to show "Ready" status with green checkmark, The chunk count is displayed (e.g., "47 chunks indexed")</ac>
+    <ac id="4">Given a document finishes processing When status changes to FAILED Then: An error toast notification appears: "Document '{name}' processing failed", The document row updates to show "Failed" status with red error icon, A "Retry" button becomes visible, Hovering over the error icon shows a tooltip with the error message</ac>
+    <ac id="5">Given a document is READY When I view it in the list Then: I see the chunk count displayed (e.g., "47 chunks indexed"), Processing duration is shown if available (e.g., "Processed in 45s")</ac>
+    <ac id="6">Given I click the "Retry" button on a FAILED document When the retry request succeeds Then: The document status changes to PENDING, A toast notification appears: "Retrying document processing...", Polling resumes for this document</ac>
+    <ac id="7">Given I navigate away from the KB page When documents are still processing Then: Polling stops (no background requests), When I return, polling resumes for any PROCESSING documents</ac>
+    <ac id="8">Given multiple documents are processing When I view the list Then: Each processing document has independent status polling, Toast notifications are shown for each as they complete, Maximum 5 concurrent polling requests to avoid overload</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Document Endpoints" snippet="Defines GET /knowledge-bases/{kb_id}/documents/{id}/status and POST /knowledge-bases/{kb_id}/documents/{id}/retry endpoints with response schemas and permission requirements." />
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Frontend Components" snippet="Specifies 5-second polling interval while PROCESSING, shadcn/ui toast component for notifications, and processing-status.tsx component requirements." />
+      <doc path="docs/architecture.md" title="System Architecture" section="API Contracts" snippet="Pydantic models for request/response validation, 202 Accepted pattern for async operations, centralized exception handling via app/core/exceptions.py." />
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.7" snippet="Original story definition with 3 core ACs: status display, toast notifications on completion, chunk count display for READY documents." />
+      <doc path="docs/coding-standards.md" title="Coding Standards" section="Python and TypeScript" snippet="Type hints on all functions, async/await for I/O, Pydantic models for validation, TypeScript strict mode, kebab-case component files." />
+      <doc path="docs/testing-backend-specification.md" title="Backend Testing" section="Test Framework" snippet="pytestmark on all test files, pytest.mark.unit and pytest.mark.integration markers, factories for test data, testcontainers for integration tests." />
+      <doc path="docs/testing-frontend-specification.md" title="Frontend Testing" section="Test Framework" snippet="Vitest test runner, Testing Library for component tests, co-located __tests__ directories, userEvent for interactions, MSW for API mocking in hooks." />
+      <doc path="docs/sprint-artifacts/2-6-document-processing-worker-chunking-and-embedding.md" title="Story 2.6" section="Dev Agent Record" snippet="Previous story completion notes: Document status machine (PENDING->PROCESSING->READY/FAILED), chunk_count field, processing timestamps, last_error field, retry_count field." />
+    </docs>
+    <code>
+      <file path="backend/app/api/v1/documents.py" kind="api-router" symbol="router" lines="1-119" reason="Existing document upload endpoint - ADD status and retry endpoints here" />
+      <file path="backend/app/services/document_service.py" kind="service" symbol="DocumentService" lines="47-291" reason="Existing document service - ADD get_status() and retry() methods" />
+      <file path="backend/app/schemas/document.py" kind="schema" symbol="DocumentStatus, DocumentResponse" lines="23-108" reason="Existing schemas - ADD DocumentStatusResponse schema for status endpoint" />
+      <file path="backend/app/models/document.py" kind="model" symbol="Document, DocumentStatus" lines="18-109" reason="Document model with status, chunk_count, processing_started_at, processing_completed_at, last_error, retry_count fields" />
+      <file path="backend/app/models/outbox.py" kind="model" symbol="Outbox" reason="Outbox model for transactional event emission - REUSE for retry events" />
+      <file path="backend/app/services/kb_service.py" kind="service" symbol="KBService.check_permission" reason="Permission checking service - REUSE for status/retry endpoint authorization" />
+      <file path="frontend/src/components/ui/sonner.tsx" kind="component" symbol="Toaster" lines="1-41" reason="Existing toast/sonner component with success/error/info icons - REUSE for document status notifications" />
+      <file path="backend/tests/factories/document_factory.py" kind="factory" symbol="DocumentFactory" reason="Test data factory for documents - REUSE in status/retry tests" />
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.115.0,<1.0.0" />
+        <package name="pydantic" version=">=2.7.0,<3.0.0" />
+        <package name="sqlalchemy" version=">=2.0.44,<3.0.0" />
+        <package name="structlog" version=">=25.5.0,<26.0.0" />
+        <package name="pytest" version=">=8.0.0" />
+        <package name="pytest-asyncio" version=">=0.24.0" />
+        <package name="testcontainers" version=">=4.0.0" />
+      </python>
+      <node>
+        <package name="react" version="19.2.0" />
+        <package name="next" version="16.0.3" />
+        <package name="sonner" version="^2.0.7" />
+        <package name="lucide-react" version="^0.554.0" />
+        <package name="vitest" version="^4.0.13" />
+        <package name="@testing-library/react" version="^16.3.0" />
+        <package name="@testing-library/user-event" version="^14.6.1" />
+        <package name="zustand" version="^5.0.8" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="tech-spec-epic-2.md">Polling interval: 5 seconds while status is PROCESSING</constraint>
+    <constraint source="tech-spec-epic-2.md">Maximum 5 concurrent polling requests per client</constraint>
+    <constraint source="tech-spec-epic-2.md">Status endpoint requires READ permission on KB</constraint>
+    <constraint source="tech-spec-epic-2.md">Retry endpoint requires WRITE permission on KB</constraint>
+    <constraint source="tech-spec-epic-2.md">Retry only allowed on FAILED status documents</constraint>
+    <constraint source="architecture.md">Use 202 Accepted pattern for async retry operation</constraint>
+    <constraint source="architecture.md">Emit outbox event for retry to maintain transactional consistency</constraint>
+    <constraint source="coding-standards.md">All Python functions must have type hints</constraint>
+    <constraint source="coding-standards.md">All I/O operations use async/await</constraint>
+    <constraint source="coding-standards.md">TypeScript strict mode enabled</constraint>
+    <constraint source="coding-standards.md">Component files use kebab-case naming</constraint>
+    <constraint source="testing-backend-specification.md">pytestmark on all test files</constraint>
+    <constraint source="testing-backend-specification.md">Factories for test data - no hardcoded values</constraint>
+    <constraint source="testing-frontend-specification.md">Co-located __tests__ directories for component tests</constraint>
+    <constraint source="testing-frontend-specification.md">Use userEvent over fireEvent for interactions</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/status" kind="REST endpoint">
+      <signature>GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/status -> DocumentStatusResponse</signature>
+      <path>backend/app/api/v1/documents.py (TO ADD)</path>
+      <response>{ status: DocumentStatus, chunk_count: int, processing_started_at: datetime | null, processing_completed_at: datetime | null, last_error: string | null, retry_count: int }</response>
+      <permissions>Requires READ permission on KB</permissions>
+    </interface>
+    <interface name="POST /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/retry" kind="REST endpoint">
+      <signature>POST /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/retry -> 202 Accepted</signature>
+      <path>backend/app/api/v1/documents.py (TO ADD)</path>
+      <response>{ message: "Document processing retry initiated" }</response>
+      <permissions>Requires WRITE permission on KB</permissions>
+      <errors>400 Bad Request if document not in FAILED status, 404 Not Found if document/KB not found</errors>
+    </interface>
+    <interface name="DocumentService.get_status" kind="service method">
+      <signature>async def get_status(self, kb_id: UUID, doc_id: UUID, user: User) -> Document</signature>
+      <path>backend/app/services/document_service.py (TO ADD)</path>
+    </interface>
+    <interface name="DocumentService.retry" kind="service method">
+      <signature>async def retry(self, kb_id: UUID, doc_id: UUID, user: User) -> Document</signature>
+      <path>backend/app/services/document_service.py (TO ADD)</path>
+    </interface>
+    <interface name="useDocumentStatusPolling" kind="React hook">
+      <signature>useDocumentStatusPolling(documentId: string, kbId: string, initialStatus: DocumentStatus) -> { status, chunkCount, error, isPolling, refetch }</signature>
+      <path>frontend/src/lib/hooks/use-document-status-polling.ts (TO CREATE)</path>
+    </interface>
+    <interface name="showDocumentStatusToast" kind="utility function">
+      <signature>showDocumentStatusToast(name: string, status: 'ready' | 'failed' | 'retry') -> void</signature>
+      <path>frontend/src/lib/utils/document-toast.ts (TO CREATE)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: pytest with pytest-asyncio, pytestmark on all files (pytest.mark.unit or pytest.mark.integration), factories for test data, testcontainers for DB tests, httpx for API testing. Unit tests must complete in under 5 seconds, integration tests under 30 seconds.
+      Frontend: Vitest test runner, Testing Library for component rendering, userEvent for user interactions, MSW for API mocking in hook tests, co-located __tests__ directories with component files.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/ - Unit tests for schemas, service methods</location>
+      <location>backend/tests/integration/ - Integration tests for API endpoints with DB</location>
+      <location>frontend/src/components/documents/__tests__/ - Component tests for DocumentStatusBadge, document-list</location>
+      <location>frontend/src/lib/hooks/__tests__/ - Hook tests for useDocumentStatusPolling</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test DocumentStatusBadge renders correct icon and color for each status (PENDING, PROCESSING, READY, FAILED)</idea>
+      <idea ac="1">Test DocumentStatusBadge shows error tooltip on hover for FAILED status</idea>
+      <idea ac="2">Test useDocumentStatusPolling starts polling when initialStatus is PROCESSING</idea>
+      <idea ac="2">Test useDocumentStatusPolling stops polling when status becomes READY or FAILED</idea>
+      <idea ac="2">Test useDocumentStatusPolling respects 5-second interval</idea>
+      <idea ac="3">Test success toast appears with correct message when status changes to READY</idea>
+      <idea ac="3">Test chunk count is displayed in document list for READY documents</idea>
+      <idea ac="4">Test error toast appears when status changes to FAILED</idea>
+      <idea ac="4">Test Retry button is visible for FAILED documents</idea>
+      <idea ac="5">Test processing duration is calculated and displayed correctly</idea>
+      <idea ac="6">Test retry endpoint returns 202 Accepted and creates outbox event</idea>
+      <idea ac="6">Test retry endpoint returns 400 for non-FAILED documents</idea>
+      <idea ac="6">Test retry button triggers API call and shows retry toast</idea>
+      <idea ac="7">Test polling cleanup on component unmount</idea>
+      <idea ac="8">Test max 5 concurrent polling limit is enforced</idea>
+      <idea ac="backend">Test status endpoint returns correct DocumentStatusResponse schema</idea>
+      <idea ac="backend">Test status endpoint enforces READ permission</idea>
+      <idea ac="backend">Test retry endpoint enforces WRITE permission</idea>
+      <idea ac="backend">Test retry resets document fields correctly (status, retry_count, last_error)</idea>
+    </ideas>
+  </tests>
+</story-context>

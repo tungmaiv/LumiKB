@@ -1,54 +1,47 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Database, Loader2 } from 'lucide-react';
+import { Plus, Database, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { KbSelectorItem } from '@/components/kb/kb-selector-item';
-import { fetchKnowledgeBases, type KnowledgeBase } from '@/lib/api/knowledge-bases';
+import { KbCreateModal } from '@/components/kb/kb-create-modal';
+import { useKBStore } from '@/lib/stores/kb-store';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
-// Map API permission levels to component permission props
-function mapPermission(
-  apiPermission: KnowledgeBase['permission_level']
-): 'viewer' | 'editor' | 'admin' {
-  switch (apiPermission) {
-    case 'ADMIN':
-      return 'admin';
-    case 'WRITE':
-      return 'editor';
-    case 'READ':
-    default:
-      return 'viewer';
-  }
+function KbSelectorSkeleton(): React.ReactElement {
+  return (
+    <div className="space-y-2 p-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-3 px-3 py-2">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-5 w-10 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function KbSidebar(): React.ReactElement {
-  const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const { kbs, activeKb, isLoading, error, fetchKbs, setActiveKb } = useKBStore();
+  const user = useAuthStore((state) => state.user);
+
+  // Check if user has admin permission on any KB (or can create new ones)
+  // Users who are authenticated can create KBs (they become owner with ADMIN)
+  const canCreateKb = !!user;
 
   useEffect(() => {
-    async function loadKnowledgeBases() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await fetchKnowledgeBases();
-        setKbs(data);
-      } catch (err) {
-        // If not authenticated, show empty state (user will see login prompt)
-        if (err instanceof Error && err.message.includes('401')) {
-          setKbs([]);
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to load knowledge bases');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    fetchKbs();
+  }, [fetchKbs]);
 
-    loadKnowledgeBases();
-  }, []);
+  const handleKbClick = (kb: (typeof kbs)[0]) => {
+    setActiveKb(kb);
+  };
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -58,15 +51,17 @@ export function KbSidebar(): React.ReactElement {
           <Database className="h-5 w-5 text-sidebar-foreground" />
           <h2 className="font-semibold text-sidebar-foreground">Knowledge Bases</h2>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          className="h-8 w-8"
-          aria-label="New Knowledge Base"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        {canCreateKb && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Create Knowledge Base"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <Separator />
@@ -74,14 +69,19 @@ export function KbSidebar(): React.ReactElement {
       {/* KB List */}
       <ScrollArea className="flex-1 px-2 py-2">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <KbSelectorSkeleton />
         ) : error ? (
           <div className="px-3 py-4 text-sm text-destructive">{error}</div>
         ) : kbs.length === 0 ? (
-          <div className="px-3 py-4 text-sm text-muted-foreground">
-            No knowledge bases available. Run the seed script to create a demo KB.
+          <div className="flex flex-col items-center justify-center px-3 py-8 text-center">
+            <FolderOpen className="h-10 w-10 text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-muted-foreground mb-4">No Knowledge Bases available</p>
+            {canCreateKb && (
+              <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create your first Knowledge Base
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-1">
@@ -90,7 +90,9 @@ export function KbSidebar(): React.ReactElement {
                 key={kb.id}
                 name={kb.name}
                 documentCount={kb.document_count}
-                permission={mapPermission(kb.permission_level)}
+                permissionLevel={kb.permission_level || 'READ'}
+                isActive={activeKb?.id === kb.id}
+                onClick={() => handleKbClick(kb)}
               />
             ))}
           </div>
@@ -111,6 +113,9 @@ export function KbSidebar(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {/* Create KB Modal */}
+      <KbCreateModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
     </div>
   );
 }

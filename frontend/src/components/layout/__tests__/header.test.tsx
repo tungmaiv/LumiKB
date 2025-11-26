@@ -32,7 +32,8 @@ describe('Header', () => {
 
     const searchBar = screen.getByTestId('search-bar');
     expect(searchBar).toBeInTheDocument();
-    expect(searchBar).toBeDisabled();
+    // Search bar is not disabled - it's clickable to open command palette
+    expect(searchBar).not.toBeDisabled();
   });
 
   it('renders the user menu', () => {

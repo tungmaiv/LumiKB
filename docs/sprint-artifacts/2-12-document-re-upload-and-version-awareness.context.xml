@@ -1,0 +1,482 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>12</storyId>
+    <title>Document Re-upload and Version Awareness</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-12-document-re-upload-and-version-awareness.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with WRITE permission</asA>
+    <iWant>to re-upload an updated version of a document</iWant>
+    <soThat>the Knowledge Base stays current with the latest content</soThat>
+    <tasks>
+      <task id="1" title="Add version tracking fields to document model">
+        <subtasks>
+          <subtask>Add Alembic migration for version_number INTEGER NOT NULL DEFAULT 1 and version_history JSONB DEFAULT '[]'</subtask>
+          <subtask>Update Document SQLAlchemy model in backend/app/models/document.py</subtask>
+          <subtask>Create Pydantic schema for version history entry</subtask>
+          <subtask>Add unit test for version history serialization</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Implement document re-upload API endpoint">
+        <subtasks>
+          <subtask>Create POST /api/v1/knowledge-bases/{kb_id}/documents/{id}/reupload endpoint</subtask>
+          <subtask>Verify WRITE permission on KB</subtask>
+          <subtask>Validate file type matches original document MIME type</subtask>
+          <subtask>Validate file size &lt;= 50MB</subtask>
+          <subtask>Compute SHA-256 checksum for new file</subtask>
+          <subtask>Return 202 Accepted with DocumentResponse</subtask>
+          <subtask>Add integration test for re-upload endpoint</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Implement file replacement in DocumentService">
+        <subtasks>
+          <subtask>Create replace_document() method in backend/app/services/document_service.py</subtask>
+          <subtask>Archive version history: append current metadata to version_history JSONB</subtask>
+          <subtask>Increment version_number</subtask>
+          <subtask>Upload new file to MinIO (same path, overwrite)</subtask>
+          <subtask>Update document metadata (file_size, checksum, updated_at)</subtask>
+          <subtask>Set status to PENDING</subtask>
+          <subtask>Create document.reprocess outbox event with is_replacement: true flag</subtask>
+          <subtask>Log audit event with action=document.replaced</subtask>
+          <subtask>Add unit test for replace_document()</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Update document processing worker for replacement flow">
+        <subtasks>
+          <subtask>Modify process_document task in backend/app/workers/document_tasks.py</subtask>
+          <subtask>If is_replacement: true - store existing vector count before processing</subtask>
+          <subtask>After successful embedding, delete OLD vectors by document_id filter then upsert NEW vectors</subtask>
+          <subtask>If processing fails, preserve old vectors (don't delete)</subtask>
+          <subtask>Update chunk_count and processing_completed_at on success</subtask>
+          <subtask>Add unit test for replacement processing flow</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Add duplicate filename detection endpoint">
+        <subtasks>
+          <subtask>Create GET /api/v1/knowledge-bases/{kb_id}/documents/check-duplicate?filename={name} endpoint</subtask>
+          <subtask>Returns { exists: true, document_id, uploaded_at, file_size } if duplicate found</subtask>
+          <subtask>Returns { exists: false } if no duplicate</subtask>
+          <subtask>Add integration test</subtask>
+        </subtasks>
+      </task>
+      <task id="6" title="Implement frontend duplicate detection and replacement UI">
+        <subtasks>
+          <subtask>In frontend/src/components/documents/upload-dropzone.tsx call check-duplicate before upload</subtask>
+          <subtask>If duplicate found, show confirmation dialog</subtask>
+          <subtask>Create DuplicateConfirmDialog component with Replace/Keep Both/Cancel options</subtask>
+          <subtask>Add component test for duplicate dialog</subtask>
+        </subtasks>
+      </task>
+      <task id="7" title="Add Updating status indicator in UI">
+        <subtasks>
+          <subtask>In frontend/src/components/documents/document-card.tsx show Updating... for PENDING + version_number &gt; 1</subtask>
+          <subtask>Add pulsing indicator for replacement in progress</subtask>
+          <subtask>Add component test for updating status</subtask>
+        </subtasks>
+      </task>
+      <task id="8" title="Write integration tests for complete replacement flow">
+        <subtasks>
+          <subtask>Create backend/tests/integration/test_document_reupload.py</subtask>
+          <subtask>Test: successful re-upload replaces file and triggers reprocessing</subtask>
+          <subtask>Test: version_number increments and version_history is updated</subtask>
+          <subtask>Test: old vectors preserved until new ones ready (mock Qdrant)</subtask>
+          <subtask>Test: file type mismatch returns 400</subtask>
+          <subtask>Test: processing failure preserves old vectors</subtask>
+          <subtask>Test: audit log created with action=document.replaced</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">
+      <given>a document exists in the KB</given>
+      <when>I upload a file with the same name</when>
+      <then>
+        - System detects the duplicate filename
+        - User is prompted: "Replace existing document '{filename}'?"
+        - Prompt shows comparison: original upload date, original size vs new size
+        - User can choose "Replace" or "Keep Both" (uploads with suffix -v2, -v3, etc.)
+      </then>
+    </ac>
+    <ac id="2">
+      <given>I confirm replacement</given>
+      <when>the upload completes</when>
+      <then>
+        - The new file replaces the old in MinIO (same path: kb-{kb_id}/{doc_id}/{filename})
+        - A new checksum is computed and stored
+        - Document status is set to PENDING for reprocessing
+        - Document updated_at timestamp is refreshed
+        - A document.reprocess outbox event is created
+        - The action is logged to audit.events with action="document.replaced"
+      </then>
+    </ac>
+    <ac id="3">
+      <given>document replacement is in progress</given>
+      <when>someone searches the KB</when>
+      <then>
+        - Search uses the OLD vectors until new processing completes (no downtime)
+        - Document status shows "Updating..." in UI
+        - After new processing completes, old vectors are atomically replaced with new vectors
+      </then>
+    </ac>
+    <ac id="4">
+      <given>the replacement processing completes successfully</given>
+      <when>vectors are updated</when>
+      <then>
+        - Old vectors for the document are deleted from Qdrant (filter by document_id)
+        - New vectors are upserted (using new chunk indices)
+        - Document status changes to READY
+        - chunk_count is updated to reflect new content
+        - processing_completed_at is updated
+      </then>
+    </ac>
+    <ac id="5">
+      <given>the replacement processing fails</given>
+      <when>max retries are exhausted</when>
+      <then>
+        - Document status is set to FAILED with last_error
+        - OLD vectors are preserved (search still works with old content)
+        - User sees error message with option to retry or revert
+        - Admin alert is logged
+      </then>
+    </ac>
+    <ac id="6">
+      <given>I call POST /api/v1/knowledge-bases/{kb_id}/documents/{id}/reupload with a new file</given>
+      <when>endpoint is called</when>
+      <then>
+        - WRITE permission is verified
+        - File type must match original (PDF cannot replace DOCX)
+        - File size limit (50MB) is enforced
+        - Returns 202 Accepted with updated document metadata
+      </then>
+    </ac>
+    <ac id="7">
+      <given>version awareness tracking</given>
+      <when>a document is replaced</when>
+      <then>
+        - document.version_number is incremented (1 to 2 to 3...)
+        - Previous version metadata is preserved in document.version_history JSONB field
+        - Version history includes: version_number, file_size, checksum, replaced_at, replaced_by
+      </then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc type="techSpec" path="docs/sprint-artifacts/tech-spec-epic-2.md" relevance="primary">
+        <summary>Epic 2 Technical Specification with document table schema, story complexity ratings, and dependency chain</summary>
+        <keyPoints>
+          <point>Document table schema at lines 276-301 includes checksum VARCHAR(64) for SHA-256</point>
+          <point>Story 2.12 complexity: Medium, depends on Stories 2.4-2.11</point>
+          <point>Atomic vector switch pattern: DELETE old then UPSERT new in same task</point>
+        </keyPoints>
+      </doc>
+      <doc type="architecture" path="docs/architecture.md" relevance="primary">
+        <summary>System architecture with transactional outbox pattern and audit logging requirements</summary>
+        <keyPoints>
+          <point>Pattern 2: Transactional Outbox for cross-service consistency (lines 439-520)</point>
+          <point>Audit schema requirements at lines 1129-1155</point>
+          <point>MinIO bucket per KB: kb-{uuid}</point>
+          <point>Qdrant collection per KB: kb_{uuid}</point>
+        </keyPoints>
+      </doc>
+      <doc type="epics" path="docs/epics.md" relevance="secondary">
+        <summary>Epic and story definitions including Story 2.12 requirements</summary>
+        <keyPoints>
+          <point>Story 2.12 definition at lines 962-992</point>
+          <point>Version awareness: track version_number, maintain history</point>
+          <point>MIME type match required for replacement</point>
+        </keyPoints>
+      </doc>
+      <doc type="coding-standards" path="docs/coding-standards.md" relevance="secondary">
+        <summary>Python coding conventions, database standards, and exception handling patterns</summary>
+        <keyPoints>
+          <point>Type hints: modern union syntax for 3.10+ (lines 85-101)</point>
+          <point>Exception handling: centralized pattern, raise not catch-and-reraise (lines 117-137)</point>
+          <point>Pydantic models: ConfigDict, field_validator, from_attributes (lines 139-164)</point>
+          <point>Async/await: all I/O must be async, never block event loop (lines 103-115)</point>
+          <point>Alembic migrations: one per logical change, must be reversible (lines 465-479)</point>
+          <point>Logging: structlog with request context pattern (lines 190-204)</point>
+        </keyPoints>
+      </doc>
+      <doc type="testing" path="docs/testing-backend-specification.md" relevance="secondary">
+        <summary>Backend testing framework specification with pytest patterns and factories</summary>
+        <keyPoints>
+          <point>Technology stack: pytest >=8.0.0, pytest-asyncio >=0.24.0 (lines 31-44)</point>
+          <point>Markers: @pytest.mark.unit (5s timeout), @pytest.mark.integration (30s timeout) (lines 57-65)</point>
+          <point>Every test file MUST have pytestmark at module level (lines 67-76)</point>
+          <point>Factory pattern: create_entity() with overrides for test data (lines 201-233)</point>
+          <point>Integration fixtures: testcontainers for DB, session with rollback (lines 164-199)</point>
+          <point>Unit test template with Arrange/Act/Assert pattern (lines 302-344)</point>
+          <point>Integration test template with factories and client (lines 346-394)</point>
+        </keyPoints>
+      </doc>
+    </docs>
+    <code>
+      <file path="backend/app/models/document.py" relevance="primary" action="UPDATE">
+        <summary>Document SQLAlchemy model - needs version_number and version_history columns added</summary>
+        <existingCode>
+          <class name="DocumentStatus" lines="18-25">Enum with PENDING, PROCESSING, READY, FAILED, ARCHIVED</class>
+          <class name="Document" lines="28-108">
+            - UUIDPrimaryKeyMixin, TimestampMixin, Base
+            - kb_id: UUID FK to knowledge_bases
+            - name, original_filename, mime_type, file_size_bytes, file_path, checksum
+            - status: DocumentStatus enum
+            - chunk_count, processing_started_at, processing_completed_at, last_error, retry_count
+            - uploaded_by: UUID FK to users
+            - deleted_at: soft delete timestamp
+            - Relationships: knowledge_base, uploader
+          </class>
+        </existingCode>
+        <requiredChanges>
+          <change>Add version_number: Mapped[int] = mapped_column(Integer, server_default="1", nullable=False)</change>
+          <change>Add version_history: Mapped[dict | None] = mapped_column(JSONB, server_default="[]", nullable=True)</change>
+        </requiredChanges>
+      </file>
+      <file path="backend/app/schemas/document.py" relevance="primary" action="UPDATE">
+        <summary>Document Pydantic schemas - needs version fields and VersionHistoryEntry schema</summary>
+        <existingCode>
+          <constants>MAX_FILE_SIZE_BYTES=50MB, ALLOWED_MIME_TYPES, ALLOWED_EXTENSIONS</constants>
+          <class name="DocumentStatus" lines="23-30">Enum for API responses</class>
+          <class name="DocumentUploadResponse" lines="33-44">id, name, original_filename, mime_type, file_size_bytes, status, created_at</class>
+          <class name="DocumentStatusResponse" lines="100-122">status, chunk_count, processing_started_at, processing_completed_at, last_error, retry_count</class>
+          <class name="DocumentDetailResponse" lines="169-191">Full document details with uploader_email</class>
+          <class name="PaginatedDocumentResponse" lines="159-166">data, total, page, limit, total_pages</class>
+        </existingCode>
+        <requiredChanges>
+          <change>Add VersionHistoryEntry schema: version_number, file_size, checksum, replaced_at, replaced_by</change>
+          <change>Add version_number and version_history to DocumentDetailResponse</change>
+          <change>Add ReuploadResponse schema for 202 response</change>
+          <change>Add DuplicateCheckResponse schema: exists, document_id, uploaded_at, file_size</change>
+        </requiredChanges>
+      </file>
+      <file path="backend/app/api/v1/documents.py" relevance="primary" action="UPDATE">
+        <summary>Document API endpoints - needs reupload and check-duplicate endpoints</summary>
+        <existingCode>
+          <route method="GET" path="/knowledge-bases/{kb_id}/documents" lines="30-96">list_documents with pagination</route>
+          <route method="GET" path="/knowledge-bases/{kb_id}/documents/{doc_id}" lines="99-136">get_document detail</route>
+          <route method="POST" path="/knowledge-bases/{kb_id}/documents" lines="139-237">upload_document</route>
+          <route method="GET" path="/knowledge-bases/{kb_id}/documents/{doc_id}/status" lines="240-286">get_document_status</route>
+          <route method="DELETE" path="/knowledge-bases/{kb_id}/documents/{doc_id}" lines="289-345">delete_document</route>
+          <route method="POST" path="/knowledge-bases/{kb_id}/documents/{doc_id}/retry" lines="348-409">retry_document_processing</route>
+        </existingCode>
+        <requiredChanges>
+          <change>Add POST /knowledge-bases/{kb_id}/documents/{doc_id}/reupload endpoint</change>
+          <change>Add GET /knowledge-bases/{kb_id}/documents/check-duplicate?filename={name} endpoint</change>
+        </requiredChanges>
+      </file>
+      <file path="backend/app/services/document_service.py" relevance="primary" action="UPDATE">
+        <summary>Document service - needs replace_document() and check_duplicate() methods</summary>
+        <existingCode>
+          <class name="DocumentValidationError" lines="31-45">Custom exception with code, message, status_code, details</class>
+          <class name="DocumentService" lines="48-732">
+            - __init__(session: AsyncSession)
+            - upload(kb_id, file, user) -> Document (lines 71-192)
+            - _check_kb_permission(kb_id, user) -> bool (lines 194-219)
+            - _validate_file(file, file_size) -> None (lines 221-275)
+            - get_status(kb_id, doc_id, user) -> Document (lines 294-339)
+            - retry(kb_id, doc_id, user) -> Document (lines 341-438)
+            - list_documents(kb_id, user, page, limit, sort_by, sort_order) (lines 465-557)
+            - delete(kb_id, doc_id, user) -> None (lines 559-658)
+            - get_document(kb_id, doc_id, user) -> dict (lines 660-732)
+          </class>
+        </existingCode>
+        <requiredChanges>
+          <change>Add replace_document(kb_id, doc_id, file, user) method with version history archival</change>
+          <change>Add check_duplicate(kb_id, filename, user) method</change>
+          <change>Create document.reprocess outbox event with is_replacement: true flag</change>
+        </requiredChanges>
+        <patterns>
+          <pattern name="permission-check">_check_kb_permission returns bool, 404 hides KB existence</pattern>
+          <pattern name="validation">_validate_file raises DocumentValidationError with code, message, details</pattern>
+          <pattern name="outbox-event">Outbox(event_type, aggregate_id, aggregate_type, payload) added to session</pattern>
+          <pattern name="audit-log">audit_service.log_event(action, resource_type, user_id, resource_id, details)</pattern>
+        </patterns>
+      </file>
+      <file path="backend/app/workers/document_tasks.py" relevance="primary" action="UPDATE">
+        <summary>Document processing Celery task - needs replacement flow with atomic vector switch</summary>
+        <existingCode>
+          <function name="run_async" lines="48-55">Runs async coroutine in sync context for Celery</function>
+          <function name="_chunk_embed_index" lines="135-222">Chunk, embed, index with orphan cleanup</function>
+          <class name="process_document" lines="225-550">Celery task for full document processing pipeline</class>
+          <function name="_delete_document_vectors" lines="565-612">Delete vectors by document_id filter</function>
+          <class name="delete_document_cleanup" lines="666-772">Celery task for cleanup after soft delete</class>
+        </existingCode>
+        <requiredChanges>
+          <change>In process_document: check payload for is_replacement flag</change>
+          <change>If is_replacement: after successful embedding, DELETE old vectors BEFORE upsert new</change>
+          <change>If replacement processing fails: do NOT delete old vectors (preserve searchability)</change>
+          <change>Use existing cleanup_orphan_chunks pattern from indexing.py</change>
+        </requiredChanges>
+        <patterns>
+          <pattern name="atomic-switch">DELETE old vectors by document_id filter, then UPSERT new vectors</pattern>
+          <pattern name="outbox-mark">_mark_outbox_processed(aggregate_id) after successful completion</pattern>
+          <pattern name="retry-pattern">MaxRetriesExceededError handling with status update to FAILED</pattern>
+        </patterns>
+      </file>
+      <file path="backend/app/workers/outbox_tasks.py" relevance="secondary" action="UPDATE">
+        <summary>Outbox processor - may need to update document.reprocess handler for is_replacement flag</summary>
+        <existingCode>
+          <function name="dispatch_event" lines="123-213">Routes events to handlers by event_type</function>
+          <handler event_type="document.reprocess" lines="193-206">Resets status and triggers process_document.delay()</handler>
+        </existingCode>
+        <requiredChanges>
+          <change>Pass is_replacement flag from payload to process_document task if needed</change>
+        </requiredChanges>
+      </file>
+      <file path="backend/app/integrations/qdrant_client.py" relevance="secondary">
+        <summary>Qdrant service for vector operations - delete_points_by_filter already exists</summary>
+        <existingCode>
+          <method name="delete_points_by_filter" lines="280-339">Delete points matching a filter, returns count</method>
+          <method name="upsert_points" lines="233-278">Upsert vectors with deterministic point IDs</method>
+        </existingCode>
+        <usage>Use delete_points_by_filter with document_id filter before upserting new vectors</usage>
+      </file>
+      <file path="backend/app/integrations/minio_client.py" relevance="secondary">
+        <summary>MinIO service - upload_file already supports overwrite via PUT</summary>
+        <existingCode>
+          <method name="upload_file" lines="95-153">Upload file to MinIO bucket, overwrites if exists</method>
+          <function name="compute_checksum" lines="428-444">SHA-256 checksum computation</function>
+        </existingCode>
+        <usage>upload_file with same path will overwrite existing file</usage>
+      </file>
+      <file path="backend/app/workers/indexing.py" relevance="secondary">
+        <summary>Qdrant indexing utilities including orphan cleanup</summary>
+        <existingCode>
+          <function name="cleanup_orphan_chunks" lines="127-190">Delete chunks with chunk_index > max_chunk_index</function>
+          <function name="delete_document_vectors" lines="193-246">Delete all vectors for a document</function>
+        </existingCode>
+        <usage>REUSE delete_document_vectors for atomic replacement, cleanup_orphan_chunks after re-indexing</usage>
+      </file>
+    </code>
+    <dependencies>
+      <dependency name="SQLAlchemy" version=">=2.0">JSONB column type from sqlalchemy.dialects.postgresql</dependency>
+      <dependency name="Alembic" version=">=1.13">Migration for new columns</dependency>
+      <dependency name="Pydantic" version=">=2.0">Schema definitions with ConfigDict</dependency>
+      <dependency name="qdrant-client" version=">=1.7">Vector operations with filter-based deletion</dependency>
+      <dependency name="boto3" version=">=1.34">MinIO S3-compatible operations</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="tech-spec-epic-2.md" severity="critical">
+      Atomic Switch: Old vectors must remain available until new ones are ready. No search downtime.
+    </constraint>
+    <constraint source="epics.md" severity="critical">
+      MIME Type Match: File type of replacement must match original document type.
+    </constraint>
+    <constraint source="tech-spec-epic-2.md" severity="high">
+      Checksum Validation: SHA-256 for all files, stored in VARCHAR(64).
+    </constraint>
+    <constraint source="architecture.md" severity="high">
+      Transactional Outbox: All cross-service events via outbox pattern for reliability.
+    </constraint>
+    <constraint source="architecture.md" severity="medium">
+      Audit Logging: All user actions must be logged to audit.events table.
+    </constraint>
+    <constraint source="coding-standards.md" severity="medium">
+      Alembic Migrations: One migration per logical change, must be reversible with downgrade.
+    </constraint>
+    <constraint source="schemas/document.py" severity="medium">
+      File Size Limit: MAX_FILE_SIZE_BYTES = 50MB enforced on re-upload.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="api" method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/reupload">
+      <request>
+        <auth>Bearer token (current_active_user dependency)</auth>
+        <permission>WRITE on KB</permission>
+        <body type="multipart/form-data">
+          <field name="file" type="UploadFile" required="true">Document file (must match original MIME type)</field>
+        </body>
+      </request>
+      <response status="202">
+        <body type="json">DocumentUploadResponse with id, name, original_filename, mime_type, file_size_bytes, status=PENDING, created_at</body>
+      </response>
+      <errors>
+        <error status="400" code="MIME_TYPE_MISMATCH">File type does not match original document</error>
+        <error status="400" code="EMPTY_FILE">Empty file not allowed</error>
+        <error status="404">Document or KB not found (also for no permission)</error>
+        <error status="413" code="FILE_TOO_LARGE">File exceeds 50MB limit</error>
+      </errors>
+    </interface>
+    <interface type="api" method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents/check-duplicate">
+      <request>
+        <auth>Bearer token</auth>
+        <permission>READ on KB</permission>
+        <query>
+          <param name="filename" type="string" required="true">Filename to check for duplicates</param>
+        </query>
+      </request>
+      <response status="200">
+        <body type="json">
+          { "exists": boolean, "document_id"?: string, "uploaded_at"?: datetime, "file_size"?: integer }
+        </body>
+      </response>
+      <errors>
+        <error status="404">KB not found or no permission</error>
+      </errors>
+    </interface>
+    <interface type="outbox" event_type="document.reprocess">
+      <payload>
+        <field name="document_id" type="string">Document UUID</field>
+        <field name="kb_id" type="string">Knowledge Base UUID</field>
+        <field name="reason" type="string">Reason: "replacement", "reconciliation", "manual"</field>
+        <field name="is_replacement" type="boolean">True if this is a document replacement (atomic switch required)</field>
+      </payload>
+      <handler>outbox_tasks._handle_document_reprocess -> process_document.delay()</handler>
+    </interface>
+    <interface type="audit" action="document.replaced">
+      <fields>
+        <field name="kb_id">Knowledge Base UUID</field>
+        <field name="previous_version">Previous version_number</field>
+        <field name="new_version">New version_number</field>
+        <field name="previous_checksum">Previous file checksum</field>
+        <field name="new_checksum">New file checksum</field>
+        <field name="previous_size">Previous file_size_bytes</field>
+        <field name="new_size">New file_size_bytes</field>
+      </fields>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard source="testing-backend-specification.md">pytest >=8.0.0 with pytest-asyncio for async tests</standard>
+      <standard source="testing-backend-specification.md">pytestmark = pytest.mark.unit or pytest.mark.integration on every file</standard>
+      <standard source="testing-backend-specification.md">Unit tests &lt;5s timeout, Integration tests &lt;30s timeout</standard>
+      <standard source="testing-backend-specification.md">Factories in tests/factories/ for test data generation</standard>
+      <standard source="testing-frontend-specification.md">Vitest for frontend tests with userEvent over fireEvent</standard>
+    </standards>
+    <locations>
+      <location path="backend/tests/unit/test_document_service.py" exists="true">Unit tests for document validation constants and logic</location>
+      <location path="backend/tests/integration/test_document_upload.py" exists="true">Integration tests for document upload API</location>
+      <location path="backend/tests/integration/test_document_reupload.py" exists="false" action="CREATE">Integration tests for re-upload flow</location>
+      <location path="backend/tests/unit/test_version_history.py" exists="false" action="CREATE">Unit tests for version history serialization</location>
+      <location path="frontend/src/components/documents/__tests__/duplicate-confirm-dialog.test.tsx" exists="false" action="CREATE">Component tests for duplicate dialog</location>
+    </locations>
+    <ideas>
+      <testCase ac="1" type="integration">Upload file with same name as existing -> check-duplicate returns exists=true with comparison data</testCase>
+      <testCase ac="2" type="integration">Confirm replacement -> document updated with new checksum, status=PENDING, outbox event created</testCase>
+      <testCase ac="3" type="integration">During replacement processing -> old vectors still searchable (mock Qdrant scroll)</testCase>
+      <testCase ac="4" type="integration">Successful replacement -> old vectors deleted, new vectors upserted, status=READY</testCase>
+      <testCase ac="5" type="integration">Replacement processing fails -> old vectors preserved, status=FAILED with last_error</testCase>
+      <testCase ac="6" type="integration">Re-upload with different MIME type -> 400 MIME_TYPE_MISMATCH error</testCase>
+      <testCase ac="6" type="integration">Re-upload with file >50MB -> 413 FILE_TOO_LARGE error</testCase>
+      <testCase ac="7" type="unit">Replace document -> version_number increments, version_history JSONB contains previous metadata</testCase>
+      <testCase ac="7" type="unit">Version history entry contains: version_number, file_size, checksum, replaced_at, replaced_by</testCase>
+      <testCase type="integration">Re-upload without WRITE permission -> 404 (security through obscurity)</testCase>
+      <testCase type="integration">Re-upload non-existent document -> 404</testCase>
+      <testCase type="integration">Audit event created with action=document.replaced and correct details</testCase>
+      <testCase type="component">DuplicateConfirmDialog shows Replace/Keep Both/Cancel options</testCase>
+      <testCase type="component">Keep Both option generates filename with -v2 suffix</testCase>
+      <testCase type="component">Document card shows "Updating..." when status=PENDING and version_number>1</testCase>
+    </ideas>
+  </tests>
+</story-context>

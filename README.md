@@ -140,7 +140,7 @@ LumiKB uses email/password authentication with HTTP-only cookies.
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com", "password": "yourpassword123"}'
+  -d '{"email": "demo@lumikb.local", "password": "demo123"}'
 ```
 
 ### Login
@@ -164,6 +164,78 @@ After running `make seed`, you can login with the demo credentials:
 - [Architecture](docs/architecture.md) - System design and decisions
 - [Coding Standards](docs/coding-standards.md) - Development conventions
 - [PRD](docs/prd.md) - Product requirements
+
+## Production Notes
+
+### Resource Limits Configuration
+
+#### Qdrant Vector Database
+
+Qdrant requires increased file descriptor limits to handle multiple collections, WAL files, and gRPC connections. Without proper configuration, you may encounter "Too many open files (os error 24)" errors.
+
+**Docker Compose** (already configured in `infrastructure/docker/docker-compose.yml`):
+```yaml
+qdrant:
+  image: qdrant/qdrant:latest
+  ulimits:
+    nofile:
+      soft: 65536
+      hard: 65536
+```
+
+**Kubernetes**:
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: qdrant
+    securityContext:
+      capabilities:
+        add: ["SYS_RESOURCE"]
+    # Or set via init container / sysctl
+```
+
+**Monitoring file descriptors**:
+```bash
+# Check current limits inside container
+docker exec lumikb-qdrant cat /proc/1/limits | grep "open files"
+
+# Monitor open file count
+docker exec lumikb-qdrant ls /proc/1/fd | wc -l
+```
+
+#### Connection Management
+
+The backend includes automatic connection cleanup for all services:
+
+**Qdrant:**
+- gRPC keepalive to detect dead connections
+- Graceful shutdown with connection draining
+- Automatic cleanup via `atexit` handler
+
+**LiteLLM:**
+- Explicit async client cleanup in FastAPI lifespan handler
+- Prevents "no event loop in thread" errors during shutdown
+- Must close before event loop terminates
+
+For high-traffic production deployments, consider:
+- Connection pooling at load balancer level
+- Horizontal scaling of Qdrant nodes
+- Monitoring connection counts via Qdrant metrics endpoint (`/metrics`)
+
+### Health Checks
+
+All services expose health check endpoints:
+
+| Service | Endpoint | Port |
+|---------|----------|------|
+| Backend | `/api/health` | 8000 |
+| Qdrant | `/readyz` | 6333 |
+| Redis | `PING` command | 6379 |
+| PostgreSQL | `pg_isready` | 5432 |
+| MinIO | `/minio/health/live` | 9000 |
+| LiteLLM | `/health/readiness` | 4000 |
 
 ## License
 

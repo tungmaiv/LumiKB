@@ -1,0 +1,641 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.8</storyId>
+    <title>Search Result Actions</title>
+    <status>ready</status>
+    <generatedAt>2025-11-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-8-search-result-actions.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user reviewing search results</asA>
+    <iWant>quick action buttons on each result card (View, Similar, Use in Draft)</iWant>
+    <soThat>I can efficiently explore related content, open source documents, and prepare material for document generation without manual navigation</soThat>
+    <tasks>
+### Backend Tasks:
+- Task 1: Create Similar Search API Endpoint (AC: #5)
+  - Add POST /api/v1/search/similar endpoint
+  - Create SimilarSearchRequest schema (chunk_id, limit, kb_ids)
+  - Handle 404/403 errors
+  - Integration tests
+
+- Task 2: Implement Similar Search Service Method (AC: #5, #6)
+  - Add similar_search() to SearchService
+  - Retrieve chunk embedding from Qdrant
+  - Check user KB permissions
+  - Exclude original chunk from results
+  - Unit tests
+
+### Frontend Tasks:
+- Task 3: Update SearchResultCard Component (AC: #1, #2, #3, #4)
+  - Add action buttons (View, Similar, Use in Draft)
+  - Implement navigation handlers
+  - Add visual feedback and badges
+  - Component tests
+
+- Task 4: Create Draft Selection Hook (AC: #4)
+  - Implement Zustand store with persist middleware
+  - Add addToDraft, removeFromDraft, clearAll, isInDraft methods
+  - Configure localStorage persistence
+  - Hook tests
+
+- Task 5: Create Draft Selection Panel Component (AC: #4)
+  - Display count of selected results
+  - Add "Clear All" and "Start Draft" buttons
+  - Show toast for Epic 4 placeholder
+  - Component tests
+
+- Task 6: Implement Similar Search API Client (AC: #3)
+  - Add similarSearch() method to search.ts
+  - Handle 404 errors
+  - API integration test
+
+- Task 7: Update Search Page for Similar Query (AC: #3)
+  - Handle similar query parameter
+  - Update search bar text
+  - Render DraftSelectionPanel
+  - Page tests
+
+- Task 8: Create Document Viewer Page (AC: #2) - OPTIONAL MVP
+  - Document viewer page or link to metadata page
+  - Handle highlight query parameter
+
+- Task 9: Responsive Design for Action Buttons (AC: #8)
+  - Mobile/tablet/desktop layouts
+  - Touch target sizes
+
+- Task 10: Accessibility Implementation (AC: #7)
+  - Keyboard navigation
+  - Focus indicators
+  - ARIA labels
+
+### Testing Tasks:
+- Task 11: Backend Integration Tests (5 tests)
+- Task 12: Frontend Component Tests (7 tests)
+- Task 13: E2E Tests (Optional)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Action Buttons Appear on Result Cards
+- Three action buttons visible on each result card: View, Similar, Use in Draft
+- Buttons appear on hover (desktop) or always visible (mobile/tablet)
+- Tooltips explain each action
+- Design follows Trust Blue theme (#0066CC)
+
+AC2: "View" Button Opens Document Viewer
+- View button opens source document in viewer
+- Viewer scrolls to relevant section (char_start/char_end)
+- Cited passage highlighted with yellow background
+- Full document accessible
+- Close button returns to search
+
+AC3: "Similar" Button Finds Similar Content
+- Triggers new search using chunk's embedding
+- Query text updates to "Similar to: [document name]"
+- Results sorted by similarity score
+- Original chunk excluded from results
+- Supports cross-KB similar search
+
+AC4: "Use in Draft" Marks Result for Generation
+- Result marked as "selected for draft"
+- Visual badge appears: "Selected for draft" (green checkmark)
+- Button toggles to "Remove from Draft"
+- Floating summary panel shows count and actions
+- Selections persist in localStorage
+- Scoped to current session (cleared on logout)
+
+AC5: Similar Search Backend Endpoint
+- Endpoint: POST /api/v1/search/similar
+- Retrieves chunk's embedding from Qdrant
+- Performs similarity search
+- Excludes original chunk
+- Returns SearchResponse schema
+- Respects user KB permissions
+
+AC6: Error Handling for Similar Search
+- 404: "Source content no longer available"
+- Empty results: "No similar content found. Try broadening your search."
+- User-friendly error messages
+- Retry/fallback options
+
+AC7: Action Button Accessibility
+- Keyboard navigation (Tab, Enter, Space)
+- Focus indicators meet WCAG 2.1 AA
+- Screen readers announce button labels
+- Logical focus order
+
+AC8: Mobile/Tablet Responsive Behavior
+- Mobile (<768px): buttons always visible, vertical layout, min 44x44px touch targets
+- Tablet (768-1023px): inline button layout, adequate spacing
+- Desktop: hover to reveal buttons
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" title="Product Requirements Document">
+        <section name="Semantic Search & Q&A">FR24-FR30: Semantic search, quick search variants (FR24a-d), inline citations (FR27a), source navigation (FR28a-b), cross-KB default (FR29a), confidence indicators (FR30a-f)</section>
+        <section name="Citation & Provenance">FR43-FR46: Every AI statement traces to sources, citations with doc/section/page, preview cited content, log sources used</section>
+        <snippet>FR30b: Users can perform quick actions on search results: "Use in draft" | "View source" | "Save for later"</snippet>
+      </doc>
+
+      <doc path="docs/architecture.md" title="Architecture Document">
+        <section name="API Contracts">POST /api/v1/search/similar endpoint pattern, SearchResponse schema reuse, 200/404/403 status codes</section>
+        <section name="Frontend Structure">Component organization - components/search/, components/documents/, lib/api/search.ts, lib/hooks/</section>
+        <snippet>State Management Pattern: Zustand store with localStorage persistence for global state</snippet>
+      </doc>
+
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification">
+        <section name="Novel Pattern 3: Generate-with-Citations">Generate Draft pattern with action buttons on result cards</section>
+        <section name="Search Patterns">"Use in Draft" marks result for generation, floating summary panel with count</section>
+        <snippet>Design for skepticism: Make verification frictionless, inline citations always visible</snippet>
+      </doc>
+
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Epic 3 Technical Specification">
+        <section name="SearchService">Similar search method using chunk embeddings, reuse _search_collections(), exclude original chunk</section>
+        <section name="API Endpoints">POST /api/v1/search/similar - SimilarSearchRequest schema (chunk_id, limit, kb_ids)</section>
+        <snippet>Cross-KB search is DEFAULT behavior; filter by KB after viewing results</snippet>
+      </doc>
+
+      <doc path="docs/epics.md" title="Epics Document">
+        <section name="Epic 3 - Story 3.8">Search Result Actions: Three action buttons (View, Similar, Use in Draft) on each result card</section>
+        <snippet>Action buttons reduce friction: 3 clicks → 1 click for common workflows</snippet>
+      </doc>
+    </docs>
+    <code>
+      <backend>
+        <file path="backend/app/services/search_service.py" category="core">
+          <snippet>SearchService class with search() method - orchestrates search pipeline (permission check, embedding, Qdrant query, metadata assembly, audit logging)</snippet>
+          <snippet>Pattern: async def search(...) -> SearchResponse | AsyncGenerator[SSEEvent, None]</snippet>
+          <relevance>Need to add similar_search() method following same pattern</relevance>
+        </file>
+
+        <file path="backend/app/schemas/search.py" category="contracts">
+          <snippet>SearchRequest, SearchResponse, SearchResultSchema already defined</snippet>
+          <snippet>Need to add: SimilarSearchRequest with chunk_id, limit, kb_ids fields</snippet>
+          <relevance>Reuse existing SearchResponse schema for similar search results</relevance>
+        </file>
+
+        <file path="backend/app/api/v1/search.py" category="api">
+          <snippet>POST /api/v1/search endpoint exists for regular search</snippet>
+          <snippet>Need to add: POST /api/v1/search/similar endpoint</snippet>
+          <relevance>Follow same auth/permission pattern as existing search endpoint</relevance>
+        </file>
+      </backend>
+
+      <frontend>
+        <file path="frontend/src/components/search/search-result-card.tsx" category="components">
+          <snippet>ALREADY IMPLEMENTED: Three action buttons (Use in Draft, View, Similar) with handlers</snippet>
+          <snippet>Props: onUseInDraft, onView, onFindSimilar callback handlers</snippet>
+          <relevance>Component UI complete - need to wire up backend API and state management</relevance>
+        </file>
+
+        <file path="frontend/src/app/(protected)/search/page.tsx" category="pages">
+          <snippet>Search page with useSearchStream hook, citation rendering, navigation to documents</snippet>
+          <snippet>Uses router.push() for navigation, searchParams for query state</snippet>
+          <relevance>Need to handle onUseInDraft (draft store), onView (doc viewer), onFindSimilar (similar API call)</relevance>
+        </file>
+
+        <file path="frontend/src/lib/stores/kb-store.ts" category="state">
+          <snippet>Zustand store pattern: create<Store>((set, get) => ({ state, actions }))</snippet>
+          <snippet>Example: fetchKbs async action with try/catch, set({ isLoading, error })</snippet>
+          <relevance>Need to create draft-store.ts following same Zustand pattern with persist middleware</relevance>
+        </file>
+
+        <file path="frontend/src/lib/hooks/use-search-stream.ts" category="hooks">
+          <snippet>Hook for SSE search streaming with answer, citations, confidence, isLoading, error state</snippet>
+          <relevance>Need to create similar API client hook/function for similar search</relevance>
+        </file>
+      </frontend>
+
+      <testing>
+        <directory path="frontend/src/components/search/__tests__/">
+          <files>citation-card.test.tsx, confidence-indicator.test.tsx, search-result-card.test.tsx</files>
+          <pattern>Vitest + React Testing Library - render(), screen.getByText(), fireEvent.click()</pattern>
+          <relevance>Need to add tests for draft selection hook and DraftSelectionPanel component</relevance>
+        </directory>
+
+        <directory path="backend/tests/integration/">
+          <pattern>pytest fixtures, async def test_*, client.post(), assert response.status_code == 200</pattern>
+          <relevance>Need to add test_similar_search.py for similar search endpoint</relevance>
+        </directory>
+      </testing>
+    </code>
+    <dependencies>
+      <backend>
+        <dependency name="QdrantClient" from="app.integrations.qdrant_client">
+          <usage>Retrieve chunk payload by point ID, perform vector similarity search</usage>
+          <method>client.retrieve(collection_name, ids=[chunk_id]) - Get chunk embedding</method>
+          <method>client.search(collection_name, query_vector, limit) - Find similar</method>
+        </dependency>
+
+        <dependency name="KBPermissionService" from="app.services.kb_service">
+          <usage>Check user has READ access to KB before allowing similar search</usage>
+          <method>check_permission(user_id, kb_id, PermissionType.READ)</method>
+        </dependency>
+
+        <dependency name="AuditService" from="app.services.audit_service">
+          <usage>Log similar search queries (same pattern as regular search)</usage>
+          <method>log_search(user_id, action='similar_search', query_details)</method>
+        </dependency>
+      </backend>
+
+      <frontend>
+        <dependency name="zustand" version="^4.4.0">
+          <usage>Create draft selection store with state management</usage>
+          <import>import { create } from 'zustand'</import>
+        </dependency>
+
+        <dependency name="zustand/middleware" version="^4.4.0">
+          <usage>Persist middleware for localStorage persistence of draft selections</usage>
+          <import>import { persist } from 'zustand/middleware'</import>
+        </dependency>
+
+        <dependency name="next/navigation">
+          <usage>useRouter for navigation, useSearchParams for query handling</usage>
+          <method>router.push('/search?q=Similar+to+doc.pdf&chunk_id=xyz')</method>
+        </dependency>
+
+        <dependency name="@/lib/api/client">
+          <usage>apiClient.post() for similar search API calls</usage>
+          <pattern>try/catch with ApiError handling</pattern>
+        </dependency>
+      </frontend>
+
+      <external>
+        <service name="Qdrant">
+          <endpoint>collection kb_{kb_id}</endpoint>
+          <operation>retrieve(ids=[chunk_id]) - Get chunk's embedding vector</operation>
+          <operation>search(query_vector) - Find similar chunks excluding original</operation>
+        </service>
+      </external>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <technical>
+      <constraint type="performance">
+        <description>Similar search response time must be &lt; 3 seconds (p95)</description>
+        <rationale>Same user expectation as regular search - perceived as instant</rationale>
+        <implementation>Cache chunk embeddings in Qdrant, parallel KB queries</implementation>
+      </constraint>
+
+      <constraint type="security">
+        <description>Similar search MUST respect KB permissions</description>
+        <rationale>User should not discover content from KBs they don't have access to</rationale>
+        <implementation>Check READ permission before retrieving chunk, filter results by accessible KBs</implementation>
+      </constraint>
+
+      <constraint type="data-integrity">
+        <description>If original chunk deleted, return 404 with clear error message</description>
+        <rationale>User clicking "Similar" on stale result should get helpful feedback</rationale>
+        <implementation>Handle Qdrant point not found exception, return "Source content no longer available"</implementation>
+      </constraint>
+
+      <constraint type="ux-consistency">
+        <description>Similar search must exclude original chunk from results</description>
+        <rationale>Showing same result as "similar to itself" is confusing</rationale>
+        <implementation>Filter out chunk_id == original_chunk_id in search results</implementation>
+      </constraint>
+    </technical>
+
+    <business>
+      <constraint type="epic-4-handoff">
+        <description>"Use in Draft" is placeholder for Epic 4 (document generation)</description>
+        <rationale>Epic 3 focuses on search; generation is Epic 4 scope</rationale>
+        <implementation>Show toast: "Draft generation coming in next release" when clicked</implementation>
+      </constraint>
+
+      <constraint type="mobile-support">
+        <description>Action buttons must work on mobile/tablet with touch targets ≥44x44px</description>
+        <rationale>UX design spec AC8 - responsive design requirement</rationale>
+        <implementation>Use responsive Tailwind classes, test on mobile breakpoint &lt;768px</implementation>
+      </constraint>
+    </business>
+
+    <testing>
+      <constraint type="coverage">
+        <description>Integration tests must cover permission enforcement for similar search</description>
+        <rationale>Security-critical: prevent unauthorized access to KB content</rationale>
+        <implementation>Test: User A tries similar search on chunk from User B's KB → 403/404</implementation>
+      </constraint>
+
+      <constraint type="accessibility">
+        <description>Action buttons must be keyboard navigable (Tab, Enter, Space)</description>
+        <rationale>WCAG 2.1 AA compliance per architecture.md</rationale>
+        <implementation>Test with keyboard-only navigation, verify focus indicators</implementation>
+      </constraint>
+    </testing>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/search/similar">
+        <description>Find content similar to a specific chunk</description>
+        <request>
+          <schema>SimilarSearchRequest</schema>
+          <fields>
+            <field name="chunk_id" type="str" required="true">Qdrant point ID of source chunk</field>
+            <field name="kb_ids" type="list[str] | null" required="false">KBs to search, null = all permitted</field>
+            <field name="limit" type="int" default="10">Max results (1-50)</field>
+          </fields>
+        </request>
+        <response>
+          <success status="200">
+            <schema>SearchResponse</schema>
+            <note>Reuses existing SearchResponse - same structure as regular search</note>
+          </success>
+          <error status="404">Chunk not found or user lacks access</error>
+          <error status="403">User lacks READ permission for KB containing chunk</error>
+        </response>
+      </endpoint>
+    </api>
+
+    <component name="DraftSelectionPanel">
+      <description>Floating summary panel showing count of selected results for draft generation</description>
+      <props>
+        <prop name="count" type="number">Number of results selected</prop>
+        <prop name="onClearAll" type="() => void">Clear all selections</prop>
+        <prop name="onStartDraft" type="() => void">Navigate to draft generation (Epic 4 placeholder)</prop>
+      </props>
+      <state>
+        <source>useDraftStore() - Zustand store with persist</source>
+        <fields>
+          <field>selectedResults: SearchResult[]</field>
+          <field>addToDraft(result: SearchResult)</field>
+          <field>removeFromDraft(resultId: string)</field>
+          <field>clearAll()</field>
+          <field>isInDraft(resultId: string): boolean</field>
+        </fields>
+      </state>
+      <rendering>
+        <condition>Only visible when count > 0</condition>
+        <position>Fixed bottom-right corner (mobile: bottom center)</position>
+        <design>Badge with count, "Clear All" and "Start Draft" buttons</design>
+      </rendering>
+    </component>
+
+    <store name="draft-store">
+      <description>Zustand store for managing draft selections with localStorage persistence</description>
+      <state>
+        <field name="selectedResults" type="SearchResult[]">Array of selected search results</field>
+      </state>
+      <actions>
+        <action name="addToDraft">Add result to selections, persist to localStorage</action>
+        <action name="removeFromDraft">Remove result by ID, update localStorage</action>
+        <action name="clearAll">Clear all selections, clear localStorage</action>
+        <action name="isInDraft">Check if result ID exists in selections</action>
+      </actions>
+      <persistence>
+        <storage>localStorage</storage>
+        <key>"lumikb-draft-selections"</key>
+        <scope>Current session - cleared on logout</scope>
+      </persistence>
+    </store>
+
+    <navigation>
+      <route name="Document Viewer">
+        <path>/documents/{documentId}?highlight={charStart}-{charEnd}</path>
+        <trigger>SearchResultCard "View" button onClick</trigger>
+        <params>
+          <param name="documentId">UUID of document</param>
+          <param name="highlight">Query param for highlighting range</param>
+        </params>
+        <note>Optional for MVP - can link to document metadata page if viewer not ready</note>
+      </route>
+
+      <route name="Similar Search">
+        <path>/search?q=Similar+to+{documentName}&amp;chunk_id={chunkId}</path>
+        <trigger>SearchResultCard "Similar" button onClick</trigger>
+        <params>
+          <param name="q">Human-readable query text</param>
+          <param name="chunk_id">Qdrant point ID for similarity search</param>
+        </params>
+        <behavior>Search page detects chunk_id param, calls POST /api/v1/search/similar instead of regular search</behavior>
+      </route>
+    </navigation>
+  </interfaces>
+  <tests>
+    <standards>
+      <backend>
+        <framework>pytest with async support</framework>
+        <pattern>
+          <file>test_{feature}.py in backend/tests/integration/</file>
+          <structure>async def test_{scenario}__{expected_behavior}(client, test_db)</structure>
+          <assertions>assert response.status_code == 200, assert data["field"] == expected</assertions>
+        </pattern>
+        <fixtures>
+          <fixture>client - AsyncClient for API calls</fixture>
+          <fixture>test_db - AsyncSession with test database</fixture>
+          <fixture>test_user - User factory with auth</fixture>
+          <fixture>test_kb - KnowledgeBase factory</fixture>
+          <fixture>test_document - Document factory with chunks</fixture>
+        </fixtures>
+        <coverage>Integration tests for API endpoints, unit tests for service methods</coverage>
+      </backend>
+
+      <frontend>
+        <framework>Vitest + React Testing Library</framework>
+        <pattern>
+          <file>{component-name}.test.tsx in same __tests__/ directory</file>
+          <structure>describe('ComponentName', () => { it('does something', () => {...}) })</structure>
+          <rendering>render(&lt;Component /&gt;), screen.getByRole(), fireEvent.click()</rendering>
+        </pattern>
+        <mocking>
+          <stores>vi.mock('@/lib/stores/draft-store')</stores>
+          <navigation>vi.mock('next/navigation', () => ({ useRouter: () => mockRouter }))</navigation>
+          <api>vi.mock('@/lib/api/client')</api>
+        </mocking>
+        <coverage>All new components (DraftSelectionPanel), updated components (SearchResultCard handlers), hooks (useDraftStore)</coverage>
+      </frontend>
+
+      <accessibility>
+        <requirement>WCAG 2.1 Level AA compliance</requirement>
+        <tools>axe-core via @axe-core/react for automated a11y testing</tools>
+        <manual>Keyboard-only navigation testing (Tab, Enter, Space, Escape)</manual>
+        <screenreader>Test button labels announced correctly</screenreader>
+      </accessibility>
+    </standards>
+
+    <locations>
+      <backend>
+        <file path="backend/tests/integration/test_similar_search.py">
+          <tests>
+            <test>test_similar_search__returns_similar_chunks</test>
+            <test>test_similar_search__excludes_original_chunk</test>
+            <test>test_similar_search__respects_kb_permissions (P0 security test)</test>
+            <test>test_similar_search__chunk_not_found__returns_404</test>
+            <test>test_similar_search__cross_kb_search</test>
+          </tests>
+        </file>
+
+        <file path="backend/tests/unit/test_search_service.py">
+          <tests>
+            <test>test_similar_search_service__retrieves_embedding</test>
+            <test>test_similar_search_service__filters_original_chunk</test>
+          </tests>
+        </file>
+      </backend>
+
+      <frontend>
+        <file path="frontend/src/lib/stores/__tests__/draft-store.test.ts">
+          <tests>
+            <test>test_addToDraft__adds_result_to_store</test>
+            <test>test_removeFromDraft__removes_by_id</test>
+            <test>test_clearAll__empties_selections</test>
+            <test>test_isInDraft__returns_true_when_exists</test>
+            <test>test_persistence__survives_page_reload (check localStorage)</test>
+          </tests>
+        </file>
+
+        <file path="frontend/src/components/search/__tests__/draft-selection-panel.test.tsx">
+          <tests>
+            <test>test_renders_when_count_greater_than_zero</test>
+            <test>test_hidden_when_count_is_zero</test>
+            <test>test_clear_all_button__calls_clearAll</test>
+            <test>test_start_draft_button__shows_toast_placeholder</test>
+            <test>test_displays_correct_count</test>
+          </tests>
+        </file>
+
+        <file path="frontend/src/components/search/__tests__/search-result-card.test.tsx">
+          <tests>
+            <test>test_use_in_draft_button__calls_onUseInDraft (update existing test)</test>
+            <test>test_view_button__calls_onView_with_document_id</test>
+            <test>test_similar_button__calls_onFindSimilar_with_result</test>
+            <test>test_buttons_are_keyboard_accessible</test>
+          </tests>
+        </file>
+
+        <file path="frontend/src/app/(protected)/search/__tests__/page.test.tsx">
+          <tests>
+            <test>test_detects_chunk_id_param__calls_similar_search</test>
+            <test>test_onUseInDraft__adds_to_draft_store</test>
+            <test>test_onView__navigates_to_document_viewer</test>
+            <test>test_onFindSimilar__navigates_with_chunk_id</test>
+          </tests>
+        </file>
+      </frontend>
+
+      <e2e>
+        <note>Optional for MVP - defer to Epic 5 Docker setup</note>
+        <file path="frontend/e2e/search-result-actions.spec.ts">
+          <tests>
+            <test>test_user_clicks_similar__sees_similar_results</test>
+            <test>test_user_adds_to_draft__sees_panel_with_count</test>
+            <test>test_user_clears_draft__panel_disappears</test>
+          </tests>
+        </file>
+      </e2e>
+    </locations>
+
+    <ideas>
+      <scenario name="Similar Search Happy Path">
+        <description>User finds relevant chunk, clicks "Similar", sees related content</description>
+        <steps>
+          1. Search for "authentication"
+          2. View result card with relevance 92%
+          3. Click "Similar" button
+          4. Backend retrieves chunk embedding from Qdrant
+          5. Searches across permitted KBs, excludes original
+          6. Returns top 10 similar chunks
+          7. Frontend shows "Similar to: Auth Document.pdf" query
+          8. Results render with same SearchResultCard UI
+        </steps>
+        <assertions>
+          - Original chunk NOT in results
+          - All results have relevance scores
+          - Query text shows "Similar to: {doc name}"
+        </assertions>
+      </scenario>
+
+      <scenario name="Permission Enforcement">
+        <description>User tries similar search on chunk from KB they can't access</description>
+        <steps>
+          1. User A has READ access to KB1 only
+          2. User A somehow gets chunk_id from KB2 (User B's KB)
+          3. Clicks similar (or manually crafts request)
+          4. Backend checks KB permission → DENY
+          5. Returns 404 (not 403 to avoid info disclosure)
+        </steps>
+        <assertions>
+          - 404 response
+          - Error message: "Source content no longer available"
+          - No data leaked about KB2 existence
+        </assertions>
+      </scenario>
+
+      <scenario name="Draft Selection Persistence">
+        <description>User selects results for draft, refreshes page, selections persist</description>
+        <steps>
+          1. Search for "RFP examples"
+          2. Click "Use in Draft" on 3 results
+          3. DraftSelectionPanel shows "3 selected"
+          4. Refresh page (F5)
+          5. Navigate back to /search
+          6. Panel still shows "3 selected"
+          7. Click "Clear All"
+          8. Panel disappears
+          9. Refresh page
+          10. Panel remains hidden (localStorage cleared)
+        </steps>
+        <assertions>
+          - localStorage key "lumikb-draft-selections" exists
+          - Survives page refresh
+          - Cleared on "Clear All"
+        </assertions>
+      </scenario>
+
+      <scenario name="Mobile Touch Targets">
+        <description>Action buttons work on mobile with adequate touch targets</description>
+        <steps>
+          1. Open search page on mobile viewport (&lt;768px)
+          2. Search returns results
+          3. Action buttons always visible (not on hover)
+          4. Measure button sizes
+          5. Tap "View" button with finger
+          6. Tap "Similar" button
+          7. Tap "Use in Draft" button
+        </steps>
+        <assertions>
+          - All buttons ≥44x44px touch target
+          - Buttons stacked vertically on mobile
+          - No accidental taps (adequate spacing)
+        </assertions>
+      </scenario>
+
+      <scenario name="Empty Similar Results">
+        <description>Similar search returns no results (rare but possible)</description>
+        <steps>
+          1. Click "Similar" on highly unique chunk
+          2. Backend searches but finds no similar content (score too low)
+          3. Returns SearchResponse with empty results array
+          4. Frontend shows friendly message
+        </steps>
+        <assertions>
+          - Message: "No similar content found. Try broadening your search."
+          - Option to go back or refine query
+        </assertions>
+      </scenario>
+
+      <scenario name="Epic 4 Handoff - Use in Draft">
+        <description>"Use in Draft" shows placeholder toast, preps for Epic 4</description>
+        <steps>
+          1. Click "Use in Draft" on result
+          2. Result marked with green badge "Selected for draft"
+          3. DraftSelectionPanel appears with count
+          4. Click "Start Draft" button
+          5. Toast appears: "Draft generation coming in next release"
+          6. (Epic 4 will implement actual navigation to draft editor)
+        </steps>
+        <assertions>
+          - Toast dismisses after 4 seconds
+          - Selections persist in localStorage for Epic 4
+          - No errors in console
+        </assertions>
+      </scenario>
+    </ideas>
+  </tests>
+</story-context>

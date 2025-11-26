@@ -1,0 +1,183 @@
+/**
+ * Tests for verification flow components (Story 3.10)
+ */
+
+import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { VerifyAllButton } from '../verify-all-button';
+import { VerificationControls } from '../verification-controls';
+import { useVerificationStore } from '@/lib/hooks/use-verification';
+import type { Citation } from '../citation-card';
+
+// Mock citations
+const mockCitations: Citation[] = [
+  {
+    number: 1,
+    documentId: 'doc1',
+    documentName: 'Document 1',
+    excerpt: 'Excerpt 1',
+    charStart: 0,
+    charEnd: 100,
+  },
+  {
+    number: 2,
+    documentId: 'doc2',
+    documentName: 'Document 2',
+    excerpt: 'Excerpt 2',
+    charStart: 0,
+    charEnd: 100,
+  },
+  {
+    number: 3,
+    documentId: 'doc3',
+    documentName: 'Document 3',
+    excerpt: 'Excerpt 3',
+    charStart: 0,
+    charEnd: 100,
+  },
+];
+
+describe('VerifyAllButton', () => {
+  beforeEach(() => {
+    // Reset store
+    useVerificationStore.setState({
+      activeAnswerId: null,
+      currentCitationIndex: 0,
+      verifiedCitations: new Set(),
+      isVerifying: false,
+      totalCitations: 0,
+    });
+  });
+
+  test('displays citation count for multiple citations', () => {
+    render(<VerifyAllButton answerId="test" citations={mockCitations} isStreaming={false} />);
+
+    expect(screen.getByRole('button')).toHaveTextContent('Verify All (3 citations)');
+  });
+
+  test('shows warning for zero citations', () => {
+    render(<VerifyAllButton answerId="test" citations={[]} isStreaming={false} />);
+
+    expect(screen.getByText(/No sources cited - use with caution/i)).toBeInTheDocument();
+  });
+
+  test('shows Preview Citation button for single citation', () => {
+    render(<VerifyAllButton answerId="test" citations={[mockCitations[0]]} isStreaming={false} />);
+
+    expect(screen.getByRole('button')).toHaveTextContent('Preview Citation');
+  });
+
+  test('clicking Verify All activates verification mode', () => {
+    render(<VerifyAllButton answerId="test" citations={mockCitations} isStreaming={false} />);
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(useVerificationStore.getState().isVerifying).toBe(true);
+    expect(useVerificationStore.getState().activeAnswerId).toBe('test');
+  });
+
+  test('displays progress badge when partially verified', () => {
+    useVerificationStore.setState({
+      verifiedCitations: new Set([1, 2]),
+      totalCitations: 3,
+    });
+
+    render(<VerifyAllButton answerId="test" citations={mockCitations} isStreaming={false} />);
+
+    expect(screen.getByText('2/3 verified')).toBeInTheDocument();
+  });
+
+  test('displays All verified badge when complete', () => {
+    useVerificationStore.setState({
+      verifiedCitations: new Set([1, 2, 3]),
+      totalCitations: 3,
+    });
+
+    render(<VerifyAllButton answerId="test" citations={mockCitations} isStreaming={false} />);
+
+    expect(screen.getByText('✓ All verified')).toBeInTheDocument();
+  });
+});
+
+describe('VerificationControls', () => {
+  beforeEach(() => {
+    useVerificationStore.setState({
+      activeAnswerId: 'test',
+      currentCitationIndex: 0,
+      verifiedCitations: new Set(),
+      isVerifying: true,
+      totalCitations: 3,
+    });
+  });
+
+  test('displays progress correctly', () => {
+    render(<VerificationControls citations={mockCitations} />);
+
+    expect(screen.getByText('Citation 1 of 3')).toBeInTheDocument();
+  });
+
+  test('Previous button disabled on first citation', () => {
+    render(<VerificationControls citations={mockCitations} />);
+
+    const prevButton = screen.getByLabelText('Previous citation');
+    expect(prevButton).toBeDisabled();
+  });
+
+  test('Next button disabled on last citation', () => {
+    useVerificationStore.setState({ currentCitationIndex: 2 });
+    render(<VerificationControls citations={mockCitations} />);
+
+    const nextButton = screen.getByLabelText('Next citation');
+    expect(nextButton).toBeDisabled();
+  });
+
+  test('Next button navigates to next citation', () => {
+    render(<VerificationControls citations={mockCitations} />);
+
+    const nextButton = screen.getByLabelText('Next citation');
+    fireEvent.click(nextButton);
+
+    expect(useVerificationStore.getState().currentCitationIndex).toBe(1);
+  });
+
+  test('Previous button navigates to previous citation', () => {
+    useVerificationStore.setState({ currentCitationIndex: 1 });
+    render(<VerificationControls citations={mockCitations} />);
+
+    const prevButton = screen.getByLabelText('Previous citation');
+    fireEvent.click(prevButton);
+
+    expect(useVerificationStore.getState().currentCitationIndex).toBe(0);
+  });
+
+  test('Checkbox toggles verification state', () => {
+    render(<VerificationControls citations={mockCitations} />);
+
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+
+    expect(useVerificationStore.getState().verifiedCitations.has(1)).toBe(true);
+  });
+
+  test('Exit button deactivates verification mode', () => {
+    render(<VerificationControls citations={mockCitations} />);
+
+    const exitButton = screen.getByLabelText('Exit verification mode');
+    fireEvent.click(exitButton);
+
+    expect(useVerificationStore.getState().isVerifying).toBe(false);
+  });
+
+  test('All verified message appears when complete', () => {
+    useVerificationStore.setState({
+      verifiedCitations: new Set([1, 2, 3]),
+      currentCitationIndex: 2,
+    });
+
+    render(<VerificationControls citations={mockCitations} />);
+
+    expect(screen.getByText('All sources verified ✓')).toBeInTheDocument();
+  });
+});

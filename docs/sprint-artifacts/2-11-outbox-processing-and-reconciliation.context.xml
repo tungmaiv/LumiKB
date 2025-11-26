@@ -1,0 +1,331 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>11</storyId>
+    <title>Outbox Processing and Reconciliation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-11-outbox-processing-and-reconciliation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>reliable cross-service operations via the outbox pattern with reconciliation</iWant>
+    <soThat>document state remains consistent across PostgreSQL, MinIO, and Qdrant</soThat>
+    <tasks>
+      <task id="1" ac="5">Add kb.delete event handler to outbox worker
+        <subtask>Add `kb.delete` event type handler in `backend/app/workers/outbox_tasks.py:dispatch_event()`</subtask>
+        <subtask>Extract kb_id from payload</subtask>
+        <subtask>Soft-delete all documents in KB (UPDATE documents SET status='archived', deleted_at=NOW() WHERE kb_id=?)</subtask>
+        <subtask>Delete Qdrant collection using `qdrant_client.delete_collection(f"kb_{kb_id}")`</subtask>
+        <subtask>Delete all MinIO objects with prefix `kb-{kb_id}/`</subtask>
+        <subtask>Log completion with document_count, vector_collection_deleted, files_deleted</subtask>
+        <subtask>Add unit test for kb.delete handler</subtask>
+      </task>
+      <task id="2" ac="3,4">Implement reconciliation job
+        <subtask>Create `reconcile_data_consistency` task in `backend/app/workers/outbox_tasks.py`</subtask>
+        <subtask>Add to Celery Beat schedule (hourly)</subtask>
+        <subtask>Implement `_detect_ready_docs_without_vectors()`: Query docs WHERE status='ready', check Qdrant collection has points</subtask>
+        <subtask>Implement `_detect_orphan_vectors()`: For each KB collection, get unique document_ids from Qdrant, check against PostgreSQL</subtask>
+        <subtask>Implement `_detect_orphan_files()`: List MinIO objects, parse kb_id and doc_id, check against PostgreSQL</subtask>
+        <subtask>Implement `_detect_stale_processing()`: Query docs WHERE status='processing' AND processing_started_at &lt; NOW() - 30 minutes</subtask>
+        <subtask>Create correction events for resolvable issues</subtask>
+        <subtask>Log all anomalies with structured logging</subtask>
+        <subtask>Alert if anomaly_count > 5</subtask>
+      </task>
+      <task id="3" ac="3,4">Add document.reprocess event handler
+        <subtask>Add `document.reprocess` event type handler in outbox_tasks.py</subtask>
+        <subtask>Reset document status to PENDING, clear last_error, reset retry_count=0</subtask>
+        <subtask>Dispatch to process_document task</subtask>
+        <subtask>Log the reprocessing trigger with reason (reconciliation)</subtask>
+      </task>
+      <task id="4" ac="6">Implement processed event cleanup job
+        <subtask>Create `cleanup_processed_outbox_events` task in `backend/app/workers/outbox_tasks.py`</subtask>
+        <subtask>Add to Celery Beat schedule (daily at 3 AM UTC)</subtask>
+        <subtask>Delete events WHERE processed_at IS NOT NULL AND processed_at &lt; NOW() - 7 days</subtask>
+        <subtask>Delete failed events WHERE attempts >= 5 AND created_at &lt; NOW() - 30 days</subtask>
+        <subtask>Log deletion counts</subtask>
+      </task>
+      <task id="5" ac="7">Add admin outbox stats endpoint
+        <subtask>Create `GET /api/v1/admin/outbox/stats` endpoint in `backend/app/api/v1/admin.py`</subtask>
+        <subtask>Require admin authentication (is_superuser=True)</subtask>
+        <subtask>Query outbox table for pending_events, failed_events, processed_last_hour, processed_last_24h, queue_depth</subtask>
+        <subtask>Calculate average_processing_time_ms from last 100 events</subtask>
+        <subtask>Create Pydantic response schema `OutboxStats`</subtask>
+        <subtask>Add integration test</subtask>
+      </task>
+      <task id="6" ac="2">Add admin alert logging for max retry events
+        <subtask>In `_increment_event_attempts()`, check if new attempts count reaches MAX_OUTBOX_ATTEMPTS</subtask>
+        <subtask>If max reached, log with `alert="ADMIN_INTERVENTION_REQUIRED"`, `severity="CRITICAL"`</subtask>
+        <subtask>Include event_id, event_type, last_error, aggregate_id in alert log</subtask>
+      </task>
+      <task id="7" ac="1,2">Write integration tests for outbox processing
+        <subtask>Create `backend/tests/integration/test_outbox_processing.py`</subtask>
+        <subtask>Test: Events are processed in order</subtask>
+        <subtask>Test: Failed events increment attempts</subtask>
+        <subtask>Test: Events at max attempts are not reprocessed</subtask>
+        <subtask>Test: processed_at is set on success</subtask>
+        <subtask>Test: Admin alert logged on max retries</subtask>
+      </task>
+      <task id="8" ac="3,4">Write integration tests for reconciliation
+        <subtask>Create `backend/tests/integration/test_reconciliation.py`</subtask>
+        <subtask>Test: Detects READY doc without vectors</subtask>
+        <subtask>Test: Detects stale PROCESSING docs</subtask>
+        <subtask>Test: Creates correction events for resolvable issues</subtask>
+        <subtask>Test: Logs orphaned resources without creating events</subtask>
+        <subtask>Test: Alerts when anomaly_count > 5</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Given events exist in the outbox table When the outbox worker runs (every 10 seconds) Then: Unprocessed events are picked up with row-level locking (skip_locked); Events are dispatched to appropriate handlers based on event_type; processed_at is set on successful dispatch; attempts is incremented on failure</ac>
+    <ac id="2">Given an event fails repeatedly When attempts reaches 5 Then: The event is marked as failed (attempts >= MAX_ATTEMPTS); An admin alert is logged with severity="CRITICAL" and alert="ADMIN_INTERVENTION_REQUIRED"; The event is NOT retried further (dead letter behavior)</ac>
+    <ac id="3">Given the reconciliation job runs (hourly via Celery Beat) When it scans for inconsistencies Then it detects: Documents in READY status without corresponding vectors in Qdrant; Vectors in Qdrant without corresponding document records in PostgreSQL; Files in MinIO without corresponding document records in PostgreSQL; Documents in PROCESSING status for more than 30 minutes (stale processing)</ac>
+    <ac id="4">Given reconciliation detects an inconsistency When processing each anomaly Then: The inconsistency is logged with full details; A correction outbox event is created for resolvable issues (READY without vectors -> document.reprocess, Stale PROCESSING -> document.reprocess); Orphaned resources are logged only (no auto-cleanup in MVP); Admin alert generated if anomaly count exceeds threshold (>5)</ac>
+    <ac id="5">Given a KB is deleted (event_type='kb.delete') When the outbox worker processes it Then: All documents in the KB are soft-deleted (status=ARCHIVED); The Qdrant collection (kb_{kb_id}) is deleted; All files in MinIO bucket path (kb-{kb_id}/) are deleted; The KB status is confirmed as ARCHIVED</ac>
+    <ac id="6">Given the outbox has processed events older than 7 days When the cleanup job runs (daily) Then: Processed events older than 7 days are deleted; Failed events are retained for 30 days before deletion; Deletion count is logged</ac>
+    <ac id="7">Given I query GET /api/v1/admin/outbox/stats (admin only) When authenticated as admin Then: I receive counts (pending_events, failed_events, processed_last_hour, processed_last_24h); I receive queue_depth; I receive average_processing_time_ms for last 100 events</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Reliability Requirements (lines 580-588)</section>
+        <snippet>Outbox polling every 10 seconds via Celery Beat. Reconciliation hourly job to detect inconsistencies. Zero data loss via transactional outbox pattern.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Failure Handling Strategy (lines 145-155)</section>
+        <snippet>Max 5 attempts before giving up. Worker crash detection via visibility timeout. Exponential backoff for retries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Data Models - Outbox (lines 305-317)</section>
+        <snippet>Event types: document.process, document.delete, kb.delete. Processed events cleaned after 7 days. Index on created_at WHERE processed_at IS NULL.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Pattern 2: Transactional Outbox (lines 439-522)</section>
+        <snippet>Document operations touch PostgreSQL, MinIO, and Qdrant. Outbox ensures eventual consistency. Reconciliation job runs hourly to detect drift.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Document Status State Machine (lines 444-479)</section>
+        <snippet>States: PENDING -> PROCESSING -> READY/FAILED -> ARCHIVED. Status changes tracked with processing_started_at and processing_completed_at timestamps.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Logging Strategy (line 628)</section>
+        <snippet>Structured JSON logs with structlog. Include request_id, user_id, duration_ms. Alert fields for critical issues.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 2.11 (lines 926-958)</section>
+        <snippet>Original story definition. Outbox processing, reconciliation hourly job. Defensive approach - logs and alerts, doesn't auto-fix orphans.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/2-10-document-deletion.md</path>
+        <title>Story 2.10 Document Deletion</title>
+        <section>Dev Agent Record (referenced)</section>
+        <snippet>Outbox worker pattern at outbox_tasks.py. Celery Beat config at celery_app.py:49-54. Row-level locking with skip_locked=True. run_async helper for Celery tasks.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>backend/app/workers/outbox_tasks.py</path>
+        <kind>worker</kind>
+        <symbol>process_outbox_events, dispatch_event, _poll_outbox_events, _mark_event_processed, _increment_event_attempts</symbol>
+        <lines>1-205</lines>
+        <reason>Primary file to extend with kb.delete handler, document.reprocess handler, reconciliation task, cleanup task, and admin alert logging</reason>
+      </file>
+      <file>
+        <path>backend/app/workers/celery_app.py</path>
+        <kind>config</kind>
+        <symbol>celery_app, beat_schedule</symbol>
+        <lines>49-54</lines>
+        <reason>Add reconciliation (hourly) and cleanup (daily) schedules to beat_schedule dict</reason>
+      </file>
+      <file>
+        <path>backend/app/workers/document_tasks.py</path>
+        <kind>worker</kind>
+        <symbol>process_document, delete_document_cleanup, _delete_document_vectors, _delete_document_files, run_async</symbol>
+        <lines>1-773</lines>
+        <reason>Reference implementation patterns for Celery tasks, async helpers, vector/file cleanup. REUSE run_async and status update patterns.</reason>
+      </file>
+      <file>
+        <path>backend/app/integrations/qdrant_client.py</path>
+        <kind>integration</kind>
+        <symbol>QdrantService, qdrant_service, delete_collection, collection_exists, delete_points_by_filter, get_collection_info</symbol>
+        <lines>1-395</lines>
+        <reason>Use for reconciliation vector detection, collection deletion for kb.delete, checking points exist for documents</reason>
+      </file>
+      <file>
+        <path>backend/app/integrations/minio_client.py</path>
+        <kind>integration</kind>
+        <symbol>MinIOService, minio_service, delete_file, health_check, _bucket_name</symbol>
+        <lines>1-277</lines>
+        <reason>Use for reconciliation file detection, bucket cleanup for kb.delete. NOTE: Need to add list_objects method for reconciliation.</reason>
+      </file>
+      <file>
+        <path>backend/app/models/outbox.py</path>
+        <kind>model</kind>
+        <symbol>Outbox</symbol>
+        <lines>1-67</lines>
+        <reason>Outbox model with event_type, aggregate_id, payload, processed_at, attempts, last_error fields</reason>
+      </file>
+      <file>
+        <path>backend/app/models/document.py</path>
+        <kind>model</kind>
+        <symbol>Document, DocumentStatus</symbol>
+        <lines>referenced</lines>
+        <reason>Document model with status enum (PENDING, PROCESSING, READY, FAILED, ARCHIVED), processing_started_at for stale detection</reason>
+      </file>
+      <file>
+        <path>backend/app/core/database.py</path>
+        <kind>config</kind>
+        <symbol>async_session_factory</symbol>
+        <lines>referenced</lines>
+        <reason>Async session factory for database operations in workers</reason>
+      </file>
+      <file>
+        <path>backend/app/services/kb_service.py</path>
+        <kind>service</kind>
+        <symbol>KBService</symbol>
+        <lines>referenced</lines>
+        <reason>KB service for checking KB status, may need for kb.delete verification</reason>
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="celery" version=">=5.5.0,<6.0.0">Task queue for outbox processing and scheduled jobs</package>
+        <package name="redis" version=">=7.1.0,<8.0.0">Celery broker and result backend</package>
+        <package name="sqlalchemy" version=">=2.0.44,<3.0.0">Database operations with async support</package>
+        <package name="asyncpg" version=">=0.30.0,<1.0.0">PostgreSQL async driver</package>
+        <package name="qdrant-client" version=">=1.10.0,<2.0.0">Vector database operations</package>
+        <package name="boto3" version=">=1.35.0">S3-compatible MinIO operations</package>
+        <package name="structlog" version=">=25.5.0,<26.0.0">Structured logging with alert fields</package>
+        <package name="pytest" version=">=8.0.0">Testing framework</package>
+        <package name="pytest-asyncio" version=">=0.24.0">Async test support</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="tech-spec-epic-2.md">Outbox polling every 10 seconds via Celery Beat</constraint>
+    <constraint source="tech-spec-epic-2.md">Max 5 attempts before marking event as failed (dead letter)</constraint>
+    <constraint source="tech-spec-epic-2.md">Reconciliation runs hourly to detect inconsistencies</constraint>
+    <constraint source="architecture.md">Processed events cleaned after 7 days; failed events retained 30 days</constraint>
+    <constraint source="architecture.md">Reconciliation is defensive - logs and alerts, doesn't auto-fix orphaned resources</constraint>
+    <constraint source="coding-standards.md">All timestamps in UTC timezone</constraint>
+    <constraint source="coding-standards.md">structlog for structured logging with alert= and severity= fields</constraint>
+    <constraint source="coding-standards.md">Error messages truncated to 1000 chars (see outbox_tasks.py:84)</constraint>
+    <constraint source="testing-backend-specification.md">Unit tests &lt;5s, Integration tests &lt;30s timeout</constraint>
+    <constraint source="testing-backend-specification.md">Use @pytest.mark.unit and @pytest.mark.integration markers</constraint>
+    <constraint source="testing-backend-specification.md">Use factories for test data, no hardcoded values</constraint>
+    <constraint source="story">Admin stats endpoint requires is_superuser=True authentication</constraint>
+  </constraints>
+
+  <prerequisites>
+    <prerequisite priority="BLOCKER" task="1,2">
+      <description>Add list_objects method to MinIOService</description>
+      <file>backend/app/integrations/minio_client.py</file>
+      <reason>Required for kb.delete bulk file cleanup (Task 1) and reconciliation orphan file detection (Task 2). Current MinIOService only has delete_file for single files.</reason>
+      <signature>async def list_objects(self, prefix: str, recursive: bool = True) -> list[str]</signature>
+      <implementation>Use boto3 list_objects_v2 with Prefix parameter, paginate if needed, return list of object keys</implementation>
+    </prerequisite>
+  </prerequisites>
+
+  <interfaces>
+    <interface>
+      <name>dispatch_event</name>
+      <kind>function</kind>
+      <signature>def dispatch_event(event: dict) -> None</signature>
+      <path>backend/app/workers/outbox_tasks.py:90</path>
+      <notes>EXTEND with kb.delete and document.reprocess handlers following existing pattern</notes>
+    </interface>
+    <interface>
+      <name>process_outbox_events</name>
+      <kind>celery_task</kind>
+      <signature>@celery_app.task(name="app.workers.outbox_tasks.process_outbox_events")</signature>
+      <path>backend/app/workers/outbox_tasks.py:154</path>
+      <notes>Existing task, runs every 10s via beat_schedule</notes>
+    </interface>
+    <interface>
+      <name>beat_schedule</name>
+      <kind>config</kind>
+      <signature>celery_app.conf.update(beat_schedule={...})</signature>
+      <path>backend/app/workers/celery_app.py:49-54</path>
+      <notes>ADD reconcile_data_consistency (hourly) and cleanup_processed_outbox_events (daily at 3 AM UTC)</notes>
+    </interface>
+    <interface>
+      <name>QdrantService.delete_collection</name>
+      <kind>async_method</kind>
+      <signature>async def delete_collection(self, kb_id: UUID) -> bool</signature>
+      <path>backend/app/integrations/qdrant_client.py:172</path>
+      <notes>USE for kb.delete handler to remove Qdrant collection</notes>
+    </interface>
+    <interface>
+      <name>MinIOService.delete_file</name>
+      <kind>async_method</kind>
+      <signature>async def delete_file(self, kb_id: UUID, object_path: str) -> None</signature>
+      <path>backend/app/integrations/minio_client.py:155</path>
+      <notes>USE for deleting individual files; may need list_objects method for bulk cleanup</notes>
+    </interface>
+    <interface>
+      <name>GET /api/v1/admin/outbox/stats</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/admin/outbox/stats -> OutboxStats</signature>
+      <path>backend/app/api/v1/admin.py (CREATE)</path>
+      <notes>NEW endpoint; require is_superuser; return pending_events, failed_events, processed_last_hour, processed_last_24h, queue_depth, average_processing_time_ms</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest with pytest-asyncio for async tests. Use @pytest.mark.unit for fast tests without external deps, @pytest.mark.integration for tests requiring testcontainers (PostgreSQL, Redis). Unit tests must complete in &lt;5s, integration tests in &lt;30s. Use factories from tests/factories/ for test data - never hardcode IDs or emails. Mock external services (Qdrant, MinIO) in unit tests. Use .apply() instead of .delay() for synchronous Celery task execution in tests.</standards>
+    <locations>
+      <location>backend/tests/unit/</location>
+      <location>backend/tests/integration/</location>
+      <location>backend/tests/factories/</location>
+    </locations>
+    <ideas>
+      <!-- Task 7: Integration tests for outbox processing -->
+      <idea ac="1" task="7">Test outbox events are processed in FIFO order based on created_at</idea>
+      <idea ac="1" task="7">Test processed_at is set after successful dispatch</idea>
+      <idea ac="2" task="7">Test attempts is incremented on failure</idea>
+      <idea ac="2" task="7">Test events at max attempts (5) are skipped and not reprocessed</idea>
+      <idea ac="2" task="6,7">Test admin alert is logged with CRITICAL severity when max retries reached</idea>
+      <!-- Task 8: Integration tests for reconciliation -->
+      <idea ac="3" task="2,8">Test reconciliation detects READY docs without corresponding vectors in Qdrant</idea>
+      <idea ac="3" task="2,8">Test reconciliation detects stale PROCESSING docs (>30 min)</idea>
+      <idea ac="3" task="2,8">Test reconciliation detects orphan vectors (in Qdrant but not in PostgreSQL)</idea>
+      <idea ac="3" task="2,8">Test reconciliation detects orphan files (in MinIO but not in PostgreSQL)</idea>
+      <idea ac="4" task="2,3,8">Test correction events (document.reprocess) are created for READY without vectors</idea>
+      <idea ac="4" task="2,3,8">Test correction events created for stale PROCESSING (reset to PENDING first)</idea>
+      <idea ac="4" task="2,8">Test orphaned resources are logged but no events created</idea>
+      <idea ac="4" task="2,8">Test admin alert generated when anomaly_count > 5</idea>
+      <!-- Task 1: kb.delete handler tests -->
+      <idea ac="5" task="1">Test kb.delete handler soft-deletes all documents in KB</idea>
+      <idea ac="5" task="1">Test kb.delete handler deletes Qdrant collection</idea>
+      <idea ac="5" task="1">Test kb.delete handler deletes all MinIO files with kb-{id}/ prefix</idea>
+      <!-- Task 4: Cleanup job tests -->
+      <idea ac="6" task="4">Test cleanup job deletes processed events older than 7 days</idea>
+      <idea ac="6" task="4">Test cleanup job retains failed events until 30 days old</idea>
+      <idea ac="6" task="4">Test cleanup job logs deletion counts</idea>
+      <!-- Task 5: Admin stats endpoint tests -->
+      <idea ac="7" task="5">Test admin stats endpoint requires admin authentication</idea>
+      <idea ac="7" task="5">Test admin stats returns correct pending_events count</idea>
+      <idea ac="7" task="5">Test admin stats returns correct failed_events count</idea>
+      <idea ac="7" task="5">Test admin stats calculates average_processing_time_ms correctly</idea>
+    </ideas>
+  </tests>
+</story-context>

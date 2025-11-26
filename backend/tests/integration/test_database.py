@@ -190,7 +190,11 @@ class TestModelOperations:
         doc = Document(
             kb_id=kb.id,
             name="test.pdf",
+            original_filename="test.pdf",
+            mime_type="application/pdf",
+            file_size_bytes=1024,
             file_path="/uploads/test.pdf",
+            checksum="abc123def456" * 5 + "abcd",  # 64 chars
             status=DocumentStatus.PENDING,
         )
         db_session.add(doc)
@@ -224,6 +228,7 @@ class TestModelOperations:
         event = Outbox(
             event_type="document.uploaded",
             aggregate_id=uuid.uuid4(),
+            aggregate_type="document",
             payload={"filename": "test.pdf", "size": 1024},
         )
         db_session.add(event)
@@ -262,6 +267,10 @@ class TestForeignKeyConstraints:
         doc = Document(
             kb_id=kb.id,
             name="test.pdf",
+            original_filename="test.pdf",
+            mime_type="application/pdf",
+            file_size_bytes=1024,
+            checksum="abc123def456" * 5 + "abcd",  # 64 chars
         )
         db_session.add(doc)
         await db_session.flush()

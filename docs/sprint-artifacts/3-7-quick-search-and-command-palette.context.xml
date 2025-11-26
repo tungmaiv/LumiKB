@@ -1,0 +1,535 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>7</storyId>
+    <title>Quick Search and Command Palette</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-7-quick-search-and-command-palette.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user working within the LumiKB application</asA>
+    <iWant>instant access to search via keyboard shortcut (Cmd/Ctrl+K) with a command palette overlay</iWant>
+    <soThat>I can quickly find information without navigating away from my current context or workflow</soThat>
+    <tasks>
+### Backend Tasks
+
+#### Task 1: Create Quick Search API Endpoint (AC: #3)
+- Add `POST /api/v1/search/quick` endpoint to `backend/app/api/v1/search.py`
+- Create QuickSearchRequest schema (query, kb_ids optional)
+- Create QuickSearchResponse schema (query, results, kb_count, response_time_ms)
+- Create QuickSearchResult schema (document_id, document_name, kb_id, kb_name, excerpt, relevance_score)
+- Wire endpoint to SearchService.quick_search() method
+
+#### Task 2: Implement Quick Search Service Method (AC: #3, #10)
+- Add `quick_search()` method to `backend/app/services/search_service.py`
+- Reuse `_embed_query()` from full search
+- Reuse `_search_collections()` with limit=5
+- Skip LLM synthesis (no CitationService call)
+- Build QuickSearchResponse with truncated excerpts (100 chars)
+- Track response_time_ms
+
+#### Task 3: Optimize Quick Search Performance (AC: #10)
+- Verify query embedding is cached (same cache as full search)
+- Ensure parallel KB queries use asyncio.gather (already implemented)
+- Add timeout per collection (5s max, same as full search)
+- Measure p50, p95, p99 latencies
+
+### Frontend Tasks
+
+#### Task 4: Install cmdk Dependency (AC: #2)
+- Add `cmdk` to frontend/package.json
+- Run `npm install`
+- Verify shadcn/ui Command component is available
+
+#### Task 5: Create Command Palette Component (AC: #2, #4, #7)
+- Create `frontend/src/components/search/command-palette.tsx`
+- Use shadcn/ui Dialog + Command components
+- Add global keyboard listener (⌘K/Ctrl+K)
+- Implement search input with debouncing (300ms)
+- Display quick search results as CommandItem list
+- Add keyboard navigation hints footer
+- Handle ESC to close, Enter to select
+
+#### Task 6: Create Command Palette Context (AC: #1, #2)
+- Create `frontend/src/lib/contexts/command-palette-context.tsx`
+- Implement CommandPaletteProvider with open/setOpen state
+- Export useCommandPalette hook
+- Render CommandPalette within provider
+
+#### Task 7: Create Always-Visible Search Bar (AC: #6)
+- Create `frontend/src/components/search/search-bar.tsx`
+- Render search icon + placeholder text
+- Show keyboard shortcut hint (⌘K)
+- Click handler opens command palette via useCommandPalette()
+- Responsive: collapse to icon on mobile
+
+#### Task 8: Integrate Search Bar in Header (AC: #6)
+- Modify `frontend/src/components/layout/header.tsx`
+- Add SearchBar component to header
+- Position: center or right side of header
+- Ensure visibility on all authenticated pages
+
+#### Task 9: Wrap App in CommandPaletteProvider (AC: #1)
+- Modify `frontend/src/app/layout.tsx`
+- Wrap children in <CommandPaletteProvider>
+- Ensure provider is above all page content
+
+#### Task 10: Implement Quick Search API Client (AC: #3)
+- Modify `frontend/src/lib/api/search.ts`
+- Add quickSearch(request: QuickSearchRequest) method
+- Use fetch with AbortController for cancellation
+- Return QuickSearchResponse
+
+#### Task 11: Implement Debouncing and Request Cancellation (AC: #10)
+- Add `use-debounce` library (or use custom hook)
+- Implement debounced search in CommandPalette (300ms)
+- Use AbortController to cancel stale requests
+- Prevent race conditions (only show latest results)
+
+#### Task 12: Handle Result Selection and Navigation (AC: #5)
+- Implement onSelect handler in CommandPalette
+- Close palette on selection
+- Navigate to /search?q={query}&highlight={documentId}
+- Ensure smooth transition (palette closes before navigation)
+
+#### Task 13: Update Full Search Page to Handle Query Param (AC: #5)
+- Modify `frontend/src/app/(protected)/search/page.tsx`
+- Read query param from URL (e.g., ?q=authentication)
+- Auto-run search with query on page load
+- Scroll to highlighted document if highlight param present
+
+#### Task 14: Implement Empty State and Error Handling (AC: #9)
+- Add CommandEmpty component with helpful message
+- Display "No matches found" with suggestions
+- Add "Open full search" link
+- Error boundary for API failures
+- Show friendly error message with retry button
+
+#### Task 15: Implement Search Mode Preference (AC: #8)
+- Add search mode preference to user settings page
+- Store preference in localStorage (key: "searchMode")
+- Read preference when clicking search bar
+- If preference is "full", navigate to /search instead of opening palette
+- If preference is "quick" (default), open palette
+
+### Testing Tasks
+
+#### Task 16: Backend Integration Tests
+- Create `backend/tests/integration/test_quick_search.py`
+- Test: Quick search returns 5 results
+- Test: Quick search skips LLM synthesis
+- Test: Quick search respects permissions
+- Test: Quick search works cross-KB
+- Test: Quick search response time <1s
+
+#### Task 17: Frontend Unit Tests
+- Create `frontend/src/components/search/__tests__/command-palette.test.tsx`
+- Test: Palette opens on ⌘K
+- Test: Search input debounces
+- Test: Results display correctly
+- Test: Keyboard navigation works
+- Test: ESC closes palette
+- Create `frontend/src/components/search/__tests__/search-bar.test.tsx`
+- Test: Search bar renders
+- Test: Click opens palette
+
+#### Task 18: E2E Tests
+- Create `frontend/e2e/quick-search.spec.ts`
+- Test: ⌘K opens palette
+- Test: Type query → results appear
+- Test: Select result → navigate to full search
+- Test: Full search auto-runs with query
+- Test: ESC closes palette</tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC1: Global Keyboard Shortcut
+**Given** I am anywhere in the LumiKB application (dashboard, search, KB view, etc.)
+**When** I press Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+**Then** the command palette overlay appears instantly
+**And** focus is automatically placed in the search input
+**And** the keyboard event is prevented from default browser behavior (e.g., browser search)
+
+**Verification:**
+- Keyboard listener is global (attached to document/window)
+- Works from all pages: dashboard, search, documents, admin
+- Prevents default browser Cmd+K (browser search bar)
+- Focus trap activates (Tab cycles within palette)
+
+### AC2: Command Palette Overlay Appears
+**Given** I trigger the command palette (⌘K or click search bar)
+**When** the palette opens
+**Then** I see a modal overlay with:
+  - Search input field (focused)
+  - Placeholder text: "Quick search across all Knowledge Bases..."
+  - Empty state: "Type to search"
+  - Close button (X)
+  - Keyboard hints: "↑↓ Navigate • ↵ Select • ESC Close"
+
+**And** the overlay:
+  - Centers on screen
+  - Has subtle backdrop blur
+  - Animates in smoothly (fade + scale)
+  - Doesn't cause layout shift on underlying page
+
+### AC3: Quick Search Returns Top Results Fast
+**Given** the command palette is open
+**When** I type a query (e.g., "authentication")
+**Then** results appear within 1 second
+**And** I see the top 5 most relevant results (no full answer synthesis)
+**And** each result shows:
+  - Document name
+  - KB badge
+  - Excerpt snippet (truncated)
+  - Relevance score indicator (optional visual)
+
+**And** quick search calls `POST /api/v1/search/quick` endpoint
+**And** the endpoint returns chunks WITHOUT LLM answer synthesis (for speed)
+**And** search is cross-KB by default (same as full search)
+
+### AC4: Keyboard Navigation in Palette
+**Given** quick search results are displayed in the palette
+**When** I press arrow keys
+**Then** I can navigate through results
+  - ↓ (Down Arrow): Highlights next result
+  - ↑ (Up Arrow): Highlights previous result
+  - ↵ (Enter): Selects highlighted result
+  - ESC: Closes palette
+
+**And** highlighted result has visible focus indicator (blue border)
+**And** the first result is highlighted by default when results appear
+**And** arrow navigation wraps (last result → first result when pressing ↓)
+
+### AC5: Selecting Result Opens Full Search View
+**Given** I have results in the command palette
+**When** I press Enter on a highlighted result (or click it)
+**Then** the palette closes
+**And** I navigate to the full search view (`/search`)
+**And** the full search view shows:
+  - The same query pre-filled in search bar
+  - Full answer synthesis with citations (from Story 3.2)
+  - The selected result highlighted or scrolled to
+  - All search results (not just top 5)
+
+### AC6: Always-Visible Search Bar
+**Given** I am on any page in the authenticated app
+**When** I view the header/navigation area
+**Then** I see a search bar with:
+  - Icon: 🔍 (magnifying glass)
+  - Placeholder: "Search..." or "Press ⌘K to search"
+  - Subtle hint showing keyboard shortcut
+
+**When** I click the search bar
+**Then** the command palette opens (same as pressing ⌘K)
+**And** I can type directly in the palette
+
+**And** the search bar is:
+  - Always visible (fixed header position)
+  - Responsive (collapses to icon on mobile)
+  - Accessible (proper ARIA labels)
+
+### AC7: Escape Closes Palette and Returns Focus
+**Given** the command palette is open
+**When** I press ESC
+**Then** the palette closes with smooth animation
+**And** focus returns to the element that was focused before opening the palette
+**And** the backdrop disappears
+
+**Given** I click outside the palette (on backdrop)
+**When** the click is registered
+**Then** the palette closes (same behavior as ESC)
+
+### AC8: Search Preference for Default Mode
+**Given** I use quick search frequently
+**When** I go to user settings
+**Then** I can set a preference for default search mode:
+  - "Quick Search (Fast, top results)"
+  - "Full Search (Answer synthesis with citations)"
+
+**And** my preference is stored in localStorage
+**And** opening search bar respects this preference:
+  - Quick Search preference → opens command palette
+  - Full Search preference → navigates directly to /search page
+
+### AC9: Empty State and Error Handling
+**Given** the command palette is open
+**When** I type a query that returns no results
+**Then** I see an empty state message:
+  - "No matches found"
+  - Suggestions: "Try broader terms" or "Check spelling"
+  - Link: "Search all Knowledge Bases" (opens full search)
+
+**Given** quick search API fails
+**When** an error occurs
+**Then** I see a friendly error message:
+  - "Search temporarily unavailable"
+  - Retry button
+  - Fallback: "Open full search" link
+
+### AC10: Performance and Responsiveness
+**Given** I open the command palette
+**When** I start typing
+**Then** results appear within 1 second (p95)
+**And** search input has debouncing (300ms delay before API call)
+**And** previous API calls are cancelled when new query is typed
+
+**Given** I type rapidly
+**When** query changes before previous search completes
+**Then** old results don't flash on screen (race condition prevented)
+**And** only the latest query results are shown</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- IMPORTANT: Use PROJECT-RELATIVE paths only (e.g., "docs/prd.md", NOT "/home/user/...") -->
+
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search & Citations</title>
+        <section>Story 3.7: Quick Search and Command Palette</section>
+        <snippet>Quick search endpoint returns top results without full answer synthesis. Optimized for speed over completeness. Lightweight search that returns chunks WITHOUT LLM synthesis (skips CitationService). Top 5 results only, faster response (&lt;1 second target).</snippet>
+      </artifact>
+
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>API Contracts - Search Endpoints</section>
+        <snippet>Route structure: /api/v1/search (POST / and POST /quick). Quick search for command palette returns top 5 results without synthesis. Response format standardized with meta object including requestId and timestamp.</snippet>
+      </artifact>
+
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Frontend Component Structure</section>
+        <snippet>Component organization: components/search/ for search-related UI, components/ui/ for shadcn/ui primitives, lib/contexts/ for global state management, lib/api/ for API clients.</snippet>
+      </artifact>
+
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Testing Conventions</section>
+        <snippet>Frontend unit tests in __tests__ folders, E2E tests in e2e/ directory. Backend integration tests in tests/integration/. Use Vitest + React Testing Library for frontend components, pytest for backend.</snippet>
+      </artifact>
+
+      <artifact>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>Command Palette and Quick Search Patterns</section>
+        <snippet>Command palette (Linear-style) - Power user enhancement. Quick Search for simple lookups, fact-finding: Search bar → direct results. Always-visible search bar + Cmd/Ctrl+K shortcut. Chat for synthesis, Quick Search for lookups. Default: Search ALL permitted KBs, filter AFTER results appear.</snippet>
+      </artifact>
+    </docs>
+
+    <code>
+      <!-- IMPORTANT: Use PROJECT-RELATIVE paths only -->
+
+      <artifact>
+        <path>backend/app/api/v1/search.py</path>
+        <kind>API route</kind>
+        <symbol>quick_search_route</symbol>
+        <lines>106-149</lines>
+        <reason>Quick search endpoint already exists - uses SearchService.quick_search() with limit capped at 5</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>Service</kind>
+        <symbol>quick_search</symbol>
+        <lines>254-276</lines>
+        <reason>Quick search service method already implemented - delegates to regular search with stream=False</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>Service</kind>
+        <symbol>_embed_query</symbol>
+        <lines>277-312</lines>
+        <reason>Embedding generation with Redis caching - reused for quick search performance</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>Service</kind>
+        <symbol>_search_collections</symbol>
+        <lines>334-413</lines>
+        <reason>Parallel cross-KB search implementation - reused for quick search with limit parameter</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/app/schemas/search.py</path>
+        <kind>Schema definitions</kind>
+        <symbol>SearchRequest, SearchResponse, SearchResultSchema</symbol>
+        <lines>N/A</lines>
+        <reason>Request/response schemas for search API - reused for quick search endpoint</reason>
+      </artifact>
+
+      <artifact>
+        <path>frontend/src/components/search/search-bar.tsx</path>
+        <kind>React component</kind>
+        <symbol>SearchBar</symbol>
+        <lines>1-40</lines>
+        <reason>Existing search bar component - needs updating to open command palette instead of being disabled</reason>
+      </artifact>
+
+      <artifact>
+        <path>frontend/package.json</path>
+        <kind>Config file</kind>
+        <symbol>dependencies</symbol>
+        <lines>23-51</lines>
+        <reason>Frontend dependencies - need to add cmdk for Command component (shadcn/ui dependency)</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <!-- Detected dependency manifests and frameworks -->
+
+      <backend>
+        <python>3.11</python>
+        <fastapi>>=0.115.0</fastapi>
+        <sqlalchemy>2.0.44</sqlalchemy>
+        <pydantic>>=2.7.0</pydantic>
+        <celery>5.5.x</celery>
+        <redis>>=7.1.0</redis>
+        <litellm>>=1.50.0</litellm>
+        <qdrant-client>>=1.10.0</qdrant-client>
+        <langchain-qdrant>>=1.1.0</langchain-qdrant>
+      </backend>
+
+      <frontend>
+        <next>16.0.3</next>
+        <react>19.2.0</react>
+        <typescript>^5</typescript>
+        <zustand>^5.0.8</zustand>
+        <radix-ui-dialog>^1.1.15</radix-ui-dialog>
+        <cmdk>^1.0.0 (TO ADD)</cmdk>
+        <use-debounce>^10.0.0 (TO ADD)</use-debounce>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Development constraints from architecture and dev notes -->
+
+    <constraint>Use shadcn/ui Command component (wraps cmdk library) for command palette UI - provides built-in keyboard navigation</constraint>
+    <constraint>Quick search API MUST skip CitationService and LLM synthesis - return raw chunks only for speed (&lt;1 second target)</constraint>
+    <constraint>Cross-KB search is DEFAULT behavior (kb_ids=null) - reuse permission filtering from SearchService. UX principle: "KB selection is a BARRIER, not a feature" - search ALL permitted KBs by default</constraint>
+    <constraint>Debounce search input with 300ms delay to prevent excessive API calls</constraint>
+    <constraint>Use AbortController to cancel stale requests when new query is typed - prevent race conditions</constraint>
+    <constraint>Global keyboard shortcut (⌘K/Ctrl+K) must prevent default browser behavior and be always-visible per UX design</constraint>
+    <constraint>Command palette uses React Context for global open/close state - avoid prop drilling</constraint>
+    <constraint>Search mode preference stored in localStorage (not backend) - key: "searchMode". Quick Search for lookups, Chat for synthesis per UX design</constraint>
+    <constraint>Frontend API client must handle timeout (5 seconds max) for quick search</constraint>
+    <constraint>Command palette should follow Linear-style design pattern - modal overlay with backdrop blur, smooth animations (fade + scale), keyboard hints visible</constraint>
+    <constraint>All paths in context file must be PROJECT-RELATIVE (strip /home/tungmv/Projects/LumiKB prefix)</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- API interfaces and signatures relevant to this story -->
+
+    <interface>
+      <name>POST /api/v1/search/quick</name>
+      <kind>REST endpoint</kind>
+      <signature>
+Request: SearchRequest { query: str, kb_ids: list[str] | null, limit: int }
+Response: SearchResponse { query, answer, citations, confidence, results[], result_count, message }
+Note: Quick search returns empty answer/citations, only results array populated
+      </signature>
+      <path>backend/app/api/v1/search.py</path>
+    </interface>
+
+    <interface>
+      <name>SearchService.quick_search</name>
+      <kind>Service method</kind>
+      <signature>
+async def quick_search(
+    query: str,
+    kb_ids: list[str] | None,
+    user_id: str,
+    limit: int = 5
+) -> SearchResponse
+      </signature>
+      <path>backend/app/services/search_service.py</path>
+    </interface>
+
+    <interface>
+      <name>useCommandPalette</name>
+      <kind>React hook</kind>
+      <signature>
+const { open, setOpen } = useCommandPalette()
+// Returns: { open: boolean, setOpen: (open: boolean) => void }
+      </signature>
+      <path>frontend/src/lib/contexts/command-palette-context.tsx (TO CREATE)</path>
+    </interface>
+
+    <interface>
+      <name>searchApi.quickSearch</name>
+      <kind>API client method</kind>
+      <signature>
+async function quickSearch(request: QuickSearchRequest): Promise&lt;QuickSearchResponse&gt;
+// QuickSearchRequest: { query: string, kbIds?: string[] | null }
+// QuickSearchResponse: { query, results[], kbCount, responseTimeMs }
+      </signature>
+      <path>frontend/src/lib/api/search.ts (TO EXTEND)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+All tests follow project testing conventions from architecture.md:
+- Backend: pytest with fixtures in conftest.py, unit tests in tests/unit/, integration tests in tests/integration/
+- Frontend: Vitest + React Testing Library for component tests in __tests__ folders, Playwright for E2E tests in e2e/ directory
+- Use data-testid attributes for reliable element selection in tests
+- Integration tests use testcontainers for Qdrant/Redis if needed
+- Mock external services (LiteLLM, Qdrant) in unit tests
+- E2E tests cover critical user paths: ⌘K flow, result selection, navigation
+    </standards>
+
+    <locations>
+backend/tests/integration/test_quick_search.py
+frontend/src/components/search/__tests__/command-palette.test.tsx
+frontend/src/components/search/__tests__/search-bar.test.tsx
+frontend/e2e/quick-search.spec.ts
+    </locations>
+
+    <ideas>
+      <!-- Map test ideas to specific ACs -->
+
+      <idea ac="AC1">
+Test: ⌘K keyboard shortcut opens palette from any page (dashboard, search, KB view)
+Test: Ctrl+K works on Windows/Linux
+Test: Prevent default browser behavior (browser search bar)
+Test: Focus automatically placed in search input
+      </idea>
+
+      <idea ac="AC3">
+Test: Quick search endpoint returns max 5 results
+Test: Quick search skips LLM synthesis (no citations, no answer text)
+Test: Quick search respects user permissions (READ access check)
+Test: Quick search response time &lt;1 second (p95)
+      </idea>
+
+      <idea ac="AC4">
+Test: Arrow key navigation highlights results sequentially
+Test: Enter key selects highlighted result
+Test: ESC key closes palette
+Test: First result highlighted by default
+Test: Navigation wraps (last → first)
+      </idea>
+
+      <idea ac="AC5">
+Test: Selecting result closes palette and navigates to /search
+Test: Query parameter passed to /search page
+Test: Full search auto-runs with query on page load
+Test: Selected document highlighted in results
+      </idea>
+
+      <idea ac="AC10">
+Test: Debouncing prevents API call until 300ms after typing stops
+Test: AbortController cancels stale requests when new query typed
+Test: Race condition prevented (only latest results shown)
+Test: Loading indicator shows during search
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

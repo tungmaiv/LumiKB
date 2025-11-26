@@ -66,6 +66,44 @@ class AuditService:
                 error=str(e),
             )
 
+    async def log_search(
+        self,
+        user_id: str,
+        query: str,
+        kb_ids: list[str],
+        result_count: int,
+        latency_ms: int,
+    ) -> None:
+        """Log a search query event.
+
+        Args:
+            user_id: User ID who performed the search
+            query: Search query text
+            kb_ids: List of KB IDs searched
+            result_count: Number of results returned
+            latency_ms: Response latency in milliseconds
+        """
+        await self.log_event(
+            action="search",
+            resource_type="search",
+            user_id=UUID(user_id),
+            details={
+                "query": query[:500],  # Truncate for storage
+                "kb_ids": kb_ids,
+                "result_count": result_count,
+                "latency_ms": latency_ms,
+            },
+        )
+
 
 # Singleton instance for use across the application
 audit_service = AuditService()
+
+
+def get_audit_service() -> AuditService:
+    """Dependency injection for AuditService.
+
+    Returns:
+        AuditService singleton instance
+    """
+    return audit_service

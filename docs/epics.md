@@ -29,9 +29,9 @@ This document provides the complete epic and story breakdown for LumiKB, decompo
 | 2 | Knowledge Base & Document Management | Create KBs, upload and process documents | 12 |
 | 3 | Semantic Search & Citations | Search and get answers WITH citations | 11 |
 | 4 | Chat & Document Generation | Chat, generate drafts with citations, export | 10 |
-| 5 | Administration & Polish | Full admin dashboard, onboarding wizard | 9 |
+| 5 | Administration & Polish | Full admin dashboard, onboarding wizard | 11 (includes 2 technical debt) |
 
-**Total Stories:** 52
+**Total Stories:** 54 (52 features + 2 technical debt)
 
 ---
 
@@ -1359,36 +1359,6 @@ So that **I can systematically check the AI's sources**.
 
 ---
 
-### Story 3.11: Search Audit Logging
-
-As a **compliance officer**,
-I want **all search queries logged**,
-So that **we can audit information access**.
-
-**Acceptance Criteria:**
-
-**Given** a user performs a search
-**When** results are returned
-**Then** an audit event is logged with:
-- user_id
-- query text
-- kb_ids searched
-- result_count
-- timestamp
-- response_time_ms
-
-**Given** audit logs exist
-**When** an admin queries them
-**Then** they can filter by user, date, and KB
-
-**Prerequisites:** Story 3.1, Story 1.7
-
-**Technical Notes:**
-- Async audit write (don't block search response)
-- Reference: FR54
-
----
-
 ## Epic 4: Chat & Document Generation
 
 **Goal:** Enable users to have multi-turn conversations and generate document drafts with citations that can be exported.
@@ -2044,6 +2014,330 @@ So that **my daily workflow is efficient**.
 - Track recent KBs in localStorage
 - Reference: FR12d
 - Reference: UX spec Section 7 - Pattern Decisions
+
+---
+
+### Story 5.10: Command Palette Test Coverage Improvement (Technical Debt)
+
+As a **developer**,
+I want **to achieve 100% test coverage for the command palette component**,
+So that **we have comprehensive test validation for the quick search feature**.
+
+**Acceptance Criteria:**
+
+**Given** the command palette tests currently have 70% pass rate (7/10)
+**When** I investigate the test failures
+**Then** I identify the root cause (Command component filtering with mocked data)
+
+**And When** I implement a fix
+**Then** all 10 command palette tests pass consistently
+**And** tests properly validate:
+- Result fetching after debounce
+- Result display with metadata
+- Error state handling on API failure
+
+**And** I document the chosen approach in test file comments
+
+**Prerequisites:** Story 3.7 (completed)
+
+**Technical Notes:**
+- **Current Status:** 7/10 tests passing, 3 tests timeout due to shadcn/ui Command component's internal filtering not working with mocked fetch responses
+- **Production Impact:** None - production code is verified correct through passing tests and manual validation
+- **Priority:** Low - polish item, not blocking
+- **Effort:** 1-2 hours
+- **Possible Solutions:**
+  1. Mock at component level rather than fetch level
+  2. Use real Command component behavior with test data
+  3. Convert to E2E tests instead of unit tests
+  4. Investigate Command/cmdk library test utilities
+- **Reference:** Story 3.7 code review, validation-report-3-7-2025-11-26.md
+- **Type:** Technical Debt - Test Infrastructure
+
+---
+
+### Story 5.11: Epic 3 Search Hardening (Technical Debt)
+
+As a **developer**,
+I want **to complete deferred test coverage and accessibility work from Epic 3**,
+So that **search features have comprehensive test coverage and full WCAG 2.1 AA compliance**.
+
+**Acceptance Criteria:**
+
+**Given** Epic 3 deferred work tracked in epic-3-tech-debt.md
+**When** I implement the hardening tasks
+**Then** all deferred items are completed:
+
+1. **Backend Unit Tests (TD-3.8-1):**
+   - Add `test_similar_search_uses_chunk_embedding()` to test_search_service.py
+   - Add `test_similar_search_excludes_original()` to test_search_service.py
+   - Add `test_similar_search_checks_permissions()` to test_search_service.py
+   - All 3 tests pass
+
+2. **Hook Unit Tests (TD-3.8-2):**
+   - Create `frontend/src/lib/stores/__tests__/draft-store.test.ts`
+   - Add `test_addToDraft__adds_result_to_store()`
+   - Add `test_removeFromDraft__removes_by_id()`
+   - Add `test_clearAll__empties_selections()`
+   - Add `test_isInDraft__returns_true_when_exists()`
+   - Add `test_persistence__survives_page_reload()`
+   - All 5 tests pass
+
+3. **Screen Reader Verification (TD-3.8-3):**
+   - Manually test with NVDA or JAWS screen reader
+   - Verify action buttons announce labels correctly
+   - Verify draft selection panel announces count changes
+   - Verify similar search flow is navigable
+   - Document findings in validation-report-3-8-accessibility.md
+
+4. **Command Palette Dialog Accessibility (TD-3.7-1) - NEW:**
+   - Add DialogTitle to command-palette.tsx (wrap with VisuallyHidden)
+   - Add DialogDescription with "Search across your knowledge bases"
+   - Verify Radix UI accessibility warnings eliminated
+   - Test with screen reader to confirm announcements
+
+5. **Command Palette Test Fixes (TD-3.7-2) - OPTIONAL:**
+   - Debug and fix 3 failing tests (debounce, metadata, error state)
+   - Investigate msw mock handler registration
+   - Verify React Query cache state in tests
+   - All command palette tests passing (10/10)
+
+6. **Desktop Hover Reveal (TD-3.8-4) - OPTIONAL:**
+   - Implement hover reveal for action buttons on desktop (≥1024px)
+   - Buttons hidden by default, appear on card hover
+   - Mobile/tablet behavior unchanged (always visible)
+
+7. **TODO Cleanup (TD-3.8-5):**
+   - Scan search components for TODO comments
+   - Resolve or convert to tracked issues
+   - Verify 0 TODO comments in search/ directory
+
+**And** all existing tests continue to pass (regression protection)
+
+**Prerequisites:** Story 3.8, 3.7, 3.10 (completed)
+
+**Technical Notes:**
+- **Source:** Stories 3-7, 3-8, 3-10 code review deferred items
+- **Priority:** Medium (improves quality, not blocking production)
+- **Effort:** ~6-7 hours (original 4.5h + 0.5h dialog a11y + 1-2h optional tests)
+- **Test Pyramid Goal:** Unit tests strengthen isolation, reduce integration test dependency
+- **Accessibility Goal:** WCAG 2.1 AA compliance verification (manual + automated)
+- **Reference:** docs/sprint-artifacts/epic-3-tech-debt.md
+- **Type:** Technical Debt - Test Coverage & Accessibility
+- **Updated:** 2025-11-26 (added TD-3.7-1, TD-3.7-2)
+
+**Task Breakdown:**
+- Task 1: Backend unit tests (2h)
+- Task 2: Hook unit tests (1.5h)
+- Task 3: Screen reader testing (1h)
+- Task 4: Dialog accessibility (0.5h) - **NEW**
+- Task 5: Command palette tests (1-2h) - OPTIONAL
+- Task 6: Desktop hover reveal (0.5h) - OPTIONAL
+- Task 7: TODO cleanup (0.5h)
+
+**Note:** TD-3.10-1 (VerifyAllButton test harness issue) deferred to Epic 6 due to low priority (test-only issue, component works in production).
+
+---
+
+### Story 5.12: ATDD Integration Tests Transition to GREEN (Technical Debt)
+
+As a **developer**,
+I want **to transition 31 ATDD integration tests from RED phase to GREEN**,
+So that **search feature integration tests validate against real indexed data in Qdrant**.
+
+**Acceptance Criteria:**
+
+**Given** 31 integration tests are in ATDD RED phase (intentionally failing)
+**When** I implement the test infrastructure improvements
+**Then** all 31 tests transition to GREEN:
+
+1. **Test Fixture Helper:**
+   - Create `backend/tests/helpers/indexing.py`
+   - Implement `wait_for_document_indexed(doc_id, timeout=30)` helper
+   - Helper polls Qdrant until document chunks indexed
+   - Raises TimeoutError if indexing not complete within timeout
+
+2. **Update Test Fixtures:**
+   - Update `test_cross_kb_search.py` (9 tests) - use wait_for_document_indexed()
+   - Update `test_llm_synthesis.py` (6 tests) - use wait_for_document_indexed()
+   - Update `test_quick_search.py` (5 tests) - use wait_for_document_indexed()
+   - Update `test_sse_streaming.py` (6 tests) - use wait_for_document_indexed()
+   - Update `test_similar_search.py` (5 tests) - use wait_for_document_indexed()
+
+3. **Test Execution:**
+   - Run `make test-backend` - 0 failures, 0 errors
+   - All 31 previously RED tests now GREEN
+   - Existing 496 passing tests still pass (no regressions)
+
+4. **Documentation:**
+   - Update epic-3-tech-debt.md TD-ATDD section with RESOLVED status
+   - Document wait_for_document_indexed() usage in testing-framework-guideline.md
+
+**And** tests validate against real Qdrant/LiteLLM integration (not mocks)
+
+**Prerequisites:**
+- Epic 2 complete (document processing pipeline functional)
+- Story 3.10 complete (all search features implemented)
+
+**Technical Notes:**
+- **Source:** TD-ATDD in epic-3-tech-debt.md (lines 186-285)
+- **Root Cause:** Tests written before implementation (ATDD), expect indexed documents
+- **Current Status:** 26 failed + 5 errors = 31 tests in RED phase
+- **Error Pattern:** `assert 500 == 200` (empty Qdrant collections → 500 errors)
+- **Priority:** Medium (blocks test confidence, not production)
+- **Effort:** 3-4 hours
+- **Type:** Technical Debt - Test Infrastructure
+
+**Implementation Strategy:**
+1. Create polling helper that checks Qdrant for chunk count > 0
+2. Use helper in test setup after document upload
+3. Ensure tests use same document fixtures consistently
+4. Consider adding test-specific Qdrant collection cleanup
+
+**Affected Tests by Story:**
+- Story 3.6 (Cross-KB Search): 9 tests
+- Story 3.2 (LLM Synthesis): 6 tests
+- Story 3.7 (Quick Search): 5 tests
+- Story 3.3 (SSE Streaming): 6 tests
+- Story 3.8 (Similar Search): 5 tests
+
+**Validation:**
+```bash
+make test-backend
+# Expected: 527 passed, 9 skipped, 0 failed, 0 errors
+```
+
+**Reference:**
+- docs/sprint-artifacts/epic-3-tech-debt.md (TD-ATDD section)
+- Test design checklist: docs/atdd-checklist-3.*.md
+
+**Note:** This resolves the ATDD RED phase deliberately created during Epic 3 story implementation.
+
+---
+
+### Story 5.13: Celery Beat Filesystem Fix (Technical Debt)
+
+As a **developer**,
+I want **to fix the celery-beat read-only filesystem error**,
+So that **scheduled tasks (like outbox reconciliation) run reliably**.
+
+**Acceptance Criteria:**
+
+**Given** celery-beat service is restarting with error:
+```
+OSError: [Errno 30] Read-only file system: 'celerybeat-schedule'
+```
+
+**When** I investigate the issue
+**Then** I identify the root cause (celerybeat-schedule file location)
+
+**And When** I implement the fix
+**Then** celery-beat service runs without restarts:
+- `docker compose ps` shows lumikb-celery-beat status as "Up" (not "Restarting")
+- No OSError in `docker compose logs celery-beat --tail 50`
+- Scheduled tasks execute correctly (verify via logs)
+
+**And** the fix persists across:
+- Container restarts
+- `docker compose down && docker compose up`
+- Full environment rebuild
+
+**Acceptance Validation:**
+1. Start services: `docker compose up -d`
+2. Wait 2 minutes
+3. Check status: `docker compose ps celery-beat` → STATUS = "Up"
+4. Check logs: `docker compose logs celery-beat --tail 50` → No "Read-only file system" errors
+5. Verify scheduled tasks: Check for outbox processing task executions in logs
+
+**Prerequisites:** Epic 2 complete (celery workers functional)
+
+**Technical Notes:**
+- **Root Cause:** celerybeat-schedule file written to read-only container path
+- **Current Impact:** Scheduled tasks (e.g., outbox reconciliation every 5 min) may not run
+- **Priority:** Medium (doesn't block features, but affects background jobs)
+- **Effort:** 1 hour
+- **Type:** Technical Debt - Infrastructure
+
+**Possible Solutions:**
+1. Configure CELERY_BEAT_SCHEDULE_FILENAME to writable volume
+2. Mount /app/celerybeat-schedule as Docker volume
+3. Set celery beat to use persistent database backend (Django DB scheduler)
+4. Write schedule file to /tmp (ephemeral but functional)
+
+**Recommended Approach:**
+Option 1 - Configure persistent volume in docker-compose.yml:
+```yaml
+celery-beat:
+  volumes:
+    - celery-beat-schedule:/app/celery-schedule
+volumes:
+  celery-beat-schedule:
+```
+
+**And** update celery config:
+```python
+# backend/app/workers/celery_app.py
+app.conf.beat_schedule_filename = '/app/celery-schedule/celerybeat-schedule'
+```
+
+**Validation Files:**
+- infrastructure/docker/docker-compose.yml (volume mount)
+- backend/app/workers/celery_app.py (config change)
+
+**Reference:**
+- Discovered during Epic 3 test analysis (2025-11-26)
+- Related to Story 2.11 (outbox reconciliation scheduling)
+
+**Note:** While this doesn't block MVP, it should be fixed before production to ensure reliable background job execution.
+
+---
+
+### Story 5.14: Search Audit Logging (moved from Epic 3)
+
+As a **compliance officer**,
+I want **all search queries logged**,
+So that **we can audit information access**.
+
+**Acceptance Criteria:**
+
+**Given** a user performs a search
+**When** results are returned
+**Then** an audit event is logged with:
+- user_id
+- query text
+- kb_ids searched
+- result_count
+- timestamp
+- response_time_ms
+
+**Given** audit logs exist
+**When** an admin queries them
+**Then** they can filter by user, date, and KB
+
+**And** audit write is async (doesn't block search response)
+
+**Prerequisites:**
+- Story 3.1 (Semantic Search Backend) - ✅ Complete
+- Story 1.7 (Audit Logging Infrastructure) - ✅ Complete
+- Story 5.2 (Audit Log Viewer) - Provides UI to view these logs
+
+**Technical Notes:**
+- Reuse audit infrastructure from Story 1.7
+- Log to `audit.events` table with action_type = 'search'
+- Include search metadata in details JSON column
+- Async write via background task (don't block search response)
+- **Reference:** FR54
+- **Type:** Feature - Compliance & Audit
+- **Effort:** 1-2 hours
+- **Originally:** Story 3.11 in Epic 3, moved to Epic 5 for thematic fit
+
+**Story Relationship:**
+- Provides search audit data that Story 5.2 (Audit Log Viewer) will display
+- Complements Story 4.10 (Generation Audit Logging) for complete audit coverage
+- Together with Stories 5.2 and 5.3, completes the full audit workflow:
+  1. Log search queries (5.14)
+  2. Log generation requests (4.10)
+  3. View all audit logs (5.2)
+  4. Export audit logs (5.3)
 
 ---
 

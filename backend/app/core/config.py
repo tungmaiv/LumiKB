@@ -56,5 +56,24 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Celery Configuration
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/0"
+    document_processing_timeout: int = 600  # 10 minutes visibility timeout
+    max_parsing_retries: int = 3
+
+    # Embedding Configuration
+    embedding_model: str = "text-embedding-ada-002"
+    embedding_batch_size: int = 20
+    embedding_max_retries: int = 5
+    embedding_timeout: int = 30  # seconds per batch
+
+    # LLM Configuration (for answer synthesis)
+    llm_model: str = "gpt-4"  # Model for chat completion (synthesis)
+
+    # Chunking Configuration
+    chunk_size: int = 500  # target tokens
+    chunk_overlap: int = 50  # overlap tokens (10%)
+
 
 settings = Settings()

@@ -2,15 +2,18 @@
 
 import enum
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, model_repr
 
 if TYPE_CHECKING:
     from app.models.knowledge_base import KnowledgeBase
+    from app.models.user import User
 
 
 class DocumentStatus(str, enum.Enum):
@@ -29,11 +32,20 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     Columns:
     - id: UUID primary key
     - kb_id: UUID FK to knowledge_bases (CASCADE delete)
-    - name: VARCHAR(255), required
-    - file_path: VARCHAR(500), optional
+    - name: VARCHAR(255), display name
+    - original_filename: VARCHAR(255), original uploaded filename
+    - mime_type: VARCHAR(100), MIME type of the file
+    - file_size_bytes: BIGINT, file size in bytes
+    - file_path: VARCHAR(500), MinIO storage path
+    - checksum: VARCHAR(64), SHA-256 hash
     - status: ENUM (PENDING, PROCESSING, READY, FAILED, ARCHIVED)
-    - chunk_count: INTEGER, default 0
-    - last_error: TEXT, optional
+    - chunk_count: INTEGER, number of chunks after processing
+    - processing_started_at: TIMESTAMPTZ, when processing began
+    - processing_completed_at: TIMESTAMPTZ, when processing finished
+    - last_error: TEXT, last error message if failed
+    - retry_count: INTEGER, number of processing retries
+    - uploaded_by: UUID FK to users
+    - deleted_at: TIMESTAMPTZ, soft delete timestamp
     - created_at: TIMESTAMPTZ
     - updated_at: TIMESTAMPTZ
     """
@@ -45,7 +57,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[DocumentStatus] = mapped_column(
         Enum(DocumentStatus, name="document_status", create_constraint=True),
         server_default="PENDING",
@@ -56,12 +72,47 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default="0",
         nullable=False,
     )
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    processing_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(
+        Integer,
+        server_default="0",
+        nullable=False,
+    )
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    version_number: Mapped[int] = mapped_column(
+        Integer,
+        server_default="1",
+        nullable=False,
+    )
+    version_history: Mapped[list[dict] | None] = mapped_column(
+        JSONB,
+        server_default="[]",
+        nullable=True,
+    )
 
     # Relationships
     knowledge_base: Mapped["KnowledgeBase"] = relationship(
         "KnowledgeBase",
         back_populates="documents",
+    )
+    uploader: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[uploaded_by],
     )
 
     def __repr__(self) -> str:

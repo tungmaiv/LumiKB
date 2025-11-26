@@ -1,0 +1,265 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3</storyId>
+    <title>Search API Streaming Response</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-25</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/home/tungmv/Projects/LumiKB/docs/sprint-artifacts/3-3-search-api-streaming-response.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a user searching for answers in my Knowledge Bases</asA>
+    <iWant>search results and AI answers streamed to me in real-time</iWant>
+    <soThat>I get instant feedback and perceived speed, rather than waiting for the complete response</soThat>
+    <tasks>
+      <task id="1" ac="3,4,5">
+        <description>Implement SSE streaming in SearchService</description>
+        <subtasks>
+          <subtask id="1.1">Update SearchService.search() to accept stream: bool parameter</subtask>
+          <subtask id="1.2">Create _search_stream() async generator method that yields SSE events</subtask>
+          <subtask id="1.3">Modify _synthesize_answer() to support streaming mode with async generator</subtask>
+          <subtask id="1.4">Implement token-by-token streaming from LiteLLM (use stream=True in chat_completion)</subtask>
+          <subtask id="1.5">Detect [n] markers in token stream and emit citation events immediately</subtask>
+          <subtask id="1.6">Emit done event with confidence and result_count at end</subtask>
+          <subtask id="1.7">Add type hints for AsyncGenerator[SSEEvent, None]</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="2,3,4,5,6">
+        <description>Create SSE event models</description>
+        <subtasks>
+          <subtask id="2.1">Create backend/app/schemas/sse.py with SSEEvent base class</subtask>
+          <subtask id="2.2">Define event types: StatusEvent, TokenEvent, CitationEvent, DoneEvent, ErrorEvent</subtask>
+          <subtask id="2.3">Implement SSEEvent.to_sse_format() for proper SSE message format</subtask>
+          <subtask id="2.4">Add JSON serialization for citation data in CitationEvent</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="1,8">
+        <description>Update API endpoint for SSE</description>
+        <subtasks>
+          <subtask id="3.1">Modify POST /api/v1/search to check for stream query parameter</subtask>
+          <subtask id="3.2">If stream=true, return StreamingResponse with media_type="text/event-stream"</subtask>
+          <subtask id="3.3">If stream=false, return regular SearchResponse (backward compatible)</subtask>
+          <subtask id="3.4">Set proper SSE headers: Cache-Control: no-cache, Connection: keep-alive</subtask>
+          <subtask id="3.5">Handle client disconnect gracefully (catch GeneratorExit)</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="6,7">
+        <description>Error handling for streaming</description>
+        <subtasks>
+          <subtask id="4.1">Wrap streaming generator in try/except for all error types</subtask>
+          <subtask id="4.2">Emit error event on exception, then close connection</subtask>
+          <subtask id="4.3">Add connection timeout (60 seconds max)</subtask>
+          <subtask id="4.4">Clean up resources on client disconnect or timeout</subtask>
+          <subtask id="4.5">Log all streaming errors with request_id for debugging</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="1,2,3,4,5,6">
+        <description>Write unit tests</description>
+        <subtasks>
+          <subtask id="5.1">Create backend/tests/unit/test_search_streaming.py</subtask>
+          <subtask id="5.2">Test SearchService._search_stream() yields correct event types</subtask>
+          <subtask id="5.3">Test token streaming with mock LLM response</subtask>
+          <subtask id="5.4">Test citation event emission when [n] detected</subtask>
+          <subtask id="5.5">Test done event includes confidence and result_count</subtask>
+          <subtask id="5.6">Test error event on LLM failure</subtask>
+          <subtask id="5.7">Test SSEEvent serialization (to_sse_format)</subtask>
+          <subtask id="5.8">Mock async generator for LiteLLM streaming response</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="1,3,4,5,8,9">
+        <description>Write integration tests</description>
+        <subtasks>
+          <subtask id="6.1">Create backend/tests/integration/test_sse_streaming.py</subtask>
+          <subtask id="6.2">Test full streaming flow: connect → status → tokens → citations → done</subtask>
+          <subtask id="6.3">Test non-streaming mode still works (backward compatibility)</subtask>
+          <subtask id="6.4">Test first token latency &lt; 1s (requires test client with timing)</subtask>
+          <subtask id="6.5">Test client disconnect handling</subtask>
+          <subtask id="6.6">Test error streaming on service failure</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" priority="critical">
+      <title>SSE Connection Establishment</title>
+      <description>Given a client calls POST /api/v1/search with stream=true query parameter, when the endpoint processes the request, then the server responds with HTTP status 200, Content-Type: text/event-stream, Cache-Control: no-cache, Connection: keep-alive, and SSE connection remains open until completion or client disconnect</description>
+      <source>tech-spec-epic-3.md#SSE Event Types, FR35a</source>
+    </criterion>
+    <criterion id="AC2" priority="high">
+      <title>Status Event - Search Progress</title>
+      <description>Given SSE connection is established, when search processing begins, then server emits status events providing user feedback during long operations</description>
+      <source>tech-spec-epic-3.md#SSE Event Types, FR35b</source>
+    </criterion>
+    <criterion id="AC3" priority="critical">
+      <title>Token Event - Streaming Answer</title>
+      <description>Given LLM begins generating answer, when each token/word is produced, then server emits token events immediately. Tokens are streamed word-by-word (not character-by-character) for readability. First token arrives within 1 second of query submission (p95)</description>
+      <source>tech-spec-epic-3.md#SSE Event Types, tech-spec-epic-3.md#Performance - LLM synthesis, FR35a</source>
+    </criterion>
+    <criterion id="AC4" priority="critical">
+      <title>Citation Event - Immediate Citation Metadata</title>
+      <description>Given LLM generates answer with citation markers [1], [2], when a citation marker [n] is detected in token stream, then server emits citation event immediately BEFORE continuing with next tokens, allowing frontend to populate citation panel as citations arrive</description>
+      <source>tech-spec-epic-3.md#SSE Event Types, tech-spec-epic-3.md#Story 3.1-3.3 Flow, FR27a</source>
+    </criterion>
+    <criterion id="AC5" priority="critical">
+      <title>Done Event - Completion Signal</title>
+      <description>Given answer synthesis completes successfully, when all tokens and citations have been streamed, then server emits done event with confidence and result_count, and SSE connection closes gracefully</description>
+      <source>tech-spec-epic-3.md#SSE Event Types</source>
+    </criterion>
+    <criterion id="AC6" priority="high">
+      <title>Error Event - Failure Handling</title>
+      <description>Given an error occurs during streaming (LLM timeout, Qdrant failure, etc.), when the error is caught, then server emits error event with user-friendly message and code, and SSE connection closes immediately after error event</description>
+      <source>tech-spec-epic-3.md#Reliability - Streaming disconnect</source>
+    </criterion>
+    <criterion id="AC7" priority="medium">
+      <title>Client Reconnection Support</title>
+      <description>Given SSE connection drops unexpectedly (network issue, client disconnect), when client reconnects within 60 seconds, then server can resume from last event (if state preserved) or returns error indicating full retry needed. Server cleans up abandoned streams after 60-second timeout</description>
+      <source>tech-spec-epic-3.md#Reliability - Streaming disconnect</source>
+    </criterion>
+    <criterion id="AC8" priority="high">
+      <title>Non-Streaming Fallback (Backward Compatibility)</title>
+      <description>Given a client calls POST /api/v1/search WITHOUT stream=true parameter, when endpoint processes request, then server returns complete SearchResponse as JSON (Story 3.2 behavior), ensuring existing non-streaming clients continue to work unchanged</description>
+      <source>tech-spec-epic-3.md#SearchService</source>
+    </criterion>
+    <criterion id="AC9" priority="high">
+      <title>Performance - First Token Latency</title>
+      <description>Given user submits search query with streaming enabled, when timing is measured, then first token arrives at client &lt; 1 second (p95), and total response time (including all tokens + done) &lt; 5 seconds for typical queries</description>
+      <source>tech-spec-epic-3.md#Performance</source>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search &amp; Citations</title>
+        <section>SSE Event Types</section>
+        <snippet>Story 3.3 adds Server-Sent Events (SSE) streaming to the search API. Events stream as: status (progress), token (word-by-word answer), citation (when [n] detected), done (with confidence), error (on failure). First token must arrive &lt; 1s for perceived speed.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search &amp; Citations</title>
+        <section>Story 3.1-3.3 Flow</section>
+        <snippet>SearchService._search_stream() is async generator that yields SSE events. Calls LiteLLM with stream=True for token-by-token generation. Detects [n] markers and yields CitationEvent immediately. Calculates confidence after full answer (synchronous). FastAPI StreamingResponse handles connection lifecycle.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search &amp; Citations</title>
+        <section>SearchService</section>
+        <snippet>SearchService.search() accepts stream: bool parameter. If stream=True, returns AsyncGenerator[SSEEvent, None]. If stream=False, returns SearchResponse (backward compatible with Stories 3.1, 3.2).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search &amp; Citations</title>
+        <section>Performance - LLM synthesis</section>
+        <snippet>First token latency target: &lt; 1 second (p95). Total response time: &lt; 5 seconds for typical queries. Requires immediate streaming from LiteLLM with no buffering.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search &amp; Citations</title>
+        <section>Reliability - Streaming disconnect</section>
+        <snippet>SSE connection drops handled gracefully. Server cleans up abandoned streams after 60-second timeout. Client can reconnect, server may resume or return error indicating full retry needed.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>API Patterns (SSE streaming)</section>
+        <snippet>FastAPI StreamingResponse with media_type="text/event-stream" for SSE. Set headers: Cache-Control: no-cache, Connection: keep-alive. Use async generators to yield events. Handle client disconnect via GeneratorExit exception.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>service</kind>
+        <symbol>SearchService</symbol>
+        <lines>all</lines>
+        <reason>Core search service from Stories 3.1, 3.2. Needs extension with streaming mode (_search_stream async generator). Existing _synthesize_answer() method will need streaming variant.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/litellm_client.py</path>
+        <kind>integration</kind>
+        <symbol>LiteLLMClient</symbol>
+        <lines>all</lines>
+        <reason>LLM client from Story 3.2. Needs to support stream=True parameter for chat_completion() method to enable token-by-token streaming.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/search.py</path>
+        <kind>controller</kind>
+        <symbol>search (endpoint)</symbol>
+        <lines>all</lines>
+        <reason>Search API endpoint from Stories 3.1, 3.2. Needs to accept stream query parameter and return StreamingResponse when stream=true, maintaining backward compatibility for stream=false.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/citation_service.py</path>
+        <kind>service</kind>
+        <symbol>CitationService</symbol>
+        <lines>all</lines>
+        <reason>Citation extraction service from Story 3.2. Can be reused as-is for streaming mode. Extract_citations() method provides citation metadata needed for citation events.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.115.0,&lt;1.0.0">FastAPI StreamingResponse for SSE</package>
+        <package name="pydantic" version=">=2.7.0,&lt;3.0.0">SSE event model validation</package>
+        <package name="litellm" version=">=1.50.0,&lt;2.0.0">LLM streaming with stream=True</package>
+        <package name="pytest-asyncio" version=">=0.24.0">Async test support for streaming tests</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">SSE Format Compliance: Events must follow SSE specification with "data: " prefix and blank line after each event</constraint>
+    <constraint type="architecture">Async Generator Pattern: SearchService._search_stream() must be proper async generator with AsyncGenerator[SSEEvent, None] type hint</constraint>
+    <constraint type="implementation">Citation Detection in Stream: Parse [n] markers from accumulated tokens, not individual chars. Emit citation event when marker complete</constraint>
+    <constraint type="implementation">Connection Management: FastAPI StreamingResponse handles connection lifecycle. Use try/finally for cleanup</constraint>
+    <constraint type="performance">First Token Performance: &lt; 1s requires immediate streaming from LiteLLM, no buffering</constraint>
+    <constraint type="compatibility">Backward Compatibility: Non-streaming mode (Stories 3.1, 3.2) must continue to work unchanged when stream=false</constraint>
+    <constraint type="testing">Unit tests must PASS immediately (mocked dependencies). Integration tests may SKIP if Qdrant collections empty</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/search</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/v1/search?stream=true|false</signature>
+      <path>backend/app/api/v1/search.py</path>
+      <description>Accept stream query parameter. If stream=true return StreamingResponse (text/event-stream). If stream=false return JSON SearchResponse</description>
+    </interface>
+    <interface>
+      <name>SearchService.search()</name>
+      <kind>service method</kind>
+      <signature>async def search(query: str, kb_ids: list[str], user_id: str, limit: int, stream: bool) -> SearchResponse | AsyncGenerator[SSEEvent, None]</signature>
+      <path>backend/app/services/search_service.py</path>
+      <description>If stream=True, returns async generator of SSE events. If stream=False, returns complete SearchResponse</description>
+    </interface>
+    <interface>
+      <name>LiteLLMClient.chat_completion()</name>
+      <kind>integration method</kind>
+      <signature>async def chat_completion(messages, temperature, max_tokens, stream: bool) -> Response | AsyncGenerator</signature>
+      <path>backend/app/integrations/litellm_client.py</path>
+      <description>Extend to support stream=True parameter for token-by-token LLM streaming</description>
+    </interface>
+    <interface>
+      <name>SSEEvent.to_sse_format()</name>
+      <kind>model method</kind>
+      <signature>def to_sse_format(self) -> str</signature>
+      <path>backend/app/schemas/sse.py</path>
+      <description>Convert SSE event to proper SSE message format: "data: {json}\n\n"</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use pytest with pytest-asyncio in auto mode (already configured). All streaming tests must be async. Use @pytest.mark.unit for mocked tests, @pytest.mark.integration for real SSE connection tests. Use @pytest.mark.asyncio for all async test functions. Mock LiteLLM streaming response as async generator. Coverage target: 80%+ for streaming-related code.</standards>
+    <locations>backend/tests/unit/test_search_streaming.py (NEW), backend/tests/integration/test_sse_streaming.py (NEW), backend/tests/unit/test_search_service.py (MODIFIED with streaming tests)</locations>
+    <ideas>
+      <idea ac="AC3,AC4">Mock LiteLLM to yield tokens including [1], [2] markers. Verify SearchService._search_stream() emits TokenEvent for each token and CitationEvent when [n] detected</idea>
+      <idea ac="AC5">Test that done event includes confidence and result_count after all tokens streamed</idea>
+      <idea ac="AC6">Simulate LLM exception during streaming. Verify ErrorEvent emitted and connection closes</idea>
+      <idea ac="AC1,AC9">Integration test: POST /api/v1/search?stream=true. Measure time to first SSE token. Assert &lt; 1 second</idea>
+      <idea ac="AC8">Test backward compatibility: POST /api/v1/search (no stream param). Verify JSON SearchResponse returned</idea>
+      <idea ac="AC7">Test client disconnect handling: close connection mid-stream, verify cleanup and logging</idea>
+    </ideas>
+  </tests>
+</story-context>

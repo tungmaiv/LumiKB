@@ -1,0 +1,404 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>1</storyId>
+    <title>Semantic Search Backend</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-25</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/home/tungmv/Projects/LumiKB/docs/sprint-artifacts/3-1-semantic-search-backend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with READ access to a Knowledge Base</asA>
+    <iWant>to search my Knowledge Base with natural language queries</iWant>
+    <soThat>I can find relevant information quickly without memorizing keywords or document names</soThat>
+    <tasks>
+      <task id="1" status="pending">
+        <description>Create SearchService and API endpoint</description>
+        <acceptance_criteria>AC1, AC2, AC3, AC8</acceptance_criteria>
+        <subtasks>
+          <subtask id="1.1">Create backend/app/services/search_service.py with SearchService class</subtask>
+          <subtask id="1.2">Implement _embed_query(query: str) -&gt; list[float] method using LiteLLM client</subtask>
+          <subtask id="1.3">Implement _search_collections(embedding, kb_ids, limit) -&gt; list[SearchChunk] using Qdrant client</subtask>
+          <subtask id="1.4">Implement permission check using KBPermissionService from Epic 2</subtask>
+          <subtask id="1.5">Add Redis caching for query embeddings (cache key: embedding:{hash(query)}, TTL: 3600s)</subtask>
+          <subtask id="1.6">Create backend/app/schemas/search.py with SearchRequest, SearchResponse, SearchResultSchema</subtask>
+          <subtask id="1.7">Create backend/app/api/v1/search.py router with POST / endpoint</subtask>
+          <subtask id="1.8">Add error handling for Qdrant unavailable (503) and permission denied (404)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" status="pending">
+        <description>Integrate Qdrant vector search</description>
+        <acceptance_criteria>AC2, AC3</acceptance_criteria>
+        <subtasks>
+          <subtask id="2.1">Use qdrant_client.search() with collection name kb_{kb_id}</subtask>
+          <subtask id="2.2">Configure search with with_payload=True to retrieve full metadata</subtask>
+          <subtask id="2.3">Map Qdrant ScoredPoint to SearchChunk dataclass with all required fields</subtask>
+          <subtask id="2.4">Handle empty results gracefully (return empty array with helpful message)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" status="pending">
+        <description>Add audit logging</description>
+        <acceptance_criteria>AC6</acceptance_criteria>
+        <subtasks>
+          <subtask id="3.1">Import AuditService from Epic 1</subtask>
+          <subtask id="3.2">Call audit_service.log_event() async after search completes</subtask>
+          <subtask id="3.3">Include query, kb_ids, result_count, latency_ms in details JSONB</subtask>
+          <subtask id="3.4">Ensure audit write does not block search response (use background task)</subtask>
+        </subtasks>
+      </task>
+      <task id="4" status="pending">
+        <description>Write unit tests</description>
+        <acceptance_criteria>AC1, AC2, AC3, AC4, AC8</acceptance_criteria>
+        <subtasks>
+          <subtask id="4.1">Create backend/tests/unit/test_search_service.py</subtask>
+          <subtask id="4.2">Test _embed_query() with mocked LiteLLM client</subtask>
+          <subtask id="4.3">Test _search_collections() with mocked Qdrant client</subtask>
+          <subtask id="4.4">Test empty results scenario returns empty array with message</subtask>
+          <subtask id="4.5">Test Qdrant unavailable returns 503 error</subtask>
+          <subtask id="4.6">Test Redis cache hit/miss scenarios</subtask>
+        </subtasks>
+      </task>
+      <task id="5" status="pending">
+        <description>Write integration tests</description>
+        <acceptance_criteria>AC1, AC2, AC3, AC5, AC6, AC7</acceptance_criteria>
+        <subtasks>
+          <subtask id="5.1">Create backend/tests/integration/test_semantic_search.py</subtask>
+          <subtask id="5.2">Test POST /api/v1/search returns results with real Qdrant (testcontainers)</subtask>
+          <subtask id="5.3">Test permission enforcement (user without READ access gets 404)</subtask>
+          <subtask id="5.4">Test audit log entry is created with correct action='search'</subtask>
+          <subtask id="5.5">Test performance: measure p95 latency &lt; 3 seconds with 100 sample queries</subtask>
+          <subtask id="5.6">Test non-existent KB returns 404</subtask>
+          <subtask id="5.7">Test query with no results returns 200 with empty array</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">
+      <title>Query Embedding Generation</title>
+      <given>A user with READ access to a KB with indexed documents</given>
+      <when>They POST /api/v1/search with query "authentication approach" and kb_id</when>
+      <then>
+        - System generates query embedding using same model in LiteLLM (default: text-embedding-ada-002)
+        - Embedding dimension matches indexed documents (1536 for ada-002)
+        - Embedding request cached in Redis with 1-hour TTL for repeat queries
+      </then>
+      <source>tech-spec-epic-3.md#SearchService, FR24, FR25</source>
+    </criterion>
+    <criterion id="AC2">
+      <title>Vector Search Execution</title>
+      <given>Query embedding has been generated</given>
+      <when>Semantic search is performed against Qdrant</when>
+      <then>
+        - System searches collection kb_{kb_id}
+        - Returns top-k results (default: 10, configurable via limit parameter)
+        - Uses HNSW index for approximate nearest neighbor search
+        - Search performed via gRPC for optimal latency (&lt; 1 second target)
+      </then>
+      <source>architecture.md#Qdrant, tech-spec-epic-3.md#SearchService, FR25</source>
+    </criterion>
+    <criterion id="AC3">
+      <title>Result Metadata Completeness</title>
+      <given>Search returns matching vectors</given>
+      <when>Results are returned to client</when>
+      <then>
+        Each result includes complete metadata from Qdrant payload:
+        - document_id (UUID)
+        - document_name (string)
+        - chunk_text (string, matched passage)
+        - page_number (int | null)
+        - section_header (string | null)
+        - relevance_score (float, 0-1, from Qdrant distance metric)
+        - char_start (int, for highlighting)
+        - char_end (int, for highlighting)
+        Metadata indexed during Epic 2 document processing
+      </then>
+      <source>tech-spec-epic-3.md#Chunk Metadata Structure, FR43, FR44</source>
+    </criterion>
+    <criterion id="AC4">
+      <title>Empty Results Handling</title>
+      <given>A query with no relevant matches in KB</given>
+      <when>Search completes with zero results</when>
+      <then>
+        - System returns HTTP 200 with empty results array
+        - Helpful message: "No relevant documents found for your query. Try rephrasing or searching across all Knowledge Bases."
+        - result_count: 0
+        - Does NOT return 404 (semantically valid query, just no matches)
+      </then>
+      <source>tech-spec-epic-3.md#SearchService, UX spec Empty States</source>
+    </criterion>
+    <criterion id="AC5">
+      <title>Permission Enforcement</title>
+      <given>User without READ access to a KB OR KB doesn't exist</given>
+      <when>They attempt to search that KB</when>
+      <then>
+        - System returns HTTP 404 (not 403, to avoid leaking KB existence)
+        - Request logged to audit.events with action='unauthorized_search_attempt'
+        - Non-existent KB: HTTP 404 with message "Knowledge Base not found"
+      </then>
+      <source>architecture.md#Authorization Model, FR7, Epic 2 permissions model</source>
+    </criterion>
+    <criterion id="AC6">
+      <title>Audit Logging</title>
+      <given>Any search is performed (successful or empty results)</given>
+      <when>Search completes</when>
+      <then>
+        Audit event logged to audit.events table with:
+        - user_id (UUID)
+        - action = 'search'
+        - details (JSONB): {"query": "...", "kb_ids": [...], "result_count": n, "latency_ms": 1234}
+        - timestamp (UTC)
+        - ip_address (from request)
+        Audit write is async (does not block search response)
+      </then>
+      <source>architecture.md#Audit Schema, tech-spec-epic-3.md#Audit Logging, FR54</source>
+    </criterion>
+    <criterion id="AC7">
+      <title>Performance Targets</title>
+      <given>KB with 1000 indexed chunks</given>
+      <when>Search query executed</when>
+      <then>
+        Response time &lt; 3 seconds (p95)
+        Breakdown target:
+        - Query embedding: &lt; 500ms
+        - Qdrant search: &lt; 1s
+        - Metadata assembly: &lt; 100ms
+        - Audit logging: async (non-blocking)
+      </then>
+      <source>architecture.md#Performance Considerations, tech-spec-epic-3.md#Performance</source>
+    </criterion>
+    <criterion id="AC8">
+      <title>Error Handling</title>
+      <given>Qdrant temporarily unavailable OR LiteLLM embedding service fails</given>
+      <when>Search/embedding attempted</when>
+      <then>
+        Qdrant unavailable:
+        - HTTP 503 with message "Search temporarily unavailable. Please try again in a moment."
+        - Error logged with full context for debugging
+
+        LiteLLM failure:
+        - HTTP 503 with message "Search service unavailable"
+        - Retry logic attempts up to 3 times with exponential backoff
+      </then>
+      <source>tech-spec-epic-3.md#Reliability</source>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic 3 Technical Specification</title>
+        <section>SearchService Architecture</section>
+        <snippet>SearchService orchestrates semantic search pipeline with embedding generation, Qdrant vector search, LLM answer synthesis via LiteLLM, and CitationService for [n] marker extraction. Performance target: &lt;3s p95 with Redis caching for embeddings (1hr TTL), gRPC mode for Qdrant, and async audit logging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic 3 Technical Specification</title>
+        <section>Chunk Metadata Structure</section>
+        <snippet>Qdrant payload includes: document_id, document_name, page_number (int|null), section_header (str|null), chunk_text, char_start, char_end (for highlighting). Metadata indexed during Epic 2 document processing, required for SearchResultSchema completeness (AC3).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic 3 Technical Specification</title>
+        <section>API Endpoints - POST /api/v1/search</section>
+        <snippet>POST /api/v1/search with SearchRequest (query, kb_ids, limit). Returns SearchResponse with answer, citations array, confidence, and raw results. Optional ?stream=true for SSE. Requires authenticated user, checks KB READ permissions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Authorization Model</section>
+        <snippet>KB permissions: READ (search, view docs), WRITE (upload/delete), ADMIN (manage settings). Permission enforcement: Check before search, return 404 (not 403) for unauthorized to avoid leaking KB existence. Implemented in Epic 2 KBPermissionService.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Audit Schema</section>
+        <snippet>audit.events table: user_id, action (e.g., 'search'), resource_type, resource_id, details (JSONB with query, kb_ids, result_count, latency_ms), timestamp (UTC), ip_address. INSERT-only for immutability. Async write to avoid blocking search response.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Qdrant Configuration</section>
+        <snippet>Collection per KB: kb_{kb_id}. HNSW index for approximate nearest neighbor. gRPC mode (prefer_grpc=True) for optimal latency (&lt;1s target). Vector dimension: 1536 for ada-002 embedding model. Configured in Epic 2.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/integrations/litellm_client.py</path>
+        <kind>integration</kind>
+        <symbol>LiteLLMClient</symbol>
+        <lines>Full file</lines>
+        <reason>Reuse for query embedding generation (SearchService._embed_query). Already configured with embedding model from Epic 2.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/qdrant_client.py</path>
+        <kind>integration</kind>
+        <symbol>QdrantClient</symbol>
+        <lines>Full file</lines>
+        <reason>Reuse for vector search (SearchService._search_collections). gRPC connection established, collection naming pattern kb_{kb_id} already in use.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/kb_service.py</path>
+        <kind>service</kind>
+        <symbol>KBPermissionService</symbol>
+        <lines>Full file</lines>
+        <reason>Reuse for READ permission enforcement (AC5). Epic 2 implementation, checks user access before returning KB data.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService</symbol>
+        <lines>Full file</lines>
+        <reason>Reuse for search audit logging (AC6). Epic 1 implementation with async background task pattern for non-blocking writes.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/knowledge_base.py</path>
+        <kind>schema</kind>
+        <symbol>KBPermission schemas</symbol>
+        <lines>Full file</lines>
+        <reason>Reference for permission check return types and constants (READ, WRITE, ADMIN levels).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/models/document.py</path>
+        <kind>model</kind>
+        <symbol>Document model</symbol>
+        <lines>Full file</lines>
+        <reason>Reference for document metadata fields (document_id, document_name) needed in SearchResultSchema (AC3).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/workers/embedding.py</path>
+        <kind>worker</kind>
+        <symbol>embedding patterns</symbol>
+        <lines>Full file</lines>
+        <reason>Reference Epic 2 embedding generation patterns for consistency (same model, same dimensions).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="langchain-qdrant" version=">=1.1.0" purpose="QdrantVectorStore for vector search" />
+        <package name="qdrant-client" version=">=1.10.0" purpose="Low-level Qdrant operations with gRPC" />
+        <package name="litellm" version=">=1.50.0" purpose="LLM and embedding API access" />
+        <package name="redis" version=">=7.1.0" purpose="Query embedding cache (TTL: 3600s)" />
+        <package name="fastapi" version=">=0.115.0" purpose="API routing and SSE support" />
+        <package name="pydantic" version=">=2.7.0" purpose="Request/response validation" />
+        <package name="structlog" version=">=25.5.0" purpose="Structured logging for search operations" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Embedding Model Consistency: Query embeddings MUST use same model as document indexing (Epic 2). Verify EMBEDDING_MODEL environment variable matches.</constraint>
+    <constraint>Qdrant Collection Naming: Collections follow kb_{kb_id} pattern (established Story 2.1). Do NOT deviate.</constraint>
+    <constraint>Metadata Availability: Story assumes Epic 2 indexed documents with document_id, document_name, page_number, section_header, chunk_text, char_start, char_end. If missing, citations in Story 3.2 will be less precise.</constraint>
+    <constraint>Permission Model: Uses Epic 2 permission levels (READ, WRITE, ADMIN). READ permission is sufficient for search. Return 404 (not 403) for unauthorized to avoid leaking KB existence.</constraint>
+    <constraint>gRPC Requirement: Qdrant client MUST be configured with prefer_grpc=True for performance (target: &lt;1s search latency).</constraint>
+    <constraint>Response Time Target: Search response &lt;3s (p95) - breakdown: embedding &lt;500ms, Qdrant &lt;1s, metadata &lt;100ms, audit async.</constraint>
+    <constraint>Error Handling: Qdrant unavailable → 503. LiteLLM failure → 503 with 3x retry exponential backoff. Permission denied → 404. Invalid KB → 404.</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/search</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Request: SearchRequest { query: str, kb_ids: list[str] | None, limit: int (default: 10) }
+        Response: SearchResponse { query: str, results: list[SearchResultSchema], result_count: int, message: str | None }
+        Status: 200 (success/empty), 404 (KB not found/unauthorized), 503 (service unavailable)
+      </signature>
+      <path>backend/app/api/v1/search.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>SearchService.search()</name>
+      <kind>Service method</kind>
+      <signature>
+        async def search(query: str, kb_ids: list[str], user_id: str, limit: int = 10) -&gt; SearchResponse
+        Orchestrates: permission check → embedding → Qdrant search → audit log
+      </signature>
+      <path>backend/app/services/search_service.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>LiteLLMClient.embed()</name>
+      <kind>Integration client</kind>
+      <signature>
+        async def embed(text: str) -&gt; list[float]
+        Returns embedding vector (dimension: 1536 for ada-002)
+      </signature>
+      <path>backend/app/integrations/litellm_client.py (EXISTING - Epic 2)</path>
+    </interface>
+    <interface>
+      <name>QdrantClient.search()</name>
+      <kind>Integration client</kind>
+      <signature>
+        async def search(collection_name: str, query_vector: list[float], limit: int, with_payload: bool) -&gt; list[ScoredPoint]
+        Returns scored chunks with metadata payload
+      </signature>
+      <path>backend/app/integrations/qdrant_client.py (EXISTING - Epic 2)</path>
+    </interface>
+    <interface>
+      <name>KBPermissionService.check_permission()</name>
+      <kind>Service method</kind>
+      <signature>
+        async def check_permission(user_id: str, kb_id: str, required_level: str) -&gt; bool
+        Returns True if user has READ+ access to KB
+      </signature>
+      <path>backend/app/services/kb_service.py (EXISTING - Epic 2)</path>
+    </interface>
+    <interface>
+      <name>AuditService.log_event()</name>
+      <kind>Service method</kind>
+      <signature>
+        async def log_event(user_id: str, action: str, details: dict) -&gt; None
+        Logs to audit.events table (async background task)
+      </signature>
+      <path>backend/app/services/audit_service.py (EXISTING - Epic 1)</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Use pytest with async support (pytest-asyncio auto mode). Unit tests: Mock external clients (LiteLLM, Qdrant, Redis) with pytest-mock. Integration tests: Real Qdrant via testcontainers, real PostgreSQL test database. Markers: @pytest.mark.unit (fast), @pytest.mark.integration (with containers), @pytest.mark.slow (performance tests). Coverage target: 80%+ for SearchService. All async tests use async def test_... with await.</standards>
+    <locations>
+      backend/tests/unit/test_search_service.py (NEW)
+      backend/tests/integration/test_semantic_search.py (NEW)
+    </locations>
+    <ideas>
+      <test_idea ac="AC1">
+        <description>Unit test: SearchService._embed_query() with mocked LiteLLM</description>
+        <details>Mock LiteLLMClient.embed() to return fixed embedding vector. Verify embedding dimension (1536), verify Redis cache writes with key=embedding:{hash(query)}, TTL=3600s. Test cache hit scenario returns cached value without calling LiteLLM.</details>
+      </test_idea>
+      <test_idea ac="AC2">
+        <description>Unit test: SearchService._search_collections() with mocked Qdrant</description>
+        <details>Mock QdrantClient.search() to return ScoredPoint list. Verify collection name=kb_{kb_id}, with_payload=True, limit=10. Test empty results returns empty list gracefully.</details>
+      </test_idea>
+      <test_idea ac="AC3">
+        <description>Integration test: POST /api/v1/search returns complete metadata</description>
+        <details>Use testcontainers Qdrant with indexed test document. POST search query, verify response includes: document_id (UUID), document_name, chunk_text, page_number, section_header, relevance_score (0-1), char_start, char_end. All fields non-null for test doc.</details>
+      </test_idea>
+      <test_idea ac="AC4">
+        <description>Integration test: Empty results returns 200 with helpful message</description>
+        <details>Search query with no matches in KB (e.g., "xyzabc nonsense query"). Verify HTTP 200, empty results array, message="No relevant documents found...", result_count=0. NOT 404.</details>
+      </test_idea>
+      <test_idea ac="AC5">
+        <description>Integration test: Permission enforcement returns 404</description>
+        <details>Create KB owned by user A. User B (without READ access) POSTs search to that KB. Verify HTTP 404 (not 403). Verify audit log entry with action='unauthorized_search_attempt'. Test non-existent KB also returns 404.</details>
+      </test_idea>
+      <test_idea ac="AC6">
+        <description>Integration test: Audit log entry created with correct fields</description>
+        <details>POST search, query audit.events table. Verify: user_id matches current user, action='search', details.query matches, details.kb_ids=[kb_id], details.result_count=N, details.latency_ms > 0, timestamp within last 5 seconds, ip_address set.</details>
+      </test_idea>
+      <test_idea ac="AC7">
+        <description>Integration test (slow): Performance target p95 &lt; 3s</description>
+        <details>Create KB with 1000 indexed chunks. Run 100 search queries, measure latency distribution. Verify p95 &lt; 3000ms. Verify breakdown: embedding &lt;500ms (check Redis cache hit rate &gt;50% after warmup), Qdrant &lt;1s, total &lt;3s.</details>
+      </test_idea>
+      <test_idea ac="AC8">
+        <description>Unit test: Error handling for Qdrant unavailable</description>
+        <details>Mock QdrantClient.search() to raise ConnectionError. Verify SearchService raises HTTPException with status=503, message="Search temporarily unavailable...". Verify error logged with structlog.</details>
+      </test_idea>
+      <test_idea ac="AC8">
+        <description>Unit test: Error handling for LiteLLM timeout with retry</description>
+        <details>Mock LiteLLMClient.embed() to raise timeout on first 2 calls, succeed on 3rd. Verify SearchService retries 3 times with exponential backoff. If all 3 fail, verify HTTPException status=503, message="Search service unavailable".</details>
+      </test_idea>
+    </ideas>
+  </tests>
+</story-context>

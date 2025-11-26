@@ -55,7 +55,7 @@ def create_admin_user(**overrides: Any) -> dict:
 def create_registration_data(**overrides: Any) -> dict:
     """Factory for user registration API payload.
 
-    Generates unique email using faker to avoid conflicts in parallel tests.
+    Generates unique email using UUID to guarantee no conflicts in parallel tests.
 
     Usage:
         data = create_registration_data()  # Random email, default password
@@ -65,8 +65,10 @@ def create_registration_data(**overrides: Any) -> dict:
     Returns:
         dict: Registration payload with email and password
     """
+    # Use UUID to guarantee uniqueness across parallel test runs
+    unique_id = uuid.uuid4().hex[:12]
     defaults = {
-        "email": fake.email(),
+        "email": f"testuser_{unique_id}@example.com",
         "password": "securepassword123",
     }
     defaults.update(overrides)

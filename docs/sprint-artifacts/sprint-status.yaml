@@ -51,34 +51,33 @@ development_status:
   epic-1-retrospective: completed
 
   # Epic 2: Knowledge Base & Document Management (12 stories)
-  epic-2: backlog
-  2-1-knowledge-base-crud-backend: backlog
-  2-2-knowledge-base-permissions-backend: backlog
-  2-3-knowledge-base-list-and-selection-frontend: backlog
-  2-4-document-upload-api-and-storage: backlog
-  2-5-document-processing-worker-parsing: backlog
-  2-6-document-processing-worker-chunking-and-embedding: backlog
-  2-7-document-processing-status-and-notifications: backlog
-  2-8-document-list-and-metadata-view: backlog
-  2-9-document-upload-frontend: backlog
-  2-10-document-deletion: backlog
-  2-11-outbox-processing-and-reconciliation: backlog
-  2-12-document-re-upload-and-version-awareness: backlog
+  epic-2: contexted
+  2-1-knowledge-base-crud-backend: done
+  2-2-knowledge-base-permissions-backend: done
+  2-3-knowledge-base-list-and-selection-frontend: done
+  2-4-document-upload-api-and-storage: done
+  2-5-document-processing-worker-parsing: done
+  2-6-document-processing-worker-chunking-and-embedding: done
+  2-7-document-processing-status-and-notifications: done
+  2-8-document-list-and-metadata-view: done
+  2-9-document-upload-frontend: done
+  2-10-document-deletion: done
+  2-11-outbox-processing-and-reconciliation: done
+  2-12-document-re-upload-and-version-awareness: done
   epic-2-retrospective: optional
 
-  # Epic 3: Semantic Search & Citations (11 stories)
-  epic-3: backlog
-  3-1-semantic-search-backend: backlog
-  3-2-answer-synthesis-with-citations-backend: backlog
-  3-3-search-api-streaming-response: backlog
-  3-4-search-results-ui-with-inline-citations: backlog
-  3-5-citation-preview-and-source-navigation: backlog
-  3-6-cross-kb-search: backlog
-  3-7-quick-search-and-command-palette: backlog
-  3-8-search-result-actions: backlog
-  3-9-relevance-explanation: backlog
-  3-10-verify-all-citations: backlog
-  3-11-search-audit-logging: backlog
+  # Epic 3: Semantic Search & Citations (10 stories)
+  epic-3: done  # ✅ Completed 2025-11-26 (Stories 3.1-3.10 done, tech debt documented)
+  3-1-semantic-search-backend: done
+  3-2-answer-synthesis-with-citations-backend: done
+  3-3-search-api-streaming-response: done
+  3-4-search-results-ui-with-inline-citations: done
+  3-5-citation-preview-and-source-navigation: done  # ✅ Code review completed 2025-11-26
+  3-6-cross-kb-search: done  # ✅ Code review approved 2025-11-26
+  3-7-quick-search-and-command-palette: done  # ✅ Code review approved 2025-11-26
+  3-8-search-result-actions: done  # ✅ Code review approved, marked done 2025-11-26
+  3-9-relevance-explanation: done  # ✅ Code review approved, all tests passing 2025-11-26
+  3-10-verify-all-citations: done  # ✅ Code review approved, marked done 2025-11-26
   epic-3-retrospective: optional
 
   # Epic 4: Chat & Document Generation (10 stories)
@@ -95,7 +94,7 @@ development_status:
   4-10-generation-audit-logging: backlog
   epic-4-retrospective: optional
 
-  # Epic 5: Administration & Polish (9 stories)
+  # Epic 5: Administration & Polish (14 stories - includes 4 technical debt)
   epic-5: backlog
   5-1-admin-dashboard-overview: backlog
   5-2-audit-log-viewer: backlog
@@ -106,4 +105,9 @@ development_status:
   5-7-onboarding-wizard: backlog
   5-8-smart-kb-suggestions: backlog
   5-9-recent-kbs-and-polish-items: backlog
+  5-10-command-palette-test-coverage-improvement: backlog  # Technical debt from Story 3.7
+  5-11-epic-3-search-hardening: backlog  # Technical debt from Stories 3.7, 3.8, 3.10 (unit tests, accessibility)
+  5-12-atdd-integration-tests-transition-to-green: backlog  # Technical debt from Epic 3 (31 integration tests)
+  5-13-celery-beat-filesystem-fix: backlog  # Technical debt from infrastructure (discovered 2025-11-26)
+  5-14-search-audit-logging: backlog  # Moved from Epic 3 (Story 3.11) - completes audit workflow with 5.2, 5.3
   epic-5-retrospective: optional

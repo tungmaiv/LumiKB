@@ -1,0 +1,296 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3-4</storyId>
+    <title>Search Results UI with Inline Citations</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-25</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-4-search-results-ui-with-inline-citations.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user (Sarah - Sales Rep or David - System Engineer)</asA>
+    <iWant>see search results with synthesized answers and inline citation markers</iWant>
+    <soThat>I can quickly understand the answer while seeing exactly where each claim comes from</soThat>
+    <tasks>
+Task 1: Create CitationMarker Component (AC: #2)
+Task 2: Create CitationCard Component (AC: #3)
+Task 3: Create ConfidenceIndicator Component (AC: #4)
+Task 4: Create SearchResultCard Component (AC: #5)
+Task 5: Implement useSearchStream Hook (AC: #1)
+Task 6: Create Search Results Page (AC: #1, #6, #7, #8)
+Task 7: Add Responsive Behavior (AC: #6)
+Task 8: Write Component Tests (AC: #1-#5)
+Task 9: Write Integration Tests (AC: #1, #3, #4, #7)
+Task 10: Accessibility Testing (AC: #2, #3, #4)</tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Search Results Display with Streaming Answer - Center panel shows streaming answer word-by-word from SSE token events, skeleton loaders for citations until first citation arrives, body font 16px line-height 1.6
+
+AC2: Inline Citation Markers - [1], [2] render as CitationMarker component with blue background (#0066CC), white text, clickable, 8px border radius, hover state darker blue, onClick callback to scroll to citation panel, ARIA label "Citation {number}: {document_name}", keyboard accessible
+
+AC3: Citation Panel with Citation Cards - Right panel (320px) populates with CitationCard components from SSE citation events, shows number badge, document name (truncated 40 chars), page/section, excerpt (~200 chars truncated), Preview and Open Document buttons, light gray border, 12px border radius, 16px padding, hover shadow, scrollable if overflow
+
+AC4: Confidence Indicator - Display ConfidenceIndicator component below answer with label "Confidence: 85%", horizontal bar graph color-mapped (Green 80-100%, Amber 50-79%, Red 0-49%), ALWAYS shown, data-testid="confidence-indicator"
+
+AC5: Search Result Cards Below Answer - "Sources" section with SearchResultCard components for raw result chunks, shows document title with file icon, KB name tag, relevance score percentage, last updated timestamp (relative), excerpt with matching passage, citation markers if cited in answer, action buttons (Use in Draft, View, Similar), max 3 cards initially with "Show more" button
+
+AC6: Layout and Responsiveness - Three-panel layout (Left 260px KB sidebar, Center flexible, Right 320px citations), responsive: Desktop (≥1280px) full three-panel, Laptop (1024-1279px) citation panel collapsible drawer, Tablet (<1024px) right panel hidden by default with "Citations" button, panels use 8px base spacing unit, all panels collapsible
+
+AC7: Loading and Error States - Skeleton loaders for answer text (3 lines shimmer animation) while streaming, "Loading citations..." in empty citation panel, error alert "Search temporarily unavailable. Please try again." with "Try Again" button if SSE connection fails, no partial results if synthesis failed, error logged to console
+
+AC8: Empty State - If result_count: 0 from SSE done event, display "No matches found. Try different terms." with suggested actions: "Search all Knowledge Bases" (if filtered to single KB), "Try broader keywords", no citation panel visible, no search result cards</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>Semantic Search & Q&A (MATCH Capability)</section>
+        <snippet>FR27: Every answer includes citations linking to source documents. FR27a: Citations are displayed INLINE with answers (always visible), not hidden in separate panel. FR30c: Confidence indicators are ALWAYS shown for AI-generated content (never hidden).</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>Chat Interface (Conversational Experience)</section>
+        <snippet>FR35a: System streams AI responses in real-time (word-by-word) for perceived speed and engagement. FR35b: Users can see typing/thinking indicators while the system processes their request.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>Novel Pattern 1: Citation-First Trust System</section>
+        <snippet>Most AI tools generate answers without showing sources, or bury citations in footnotes. Enterprise users in banking/finance CANNOT trust unverified AI output. Citations are inline + right panel with preview/open actions. Blue background #0066CC for trust signals, click expands citation panel.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>3.1 Color System - Trust Blue Theme</section>
+        <snippet>Primary Blue: #0066CC for primary actions, links, focus states. Primary Dark: #004C99 for hover states. Success Green: #10B981 for verified citations, high confidence. Warning Amber: #F59E0B for medium confidence. Error Red: #EF4444 for low confidence. Border Gray: #E5E5E5 for dividers, card borders.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>3.2 Typography System</section>
+        <snippet>Body: 1rem (16px) weight 400 line-height 1.6 for primary content. Body Small: 0.875rem (14px) for secondary content. Caption: 0.75rem (12px) for metadata, labels.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>3.3 Spacing System</section>
+        <snippet>8px base unit system. xs: 4px inline spacing, sm: 8px tight spacing, md: 16px default spacing and card padding, lg: 24px section spacing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>4.1 Three-Panel Layout</section>
+        <snippet>Left panel (260px) KB sidebar from Epic 2, Center panel (flexible) for chat/search results, Right panel (320px) for citations. Panels can collapse for Focus Mode. NotebookLM-style familiar interface.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>8.1 Responsive Strategy - Breakpoints</section>
+        <snippet>sm: 640px mobile layout, md: 768px tablet adaptations, lg: 1024px desktop layout starts, xl: 1280px full three-panel, 2xl: 1536px extra wide. Desktop (≥1280px) full three-panel, Laptop (1024-1279px) citation panel collapsible drawer, Tablet (<1024px) right panel hidden by default accessible via "Citations" button.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>8.2 Accessibility Strategy - WCAG 2.1 Level AA</section>
+        <snippet>Color Contrast: 4.5:1 minimum for normal text. Keyboard Navigation: All interactive elements accessible via Tab. Focus Indicators: Visible 3px outline on all focusable elements. ARIA Labels: Meaningful labels for screen readers. Citations: role="link", aria-label="Citation {number}: {document_name}".</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search & Citations</title>
+        <section>Detailed Design - CitationService</section>
+        <snippet>THE CORE DIFFERENTIATOR. Extract citation markers [n] from LLM output, map markers to source chunks, build rich citation metadata for frontend. Citation object: {number, document_id, document_name, page_number, section_header, excerpt (~200 chars), char_start, char_end, confidence}.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic Technical Specification: Semantic Search & Citations</title>
+        <section>APIs and Interfaces - SSE Event Types</section>
+        <snippet>SSE events: {"type": "status", "content": "Searching..."}, {"type": "token", "content": "word"}, {"type": "citation", "data": {citation_metadata}}, {"type": "done", "confidence": 0.85, "result_count": 5}. Citations emit immediately when [n] detected in token stream.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-3-search-api-streaming-response.md</path>
+        <title>Story 3-3: Search API Streaming Response</title>
+        <section>Dev Agent Record - Implementation Notes</section>
+        <snippet>SSE Event Types created in backend/app/schemas/sse.py: StatusEvent, TokenEvent, CitationEvent (number, document_id, document_name, page_number, section_header, excerpt, char_start, char_end), DoneEvent, ErrorEvent. Endpoint: POST /api/v1/search?stream=true returns text/event-stream. First token arrives < 1s (p95).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/validation-report-3-3-2025-11-25.md</path>
+        <title>Story 3-3 Validation Report - SSE Implementation Patterns</title>
+        <section>Implementation Learnings</section>
+        <snippet>REFERENCE THIS: Story 3-3 validation report contains SSE implementation patterns learned during backend development. Key learnings: EventSource connection management, SSE event formatting (data: prefix, double newline termination), error handling and reconnection logic, testing SSE streams with mocked EventSource. These patterns apply to frontend SSE consumption in useSearchStream hook.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>frontend/src/app/(protected)/dashboard/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage</symbol>
+        <lines>1-80</lines>
+        <reason>Three-panel layout foundation from Epic 1 Story 1-9. Shows sidebar, main content area, and right panel structure that will be used for KB list, search results, and citations respectively.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/kb/kb-sidebar.tsx</path>
+        <kind>component</kind>
+        <symbol>KBSidebar</symbol>
+        <lines>1-50</lines>
+        <reason>Left panel KB sidebar from Epic 2. This component will remain visible in the three-panel layout while center and right panels show search results and citations.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/kb/kb-selector-item.tsx</path>
+        <kind>component</kind>
+        <symbol>KBSelectorItem</symbol>
+        <lines>1-40</lines>
+        <reason>Individual KB list item component showing pattern for creating similar list components like SearchResultCard. Uses shadcn/ui styling patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/skeleton.tsx</path>
+        <kind>component</kind>
+        <symbol>Skeleton</symbol>
+        <lines>all</lines>
+        <reason>shadcn/ui Skeleton component for loading states. Will be used for answer text skeleton loaders (AC7) and citation panel loading states.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/progress.tsx</path>
+        <kind>component</kind>
+        <symbol>Progress</symbol>
+        <lines>all</lines>
+        <reason>shadcn/ui Progress component that can be adapted for ConfidenceIndicator horizontal bar graph (AC4). Radix UI primitive with accessible ARIA attributes.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/alert.tsx</path>
+        <kind>component</kind>
+        <symbol>Alert, AlertDescription</symbol>
+        <lines>all</lines>
+        <reason>shadcn/ui Alert component for error states (AC7). Shows error alert "Search temporarily unavailable. Please try again." with proper styling and accessibility.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/sse.py</path>
+        <kind>schema</kind>
+        <symbol>TokenEvent, CitationEvent, DoneEvent</symbol>
+        <lines>all</lines>
+        <reason>Backend SSE event models from Story 3-3. Frontend must consume these event types via EventSource API. CitationEvent structure maps directly to CitationCard component props (number, document_id, document_name, page_number, section_header, excerpt, char_start, char_end).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/search.py</path>
+        <kind>api</kind>
+        <symbol>POST /api/v1/search</symbol>
+        <lines>all</lines>
+        <reason>Search endpoint from Story 3-3 that returns SSE stream when stream=true query param is set. Frontend will create EventSource connection to this endpoint with query parameters.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>service</kind>
+        <symbol>SearchService._search_stream</symbol>
+        <lines>all</lines>
+        <reason>Backend streaming search method that shows SSE event emission pattern: status → tokens → citations → done. Frontend needs to understand event sequence and timing.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>19.x</version>
+      </node>
+      <node>
+        <package>next</package>
+        <version>15.x</version>
+      </node>
+      <node>
+        <package>tailwindcss</package>
+        <version>4.x</version>
+      </node>
+      <node>
+        <package>@radix-ui/react-progress</package>
+        <version>latest</version>
+        <note>For ConfidenceIndicator component via shadcn/ui</note>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>latest</version>
+        <note>Icons for search results and citations</note>
+      </node>
+      <node>
+        <package>date-fns</package>
+        <version>4.x</version>
+        <note>For relative timestamp formatting in SearchResultCard</note>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- Use shadcn/ui components as base (Badge for CitationMarker, Card for CitationCard and SearchResultCard, Progress for ConfidenceIndicator, Alert for errors)
+- Follow Trust Blue color theme: Primary #0066CC, Primary Dark #004C99 for hover, Green #10B981 for high confidence, Amber #F59E0B for medium, Red #EF4444 for low
+- Typography: Body 16px line-height 1.6, Small 14px, Caption 12px
+- Spacing: 8px base unit, card padding 16px (md), gaps 12px
+- Three-panel layout from Epic 1 Story 1-9: Left 260px (KB sidebar), Center flexible (search results), Right 320px (citations)
+- SSE streaming via EventSource API (not fetch with ReadableStream) - more reliable for SSE consumption per Story 3-3 recommendations
+- Citation markers MUST be inline (not footnotes) per UX spec and FR27a - always visible principle
+- Confidence indicator MUST always be shown (never hidden) per FR30c - design for skepticism
+- All components must be keyboard accessible and screen reader friendly (WCAG 2.1 Level AA)
+- No layout shift when citations populate - use skeleton loaders and reserved space
+- Components must have data-testid attributes for testing (citation-marker-{number}, citation-card-{number}, confidence-indicator, search-result-card-{index})
+- Responsive: Desktop (≥1280px) full three-panel, Laptop (1024-1279px) collapsible citation drawer, Tablet (<1024px) hidden by default with "Citations" button
+- Follow architecture pattern: Read tool for examining existing code, Edit tool for modifications (never Write for existing files)
+- Use project-relative paths only (strip /home/tungmv/Projects/LumiKB/ prefix) in all file references
+- Real-time streaming: Answer text streams word-by-word, citations populate immediately when marker detected (progressive disclosure)
+- EventSource listeners: 'status' (progress), 'token' (append to answer), 'citation' (add to citations array), 'done' (set confidence, close connection), 'error' (show error alert)
+- Citation click behavior: Scroll to corresponding CitationCard in right panel and highlight it (Story 3-5 depends on this)
+- Story 3-5 extension point: CitationCard's "Preview" and "Open Document" buttons are styled and wired to callbacks (onPreview, onOpenDocument) but full modal/navigation implementation happens in Story 3-5
+- Implementation reference: See docs/sprint-artifacts/validation-report-3-3-2025-11-25.md for SSE implementation patterns from Story 3-3</constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/search</name>
+      <kind>REST endpoint with SSE streaming</kind>
+      <signature>POST /api/v1/search?stream=true&query={query}&kb_ids={kb_ids}</signature>
+      <path>backend/app/api/v1/search.py</path>
+      <note>Returns text/event-stream when stream=true. Frontend creates EventSource to this URL. Events: status, token, citation, done, error.</note>
+    </interface>
+    <interface>
+      <name>CitationEvent</name>
+      <kind>SSE event data structure</kind>
+      <signature>{"number": int, "document_id": str, "document_name": str, "page_number": int | None, "section_header": str | None, "excerpt": str, "char_start": int, "char_end": int}</signature>
+      <path>backend/app/schemas/sse.py</path>
+      <note>Maps directly to CitationCard component props. Frontend receives this structure in citation events and renders CitationCard with this data.</note>
+    </interface>
+    <interface>
+      <name>useSearchStream hook</name>
+      <kind>React custom hook</kind>
+      <signature>useSearchStream(query: string, kbIds: string[] | null): {answer: string, citations: Citation[], confidence: number | null, isLoading: boolean, error: string | null}</signature>
+      <path>frontend/src/lib/hooks/use-search-stream.ts</path>
+      <note>Manages EventSource lifecycle, accumulates answer tokens, collects citations, updates state reactively. To be implemented in Task 5.</note>
+    </interface>
+    <interface>
+      <name>CitationMarker component</name>
+      <kind>React component</kind>
+      <signature>CitationMarker({number: number, onClick: (number: number) => void, verified?: boolean})</signature>
+      <path>frontend/src/components/search/citation-marker.tsx</path>
+      <note>Inline [n] badge. Blue background #0066CC, white text, clickable, hover darker blue. ARIA label for accessibility. To be implemented in Task 1.</note>
+    </interface>
+    <interface>
+      <name>CitationCard component</name>
+      <kind>React component</kind>
+      <signature>CitationCard({citation: Citation, onPreview: (citation: Citation) => void, onOpenDocument: (documentId: string, charStart: number, charEnd: number) => void, highlighted?: boolean})</signature>
+      <path>frontend/src/components/search/citation-card.tsx</path>
+      <note>Right panel card showing citation details. Truncate doc name 40 chars, excerpt ~200 chars. Preview and Open Document buttons. To be implemented in Task 2.</note>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Frontend testing uses Vitest + React Testing Library for component tests. Integration tests use Vitest with mocked fetch/EventSource. E2E tests use Playwright. Follow patterns from frontend/src/test/setup.ts. Component tests verify rendering, user interactions, accessibility (ARIA labels, keyboard navigation). Integration tests verify SSE event handling and state updates. E2E tests verify full search flow including citation click and navigation.</standards>
+    <locations>frontend/src/components/search/__tests__/ for component tests, frontend/src/lib/hooks/__tests__/ for hook tests, frontend/e2e/search/ for E2E tests</locations>
+    <ideas>
+      <test ac="AC2">CitationMarker renders [1] with blue background, onClick handler called with citation number when clicked, ARIA label includes citation number and document name, keyboard Tab focuses marker and Enter triggers click</test>
+      <test ac="AC3">CitationCard renders citation number badge, document name truncated at 40 chars, page and section in gray text, excerpt in background box, Preview and Open Document buttons present, hover applies shadow</test>
+      <test ac="AC4">ConfidenceIndicator shows percentage text "85%", bar width proportional to confidence (85% = 85% width), green color for 80-100%, amber for 50-79%, red for 0-49%, always visible (never hidden)</test>
+      <test ac="AC5">SearchResultCard shows document title with file icon, KB name badge, relevance score as percentage, relative timestamp using date-fns formatDistanceToNow, excerpt text, citation markers if cited, action buttons (Use in Draft, View, Similar)</test>
+      <test ac="AC1">useSearchStream hook connects EventSource, accumulates token events into answer string, adds citation events to citations array, sets confidence on done event, closes connection on done, handles error events</test>
+      <test ac="AC7">Loading state shows skeleton loaders (3 lines shimmer), error state shows alert with "Try Again" button, no partial results if synthesis failed</test>
+      <test ac="AC8">Empty state (result_count: 0) shows "No matches found. Try different terms." with suggested actions, no citation panel, no result cards</test>
+      <test ac="AC6">Responsive layout: Desktop shows all three panels, laptop collapses citation panel to drawer, tablet hides citation panel with "Citations" button access</test>
+    </ideas>
+  </tests>
+</story-context>

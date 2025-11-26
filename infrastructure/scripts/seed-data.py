@@ -228,11 +228,33 @@ async def create_document_records(
             if chunk["document_name"] == doc_name
         )
 
+        # Determine MIME type from filename extension
+        if doc_name.endswith('.pdf'):
+            mime_type = 'application/pdf'
+            file_size = 50000  # Mock file size for demo
+        elif doc_name.endswith('.md'):
+            mime_type = 'text/markdown'
+            file_size = 10000  # Mock file size for demo
+        elif doc_name.endswith('.docx'):
+            mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            file_size = 30000  # Mock file size for demo
+        else:
+            mime_type = 'application/octet-stream'
+            file_size = 20000  # Mock file size for demo
+
+        # Generate a mock checksum for the demo document
+        import hashlib
+        checksum = hashlib.sha256(doc_name.encode()).hexdigest()
+
         # Create document record
         doc = Document(
             id=uuid.uuid4(),
             kb_id=kb.id,
             name=doc_name,
+            original_filename=doc_name,
+            mime_type=mime_type,
+            file_size_bytes=file_size,
+            checksum=checksum,
             file_path=f"kb-{kb.id}/{doc_name}",
             status=DocumentStatus.READY,
             chunk_count=chunk_count,

@@ -108,7 +108,7 @@ async def db_session(test_engine) -> AsyncSession:
         expire_on_commit=False,
     )
 
-    async with test_session_factory() as session, session.begin():
+    async with test_session_factory() as session:
         yield session
         await session.rollback()
 
