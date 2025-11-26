@@ -260,29 +260,6 @@ class SearchService:
             logger.error("search_failed", error=str(e), query=query[:100])
             raise
 
-    async def quick_search(
-        self,
-        query: str,
-        kb_ids: list[str] | None,
-        user_id: str,
-        limit: int = 5,
-    ) -> SearchResponse:
-        """Quick search without answer synthesis.
-
-        Optimized for command palette - returns chunks only.
-
-        Args:
-            query: Search query
-            kb_ids: KB IDs to search
-            user_id: User ID
-            limit: Max results (default 5)
-
-        Returns:
-            SearchResponse with chunks only
-        """
-        # Quick search is just regular search without synthesis
-        return await self.search(query, kb_ids, user_id, limit, stream=False)
-
     async def _embed_query(self, query: str) -> list[float]:
         """Generate query embedding with Redis caching.
 
@@ -317,7 +294,7 @@ class SearchService:
 
         except Exception as e:
             logger.error("embedding_failed", error=str(e))
-            raise ConnectionError(f"Embedding service unavailable: {str(e)}")
+            raise ConnectionError(f"Embedding service unavailable: {str(e)}") from e
 
     async def _get_kb_names(self, kb_ids: list[str]) -> dict[str, str]:
         """Fetch KB names from database (Story 3.6).
@@ -423,7 +400,7 @@ class SearchService:
 
         except Exception as e:
             logger.error("qdrant_search_failed", error=str(e))
-            raise ConnectionError(f"Vector search unavailable: {str(e)}")
+            raise ConnectionError(f"Vector search unavailable: {str(e)}") from e
 
     async def _synthesize_answer(
         self, query: str, chunks: list[SearchResultSchema]
@@ -477,7 +454,9 @@ class SearchService:
         return answer
 
     def _calculate_confidence(
-        self, chunks: list[SearchResultSchema], query: str
+        self,
+        chunks: list[SearchResultSchema],
+        query: str,  # noqa: ARG002 - Reserved for semantic similarity calculation
     ) -> float:
         """Calculate confidence score (0-1) for answer (AC4).
 

@@ -352,7 +352,7 @@ class TestRetryDocumentSuccess:
         authenticated_client: AsyncClient,
         test_kb: dict,
         failed_document: Document,
-        db_session: AsyncSession,
+        db_session: AsyncSession,  # noqa: ARG002
     ) -> None:
         """Test retrying a FAILED document returns 202."""
         response = await authenticated_client.post(

@@ -37,7 +37,7 @@ def mock_litellm():
             response.usage = MagicMock(total_tokens=len(texts) * 10)
             return response
 
-        mock.side_effect = lambda *args, **kwargs: make_response(
+        mock.side_effect = lambda **kwargs: make_response(  # noqa: ARG005
             kwargs.get("input", [])
         )
         yield mock
@@ -100,7 +100,10 @@ class TestFullPipeline:
 
     @pytest.mark.asyncio
     async def test_full_pipeline_flow(
-        self, mock_qdrant_service, mock_litellm, sample_parsed_content
+        self,
+        mock_qdrant_service,
+        mock_litellm,  # noqa: ARG002
+        sample_parsed_content,  # noqa: ARG002
     ):
         """Test the complete flow from parsed content to indexed vectors."""
         from app.workers.chunking import chunk_document
@@ -142,7 +145,10 @@ class TestFullPipeline:
 
     @pytest.mark.asyncio
     async def test_metadata_preserved_through_pipeline(
-        self, mock_qdrant_service, mock_litellm, sample_parsed_content
+        self,
+        mock_qdrant_service,  # noqa: ARG002
+        mock_litellm,  # noqa: ARG002
+        sample_parsed_content,  # noqa: ARG002
     ):
         """Test that metadata is preserved from parsing through to Qdrant payload."""
         from app.workers.chunking import chunk_document
@@ -177,7 +183,10 @@ class TestFullPipeline:
 
     @pytest.mark.asyncio
     async def test_chunk_count_accuracy(
-        self, mock_qdrant_service, mock_litellm, sample_parsed_content
+        self,
+        mock_qdrant_service,
+        mock_litellm,  # noqa: ARG002
+        sample_parsed_content,  # noqa: ARG002
     ):
         """Test that chunk count is accurate for document record update."""
         from app.workers.chunking import chunk_document
@@ -215,7 +224,9 @@ class TestReuploadScenario:
 
     @pytest.mark.asyncio
     async def test_reupload_cleans_orphan_chunks(
-        self, mock_qdrant_service, mock_litellm
+        self,
+        mock_qdrant_service,
+        mock_litellm,  # noqa: ARG002
     ):
         """Test that re-upload cleans up orphan chunks from previous version."""
         from app.workers.chunking import chunk_document
@@ -269,7 +280,9 @@ class TestReuploadScenario:
 
     @pytest.mark.asyncio
     async def test_atomic_switch_new_vectors_before_cleanup(
-        self, mock_qdrant_service, mock_litellm
+        self,
+        mock_qdrant_service,
+        mock_litellm,  # noqa: ARG002
     ):
         """Test that new vectors are indexed before orphans are cleaned."""
         from app.workers.chunking import chunk_document
@@ -327,7 +340,7 @@ class TestErrorRecovery:
     """Tests for error handling and recovery."""
 
     @pytest.mark.asyncio
-    async def test_embedding_failure_handling(self, mock_qdrant_service):
+    async def test_embedding_failure_handling(self, mock_qdrant_service):  # noqa: ARG002
         """Test handling of embedding API failures."""
         from app.integrations.litellm_client import RateLimitExceededError
         from app.workers.chunking import chunk_document
@@ -362,7 +375,9 @@ class TestErrorRecovery:
 
     @pytest.mark.asyncio
     async def test_indexing_failure_does_not_cleanup(
-        self, mock_qdrant_service, mock_litellm
+        self,
+        mock_qdrant_service,
+        mock_litellm,  # noqa: ARG002
     ):
         """Test that indexing failure preserves partial vectors for retry."""
         from app.workers.chunking import chunk_document

@@ -22,7 +22,9 @@ class _SuppressAsyncioSelectorLog(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         # Suppress "Using selector: EpollSelector" messages from asyncio
-        return not (record.name == "asyncio" and "selector" in record.getMessage().lower())
+        return not (
+            record.name == "asyncio" and "selector" in record.getMessage().lower()
+        )
 
 
 # Apply filter to asyncio logger to prevent shutdown logging errors
@@ -37,7 +39,7 @@ _original_stderr = sys.stderr
 def _quiet_shutdown() -> None:
     """Suppress stderr during final cleanup to avoid litellm logging errors."""
     try:
-        sys.stderr = open(os.devnull, "w")
+        sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - Intentionally not using context manager for stderr redirect
     except Exception:
         pass
 

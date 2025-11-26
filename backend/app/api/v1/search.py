@@ -102,16 +102,16 @@ async def search(
         return result
 
     except PermissionError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except ConnectionError:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except ConnectionError as e:
         raise HTTPException(
             status_code=503,
             detail="Search temporarily unavailable. Please try again in a moment.",
-        )
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
 
 
 @router.post("/quick", response_model=QuickSearchResponse)
@@ -145,16 +145,18 @@ async def quick_search_route(
         return result
 
     except PermissionError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except ConnectionError:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except ConnectionError as e:
         raise HTTPException(
             status_code=503,
             detail="Search temporarily unavailable. Please try again in a moment.",
-        )
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Quick search failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Quick search failed: {str(e)}"
+        ) from e
 
 
 @router.post("/similar", response_model=SearchResponse)
@@ -191,19 +193,21 @@ async def similar_search_route(
 
     except ValueError as e:
         # Chunk not found (AC6)
-        raise HTTPException(status_code=404, detail=str(e))
-    except PermissionError:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except PermissionError as e:
         # User lacks access to KB containing chunk (AC6)
         raise HTTPException(
             status_code=404, detail="Source content no longer available"
-        )
-    except ConnectionError:
+        ) from e
+    except ConnectionError as e:
         raise HTTPException(
             status_code=503,
             detail="Search temporarily unavailable. Please try again in a moment.",
-        )
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Similar search failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Similar search failed: {str(e)}"
+        ) from e
 
 
 @router.post("/explain", response_model=ExplanationResponse)
@@ -246,11 +250,13 @@ async def explain_relevance(
 
     except ValueError as e:
         # Chunk not found (AC6)
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConnectionError:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConnectionError as e:
         raise HTTPException(
             status_code=503,
             detail="Explanation service temporarily unavailable. Please try again in a moment.",
-        )
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Explanation failed: {str(e)}"
+        ) from e

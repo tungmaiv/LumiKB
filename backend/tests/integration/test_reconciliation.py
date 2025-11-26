@@ -471,7 +471,7 @@ class TestOrphanLogging:
     @patch("app.workers.outbox_tasks.logger")
     async def test_logs_orphan_vectors_warning(
         self,
-        mock_logger: MagicMock,
+        mock_logger: MagicMock,  # noqa: ARG002
         db_session: AsyncSession,
     ) -> None:
         """Test that orphan vectors are logged with warning (no cleanup)."""
@@ -498,7 +498,7 @@ class TestOrphanLogging:
     @patch("app.workers.outbox_tasks.logger")
     async def test_logs_orphan_files_warning(
         self,
-        mock_logger: MagicMock,
+        mock_logger: MagicMock,  # noqa: ARG002
         db_session: AsyncSession,
     ) -> None:
         """Test that orphan files are logged with warning (no cleanup)."""
@@ -538,7 +538,7 @@ class TestAdminAlertThreshold:
         mock_orphan_vectors: AsyncMock,
         mock_stale_processing: AsyncMock,
         mock_ready_without_vectors: AsyncMock,
-        mock_logger: MagicMock,
+        mock_logger: MagicMock,  # noqa: ARG002
     ) -> None:
         """Test that admin alert is generated when anomalies > 5."""
         # Mock 6 anomalies total (exceeds threshold of 5)

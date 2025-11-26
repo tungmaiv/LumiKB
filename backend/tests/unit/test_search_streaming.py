@@ -169,7 +169,9 @@ class TestSearchServiceStreaming:
         ]
 
     async def test_search_stream_yields_correct_event_types(
-        self, search_service, mock_search_results
+        self,
+        search_service,
+        mock_search_results,  # noqa: ARG002
     ):
         """_search_stream yields events in correct sequence."""
         # Mock dependencies
@@ -244,7 +246,9 @@ class TestSearchServiceStreaming:
                     assert done_events[0].result_count > 0
 
     async def test_citation_event_emitted_when_marker_detected(
-        self, search_service, mock_search_results
+        self,
+        search_service,
+        mock_search_results,  # noqa: ARG002
     ):
         """Citation event is emitted immediately when [n] marker detected in stream."""
         # Mock dependencies
@@ -296,7 +300,9 @@ class TestSearchServiceStreaming:
                     assert citation_events[0].data["number"] == 1
 
     async def test_done_event_includes_confidence_and_count(
-        self, search_service, mock_search_results
+        self,
+        search_service,
+        mock_search_results,  # noqa: ARG002
     ):
         """Done event includes confidence score and result count."""
         # Mock dependencies

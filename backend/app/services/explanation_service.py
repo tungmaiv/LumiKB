@@ -214,7 +214,7 @@ class ExplanationService:
 Focus on semantic similarity beyond just keyword matches.
 
 Query: {query}
-Matching keywords: {', '.join(keywords) if keywords else 'none'}
+Matching keywords: {", ".join(keywords) if keywords else "none"}
 Text: {chunk_text[:500]}...
 
 Explanation (1 sentence):"""

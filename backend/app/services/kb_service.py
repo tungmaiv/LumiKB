@@ -687,7 +687,9 @@ class KBPermissionService:
         self.session = session
 
     async def get_permitted_kb_ids(
-        self, user_id: str, permission_level: str = "READ"
+        self,
+        user_id: str,
+        permission_level: str = "READ",  # noqa: ARG002 - Reserved for future permission filtering
     ) -> list[str]:
         """Get list of KB IDs the user has access to.
 
