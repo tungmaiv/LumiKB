@@ -154,9 +154,9 @@ async def test_cross_kb_search_queries_all_permitted_kbs(
 
     # Verify all results are from permitted KBs
     permitted_kb_ids = {kb["id"] for kb in multiple_kbs}
-    assert kb_ids_in_results.issubset(
-        permitted_kb_ids
-    ), "Results should only come from permitted KBs"
+    assert kb_ids_in_results.issubset(permitted_kb_ids), (
+        "Results should only come from permitted KBs"
+    )
 
 
 async def test_cross_kb_search_respects_permissions(
@@ -215,9 +215,9 @@ async def test_cross_kb_search_respects_permissions(
     kb_ids_in_results = {r["kb_id"] for r in results}
 
     # CRITICAL: User B's KB should NOT appear
-    assert (
-        user_b_kb["id"] not in kb_ids_in_results
-    ), "Cross-KB search must NOT return unpermitted KBs"
+    assert user_b_kb["id"] not in kb_ids_in_results, (
+        "Cross-KB search must NOT return unpermitted KBs"
+    )
 
 
 # =============================================================================
@@ -258,9 +258,9 @@ async def test_cross_kb_results_ranked_by_relevance(
     scores = [r["relevance_score"] for r in results]
 
     # Verify descending order
-    assert scores == sorted(
-        scores, reverse=True
-    ), "Results must be ranked by relevance_score descending"
+    assert scores == sorted(scores, reverse=True), (
+        "Results must be ranked by relevance_score descending"
+    )
 
     # Verify scores are in valid range [0, 1]
     for score in scores:
@@ -344,9 +344,9 @@ async def test_cross_kb_results_include_kb_name(
 
         # Verify kb_name is one of our created KBs
         kb_names_expected = {kb["name"] for kb in multiple_kbs}
-        assert (
-            result["kb_name"] in kb_names_expected
-        ), f"Unexpected kb_name: {result['kb_name']}"
+        assert result["kb_name"] in kb_names_expected, (
+            f"Unexpected kb_name: {result['kb_name']}"
+        )
 
 
 # =============================================================================
@@ -443,9 +443,9 @@ async def test_cross_kb_search_uses_parallel_queries(
     # Allow 2x margin (parallel overhead + merging)
     max_acceptable_time = single_kb_time * 2
 
-    assert (
-        cross_kb_time < max_acceptable_time
-    ), f"Cross-KB ({cross_kb_time:.2f}s) should be parallel, not 3x single KB ({single_kb_time:.2f}s)"
+    assert cross_kb_time < max_acceptable_time, (
+        f"Cross-KB ({cross_kb_time:.2f}s) should be parallel, not 3x single KB ({single_kb_time:.2f}s)"
+    )
 
 
 # =============================================================================
@@ -517,9 +517,9 @@ async def test_cross_kb_search_with_explicit_kb_ids(
 
         # Should only have KB1 and/or KB3
         allowed_kb_ids = {multiple_kbs[0]["id"], multiple_kbs[2]["id"]}
-        assert kb_ids_in_results.issubset(
-            allowed_kb_ids
-        ), "Results should only come from specified KBs"
+        assert kb_ids_in_results.issubset(allowed_kb_ids), (
+            "Results should only come from specified KBs"
+        )
 
         # Should NOT have KB2
         assert multiple_kbs[1]["id"] not in kb_ids_in_results

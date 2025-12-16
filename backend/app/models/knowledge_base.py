@@ -11,6 +11,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, model_rep
 
 if TYPE_CHECKING:
     from app.models.document import Document
+    from app.models.draft import Draft
     from app.models.permission import KBPermission
     from app.models.user import User
 
@@ -53,6 +54,11 @@ class KnowledgeBase(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     documents: Mapped[list["Document"]] = relationship(
         "Document",
+        back_populates="knowledge_base",
+        cascade="all, delete-orphan",
+    )
+    drafts: Mapped[list["Draft"]] = relationship(
+        "Draft",
         back_populates="knowledge_base",
         cascade="all, delete-orphan",
     )

@@ -428,9 +428,9 @@ async def test_sse_first_token_latency_under_1_second(
     latency_ms = (first_token_time - start_time) * 1000
 
     # AC-3.3.5: First token < 1000ms
-    assert (
-        latency_ms < 1000
-    ), f"First token latency {latency_ms:.0f}ms exceeds 1000ms threshold"
+    assert latency_ms < 1000, (
+        f"First token latency {latency_ms:.0f}ms exceeds 1000ms threshold"
+    )
 
     # Log for performance monitoring
     print(f"\nFirst token latency: {latency_ms:.0f}ms")

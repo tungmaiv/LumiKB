@@ -214,9 +214,9 @@ async def test_search_returns_semantically_relevant_results_not_keywords(
 
     # Validate semantic relevance ranking
     scores = [r["relevance_score"] for r in data["results"]]
-    assert scores == sorted(
-        scores, reverse=True
-    ), "Results must be ranked by relevance (descending)"
+    assert scores == sorted(scores, reverse=True), (
+        "Results must be ranked by relevance (descending)"
+    )
 
     # Top result should be about OAuth or MFA (semantic match)
     top_chunk = data["results"][0]["chunk_text"].lower()
@@ -287,15 +287,15 @@ async def test_cross_kb_search_only_returns_permitted_kbs(
     result_kb_ids = {r["kb_id"] for r in data["results"]}
 
     # CRITICAL: User B should NOT see KB1 results
-    assert (
-        indexed_kb_with_docs["id"] not in result_kb_ids
-    ), "SECURITY FAILURE: User B accessed User A's KB"
+    assert indexed_kb_with_docs["id"] not in result_kb_ids, (
+        "SECURITY FAILURE: User B accessed User A's KB"
+    )
 
     # User B should only see KB2 (if any results)
     if result_kb_ids:
-        assert result_kb_ids == {
-            kb2["id"]
-        }, "Results must only be from user's permitted KBs"
+        assert result_kb_ids == {kb2["id"]}, (
+            "Results must only be from user's permitted KBs"
+        )
 
 
 @pytest.mark.skip(

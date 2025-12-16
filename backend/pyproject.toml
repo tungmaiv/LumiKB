@@ -74,6 +74,11 @@ all = [
     "boto3>=1.35.0",
     # Natural Language Processing (Story 3.9 - keyword stemming)
     "nltk>=3.8.0,<4.0.0",
+    # Document Export (Story 4.7 - DOCX, PDF, Markdown)
+    "python-docx>=1.1.0,<2.0.0",
+    "reportlab>=4.0.0,<5.0.0",
+    "beautifulsoup4>=4.12.0,<5.0.0",
+    "markdown>=3.5.0,<4.0.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -174,9 +174,9 @@ async def test_llm_answer_contains_citation_markers(
     # Validate markers are sequential (1, 2, 3...)
     marker_numbers = [int(m) for m in markers]
     unique_markers = sorted(set(marker_numbers))
-    assert unique_markers == list(
-        range(1, max(unique_markers) + 1)
-    ), "Citation markers must be sequential"
+    assert unique_markers == list(range(1, max(unique_markers) + 1)), (
+        "Citation markers must be sequential"
+    )
 
 
 async def test_llm_answer_citations_map_to_chunks(
@@ -216,9 +216,9 @@ async def test_llm_answer_citations_map_to_chunks(
 
     # CRITICAL: Every marker has a citation
     citation_numbers = {c["number"] for c in data["citations"]}
-    assert (
-        set(unique_markers) == citation_numbers
-    ), "Every [n] marker in answer must have corresponding citation"
+    assert set(unique_markers) == citation_numbers, (
+        "Every [n] marker in answer must have corresponding citation"
+    )
 
 
 # =============================================================================

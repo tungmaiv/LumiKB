@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <story-metadata>
+    <story-id>5-16</story-id>
+    <title>Docker E2E Testing Infrastructure</title>
+    <epic>Epic 5 - Administration &amp; Polish</epic>
+    <priority>HIGH</priority>
+    <estimated-effort>2-3 days</estimated-effort>
+    <owner>Murat (TEA)</owner>
+    <support>Winston (Architect), Amelia (Dev)</support>
+    <status>TODO</status>
+    <created>2025-11-30</created>
+  </story-metadata>
+
+  <test-pyramid-gap>
+    <current-state>
+      <layer name="Unit Tests" status="EXCELLENT">
+        <backend>29 backend unit tests (ConversationService, GenerationService, etc.)</backend>
+        <frontend-component>51 frontend component tests</frontend-component>
+        <frontend-hook>34 frontend hook tests</frontend-hook>
+      </layer>
+      <layer name="Integration Tests" status="GOOD">
+        <backend>74 backend API integration tests</backend>
+        <coverage>Chat, Generation, Export, Feedback, Template APIs</coverage>
+      </layer>
+      <layer name="E2E Tests" status="MISSING">
+        <written>8 E2E tests written in frontend/e2e/tests/</written>
+        <executed>0 - no infrastructure to run them</executed>
+        <gap>Cannot validate complete user journeys in production-like environment</gap>
+      </layer>
+    </current-state>
+    <target-state>
+      <layer name="E2E Tests" status="TARGET">
+        <infrastructure>Docker Compose with all services</infrastructure>
+        <execution>Playwright running against full stack</execution>
+        <coverage>15-20 E2E tests covering Epic 3 &amp; 4 user journeys</coverage>
+        <ci-integration>GitHub Actions running E2E tests on every PR</ci-integration>
+      </layer>
+    </target-state>
+  </test-pyramid-gap>
+
+  <retrospective-learning>
+    <source>Epic 4 Retrospective (2025-11-30)</source>
+    <learning id="3" title="Test Pyramid Needs E2E Layer">
+      <insight>Test pyramid was incomplete: Unit tests (✓), Integration tests (✓), E2E tests (✗)</insight>
+      <solution>Story 5.16 will establish Docker-based E2E testing infrastructure</solution>
+      <application>All future epics must include E2E tests running in Docker environment</application>
+    </learning>
+    <learning id="2" title="Every Epic Needs an Integration Story">
+      <insight>Component stories deliver pieces, but someone must wire them together into complete user journeys</insight>
+      <pattern>Story 5.0 wires components together, Story 5.16 validates them end-to-end</pattern>
+    </learning>
+  </retrospective-learning>
+
+  <docker-architecture>
+    <services>
+      <service name="frontend" port="3000">
+        <description>Next.js production build</description>
+        <dockerfile>Dockerfile.e2e</dockerfile>
+        <environment>
+          <var>NEXT_PUBLIC_API_URL=http://backend:8000</var>
+          <var>NODE_ENV=production</var>
+        </environment>
+        <depends-on>
+          <dependency service="backend" condition="service_healthy"/>
+        </depends-on>
+        <purpose>User-facing application for E2E testing</purpose>
+      </service>
+      <service name="backend" port="8000">
+        <description>FastAPI application</description>
+        <dockerfile>Dockerfile</dockerfile>
+        <environment>
+          <var>DATABASE_URL=postgresql://test_user:test_pass@postgres:5432/test_lumikb</var>
+          <var>REDIS_URL=redis://redis:6379/0</var>
+          <var>QDRANT_URL=http://qdrant:6333</var>
+          <var>MINIO_ENDPOINT=minio:9000</var>
+          <var>LITELLM_BASE_URL=http://litellm:4000</var>
+        </environment>
+        <depends-on>
+          <dependency service="postgres" condition="service_healthy"/>
+          <dependency service="redis" condition="service_healthy"/>
+          <dependency service="qdrant" condition="service_started"/>
+          <dependency service="minio" condition="service_started"/>
+        </depends-on>
+        <healthcheck>
+          <test>curl -f http://localhost:8000/health</test>
+          <interval>10s</interval>
+          <timeout>5s</timeout>
+          <retries>5</retries>
+        </healthcheck>
+        <purpose>API backend with full service connectivity</purpose>
+      </service>
+      <service name="celery-worker">
+        <description>Background task processing for document processing</description>
+        <command>celery -A app.celery_app worker --loglevel=info</command>
+        <depends-on>
+          <dependency service="postgres"/>
+          <dependency service="redis"/>
+          <dependency service="qdrant"/>
+          <dependency service="minio"/>
+        </depends-on>
+        <purpose>Process document uploads asynchronously</purpose>
+      </service>
+      <service name="postgres" port="5432">
+        <image>postgres:15</image>
+        <environment>
+          <var>POSTGRES_USER=test_user</var>
+          <var>POSTGRES_PASSWORD=test_pass</var>
+          <var>POSTGRES_DB=test_lumikb</var>
+        </environment>
+        <healthcheck>
+          <test>pg_isready -U test_user</test>
+          <interval>5s</interval>
+        </healthcheck>
+        <purpose>Relational database for application data</purpose>
+      </service>
+      <service name="redis" port="6379">
+        <image>redis:7</image>
+        <healthcheck>
+          <test>redis-cli ping</test>
+          <interval>5s</interval>
+        </healthcheck>
+        <purpose>Session storage and chat conversation storage (24-hour TTL)</purpose>
+      </service>
+      <service name="qdrant" port="6333">
+        <image>qdrant/qdrant:latest</image>
+        <purpose>Vector database for semantic search</purpose>
+      </service>
+      <service name="minio" port="9000">
+        <image>minio/minio:latest</image>
+        <command>server /data --console-address ":9001"</command>
+        <environment>
+          <var>MINIO_ROOT_USER=test_minio</var>
+          <var>MINIO_ROOT_PASSWORD=test_minio_pass</var>
+        </environment>
+        <purpose>S3-compatible object storage for document files</purpose>
+      </service>
+      <service name="litellm" port="4000">
+        <image>ghcr.io/berriai/litellm:latest</image>
+        <environment>
+          <var>LITELLM_MASTER_KEY=test_litellm_key</var>
+        </environment>
+        <purpose>LLM proxy for chat and generation</purpose>
+      </service>
+      <service name="playwright">
+        <description>E2E test execution container</description>
+        <dockerfile>Dockerfile.playwright</dockerfile>
+        <command>npm run test:e2e</command>
+        <depends-on>
+          <dependency service="frontend"/>
+          <dependency service="backend"/>
+        </depends-on>
+        <environment>
+          <var>E2E_BASE_URL=http://frontend:3000</var>
+          <var>E2E_API_URL=http://backend:8000</var>
+        </environment>
+        <volumes>
+          <volume>./frontend/e2e:/app/e2e</volume>
+          <volume>./frontend/playwright-report:/app/playwright-report</volume>
+          <volume>./frontend/test-results:/app/test-results</volume>
+        </volumes>
+        <purpose>Execute Playwright E2E tests against full stack</purpose>
+      </service>
+    </services>
+    <networks>
+      <network name="e2e-network" driver="bridge">
+        <description>Isolated network for E2E testing services</description>
+      </network>
+    </networks>
+  </docker-architecture>
+
+  <playwright-configuration>
+    <config-file>frontend/playwright.config.e2e.ts</config-file>
+    <settings>
+      <test-dir>./e2e/tests</test-dir>
+      <fully-parallel>false</fully-parallel>
+      <workers>1</workers>
+      <retries ci="2" local="0"/>
+      <reporter>html</reporter>
+      <base-url>http://frontend:3000</base-url>
+      <trace>on-first-retry</trace>
+      <screenshot>only-on-failure</screenshot>
+      <video>retain-on-failure</video>
+    </settings>
+    <projects>
+      <project name="chromium" device="Desktop Chrome"/>
+    </projects>
+    <rationale>
+      <item>Single worker for E2E stability (avoid race conditions)</item>
+      <item>Retries in CI to handle flakiness</item>
+      <item>Artifacts (screenshots, videos) for debugging failures</item>
+      <item>HTML reporter for readable test results</item>
+    </rationale>
+  </playwright-configuration>
+
+  <database-seeding>
+    <file>backend/seed_e2e.py</file>
+    <strategy>
+      <step>Create test users (admin, regular user)</step>
+      <step>Create test knowledge bases with permissions</step>
+      <step>Create test documents with status=COMPLETED</step>
+      <step>Index documents in Qdrant (create collections, add vectors)</step>
+      <step>Create MinIO buckets and upload test files</step>
+      <step>Create Redis conversation data (if needed)</step>
+    </strategy>
+    <requirements>
+      <req>Idempotent - can run multiple times without errors</req>
+      <req>Deterministic - same data every time for consistent tests</req>
+      <req>Realistic - data matches production-like scenarios</req>
+    </requirements>
+    <execution>
+      <method>Run as init container in docker-compose</method>
+      <timing>After services are healthy, before tests run</timing>
+      <command>docker-compose -f docker-compose.e2e.yml exec backend python seed_e2e.py</command>
+    </execution>
+  </database-seeding>
+
+  <e2e-test-coverage>
+    <epic-3-tests>
+      <test-suite name="Search &amp; Citations">
+        <test id="1">Search returns results with citations</test>
+        <test id="2">Citation panel displays source excerpts</test>
+        <test id="3">Confidence scoring displays correctly</test>
+        <test id="4">Command palette search works (⌘K)</test>
+      </test-suite>
+      <files>
+        <file>frontend/e2e/tests/search/search-flow.spec.ts</file>
+        <file>frontend/e2e/tests/search/citation-display.spec.ts</file>
+      </files>
+    </epic-3-tests>
+    <epic-4-tests>
+      <test-suite name="Chat Conversation">
+        <test id="1">User can navigate to chat from dashboard</test>
+        <test id="2">Single-turn chat with streaming response</test>
+        <test id="3">Multi-turn chat maintains conversation history</test>
+        <test id="4">Chat displays citations inline [1], [2]</test>
+        <test id="5">New Chat clears conversation</test>
+        <test id="6">Clear Chat with Undo (30-second window)</test>
+      </test-suite>
+      <test-suite name="Document Generation">
+        <test id="1">Template selection modal displays 4 templates</test>
+        <test id="2">Template preview shows description and example</test>
+        <test id="3">Custom template shows custom instructions field</test>
+        <test id="4">Context input required before generation</test>
+        <test id="5">Draft generates with streaming</test>
+        <test id="6">Draft editor allows edits</test>
+        <test id="7">Export to DOCX/PDF/MD works</test>
+        <test id="8">Feedback modal allows feedback submission</test>
+        <test id="9">Alternative suggestions display after feedback</test>
+      </test-suite>
+      <files>
+        <file>frontend/e2e/tests/chat/chat-conversation.spec.ts (existing)</file>
+        <file>frontend/e2e/tests/chat/chat-streaming.spec.ts (existing)</file>
+        <file>frontend/e2e/tests/generation/template-selection.spec.ts (existing - 9 tests)</file>
+        <file>frontend/e2e/tests/draft-editing.spec.ts (existing)</file>
+        <file>frontend/e2e/tests/export/export-workflow.spec.ts (to create)</file>
+      </files>
+    </epic-4-tests>
+    <user-journeys>
+      <journey id="1" name="Document Upload → Processing → Search">
+        <description>End-to-end test from upload to search results</description>
+        <file>frontend/e2e/tests/integration/document-to-search.spec.ts (to create)</file>
+      </journey>
+      <journey id="2" name="Search → Citation Display">
+        <description>Search workflow with citation panel interaction</description>
+        <file>frontend/e2e/tests/search/search-flow.spec.ts</file>
+      </journey>
+      <journey id="3" name="Chat Conversation">
+        <description>Multi-turn chat with history preservation</description>
+        <file>frontend/e2e/tests/chat/chat-conversation.spec.ts</file>
+      </journey>
+      <journey id="4" name="Document Generation">
+        <description>Template selection → generation → edit → export</description>
+        <file>frontend/e2e/tests/generation/template-selection.spec.ts</file>
+      </journey>
+    </user-journeys>
+    <total-coverage>
+      <existing-tests>8 E2E tests written</existing-tests>
+      <target-tests>15-20 E2E tests</target-tests>
+      <additional-needed>7-12 new E2E tests</additional-needed>
+    </total-coverage>
+  </e2e-test-coverage>
+
+  <github-actions-workflow>
+    <file>.github/workflows/e2e-tests.yml</file>
+    <trigger>
+      <event>Pull request to main or develop</event>
+      <event>Push to main branch</event>
+    </trigger>
+    <steps>
+      <step order="1">Checkout code</step>
+      <step order="2">Build Docker images</step>
+      <step order="3">Start E2E environment (docker-compose up -d)</step>
+      <step order="4">Wait for services to be healthy</step>
+      <step order="5">Seed E2E database</step>
+      <step order="6">Run Playwright E2E tests</step>
+      <step order="7">Upload test artifacts (screenshots, videos, HTML report)</step>
+      <step order="8">Tear down environment (docker-compose down -v)</step>
+    </steps>
+    <timeout>20 minutes</timeout>
+    <artifacts>
+      <artifact>playwright-report/ (HTML report)</artifact>
+      <artifact>test-results/ (screenshots, videos)</artifact>
+    </artifacts>
+    <failure-handling>
+      <on-failure>Upload artifacts for debugging</on-failure>
+      <on-failure>Fail the workflow (block merge)</on-failure>
+    </failure-handling>
+  </github-actions-workflow>
+
+  <implementation-tasks>
+    <task id="1" priority="CRITICAL" owner="Murat">
+      <title>Create docker-compose.e2e.yml</title>
+      <steps>
+        <step>Define all 8 services (frontend, backend, celery, postgres, redis, qdrant, minio, litellm)</step>
+        <step>Configure service dependencies with health checks</step>
+        <step>Set environment variables for E2E mode</step>
+        <step>Configure networking (e2e-network bridge)</step>
+        <step>Test with: docker-compose -f docker-compose.e2e.yml up</step>
+      </steps>
+      <success-criteria>All services start and are healthy</success-criteria>
+    </task>
+    <task id="2" priority="HIGH" owner="Murat">
+      <title>Create Playwright E2E configuration</title>
+      <steps>
+        <step>Create playwright.config.e2e.ts</step>
+        <step>Set baseURL to http://frontend:3000</step>
+        <step>Configure single worker, retries, artifacts</step>
+        <step>Add npm script: test:e2e</step>
+        <step>Test with: npm run test:e2e</step>
+      </steps>
+      <success-criteria>Playwright runs tests against Docker environment</success-criteria>
+    </task>
+    <task id="3" priority="HIGH" owner="Murat">
+      <title>Implement database seeding</title>
+      <steps>
+        <step>Create backend/seed_e2e.py script</step>
+        <step>Seed test users (admin, regular user)</step>
+        <step>Seed test KBs with permissions</step>
+        <step>Seed test documents (status=COMPLETED)</step>
+        <step>Index documents in Qdrant collections</step>
+        <step>Create MinIO buckets and upload test files</step>
+        <step>Make seeding idempotent</step>
+      </steps>
+      <success-criteria>Database seeded with consistent test data</success-criteria>
+    </task>
+    <task id="4" priority="MEDIUM" owner="Murat">
+      <title>Create GitHub Actions E2E workflow</title>
+      <steps>
+        <step>Create .github/workflows/e2e-tests.yml</step>
+        <step>Configure workflow to build images, start services, run tests</step>
+        <step>Add artifact upload for test results</step>
+        <step>Test workflow on feature branch</step>
+      </steps>
+      <success-criteria>CI runs E2E tests on every PR</success-criteria>
+    </task>
+    <task id="5" priority="HIGH" owner="Murat">
+      <title>Execute E2E test suite</title>
+      <steps>
+        <step>Run existing 8 E2E tests</step>
+        <step>Create 7-12 additional E2E tests for uncovered journeys</step>
+        <step>Debug and fix flaky tests</step>
+        <step>Verify all critical user journeys pass</step>
+        <step>Document any failures as issues</step>
+      </steps>
+      <success-criteria>15-20 E2E tests passing in Docker environment</success-criteria>
+    </task>
+    <task id="6" priority="MEDIUM" owner="Murat">
+      <title>Create E2E Testing Guide</title>
+      <steps>
+        <step>Document how to run E2E tests locally</step>
+        <step>Document how to add new E2E tests</step>
+        <step>Document troubleshooting tips (Docker networking, service health)</step>
+        <step>Document CI/CD integration</step>
+      </steps>
+      <success-criteria>README or docs/e2e-testing-guide.md created</success-criteria>
+    </task>
+  </implementation-tasks>
+
+  <dependencies>
+    <prerequisite>Story 5.0 completed (Epic 3 &amp; 4 features accessible)</prerequisite>
+    <prerequisite>Docker and Docker Compose installed</prerequisite>
+    <prerequisite>Playwright dependencies installed (npx playwright install --with-deps)</prerequisite>
+    <prerequisite>Backend Dockerfiles created (Dockerfile, Dockerfile.e2e if needed)</prerequisite>
+    <prerequisite>Frontend Dockerfiles created (Dockerfile.e2e, Dockerfile.playwright)</prerequisite>
+    <blocks>Cannot start until Story 5.0 completes (features must be accessible)</blocks>
+    <enables>All future epics will benefit from E2E testing infrastructure</enables>
+  </dependencies>
+
+  <success-metrics>
+    <metric>docker-compose.e2e.yml successfully starts all 8 services</metric>
+    <metric>All services pass health checks</metric>
+    <metric>Database seeding creates consistent test data</metric>
+    <metric>Playwright executes E2E tests against Docker environment</metric>
+    <metric>15-20 E2E tests pass covering Epic 3 &amp; 4 user journeys</metric>
+    <metric>GitHub Actions CI runs E2E tests on every PR</metric>
+    <metric>Test artifacts (screenshots, videos, HTML report) generated on failures</metric>
+    <metric>E2E Testing Guide documentation created</metric>
+  </success-metrics>
+
+  <benefits>
+    <benefit>Full-stack integration testing (not just mocked components)</benefit>
+    <benefit>Consistent environment across dev and CI (Docker)</benefit>
+    <benefit>Test against real services (PostgreSQL, Redis, Qdrant, MinIO, LiteLLM)</benefit>
+    <benefit>Catch integration issues before production deployment</benefit>
+    <benefit>Validate complete user journeys end-to-end</benefit>
+    <benefit>Confidence in deployment readiness</benefit>
+    <benefit>Regression prevention for future epics</benefit>
+    <benefit>Framework for all future E2E testing</benefit>
+  </benefits>
+
+  <risk-mitigation>
+    <risk>Docker networking issues</risk>
+    <mitigation>Use explicit network configuration (e2e-network), test service-to-service connectivity</mitigation>
+
+    <risk>Playwright test flakiness</risk>
+    <mitigation>Configure retries in CI, use explicit waits, capture artifacts for debugging</mitigation>
+
+    <risk>Database seeding complexity</risk>
+    <mitigation>Start with minimal seed data, expand incrementally, ensure idempotency</mitigation>
+
+    <risk>CI/CD integration failures</risk>
+    <mitigation>Test workflow locally with act or docker-compose, add verbose logging</mitigation>
+
+    <risk>Long E2E test execution time</risk>
+    <mitigation>Run tests serially (single worker), optimize seed data, set 20-minute timeout</mitigation>
+  </risk-mitigation>
+
+  <related-documents>
+    <document path="docs/sprint-artifacts/epic-4-retrospective-2025-11-30.md">Epic 4 Retrospective - Identified E2E testing gap</document>
+    <document path="docs/sprint-artifacts/5-0-epic-integration-completion.md">Story 5.0 - Prerequisite for E2E testing</document>
+    <document path="docs/sprint-artifacts/epic-5-tech-debt.md">Epic 5 Tech Debt - E2E test items</document>
+    <document path="docs/test-design-epic-4.md">Test Design Epic 4 - Test strategy</document>
+  </related-documents>
+
+  <external-references>
+    <reference>
+      <title>Playwright Docker Documentation</title>
+      <url>https://playwright.dev/docs/docker</url>
+    </reference>
+    <reference>
+      <title>Playwright CI Documentation</title>
+      <url>https://playwright.dev/docs/ci</url>
+    </reference>
+    <reference>
+      <title>Docker Compose File Reference</title>
+      <url>https://docs.docker.com/compose/compose-file/</url>
+    </reference>
+    <reference>
+      <title>Docker Compose Networking</title>
+      <url>https://docs.docker.com/compose/networking/</url>
+    </reference>
+  </external-references>
+</story-context>

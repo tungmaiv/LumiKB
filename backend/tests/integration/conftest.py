@@ -77,6 +77,19 @@ async def test_engine(postgres_url):
     # Create schema and tables
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+
+        # Create enum types before tables (PostgreSQL requires this)
+        # Use DO block since CREATE TYPE doesn't support IF NOT EXISTS
+        await conn.execute(
+            text("""
+                DO $$ BEGIN
+                    CREATE TYPE draft_status AS ENUM ('streaming', 'partial', 'complete', 'editing', 'exported');
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """)
+        )
+
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
@@ -239,3 +252,281 @@ async def api_client(
         pass
     finally:
         redis_module.RedisClient._client = None
+
+
+# =============================================================================
+# Chat API Test Fixtures (Story 4.1)
+# =============================================================================
+
+
+@pytest.fixture
+async def test_user_data(api_client: "AsyncClient") -> dict:
+    """Create a unique test user and return user data with authentication.
+
+    Registers a unique test user via API and logs them in.
+
+    Returns:
+        dict: {"email": str, "password": str, "cookies": httpx.Cookies, "user_id": str}
+    """
+    from tests.factories import create_registration_data
+
+    # Register unique test user
+    user_data = create_registration_data()
+    register_response = await api_client.post(
+        "/api/v1/auth/register",
+        json=user_data,
+    )
+    assert register_response.status_code == 201
+    user_response = register_response.json()
+
+    # Login to get JWT cookie (returns 204 No Content with Set-Cookie header)
+    login_response = await api_client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": user_data["email"],
+            "password": user_data["password"],
+        },
+    )
+    assert login_response.status_code in (200, 204), (
+        f"Login failed: {login_response.status_code}"
+    )
+
+    # Return user data with cookies (keep as httpx.Cookies object)
+    return {
+        "email": user_data["email"],
+        "password": user_data["password"],
+        "cookies": login_response.cookies,  # Keep as httpx.Cookies object
+        "user_id": user_response["id"],
+    }
+
+
+@pytest.fixture
+async def authenticated_headers(test_user_data: dict) -> dict:
+    """Return cookies for authenticated requests.
+
+    Note: Despite the name "headers", this actually returns cookies dict.
+    The name is kept for backward compatibility.
+    Tests should use `cookies=authenticated_headers` in requests.
+
+    Returns:
+        dict: Cookies dictionary for authenticated requests.
+    """
+    return test_user_data["cookies"]
+
+
+@pytest.fixture
+async def demo_kb_with_indexed_docs(
+    db_session: AsyncSession,
+    test_user_data: dict,
+) -> dict:
+    """Create a demo KB with indexed documents for testing.
+
+    Creates a Knowledge Base with the test user as owner, adds test documents
+    with READY status (simulating processed/indexed documents), and grants
+    READ permission to the authenticated test user.
+
+    Returns:
+        dict: KB metadata including id, name, and document count.
+    """
+    from sqlalchemy import select
+
+    from app.models.document import Document, DocumentStatus
+    from app.models.knowledge_base import KnowledgeBase
+    from app.models.permission import KBPermission, PermissionLevel
+    from app.models.user import User
+
+    # Get test user by ID
+    result = await db_session.execute(
+        select(User).where(User.id == test_user_data["user_id"])
+    )
+    test_user = result.scalar_one()
+
+    # Create KB owned by test user
+    kb = KnowledgeBase(
+        name="Test Knowledge Base",
+        description="Test KB with indexed documents",
+        owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(kb)
+    await db_session.flush()
+
+    # Grant READ permission to test user (owner already has implicit ADMIN)
+    permission = KBPermission(
+        user_id=test_user.id,
+        kb_id=kb.id,
+        permission_level=PermissionLevel.READ,
+    )
+    db_session.add(permission)
+
+    # Create test documents with READY status (simulating indexed docs)
+    documents = [
+        Document(
+            kb_id=kb.id,
+            name="Authentication Guide.md",
+            original_filename="auth-guide.md",
+            mime_type="text/markdown",
+            file_size_bytes=4096,
+            file_path=f"kb-{kb.id}/auth-guide.md",
+            checksum="a" * 64,  # SHA-256 placeholder
+            status=DocumentStatus.READY,
+            chunk_count=5,
+            uploaded_by=test_user.id,
+        ),
+        Document(
+            kb_id=kb.id,
+            name="Security Best Practices.pdf",
+            original_filename="security.pdf",
+            mime_type="application/pdf",
+            file_size_bytes=8192,
+            file_path=f"kb-{kb.id}/security.pdf",
+            checksum="b" * 64,
+            status=DocumentStatus.READY,
+            chunk_count=8,
+            uploaded_by=test_user.id,
+        ),
+        Document(
+            kb_id=kb.id,
+            name="API Documentation.md",
+            original_filename="api-docs.md",
+            mime_type="text/markdown",
+            file_size_bytes=6144,
+            file_path=f"kb-{kb.id}/api-docs.md",
+            checksum="c" * 64,
+            status=DocumentStatus.READY,
+            chunk_count=6,
+            uploaded_by=test_user.id,
+        ),
+    ]
+    db_session.add_all(documents)
+    await db_session.commit()
+
+    # Refresh to get IDs
+    await db_session.refresh(kb)
+
+    return {
+        "id": str(kb.id),
+        "name": kb.name,
+        "document_count": len(documents),
+    }
+
+
+@pytest.fixture
+async def empty_kb_factory(db_session: AsyncSession, test_user_data: dict):
+    """Factory fixture for creating empty KBs on demand.
+
+    Returns an async function that creates a KB with no documents.
+    Useful for testing error cases (e.g., chat with empty KB).
+
+    Returns:
+        async function: Factory that creates and returns empty KB model.
+    """
+    from sqlalchemy import select
+
+    from app.models.knowledge_base import KnowledgeBase
+    from app.models.permission import KBPermission, PermissionLevel
+    from app.models.user import User
+
+    async def _create_empty_kb() -> KnowledgeBase:
+        # Get test user by ID
+        result = await db_session.execute(
+            select(User).where(User.id == test_user_data["user_id"])
+        )
+        test_user = result.scalar_one()
+
+        # Create empty KB
+        kb = KnowledgeBase(
+            name="Empty Test KB",
+            description="KB with no documents for testing",
+            owner_id=test_user.id,
+            status="active",
+        )
+        db_session.add(kb)
+        await db_session.flush()
+
+        # Grant READ permission
+        permission = KBPermission(
+            user_id=test_user.id,
+            kb_id=kb.id,
+            permission_level=PermissionLevel.READ,
+        )
+        db_session.add(permission)
+        await db_session.commit()
+        await db_session.refresh(kb)
+
+        return kb
+
+    return _create_empty_kb
+
+
+@pytest.fixture
+async def redis_client(test_redis_client):
+    """Alias for test_redis_client for Story 4-3 workflow tests.
+
+    Provides direct Redis access for state verification in conversation tests.
+    """
+    return test_redis_client
+
+
+@pytest.fixture
+async def second_test_kb(db_session: AsyncSession, test_user_data: dict) -> dict:
+    """Create a second KB for cross-KB testing (Story 4-3 AC-5).
+
+    Creates a second Knowledge Base with the same test user as owner,
+    with test documents for testing KB-scoped conversation isolation.
+
+    Returns:
+        dict: KB metadata including id (str) for consistency with demo_kb_with_indexed_docs.
+    """
+    from sqlalchemy import select
+
+    from app.models.document import Document, DocumentStatus
+    from app.models.knowledge_base import KnowledgeBase
+    from app.models.permission import KBPermission, PermissionLevel
+    from app.models.user import User
+
+    # Get test user
+    result = await db_session.execute(
+        select(User).where(User.id == test_user_data["user_id"])
+    )
+    test_user = result.scalar_one()
+
+    # Create second KB
+    kb = KnowledgeBase(
+        name="Second Test KB",
+        description="Second KB for cross-KB testing",
+        owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(kb)
+    await db_session.flush()
+
+    # Grant READ permission
+    permission = KBPermission(
+        user_id=test_user.id,
+        kb_id=kb.id,
+        permission_level=PermissionLevel.READ,
+    )
+    db_session.add(permission)
+
+    # Add test document
+    document = Document(
+        kb_id=kb.id,
+        name="Second KB Doc.md",
+        original_filename="second-kb-doc.md",
+        mime_type="text/markdown",
+        file_size_bytes=2048,
+        file_path=f"kb-{kb.id}/second-kb-doc.md",
+        checksum="d" * 64,
+        status=DocumentStatus.READY,
+        chunk_count=3,
+        uploaded_by=test_user.id,
+    )
+    db_session.add(document)
+    await db_session.commit()
+    await db_session.refresh(kb)
+
+    return {
+        "id": str(kb.id),  # Changed from kb_id to id for consistency
+        "name": kb.name,
+    }

@@ -1732,6 +1732,71 @@ So that **we can audit AI-assisted content creation**.
 - Audit log viewer
 - Onboarding wizard
 - UX polish items
+- **Epic 3 & 4 Integration Completion (NEW - Story 5.0)**
+- **Docker E2E Testing Infrastructure (NEW - Story 5.16)**
+
+**Epic 5 Scope Changes (Approved 2025-11-30):**
+- Added Story 5.0: Epic 3 & 4 Integration Completion (CRITICAL)
+- Added Story 5.16: Docker E2E Testing Infrastructure (HIGH)
+- Total stories: 13 (was 11)
+
+---
+
+### Story 5.0: Epic 3 & 4 Integration Completion (CRITICAL - NEW)
+
+As an **administrator and user**,
+I want **Epic 3 & 4 features to be accessible through normal UI navigation**,
+So that **users can actually use search, chat, and generation features**.
+
+**Priority:** CRITICAL
+**Estimated Effort:** 1-2 days
+**Owner:** Amelia (Dev) with Winston (Architect) support
+
+**Context:** Epic 4 retrospective (2025-11-30) revealed that while Epic 3 & 4 features are fully implemented with high code quality (95-100/100) and comprehensive test coverage (220+ tests), they are not accessible to users through the UI. This story makes features discoverable and accessible.
+
+**Acceptance Criteria:**
+
+**AC1: Chat Page Route Created**
+**Given** chat components exist in `frontend/src/components/chat/`
+**When** user navigates to `/app/(protected)/chat`
+**Then** a functional chat page renders with ChatContainer component
+**And** user can start new conversations, send messages, receive streaming responses
+
+**AC2: Navigation Links Added to Dashboard**
+**Given** search and chat features are implemented
+**When** user views the dashboard at `/app/(protected)/dashboard`
+**Then** navigation cards/buttons for "Search Knowledge Base" and "Chat" are visible
+**And** clicking these links navigates to `/search` and `/chat` respectively
+**And** "Coming in Epic 3" and "Coming in Epic 4" placeholders are removed
+
+**AC3: Backend Services Verified and Healthy**
+**Given** the application depends on multiple backend services
+**When** the backend is started
+**Then** all required services are running and healthy:
+- FastAPI backend, PostgreSQL, Redis, Celery worker, Qdrant, MinIO, LiteLLM
+
+**AC4: Complete User Journeys Smoke Tested**
+**Given** all Epic 3 & 4 features are wired into UI
+**When** smoke testing is performed
+**Then** the following user journeys work end-to-end:
+1. Document Upload → Processing → Search
+2. Search → Citation Display
+3. Chat Conversation (multi-turn)
+4. Document Generation (template → draft → export)
+
+**AC5: Navigation Discoverability Validated**
+**Given** users should discover features through normal UI flow
+**When** a new user logs in for the first time
+**Then** Search and Chat features are clearly discoverable from dashboard and command palette
+
+**Prerequisites:** Epic 3 & 4 stories completed (components built, tests passing)
+
+**Technical Notes:**
+- Create `/app/(protected)/chat/page.tsx` route
+- Update `dashboard/page.tsx` to add Search and Chat navigation cards
+- Verify backend services (Celery workers, Qdrant, Redis) are running correctly
+- Document service startup process
+- **Reference:** [docs/sprint-artifacts/5-0-epic-integration-completion.md](sprint-artifacts/5-0-epic-integration-completion.md)
 
 ---
 
@@ -2341,6 +2406,233 @@ So that **we can audit information access**.
 
 ---
 
+### Story 5.15: Epic 4 ATDD Transition to GREEN + Test Hardening (Technical Debt)
+
+As a **developer**,
+I want **to transition 47 ATDD tests from Epic 4 (Chat & Generation) from RED phase to GREEN**,
+So that **chat and generation features have comprehensive test coverage with validated risk mitigations**.
+
+**Acceptance Criteria:**
+
+**Given** 47 ATDD tests are in RED phase (written before implementation)
+**When** I implement the test infrastructure and transition tests
+**Then** all high-priority tests transition to GREEN:
+
+1. **Test Fixtures & Factories (7 items):**
+   - Create `backend/tests/factories/conversation.py`:
+     - `create_conversation()` - Basic conversation factory
+     - `create_multi_turn_conversation(turns=5)` - Multi-turn conversations
+   - Create `backend/tests/factories/generation.py`:
+     - `create_generation_request()` - Generation request factory
+     - `create_draft()` - Generated draft with citations and confidence
+   - Create `backend/tests/factories/citation.py`:
+     - `create_citation(number=1)` - Single citation factory
+     - `create_complex_citations(count=10)` - Multiple citations with varying scores
+   - Update `conftest.py`:
+     - Add `redis_client` fixture (using fakeredis)
+   - All factories follow faker pattern with override support
+
+2. **Backend API Tests (22 tests):**
+   - `test_chat_conversation.py` (5 tests) - ✅ All pass
+   - `test_citation_security.py` (5 tests) - ✅ All pass (SECURITY CRITICAL)
+   - `test_document_export.py` (7 tests) - ✅ All pass
+   - `test_confidence_scoring.py` (5 tests) - ✅ All pass
+
+3. **Frontend E2E Tests (16 tests):**
+   - `chat-conversation.spec.ts` (7 tests) - ✅ All pass
+   - `document-generation.spec.ts` (9 tests) - ✅ All pass
+
+4. **Component Tests (9 tests):**
+   - `chat-message.test.tsx` (9 tests) - ✅ All pass
+
+5. **Export Validation Helpers:**
+   - Install: `python-docx`, `PyPDF2`, `reportlab`
+   - Create `backend/tests/helpers/export_validation.py`:
+     - `validate_docx_citations(docx_bytes, expected_citations)` - Parse DOCX XML
+     - `validate_pdf_citations(pdf_bytes, expected_citations)` - Extract PDF text
+   - Use helpers in export tests
+
+6. **Risk Mitigation Validation:**
+   - R-001 (Token Limit): 3 tests GREEN ✅
+   - R-002 (Citation Injection): 5 tests GREEN ✅ (SECURITY)
+   - R-003 (Streaming Latency): 2 tests GREEN ✅
+   - R-004 (Export Citations): 5 tests GREEN ✅
+   - R-005 (Low Confidence): 6 tests GREEN ✅
+
+7. **Documentation:**
+   - Update `docs/sprint-artifacts/epic-4-tech-debt.md` TD-4.0-1 → RESOLVED
+   - Add test execution guide to README or testing-framework-guideline.md
+
+**And** all existing tests continue to pass (no regressions)
+**And** run `make test-backend` → 0 failures (all Epic 4 tests GREEN)
+**And** run `npm run test:e2e -- e2e/tests/chat/` → 0 failures
+**And** run `npm run test` → all component tests pass
+
+**Prerequisites:**
+- Epic 4 complete (Stories 4.1-4.10 implemented)
+- Story 5.12 complete (Epic 3 ATDD transition - similar pattern)
+
+**Technical Notes:**
+- **Source:** TD-4.0-1 in epic-4-tech-debt.md
+- **Root Cause:** ATDD tests written before implementation (RED phase)
+- **Current Status:** 47 tests in RED phase (intentional)
+- **Priority:** HIGH (validates 4 high-risk mitigations)
+- **Effort:** 16-20 hours
+- **Type:** Technical Debt - Test Infrastructure + Security Validation
+
+**Implementation Strategy:**
+1. Start with factories (conversation, generation, citation)
+2. Add Redis fixture with fakeredis
+3. Implement export validation helpers
+4. Run backend tests → debug failures → GREEN
+5. Run E2E tests → add missing data-testid attributes → GREEN
+6. Run component tests → GREEN
+7. Validate all 4 risk mitigations covered
+
+**Affected Tests by Story:**
+- Story 4.1 (Chat Conversation): 5 backend + 3 E2E tests
+- Story 4.2 (Chat Streaming UI): 2 backend + 4 E2E + 9 component tests
+- Story 4.5 (Confidence Scoring): 5 backend + 2 E2E tests
+- Story 4.7 (Document Export): 7 backend + 3 E2E tests
+- Story 4.3, 4.4, 4.6, 4.8, 4.9, 4.10: Covered by above tests
+
+**Security Focus:**
+- Citation injection tests (R-002) are **CRITICAL** - must pass 100%
+- Adversarial prompt suite validates system resilience
+- Citation validation prevents fake source injection
+
+**Test Execution Commands:**
+```bash
+# Backend tests
+cd backend
+pytest tests/integration/test_chat*.py -v
+pytest tests/integration/test_citation_security.py -v  # SECURITY
+pytest tests/integration/test_document_export.py -v
+pytest tests/integration/test_confidence_scoring.py -v
+
+# Frontend E2E
+cd frontend
+npm run test:e2e -- e2e/tests/chat/
+
+# Component tests
+npm run test -- src/components/chat/__tests__/
+
+# All Epic 4 tests
+make test-epic-4  # Add this target to Makefile
+```
+
+**Validation Checklist:**
+- [ ] All 7 factories created and tested
+- [ ] Redis fixture working with fakeredis
+- [ ] Export validation helpers functional
+- [ ] 22 backend API tests GREEN
+- [ ] 16 E2E tests GREEN
+- [ ] 9 component tests GREEN
+- [ ] R-002 (Security) tests passing 100%
+- [ ] No regressions in existing tests
+- [ ] epic-4-tech-debt.md updated
+
+**Reference:**
+- docs/sprint-artifacts/epic-4-tech-debt.md (TD-4.0-1)
+- docs/atdd-checklist-epic-4.md (implementation guide)
+- docs/test-design-epic-4.md (risk assessment)
+
+**Note:** This resolves the ATDD RED phase deliberately created during Epic 4 story implementation. Follows same pattern as Story 5.12 (Epic 3 ATDD transition).
+
+---
+
+### Story 5.16: Docker E2E Testing Infrastructure (HIGH - NEW)
+
+As a **developer and QA engineer**,
+I want **a Docker-based E2E testing infrastructure that validates complete user journeys**,
+So that **we can test the full stack in a production-like environment and catch integration issues before deployment**.
+
+**Priority:** HIGH
+**Estimated Effort:** 2-3 days
+**Owner:** Murat (TEA)
+**Support:** Winston (Architect), Amelia (Dev)
+
+**Context:** Epic 4 retrospective (2025-11-30) revealed that the test pyramid is incomplete. While unit tests (✅ 114 total) and integration tests (✅ 74 backend) provide excellent coverage, E2E tests are missing. This story establishes Docker-based E2E testing infrastructure to validate complete user journeys.
+
+**Test Pyramid Gap:**
+- ✅ Unit tests: Excellent coverage (29 backend, 51 frontend component, 34 frontend hook)
+- ✅ Integration tests: Good coverage (74 backend API tests)
+- ❌ E2E tests: Written but not executed (8 E2E tests exist, no infrastructure to run them)
+
+**Acceptance Criteria:**
+
+**AC1: Docker Compose E2E Environment Created**
+**Given** the application requires multiple services for E2E testing
+**When** `docker-compose -f docker-compose.e2e.yml up` is executed
+**Then** all required services start successfully:
+- Frontend (Next.js production build on port 3000)
+- Backend (FastAPI on port 8000)
+- Celery Worker, PostgreSQL, Redis, Qdrant, MinIO, LiteLLM
+**And** all services are accessible from the Playwright container
+**And** environment variables are configured for E2E testing
+
+**AC2: Playwright E2E Test Execution Configured**
+**Given** Playwright tests exist in `frontend/e2e/tests/`
+**When** E2E tests are executed with `npm run test:e2e`
+**Then** Playwright runs tests against the Docker environment
+**And** tests can navigate to frontend and interact with all services
+**And** test results are reported with pass/fail status
+
+**AC3: E2E Test Database Seeding Implemented**
+**Given** E2E tests require consistent test data
+**When** the E2E environment starts
+**Then** the test database is seeded with:
+- Test users (admin, regular user)
+- Test knowledge bases with permissions
+- Indexed test documents (for search/chat tests)
+**And** seeding is idempotent (can run multiple times without errors)
+
+**AC4: GitHub Actions CI Integration Configured**
+**Given** E2E tests should run in CI/CD pipeline
+**When** a pull request is created or pushed to main
+**Then** GitHub Actions workflow runs E2E tests
+**And** workflow uses `docker-compose.e2e.yml` to spin up environment
+**And** workflow reports test results and uploads artifacts (screenshots, videos)
+**And** workflow fails if any E2E tests fail
+
+**AC5: E2E Test Suite for Epic 3 & 4 Features Executed**
+**Given** Epic 3 & 4 features are now accessible (Story 5.0 completed)
+**When** E2E tests run in Docker environment
+**Then** the following test suites execute successfully:
+- **Epic 3:** Search with citations, citation panel, confidence scoring, command palette
+- **Epic 4:** Chat conversation (multi-turn), chat streaming, document generation, draft editing, export, feedback
+**And** 15-20 E2E tests pass covering critical paths
+
+**Prerequisites:**
+- Story 5.0 completed (Epic 3 & 4 features accessible through UI)
+- Docker and Docker Compose installed
+- Playwright dependencies installed
+
+**Technical Notes:**
+- Create `docker-compose.e2e.yml` with all 8 services (frontend, backend, celery, postgres, redis, qdrant, minio, litellm, playwright)
+- Configure Playwright to use Docker environment URLs (`E2E_BASE_URL=http://frontend:3000`)
+- Create database seeding script (`backend/seed_e2e.py`)
+- Create GitHub Actions workflow (`.github/workflows/e2e-tests.yml`)
+- Execute existing E2E tests and add missing ones (target: 15-20 total)
+- **Reference:** [docs/sprint-artifacts/5-16-docker-e2e-infrastructure.md](sprint-artifacts/5-16-docker-e2e-infrastructure.md)
+- **Type:** Test Infrastructure - E2E Testing
+
+**Benefits:**
+- Full-stack integration testing (not just mocked components)
+- Consistent environment across dev and CI
+- Test against real services (PostgreSQL, Redis, Qdrant, MinIO, LiteLLM)
+- Catch integration issues before production deployment
+- Validate complete user journeys end-to-end
+- Framework for all future E2E testing
+
+**User Journeys to Test:**
+1. Document Upload → Processing → Search
+2. Search → Citation Display
+3. Chat Conversation (multi-turn with history)
+4. Document Generation (template → draft → export)
+
+---
+
 ## FR Coverage Matrix
 
 | FR | Epic | Story | Status |
@@ -2444,7 +2736,7 @@ So that **we can audit information access**.
 
 ## Summary
 
-This epic breakdown transforms the LumiKB PRD into 52 implementable stories across 5 epics:
+This epic breakdown transforms the LumiKB PRD into 54 implementable stories across 5 epics (updated 2025-11-30):
 
 | Epic | Stories | Key Deliverables |
 |------|---------|------------------|
@@ -2452,7 +2744,12 @@ This epic breakdown transforms the LumiKB PRD into 52 implementable stories acro
 | **2. KB & Docs** | 12 | KB management, document upload/processing pipeline |
 | **3. Search & Citations** | 11 | Semantic search, citation system, cross-KB search |
 | **4. Chat & Generation** | 10 | Chat interface, draft generation, export |
-| **5. Admin & Polish** | 9 | Admin dashboard, onboarding wizard, UX polish |
+| **5. Admin & Polish** | 11 (+2 from retrospective) | Admin dashboard, **Epic 3&4 integration**, **Docker E2E**, onboarding, UX polish |
+
+**Epic 5 Scope Changes (2025-11-30):**
+- Added Story 5.0: Epic 3 & 4 Integration Completion (CRITICAL)
+- Added Story 5.16: Docker E2E Testing Infrastructure (HIGH)
+- Updated total: 54 stories (was 52)
 
 **Design Principles Applied:**
 - **Citation-first**: Every AI output story includes citation AC

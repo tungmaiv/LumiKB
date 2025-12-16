@@ -1,0 +1,335 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>7</storyId>
+    <title>Document Export</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-7-document-export.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with a completed or edited document draft</asA>
+    <iWant>to export my draft in multiple formats (DOCX, PDF, Markdown) with citations properly formatted</iWant>
+    <soThat>I can use the generated content in my professional workflow and share it with stakeholders</soThat>
+    <tasks>
+      - Create ExportService (backend/app/services/export_service.py)
+      - Implement DOCX export with python-docx (citations as footnotes)
+      - Implement PDF export with reportlab (citation table at end)
+      - Implement Markdown export (standard [^n] footnote syntax)
+      - Create export API endpoint POST /api/v1/drafts/{draft_id}/export
+      - Add export schemas (ExportRequest, ExportResponse)
+      - Create export UI components (ExportModal, VerificationDialog, FormatOption)
+      - Implement export flow (useExport hook)
+      - Add export button to DraftEditor
+      - Implement verification prompt logic
+      - Add download handling (blob + URL.createObjectURL)
+      - Write unit tests for ExportService (8 tests)
+      - Write integration tests for export API (6 tests)
+      - Write frontend unit tests (10 tests)
+      - Write E2E tests with Playwright (6 tests)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Export Format Selection
+    - Given a draft exists with status 'complete' or 'editing'
+    - When I click the "Export" button
+    - Then a modal appears with format options: DOCX, PDF, Markdown
+    - And each format option shows icon, description, file size estimate
+    - And I can select exactly one format
+
+    AC2: Source Verification Prompt
+    - Given I've selected an export format
+    - When I click "Export"
+    - Then a confirmation dialog appears: "Have you verified the sources?"
+    - With checkbox (unchecked by default) and "Go Back" / "Export Anyway" buttons
+    - Checkbox state persisted for session
+
+    AC3: DOCX Export with Footnote Citations
+    - Given I selected DOCX format
+    - When export completes
+    - Then a .docx file downloads
+    - And document contains: title, formatted content, headers, lists
+    - And citations appear as footnotes with metadata (doc name, page, excerpt)
+
+    AC4: PDF Export with Citation Table
+    - Given I selected PDF format
+    - When export completes
+    - Then a .pdf file downloads
+    - And PDF contains: title page, main content, citation table at end
+    - And citations appear as superscripts with full references table
+
+    AC5: Markdown Export with Footnote Syntax
+    - Given I selected Markdown format
+    - When export completes
+    - Then a .md file downloads
+    - And markdown contains original formatting with [^n] citation syntax
+    - And footnote references at end of document
+
+    AC6: Export Audit Logging
+    - Given any export is completed
+    - When the export succeeds
+    - Then an audit event is logged with: user_id, format, draft_title, citation_count, source_documents, file_size
+    - And full content is NOT logged (privacy)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Technical Specification -->
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification: Chat &amp; Document Generation</title>
+        <section>Story 4.7: Document Export (Lines 875-1060)</section>
+        <snippet>Technical approach for DOCX export using python-docx with citations as footnotes, PDF export using reportlab with citation table, and Markdown export with [^n] footnote syntax. Includes complete implementation examples for all three formats.</snippet>
+      </doc>
+
+      <!-- Architecture Reference -->
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Export Service Patterns (Lines 95-130)</section>
+        <snippet>Service layer patterns for document generation and export. ExportService handles format conversion, CitationService (from Epic 3) provides citation metadata.</snippet>
+      </doc>
+
+      <!-- UX Design -->
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Export Flow (Lines 560-608)</section>
+        <snippet>Generate-with-Citations pattern showing export UI with format selection, verification prompt, and download flow. Includes "Have you verified the sources?" confirmation (FR40b requirement).</snippet>
+      </doc>
+
+      <!-- Story Details -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics Breakdown</title>
+        <section>Story 4.7: Document Export (Lines 1580-1616)</section>
+        <snippet>Acceptance criteria for export with DOCX, PDF, and Markdown formats. Citations must be preserved as footnotes (DOCX), references table (PDF), or [^n] syntax (Markdown). Includes source verification prompt requirement.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Draft Model (from Story 4.6) -->
+      <artifact>
+        <path>backend/app/models/draft.py</path>
+        <kind>model</kind>
+        <symbol>Draft</symbol>
+        <lines>complete file</lines>
+        <reason>Draft model structure with content, citations, and status fields needed for export</reason>
+      </artifact>
+
+      <!-- Draft Schemas (from Story 4.4, 4.5) -->
+      <artifact>
+        <path>backend/app/schemas/draft.py</path>
+        <kind>schema</kind>
+        <symbol>DraftCreate, DraftResponse</symbol>
+        <lines>complete file</lines>
+        <reason>Existing draft schemas to extend with ExportRequest and ExportResponse</reason>
+      </artifact>
+
+      <!-- Citation Service (from Epic 3, Story 3.2) -->
+      <artifact>
+        <path>backend/app/services/citation_service.py</path>
+        <kind>service</kind>
+        <symbol>CitationService</symbol>
+        <lines>complete file</lines>
+        <reason>Citation extraction and formatting logic to reuse for export formats</reason>
+      </artifact>
+
+      <!-- Audit Service (from Epic 1, Story 1.7) -->
+      <artifact>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService</symbol>
+        <lines>complete file</lines>
+        <reason>Audit logging pattern for export events (AC6)</reason>
+      </artifact>
+
+      <!-- Draft API Endpoints (from Story 4.4, 4.5, 4.6) -->
+      <artifact>
+        <path>backend/app/api/v1/drafts.py</path>
+        <kind>router</kind>
+        <symbol>router</symbol>
+        <lines>complete file</lines>
+        <reason>Existing draft endpoints to extend with POST /{draft_id}/export</reason>
+      </artifact>
+
+      <!-- DraftEditor Component (from Story 4.6) -->
+      <artifact>
+        <path>frontend/src/components/generation/draft-editor.tsx</path>
+        <kind>component</kind>
+        <symbol>DraftEditor</symbol>
+        <lines>complete file</lines>
+        <reason>Add "Export" button to toolbar, integrate with export modal</reason>
+      </artifact>
+
+      <!-- Draft Store (from Story 4.6) -->
+      <artifact>
+        <path>frontend/src/hooks/useDraftEditor.ts</path>
+        <kind>hook</kind>
+        <symbol>useDraftEditor</symbol>
+        <lines>complete file</lines>
+        <reason>Draft state management to access content and citations for export</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <!-- Backend Python Dependencies -->
+      <backend>
+        <package name="python-docx" version="1.1.0" reason="DOCX generation with footnotes support"/>
+        <package name="reportlab" version="4.0.7" reason="PDF generation with professional formatting"/>
+        <package name="beautifulsoup4" version="4.12.2" reason="HTML/Markdown parsing for format conversion"/>
+        <package name="markdown" version="3.5.1" reason="Markdown to HTML conversion for DOCX/PDF"/>
+        <package name="fastapi" version="existing" reason="POST /api/v1/drafts/{id}/export endpoint"/>
+        <package name="pydantic" version="existing" reason="ExportRequest/ExportResponse schemas"/>
+      </backend>
+
+      <!-- Frontend Dependencies -->
+      <frontend>
+        <package name="react" version="existing" reason="Export modal and verification dialog components"/>
+        <package name="@radix-ui/react-dialog" version="existing" reason="Modal dialogs (ExportModal, VerificationDialog)"/>
+        <package name="lucide-react" version="existing" reason="Format icons (FileText, FileDown, FileCode)"/>
+        <package name="next" version="existing" reason="API client for export endpoint"/>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Development Constraints from Architecture and Tech Spec -->
+    1. Service Layer Pattern: ExportService must follow backend/app/services pattern with dependency injection
+    2. Citation Preservation: All formats must preserve citation metadata (document name, page, section, excerpt)
+    3. Privacy: DO NOT log full content in audit events, only metadata (title, word count, citation count)
+    4. MIME Types: Correct Content-Type headers for each format (application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/pdf, text/markdown)
+    5. Permission Check: Verify user has READ permission on KB before export
+    6. Filename Sanitization: Remove special characters from draft title for safe filenames
+    7. Citation Formatting:
+       - DOCX: Use add_footnote() method, footnotes at bottom of page
+       - PDF: Superscript [n] in text, citation table on separate page at end
+       - Markdown: Convert [n] to [^n], footnote definitions under ## References
+    8. Error Handling: Handle missing citations, malformed content, file generation failures
+    9. Testing: Follow patterns from Stories 4.1-4.6 for unit, integration, and E2E tests
+    10. XSS Protection: Sanitize content before export (reuse DOMPurify patterns from Story 4.6)
+  </constraints>
+
+  <interfaces>
+    <!-- API Endpoints -->
+    <api>
+      <name>POST /api/v1/drafts/{draft_id}/export</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Request: ExportRequest { format: "docx" | "pdf" | "markdown" }
+        Response: File download with Content-Disposition header
+      </signature>
+      <path>backend/app/api/v1/drafts.py</path>
+    </api>
+
+    <!-- Services -->
+    <service>
+      <name>ExportService.export_to_docx</name>
+      <kind>service method</kind>
+      <signature>async def export_to_docx(draft: Draft) -> bytes</signature>
+      <path>backend/app/services/export_service.py</path>
+    </service>
+
+    <service>
+      <name>ExportService.export_to_pdf</name>
+      <kind>service method</kind>
+      <signature>async def export_to_pdf(draft: Draft) -> bytes</signature>
+      <path>backend/app/services/export_service.py</path>
+    </service>
+
+    <service>
+      <name>ExportService.export_to_markdown</name>
+      <kind>service method</kind>
+      <signature>def export_to_markdown(draft: Draft) -> str</signature>
+      <path>backend/app/services/export_service.py</path>
+    </service>
+
+    <!-- Frontend Hooks -->
+    <hook>
+      <name>useExport</name>
+      <kind>React hook</kind>
+      <signature>
+        useExport(draftId: string) => { handleExport, isExporting, error }
+      </signature>
+      <path>frontend/src/hooks/useExport.ts</path>
+    </hook>
+
+    <!-- Components -->
+    <component>
+      <name>ExportModal</name>
+      <kind>React component</kind>
+      <signature>ExportModal({ draft, onExport, onClose })</signature>
+      <path>frontend/src/components/generation/export-modal.tsx</path>
+    </component>
+
+    <component>
+      <name>VerificationDialog</name>
+      <kind>React component</kind>
+      <signature>VerificationDialog({ citationCount, onConfirm, onCancel })</signature>
+      <path>frontend/src/components/generation/verification-dialog.tsx</path>
+    </component>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: pytest with FastAPI TestClient, async test fixtures
+      Frontend: Vitest with React Testing Library for component tests
+      E2E: Playwright for browser automation
+      Coverage: 80%+ for unit tests, 85%+ for backend services
+      Test Structure: Arrange-Act-Assert pattern
+      Mocking: Mock external services (file I/O, audit service), use real Draft model
+    </standards>
+
+    <locations>
+      backend/tests/unit/test_export_service.py
+      backend/tests/integration/test_export_api.py
+      frontend/src/components/generation/__tests__/export-modal.test.tsx
+      frontend/src/components/generation/__tests__/verification-dialog.test.tsx
+      frontend/src/hooks/__tests__/useExport.test.ts
+      frontend/e2e/tests/draft-editing.spec.ts (extend with export tests)
+    </locations>
+
+    <ideas>
+      <!-- Backend Unit Tests -->
+      AC3: test_export_to_docx_basic() - Verify DOCX file structure and basic content
+      AC3: test_export_to_docx_footnotes() - Verify citations rendered as footnotes with metadata
+      AC4: test_export_to_pdf_basic() - Verify PDF structure and content
+      AC4: test_export_to_pdf_citation_table() - Verify citation table at end with all references
+      AC5: test_export_to_markdown_basic() - Verify markdown structure preserved
+      AC5: test_export_to_markdown_footnotes() - Verify [^n] syntax and footnote definitions
+      AC3-5: test_citation_formatter_helpers() - Test format-specific citation formatting
+      AC6: test_export_audit_logging() - Verify audit event created with metadata (no content)
+
+      <!-- Backend Integration Tests -->
+      AC1,AC3: test_export_docx_endpoint_success() - Full DOCX export flow with permissions
+      AC1: test_export_permission_denied() - User without READ permission blocked
+      AC4: test_export_pdf_endpoint() - Full PDF export flow
+      AC1: test_export_format_validation() - Invalid format rejected
+      AC6: test_export_audit_event_logged() - Audit event in database after export
+      AC3: test_export_filename_sanitization() - Special characters removed from filename
+
+      <!-- Frontend Unit Tests -->
+      AC1: test_export_modal_format_selection() - Render 3 format options, single selection
+      AC1: test_export_modal_file_size_estimates() - Show size estimates for each format
+      AC2: test_verification_dialog_checkbox() - Checkbox unchecked by default
+      AC2: test_verification_dialog_go_back() - Cancel button closes dialog
+      AC2: test_verification_dialog_export_anyway() - Export proceeds without checkbox
+      AC2: test_verification_session_persistence() - Checkbox state persisted
+      AC3-5: test_use_export_hook_success() - Export flow with blob download
+      AC3-5: test_use_export_hook_error_handling() - Error states displayed
+      AC3-5: test_download_handling() - Blob creation and URL.createObjectURL
+      AC3: test_export_button_visibility() - Shown when draft status = complete/editing
+
+      <!-- E2E Tests (Playwright) -->
+      AC1,AC3: test_export_docx_full_flow() - Click Export → Select DOCX → Verify prompt → Download → Check file
+      AC4: test_export_pdf_full_flow() - Export PDF → Open in browser → Verify citation table
+      AC5: test_export_markdown_full_flow() - Export MD → Open in editor → Verify [^n] syntax
+      AC2: test_verification_prompt_shown() - Prompt appears with checkbox and buttons
+      AC2: test_verification_go_back() - Go Back cancels export, returns to editor
+      AC6: test_export_audit_logged() - Check audit.events table after export
+    </ideas>
+  </tests>
+</story-context>

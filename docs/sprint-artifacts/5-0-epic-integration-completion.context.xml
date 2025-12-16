@@ -1,0 +1,710 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <story-metadata>
+    <story-id>5-0</story-id>
+    <title>Epic 3 &amp; 4 Integration Completion</title>
+    <epic>Epic 5 - Administration &amp; Polish</epic>
+    <priority>CRITICAL</priority>
+    <estimated-effort>1-2 days</estimated-effort>
+    <owner>Amelia (Dev)</owner>
+    <support>Winston (Architect)</support>
+    <status>TODO</status>
+    <created>2025-11-30</created>
+  </story-metadata>
+
+  <user-story>
+    <as-a>user of LumiKB</as-a>
+    <i-want>Epic 3 (Search) and Epic 4 (Chat &amp; Generation) features to be accessible through normal UI navigation</i-want>
+    <so-that>I can discover and use these capabilities without needing direct URLs or hidden knowledge</so-that>
+  </user-story>
+
+  <acceptance-criteria>
+    <ac id="1" title="Chat Page Route Created">
+      <given>chat components exist in frontend/src/components/chat/</given>
+      <when>user navigates to /app/(protected)/chat</when>
+      <then>a functional chat page renders with ChatContainer component</then>
+      <and>user can start new conversations, send messages, receive streaming responses</and>
+      <technical-requirements>
+        <requirement>Create /app/(protected)/chat/page.tsx route file</requirement>
+        <requirement>Import and integrate ChatContainer component</requirement>
+        <requirement>Wire up useChatManagement hook for conversation state</requirement>
+        <requirement>Test navigation from dashboard and direct URL access</requirement>
+      </technical-requirements>
+    </ac>
+    <ac id="2" title="Navigation Links Added to Dashboard">
+      <given>search and chat features are implemented</given>
+      <when>user views the dashboard at /app/(protected)/dashboard</when>
+      <then>navigation cards/buttons for "Search Knowledge Base" and "Chat" are visible</then>
+      <and>clicking these links navigates to /search and /chat respectively</and>
+      <and>"Coming in Epic 3" and "Coming in Epic 4" placeholders are removed</and>
+      <technical-requirements>
+        <requirement>Update dashboard/page.tsx to replace placeholders</requirement>
+        <requirement>Add Search card linking to /search</requirement>
+        <requirement>Add Chat card linking to /chat</requirement>
+        <requirement>Ensure consistent styling with existing KB Management card</requirement>
+      </technical-requirements>
+    </ac>
+    <ac id="3" title="Backend Services Verified and Healthy">
+      <given>the application depends on multiple backend services</given>
+      <when>the backend is started with docker-compose up</when>
+      <then>all required services are running and healthy</then>
+      <services>
+        <service>FastAPI backend (port 8000)</service>
+        <service>PostgreSQL database</service>
+        <service>Redis (session storage and chat conversations)</service>
+        <service>Celery worker (document processing)</service>
+        <service>Qdrant (vector search)</service>
+        <service>MinIO (document storage)</service>
+        <service>LiteLLM proxy (LLM API)</service>
+      </services>
+      <technical-requirements>
+        <requirement>Document service startup process in README or deployment guide</requirement>
+        <requirement>Verify Celery workers are processing documents (no "Queued" stuck state)</requirement>
+        <requirement>Verify Qdrant search endpoints return results (fix "Not Found" errors)</requirement>
+        <requirement>Create health check script or document manual verification steps</requirement>
+      </technical-requirements>
+    </ac>
+    <ac id="4" title="Complete User Journeys Smoke Tested">
+      <given>all Epic 3 &amp; 4 features are wired into UI</given>
+      <when>smoke testing is performed</when>
+      <then>all user journeys work end-to-end with explicit success metrics</then>
+      <journeys>
+        <journey id="1" name="Document Upload → Processing → Search">
+          <success-criteria>Document shows "Completed" status within 2 minutes of upload</success-criteria>
+        </journey>
+        <journey id="2" name="Search → Citation Display">
+          <success-criteria>Search returns results with at least 1 citation in [1] format</success-criteria>
+        </journey>
+        <journey id="3" name="Chat Conversation">
+          <success-criteria>Chat response streams within 5 seconds, maintains conversation history for follow-up</success-criteria>
+        </journey>
+        <journey id="4" name="Document Generation">
+          <success-criteria>Draft exports successfully in at least one format (DOCX, PDF, or MD) with citations preserved</success-criteria>
+        </journey>
+      </journeys>
+      <technical-requirements>
+        <requirement>Manual smoke test execution checklist</requirement>
+        <requirement>Document any failures or blockers discovered</requirement>
+        <requirement>Fix critical issues preventing basic functionality</requirement>
+        <requirement>Record actual timings and compare to success criteria</requirement>
+      </technical-requirements>
+    </ac>
+    <ac id="5" title="Navigation Discoverability Validated">
+      <given>users should discover features through normal UI flow</given>
+      <when>a new user logs in for the first time</when>
+      <then>Search and Chat features are clearly discoverable</then>
+      <discoverability-sources>
+        <source>Dashboard navigation cards</source>
+        <source>Header navigation (if applicable)</source>
+        <source>Command palette (⌘K) search results</source>
+      </discoverability-sources>
+      <and>command palette (⌘K) successfully displays Search and Chat commands</and>
+      <and>executing commands from palette navigates correctly (no "Not Found" errors)</and>
+      <technical-requirements>
+        <requirement>Verify command palette search shows Search and Chat commands</requirement>
+        <requirement>Ensure navigation is intuitive (no hidden features)</requirement>
+        <requirement>Test command palette execution resolves to correct routes</requirement>
+        <requirement>Consider adding tooltips or onboarding hints (optional, defer to Story 5.7)</requirement>
+      </technical-requirements>
+    </ac>
+  </acceptance-criteria>
+
+  <critical-discovery>
+    <source>Epic 4 Retrospective (2025-11-30)</source>
+    <issue>Epic 3 &amp; 4 features are implemented but not accessible to users through normal UI navigation</issue>
+    <evidence>
+      <item>/search page exists but no navigation link from dashboard</item>
+      <item>Chat components exist but no /app/(protected)/chat/page.tsx route created</item>
+      <item>Generation features exist but only accessible from search page</item>
+      <item>Dashboard still shows "Coming in Epic 3" and "Coming in Epic 4" placeholders</item>
+      <item>Command palette shows "Search failed: Not Found" (backend service issue)</item>
+      <item>Documents stuck in "Queued for processing" (Celery worker issue)</item>
+    </evidence>
+    <root-causes>
+      <cause>Story scope too narrow - delivered components, not full user journeys</cause>
+      <cause>Definition of Done gap - "Code complete" ≠ "Feature accessible to users"</cause>
+      <cause>No E2E testing - component tests passed but end-to-end flow never validated</cause>
+      <cause>No deployment verification - never tested in production-like environment</cause>
+      <cause>Backend service health not monitored - services may not be running correctly</cause>
+    </root-causes>
+    <impact>
+      <item>Users can login, create KB, upload documents (Epic 1 &amp; 2)</item>
+      <item>Users CANNOT access search, chat, or generation features (Epic 3 &amp; 4)</item>
+      <item>Epic 5 admin features depend on working Epic 3 &amp; 4 features</item>
+      <item>Need to fix integration before Epic 5 can proceed</item>
+    </impact>
+  </critical-discovery>
+
+  <existing-components>
+    <frontend>
+      <component path="frontend/src/app/(protected)/search/page.tsx" status="EXISTS">
+        <description>Full search implementation with SearchPage component, citations, streaming</description>
+        <dependencies>
+          <dep>useSearchStream hook</dep>
+          <dep>SearchBar component</dep>
+          <dep>CitationPanel component</dep>
+        </dependencies>
+      </component>
+      <component path="frontend/src/components/chat/" status="EXISTS">
+        <files>
+          <file>chat-container.tsx</file>
+          <file>chat-message.tsx</file>
+          <file>chat-input.tsx</file>
+          <file>generation-modal.tsx</file>
+        </files>
+      </component>
+      <component path="frontend/src/components/generation/" status="EXISTS">
+        <files>
+          <file>template-selector.tsx</file>
+          <file>draft-editor.tsx</file>
+          <file>export-modal.tsx</file>
+          <file>feedback-modal.tsx</file>
+        </files>
+      </component>
+      <component path="frontend/src/hooks/useChatManagement.ts" status="EXISTS">
+        <description>Chat state management with localStorage persistence</description>
+      </component>
+      <component path="frontend/src/components/layout/header.tsx" status="EXISTS">
+        <description>Header with command palette (⌘K) and SearchBar</description>
+      </component>
+    </frontend>
+    <backend>
+      <api path="backend/app/api/v1/chat.py" status="EXISTS">
+        <description>POST /api/v1/chat - synchronous chat endpoint</description>
+      </api>
+      <api path="backend/app/api/v1/chat_stream.py" status="EXISTS">
+        <description>POST /api/v1/chat/stream - SSE streaming chat endpoint</description>
+      </api>
+      <api path="backend/app/api/v1/generate.py" status="EXISTS">
+        <description>POST /api/v1/generate - document generation endpoint</description>
+      </api>
+      <api path="backend/app/api/v1/generate_stream.py" status="EXISTS">
+        <description>POST /api/v1/generate/stream - SSE streaming generation endpoint</description>
+      </api>
+      <service path="backend/app/services/conversation_service.py" status="EXISTS">
+        <description>ConversationService with Redis storage, multi-turn RAG, citation preservation</description>
+      </service>
+      <service path="backend/app/services/generation_service.py" status="EXISTS">
+        <description>GenerationService with template registry, feedback handling</description>
+      </service>
+    </backend>
+  </existing-components>
+
+  <missing-components>
+    <frontend>
+      <missing-route path="frontend/src/app/(protected)/chat/page.tsx">
+        <description>Chat page route - needs to be created</description>
+        <required-imports>
+          <import>ChatContainer from '@/components/chat/chat-container'</import>
+        </required-imports>
+        <structure>
+          <layout>Protected layout (already exists at (protected)/layout.tsx)</layout>
+          <component>ChatContainer with full chat UI</component>
+        </structure>
+      </missing-route>
+      <missing-navigation path="frontend/src/app/(protected)/dashboard/page.tsx">
+        <description>Dashboard navigation cards for Search and Chat</description>
+        <current-state>
+          <line number="72-73">Coming in Epic 3 placeholder</line>
+          <line number="82-83">Coming in Epic 4 placeholder</line>
+        </current-state>
+        <target-state>
+          <card>Search Knowledge Base - Link to /search</card>
+          <card>Chat with AI Assistant - Link to /chat</card>
+        </target-state>
+      </missing-navigation>
+    </frontend>
+    <backend-verification>
+      <service name="FastAPI" port="8000" status="UNKNOWN">
+        <verification>curl http://localhost:8000/health</verification>
+      </service>
+      <service name="Celery Worker" status="UNKNOWN">
+        <verification>docker-compose ps celery-worker OR docker-compose logs celery-worker</verification>
+        <known-issue>Documents stuck in "Queued" status</known-issue>
+      </service>
+      <service name="Qdrant" port="6333" status="UNKNOWN">
+        <verification>curl http://localhost:6333/collections</verification>
+        <known-issue>Search returns "Not Found" errors</known-issue>
+      </service>
+      <service name="Redis" port="6379" status="UNKNOWN">
+        <verification>redis-cli ping OR docker-compose ps redis</verification>
+      </service>
+      <service name="MinIO" port="9000" status="UNKNOWN">
+        <verification>curl http://localhost:9000/minio/health/live</verification>
+      </service>
+      <service name="LiteLLM" port="4000" status="UNKNOWN">
+        <verification>curl http://localhost:4000/health</verification>
+      </service>
+      <service name="PostgreSQL" port="5432" status="UNKNOWN">
+        <verification>psql connection test OR docker-compose ps postgres</verification>
+      </service>
+    </backend-verification>
+  </missing-components>
+
+  <user-journeys>
+    <journey id="1" name="Document Upload → Processing → Search">
+      <steps>
+        <step order="1">User uploads document to KB</step>
+        <step order="2">Document status shows "Processing" then "Completed"</step>
+        <step order="3">User navigates to Search</step>
+        <step order="4">User searches for content from uploaded document</step>
+        <step order="5">Search returns results with citations</step>
+      </steps>
+      <acceptance-criteria>All steps complete without errors</acceptance-criteria>
+      <dependencies>
+        <dep>Celery worker running</dep>
+        <dep>Qdrant accessible</dep>
+        <dep>MinIO accessible</dep>
+        <dep>Search page accessible from dashboard</dep>
+      </dependencies>
+    </journey>
+    <journey id="2" name="Search → Citation Display">
+      <steps>
+        <step order="1">User navigates to Search from dashboard</step>
+        <step order="2">User enters search query</step>
+        <step order="3">Streaming answer displays with inline [1], [2] citations</step>
+        <step order="4">Citation panel shows source excerpts</step>
+        <step order="5">Confidence score displays</step>
+      </steps>
+      <acceptance-criteria>Citations display correctly with source traceability</acceptance-criteria>
+      <dependencies>
+        <dep>Search page accessible from dashboard</dep>
+        <dep>LiteLLM proxy running</dep>
+        <dep>Qdrant search working</dep>
+      </dependencies>
+    </journey>
+    <journey id="3" name="Chat Conversation">
+      <steps>
+        <step order="1">User navigates to Chat from dashboard</step>
+        <step order="2">User sends first message</step>
+        <step order="3">Streaming response appears with citations</step>
+        <step order="4">User sends follow-up message (multi-turn)</step>
+        <step order="5">Chat maintains conversation history</step>
+      </steps>
+      <acceptance-criteria>Multi-turn conversation works with history preservation</acceptance-criteria>
+      <dependencies>
+        <dep>Chat page route created</dep>
+        <dep>Chat page accessible from dashboard</dep>
+        <dep>Redis accessible (conversation storage)</dep>
+        <dep>LiteLLM proxy running</dep>
+        <dep>Qdrant search working</dep>
+      </dependencies>
+    </journey>
+    <journey id="4" name="Document Generation">
+      <steps>
+        <step order="1">User performs search to gather context</step>
+        <step order="2">User clicks "Generate Draft" button</step>
+        <step order="3">Template selector modal appears with 4 templates</step>
+        <step order="4">User selects template and provides context</step>
+        <step order="5">Draft generates with streaming</step>
+        <step order="6">User can edit draft and export (DOCX/PDF/MD)</step>
+      </steps>
+      <acceptance-criteria>Complete generation workflow from search to export</acceptance-criteria>
+      <dependencies>
+        <dep>Search page accessible</dep>
+        <dep>Generation modal accessible from search</dep>
+        <dep>Template registry working</dep>
+        <dep>Export service working</dep>
+        <dep>LiteLLM proxy running</dep>
+      </dependencies>
+    </journey>
+  </user-journeys>
+
+  <testing>
+    <standards>
+      <frontend>
+        <framework>Vitest 4.0.13 for unit and component tests</framework>
+        <framework>@testing-library/react 16.3.0 for component testing utilities</framework>
+        <framework>Playwright 1.56.1 for E2E tests</framework>
+        <mocking>MSW 2.12.3 for API mocking in tests</mocking>
+        <patterns>
+          <pattern>Component tests in __tests__ directories adjacent to components</pattern>
+          <pattern>Hook tests in hooks/__tests__/ directory</pattern>
+          <pattern>E2E tests in e2e/tests/ directory organized by feature</pattern>
+          <pattern>Test naming: describe("ComponentName", () => it("should...", ...))</pattern>
+        </patterns>
+        <conventions>
+          <convention>Use data-testid for E2E element selection</convention>
+          <convention>Mock API responses using MSW handlers</convention>
+          <convention>Test user interactions with @testing-library/user-event</convention>
+        </conventions>
+      </frontend>
+      <backend>
+        <framework>Pytest 8.0.0+ with asyncio support</framework>
+        <plugin>pytest-asyncio for async test functions</plugin>
+        <plugin>pytest-cov for coverage reporting</plugin>
+        <plugin>pytest-timeout for test timeouts (90s default)</plugin>
+        <infrastructure>testcontainers for PostgreSQL and Redis test containers</infrastructure>
+        <patterns>
+          <pattern>Unit tests in tests/unit/ directory (fast, no external deps)</pattern>
+          <pattern>Integration tests in tests/integration/ directory (require testcontainers)</pattern>
+          <pattern>E2E tests in tests/e2e/ directory (full stack, docker-compose)</pattern>
+          <pattern>Test naming: test_function_name_scenario_expected_outcome</pattern>
+          <pattern>Fixtures in tests/conftest.py and tests/factories/</pattern>
+        </patterns>
+        <conventions>
+          <convention>Use pytest markers: @pytest.mark.unit, @pytest.mark.integration, @pytest.mark.e2e</convention>
+          <convention>Factory pattern for test data (UserFactory, KBFactory, DocumentFactory)</convention>
+          <convention>Async fixtures for database session, Redis client</convention>
+          <convention>testcontainers for isolated test databases</convention>
+        </conventions>
+      </backend>
+    </standards>
+    <locations>
+      <frontend>
+        <unit-component-tests>frontend/src/components/**/__tests__/*.test.ts(x)</unit-component-tests>
+        <hook-tests>frontend/src/hooks/__tests__/*.test.ts</hook-tests>
+        <e2e-tests>frontend/e2e/tests/**/*.spec.ts</e2e-tests>
+        <config>
+          <vitest>frontend/vitest.config.ts</vitest>
+          <playwright>frontend/e2e/playwright.config.ts</playwright>
+        </config>
+      </frontend>
+      <backend>
+        <unit-tests>backend/tests/unit/test_*.py</unit-tests>
+        <integration-tests>backend/tests/integration/test_*.py</integration-tests>
+        <e2e-tests>backend/tests/e2e/test_*.py (Story 5.16)</e2e-tests>
+        <fixtures>backend/tests/conftest.py, backend/tests/factories/</fixtures>
+        <config>backend/pyproject.toml [tool.pytest.ini_options]</config>
+      </backend>
+    </locations>
+    <coverage>
+      <epic-3>
+        <unit-tests>Comprehensive coverage for search services</unit-tests>
+        <integration-tests>Backend API tests for search endpoints</integration-tests>
+        <component-tests>Frontend component tests for SearchPage, CitationPanel</component-tests>
+        <e2e-tests status="MISSING">No E2E tests for complete search flow</e2e-tests>
+      </epic-3>
+      <epic-4>
+        <unit-tests>29 backend unit tests (ConversationService, GenerationService)</unit-tests>
+        <integration-tests>74 backend integration tests (chat, generation, export, feedback)</integration-tests>
+        <component-tests>51 frontend component tests (chat, generation, export)</component-tests>
+        <hook-tests>34 frontend hook tests (useChatManagement, useGenerationStream, etc.)</hook-tests>
+        <e2e-tests status="WRITTEN_NOT_EXECUTED">8 E2E tests written but not run with Playwright</e2e-tests>
+      </epic-4>
+      <gap>No end-to-end testing in full-stack environment (addressed in Story 5.16)</gap>
+    </coverage>
+    <ideas>
+      <idea ac="AC1">E2E test: Navigate to /chat route and verify ChatContainer renders</idea>
+      <idea ac="AC2">E2E test: Dashboard shows Search and Chat cards with correct links</idea>
+      <idea ac="AC3">Integration test: Health check endpoints for all backend services</idea>
+      <idea ac="AC4">E2E test: Complete user journey tests for all 4 smoke test scenarios</idea>
+      <idea ac="AC5">E2E test: Command palette shows Search/Chat commands and navigates correctly</idea>
+    </ideas>
+  </testing>
+
+  <retrospective-learnings>
+    <learning id="1" title="Definition of Done Must Include End-to-End Accessibility">
+      <insight>"Component works and tests pass" is insufficient. Must verify user can access and use the feature.</insight>
+      <new-dod>
+        <item>Component implemented with tests passing</item>
+        <item>Component integrated into application navigation</item>
+        <item>User can access feature through normal UI flow</item>
+        <item>E2E test validates complete user journey</item>
+        <item>Feature verified in deployed environment</item>
+      </new-dod>
+      <application>Every story must include navigation/accessibility in acceptance criteria</application>
+    </learning>
+    <learning id="2" title="Every Epic Needs an Integration Story">
+      <insight>Component stories deliver pieces, but someone must wire them together into complete user journeys</insight>
+      <pattern>Add final integration story to every epic: Story X.0 or X.99 for Epic Integration &amp; E2E Validation</pattern>
+      <application>Epic 5 starts with Story 5.0 (this story)</application>
+    </learning>
+    <learning id="3" title="Test Pyramid Needs E2E Layer">
+      <insight>Test pyramid was incomplete: Unit tests (✓), Integration tests (✓), E2E tests (✗)</insight>
+      <solution>Story 5.16 will establish Docker-based E2E testing infrastructure</solution>
+      <application>All future epics must include E2E tests running in Docker environment</application>
+    </learning>
+    <learning id="4" title="Backend Service Health Must Be Monitored">
+      <insight>Services may silently fail without visibility (Celery workers, search endpoints)</insight>
+      <solution>Add health monitoring: health check endpoints, status dashboard (Story 5.4), automated alerts</solution>
+      <application>Story 5.4 (Processing Queue Status) will add monitoring</application>
+    </learning>
+  </retrospective-learnings>
+
+  <technical-architecture>
+    <frontend-routing>
+      <structure>Next.js App Router with (protected) layout</structure>
+      <existing-routes>
+        <route path="/app/(protected)/dashboard">Dashboard with KB cards</route>
+        <route path="/app/(protected)/search">Search page (EXISTS but not linked)</route>
+        <route path="/app/(protected)/kb/[id]">KB detail page</route>
+      </existing-routes>
+      <missing-routes>
+        <route path="/app/(protected)/chat">Chat page (NEEDS CREATION)</route>
+      </missing-routes>
+    </frontend-routing>
+    <state-management>
+      <tool>Zustand for global state</tool>
+      <patterns>
+        <pattern>useKnowledgeBaseStore - KB selection</pattern>
+        <pattern>useChatManagement - Chat conversation state with localStorage</pattern>
+        <pattern>useGenerationStream - Draft generation streaming</pattern>
+      </patterns>
+    </state-management>
+    <backend-services>
+      <service name="ConversationService">
+        <description>Multi-turn RAG chat with Redis storage (24-hour TTL)</description>
+        <storage>Redis with conversation_id:kb_id key pattern</storage>
+        <features>
+          <feature>Multi-turn context preservation</feature>
+          <feature>Inline citation markers [1], [2]</feature>
+          <feature>SSE streaming support</feature>
+        </features>
+      </service>
+      <service name="GenerationService">
+        <description>Document generation with template registry</description>
+        <templates>
+          <template>RFP Response</template>
+          <template>Checklist</template>
+          <template>Gap Analysis</template>
+          <template>Custom</template>
+        </templates>
+        <features>
+          <feature>Template-driven prompts with citation enforcement</feature>
+          <feature>SSE streaming generation</feature>
+          <feature>Draft editing and versioning</feature>
+        </features>
+      </service>
+      <service name="ExportService">
+        <description>Document export to DOCX, PDF, MD formats</description>
+        <features>
+          <feature>Citation preservation in all formats</feature>
+          <feature>Template-aware formatting</feature>
+        </features>
+      </service>
+    </backend-services>
+  </technical-architecture>
+
+  <tasks>
+    <task id="1" ac="AC1" priority="HIGH" owner="Amelia">
+      <title>Create Chat Page Route</title>
+      <objective>Wire chat components into accessible /chat route</objective>
+      <subtasks>
+        <subtask id="1.1">Create frontend/src/app/(protected)/chat/page.tsx file</subtask>
+        <subtask id="1.2">Import ChatContainer component from @/components/chat/chat-container</subtask>
+        <subtask id="1.3">Wire up useChatManagement hook for conversation state</subtask>
+        <subtask id="1.4">Test navigation from dashboard link</subtask>
+        <subtask id="1.5">Test direct URL access to /chat</subtask>
+        <subtask id="1.6">Verify chat interface renders and allows message sending</subtask>
+      </subtasks>
+    </task>
+    <task id="2" ac="AC2" priority="HIGH" owner="Amelia">
+      <title>Add Dashboard Navigation Cards</title>
+      <objective>Make Search and Chat features discoverable from dashboard</objective>
+      <subtasks>
+        <subtask id="2.1">Open frontend/src/app/(protected)/dashboard/page.tsx</subtask>
+        <subtask id="2.2">Replace "Coming in Epic 3" placeholder (lines 72-73) with Search navigation card</subtask>
+        <subtask id="2.3">Replace "Coming in Epic 4" placeholder (lines 82-83) with Chat navigation card</subtask>
+        <subtask id="2.4">Import required components (Link, Search icon, MessageSquare icon)</subtask>
+        <subtask id="2.5">Apply consistent Card styling with hover states</subtask>
+        <subtask id="2.6">Test navigation links work correctly</subtask>
+        <subtask id="2.7">Verify visual consistency with existing dashboard cards</subtask>
+      </subtasks>
+    </task>
+    <task id="3" ac="AC3" priority="CRITICAL" owner="Winston">
+      <title>Verify Backend Services Health</title>
+      <objective>Ensure all required services are running and accessible</objective>
+      <subtasks>
+        <subtask id="3.1">Check FastAPI backend health endpoint (http://localhost:8000/health)</subtask>
+        <subtask id="3.2">Verify PostgreSQL database connectivity</subtask>
+        <subtask id="3.3">Check Redis status (session storage and conversations)</subtask>
+        <subtask id="3.4">Verify Celery worker is running and processing tasks</subtask>
+        <subtask id="3.5">Check Qdrant vector search service (http://localhost:6333/collections)</subtask>
+        <subtask id="3.6">Verify MinIO document storage accessibility</subtask>
+        <subtask id="3.7">Check LiteLLM proxy status (http://localhost:4000/health)</subtask>
+        <subtask id="3.8">Document any service issues and resolution steps</subtask>
+        <subtask id="3.9">Create health check script or verification guide (optional)</subtask>
+      </subtasks>
+    </task>
+    <task id="4" ac="AC4" priority="HIGH" owner="Amelia">
+      <title>Execute Smoke Test Journeys</title>
+      <objective>Validate complete end-to-end user workflows</objective>
+      <subtasks>
+        <subtask id="4.1">Journey 1: Upload document → Processing → Search (5 steps)</subtask>
+        <subtask id="4.2">Journey 2: Search → Citation Display (5 steps)</subtask>
+        <subtask id="4.3">Journey 3: Chat Conversation (5 steps)</subtask>
+        <subtask id="4.4">Journey 4: Document Generation (7 steps)</subtask>
+        <subtask id="4.5">Document smoke test results and any failures discovered</subtask>
+      </subtasks>
+    </task>
+    <task id="5" ac="AC5" priority="HIGH" owner="Amelia">
+      <title>Validate Navigation Discoverability</title>
+      <objective>Ensure features are discoverable through all navigation mechanisms</objective>
+      <subtasks>
+        <subtask id="5.1">Test dashboard navigation cards for Search and Chat</subtask>
+        <subtask id="5.2">Open command palette (⌘K / Ctrl+K)</subtask>
+        <subtask id="5.3">Verify "Search" command appears in palette</subtask>
+        <subtask id="5.4">Verify "Chat" command appears in palette</subtask>
+        <subtask id="5.5">Execute Search command from palette and verify navigation works</subtask>
+        <subtask id="5.6">Execute Chat command from palette and verify navigation works</subtask>
+        <subtask id="5.7">Verify no "Not Found" errors occur (fixes retrospective issue)</subtask>
+        <subtask id="5.8">Test header navigation if applicable</subtask>
+        <subtask id="5.9">Verify all navigation is intuitive and discoverable</subtask>
+      </subtasks>
+    </task>
+    <task id="6" ac="ALL" priority="MEDIUM" owner="Amelia">
+      <title>Document and Fix Critical Issues</title>
+      <objective>Resolve any blockers discovered during smoke testing</objective>
+      <subtasks>
+        <subtask id="6.1">Document all issues discovered in smoke testing</subtask>
+        <subtask id="6.2">Categorize issues (critical/major/minor)</subtask>
+        <subtask id="6.3">Fix critical issues preventing basic functionality</subtask>
+        <subtask id="6.4">Update README or deployment docs with service startup process</subtask>
+        <subtask id="6.5">Record actual timings and compare to success criteria</subtask>
+      </subtasks>
+    </task>
+  </tasks>
+
+  <implementation-guidance>
+    <task id="1" priority="HIGH" owner="Amelia">
+      <title>Create Chat Page Route</title>
+      <file>frontend/src/app/(protected)/chat/page.tsx</file>
+      <steps>
+        <step>Create new file in Next.js app directory</step>
+        <step>Import ChatContainer component</step>
+        <step>Add page layout with container styling</step>
+        <step>Test navigation from dashboard and direct URL</step>
+      </steps>
+      <reference-implementation>
+        <file>frontend/src/app/(protected)/search/page.tsx</file>
+        <note>Use similar structure and styling</note>
+      </reference-implementation>
+    </task>
+    <task id="2" priority="HIGH" owner="Amelia">
+      <title>Update Dashboard Navigation</title>
+      <file>frontend/src/app/(protected)/dashboard/page.tsx</file>
+      <steps>
+        <step>Remove placeholder text at lines 72-73 (Epic 3)</step>
+        <step>Remove placeholder text at lines 82-83 (Epic 4)</step>
+        <step>Add Search navigation card with Link to /search</step>
+        <step>Add Chat navigation card with Link to /chat</step>
+        <step>Ensure consistent Card styling with KB Management</step>
+      </steps>
+      <reference-implementation>
+        <component>shadcn/ui Card component</component>
+        <note>Reuse existing KB Management card pattern</note>
+      </reference-implementation>
+    </task>
+    <task id="3" priority="CRITICAL" owner="Winston">
+      <title>Verify Backend Service Health</title>
+      <steps>
+        <step>Document service startup process (docker-compose or manual)</step>
+        <step>Verify Celery workers are running and processing documents</step>
+        <step>Verify Qdrant search endpoints are accessible</step>
+        <step>Verify LiteLLM proxy is running and configured</step>
+        <step>Verify Redis is accessible for chat storage</step>
+        <step>Verify MinIO is accessible for document storage</step>
+        <step>Verify PostgreSQL database connectivity</step>
+      </steps>
+      <troubleshooting>
+        <issue>Documents stuck in "Queued"</issue>
+        <solution>Check Celery worker logs: docker-compose logs celery-worker</solution>
+        <issue>Search returns "Not Found"</issue>
+        <solution>Check Qdrant collections: curl http://localhost:6333/collections</solution>
+      </troubleshooting>
+    </task>
+    <task id="4" priority="HIGH" owner="Amelia">
+      <title>Execute Smoke Tests</title>
+      <steps>
+        <step>Test Journey 1: Document Upload → Processing → Search</step>
+        <step>Test Journey 2: Search → Citation Display</step>
+        <step>Test Journey 3: Chat Conversation</step>
+        <step>Test Journey 4: Document Generation</step>
+        <step>Document any failures or issues discovered</step>
+        <step>Fix critical blockers preventing basic functionality</step>
+      </steps>
+      <checklist>
+        <item>Can user navigate to Search from dashboard?</item>
+        <item>Can user navigate to Chat from dashboard?</item>
+        <item>Does search return results with citations?</item>
+        <item>Does chat maintain conversation history?</item>
+        <item>Does generation flow work end-to-end?</item>
+      </checklist>
+    </task>
+  </implementation-guidance>
+
+  <artifacts>
+    <dependencies>
+      <frontend ecosystem="Node.js">
+        <framework name="Next.js" version="16.0.3">App Router, React Server Components, SSR</framework>
+        <framework name="React" version="19.2.0">UI library</framework>
+        <ui-library name="shadcn/ui">Radix UI primitives with Tailwind CSS</ui-library>
+        <state-management name="Zustand" version="5.0.8">Global state management</state-management>
+        <forms name="React Hook Form" version="7.66.1">Form handling with Zod validation</forms>
+        <styling name="Tailwind CSS" version="4">Utility-first CSS framework</styling>
+        <icons name="lucide-react" version="0.554.0">Icon library</icons>
+        <testing>
+          <framework name="Vitest" version="4.0.13">Unit and component testing</framework>
+          <framework name="Playwright" version="1.56.1">E2E testing</framework>
+          <library name="@testing-library/react" version="16.3.0">React component testing utilities</library>
+          <library name="MSW" version="2.12.3">API mocking for tests</library>
+        </testing>
+        <utilities>
+          <package name="cmdk" version="1.1.1">Command palette component</package>
+          <package name="date-fns" version="4.1.0">Date utilities</package>
+          <package name="dompurify" version="3.3.0">XSS sanitization</package>
+          <package name="react-dropzone" version="14.3.8">File upload</package>
+        </utilities>
+      </frontend>
+      <backend ecosystem="Python">
+        <framework name="FastAPI" version="0.115.0+">Async web framework</framework>
+        <framework name="SQLAlchemy" version="2.0.44+">ORM with async support</framework>
+        <framework name="Alembic" version="1.14.0+">Database migrations</framework>
+        <database name="PostgreSQL">asyncpg driver</database>
+        <cache name="Redis" version="7.1.0+">Session storage, chat conversations</cache>
+        <authentication name="fastapi-users" version="14.0.0+">User management with argon2 password hashing</authentication>
+        <task-queue name="Celery" version="5.5.0+">Document processing workers</task-queue>
+        <vector-db name="Qdrant" version="1.10.0+">Semantic search and embeddings</vector-db>
+        <llm>
+          <framework name="LangChain" version="0.3.0+">LLM orchestration</framework>
+          <framework name="LiteLLM" version="1.50.0+">LLM proxy with multi-provider support</framework>
+        </llm>
+        <document-processing>
+          <package name="unstructured" version="0.16.0+">PDF, DOCX, MD parsing</package>
+          <package name="python-docx" version="1.1.0+">DOCX generation (Story 4.7)</package>
+          <package name="reportlab" version="4.0.0+">PDF generation (Story 4.7)</package>
+          <package name="markdown" version="3.5.0+">Markdown processing</package>
+        </document-processing>
+        <storage name="MinIO">S3-compatible object storage (boto3)</storage>
+        <testing>
+          <framework name="Pytest" version="8.0.0+">Unit and integration testing</framework>
+          <plugin name="pytest-asyncio" version="0.24.0+">Async test support</plugin>
+          <plugin name="pytest-cov" version="5.0.0+">Coverage reporting</plugin>
+          <plugin name="pytest-timeout" version="2.3.0+">Test timeouts</plugin>
+          <library name="testcontainers" version="4.0.0+">PostgreSQL, Redis test containers</library>
+          <library name="faker" version="24.0.0+">Test data generation</library>
+        </testing>
+        <monitoring>
+          <package name="structlog" version="25.5.0+">Structured logging</package>
+          <package name="prometheus-client" version="0.21.0+">Metrics collection</package>
+        </monitoring>
+        <nlp name="nltk" version="3.8.0+">Keyword stemming (Story 3.9)</nlp>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <story-dependencies>
+    <prerequisite>Epic 3 stories completed (Search components, SSE streaming)</prerequisite>
+    <prerequisite>Epic 4 stories completed (Chat components, Generation components)</prerequisite>
+    <prerequisite>All Epic 4 components passing tests (220+ tests GREEN)</prerequisite>
+    <blocks>Epic 5 admin features (cannot begin until 5.0 complete)</blocks>
+    <blocks>Story 5.16 (Docker E2E Infrastructure - needs working features to test)</blocks>
+  </story-dependencies>
+
+  <success-metrics>
+    <metric>User can navigate from dashboard to Search page</metric>
+    <metric>User can navigate from dashboard to Chat page</metric>
+    <metric>All backend services verified healthy</metric>
+    <metric>All 4 user journeys pass smoke testing</metric>
+    <metric>No "Coming in Epic X" placeholders remain</metric>
+    <metric>Feature discoverability validated (command palette, dashboard navigation)</metric>
+  </success-metrics>
+
+  <related-documents>
+    <document path="docs/sprint-artifacts/epic-4-retrospective-2025-11-30.md">Epic 4 Retrospective - Source of critical discovery</document>
+    <document path="docs/sprint-artifacts/epic-2-retrospective.md">Epic 2 Retrospective - Pattern reference</document>
+    <document path="docs/sprint-artifacts/sprint-status.yaml">Sprint status tracking</document>
+    <document path="docs/epics.md">Epic 5 scope and stories</document>
+  </related-documents>
+</story-context>

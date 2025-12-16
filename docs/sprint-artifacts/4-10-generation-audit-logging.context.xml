@@ -1,0 +1,515 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>10</storyId>
+    <title>Generation Audit Logging</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-10-generation-audit-logging.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>compliance officer</asA>
+    <iWant>all document generation attempts logged with detailed metrics</iWant>
+    <soThat>I can audit AI usage, track document lineage, and ensure regulatory compliance</soThat>
+    <tasks>
+### Backend Tasks
+
+#### Task 1: Review and Extend AuditService (AC: All)
+- [ ] Review existing audit_service.log() method
+- [ ] Add log_generation_request() helper method
+- [ ] Add log_generation_complete() helper method
+- [ ] Add log_generation_failed() helper method
+- [ ] Add log_feedback() helper method
+- [ ] Add log_export() helper method
+- [ ] Ensure all methods handle JSONB details correctly
+- [ ] Add error_type parameter sanitization (remove PII)
+- [ ] Testing: Write 8 unit tests
+
+#### Task 2: Add Audit Logging to Chat Endpoints (AC: #1, #2, #3)
+- [ ] Import audit_service dependency
+- [ ] Generate request_id (uuid.uuid4())
+- [ ] Add log_generation_request() call at start
+- [ ] Wrap streaming with try/finally for completion/failure logging
+- [ ] Track citation_count, source_document_ids during streaming
+- [ ] Add log_generation_complete() call on success
+- [ ] Add log_generation_failed() call on exception
+- [ ] Implement determine_failure_stage() helper function
+- [ ] Test with existing chat integration tests
+
+#### Task 3: Add Audit Logging to Generation Endpoints (AC: #1, #2, #3)
+- [ ] Import audit_service dependency
+- [ ] Generate request_id (uuid.uuid4())
+- [ ] Add log_generation_request() call at start
+- [ ] Wrap streaming with try/finally for completion/failure logging
+- [ ] Track citation_count, source_document_ids, output_word_count during streaming
+- [ ] Add log_generation_complete() call on success
+- [ ] Add log_generation_failed() call on exception
+- [ ] Test with existing generation integration tests
+
+#### Task 4: Add Audit Logging to Feedback Endpoint (AC: #4)
+- [ ] Check if feedback endpoint already has audit logging from Story 4.8
+- [ ] If not: Import audit_service dependency
+- [ ] If not: Add log_feedback() call after feedback submission
+- [ ] Ensure related_request_id links back to generation event
+- [ ] Test feedback audit logging
+
+#### Task 5: Add Audit Logging to Export Endpoint (AC: #5)
+- [ ] Verify if export.py exists from Story 4.7
+- [ ] If not exists: Create export endpoint with audit logging
+- [ ] If exists: Add audit logging to existing endpoint
+- [ ] Import audit_service dependency
+- [ ] Calculate file_size_bytes from generated file
+- [ ] Add log_export() call after file generation
+- [ ] Test export audit logging
+
+#### Task 6: Create Admin Audit Query Endpoint (AC: #6)
+- [ ] Extend existing admin router with new /audit/generation endpoint
+- [ ] Add is_superuser permission check (raise 403 if not admin)
+- [ ] Implement query filters: start_date, end_date, user_id, kb_id, action_type
+- [ ] Implement pagination: page, per_page (default 50, max 100)
+- [ ] Add total count query for accurate pagination
+- [ ] Order by timestamp DESC
+- [ ] Calculate aggregations: total_requests, success_count, failure_count, avg_generation_time_ms, total_citations
+- [ ] Return response with events, pagination, metrics
+- [ ] Testing: Write 6 integration tests
+
+### Testing Tasks
+
+#### Task 7: Backend Unit Testing (AC: #1-#5)
+- [ ] Test log_generation_request() creates correct event structure
+- [ ] Test log_generation_complete() includes all metrics
+- [ ] Test log_generation_failed() includes error details
+- [ ] Test log_feedback() links to draft_id
+- [ ] Test log_export() includes file_size
+- [ ] Test context truncation to 500 chars
+- [ ] Test error_message sanitization (no PII)
+- [ ] Test request_id linking across events
+- [ ] Run with: pytest backend/tests/unit/test_audit_logging.py -v
+
+#### Task 8: Backend Integration Testing (AC: #6)
+- [ ] Test GET /api/v1/admin/audit/generation requires is_superuser=true (403 for non-admin)
+- [ ] Test filters by date range (start_date, end_date)
+- [ ] Test filters by user_id
+- [ ] Test filters by kb_id
+- [ ] Test filters by action_type
+- [ ] Test aggregations (metrics) are correct
+- [ ] Test pagination (page, per_page) with accurate total count
+- [ ] Run with: pytest backend/tests/integration/test_generation_audit.py -v
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC-1: All generation attempts are logged
+**Given** any document generation is attempted (via POST /api/v1/generate or /api/v1/chat)
+**When** the request is made
+**Then** an audit event with action "generation.request" is logged to PostgreSQL audit.events table with: user_id, kb_id, document_type, context (truncated to 500 chars), timestamp
+**And** the event includes request_metadata: selected_source_count, template_id
+
+### AC-2: Successful generations log completion metrics
+**Given** document generation completes successfully
+**When** the final token is streamed and done event sent
+**Then** an audit event with action "generation.complete" is logged with:
+- citation_count: Number of citations in output
+- source_document_ids: Array of document IDs used as sources
+- generation_time_ms: Time from request to completion
+- output_word_count: Word count of generated content
+- confidence_score: Final confidence score (0.0-1.0)
+**And** the event is linked to the original "generation.request" event via request_id
+
+### AC-3: Failed generations log error details
+**Given** document generation fails due to any error (LLM timeout, permission denied, invalid input, service unavailable)
+**When** the error occurs
+**Then** an audit event with action "generation.failed" is logged with:
+- error_message: Exception message (sanitized, no PII)
+- error_type: Exception class name
+- generation_time_ms: Time until failure
+- failure_stage: "retrieval" | "context_build" | "llm_generation" | "citation_extraction"
+**And** the event is linked to the original "generation.request" event via request_id
+
+### AC-4: Feedback submissions are logged
+**Given** a user submits feedback on a generated draft (Story 4.8)
+**When** POST /api/v1/drafts/{id}/feedback is called
+**Then** an audit event with action "generation.feedback" is logged with:
+- draft_id: Draft identifier
+- feedback_type: "not_relevant" | "wrong_format" | "needs_detail" | "missing_citations" | "too_long"
+- feedback_comments: User's optional text feedback (truncated to 1000 chars)
+**And** the event links back to the original generation.complete event
+
+### AC-5: Export attempts are logged
+**Given** a user exports a draft to any format (DOCX, PDF, Markdown)
+**When** POST /api/v1/export is called
+**Then** an audit event with action "document.export" is logged with:
+- draft_id: Draft identifier (if available)
+- export_format: "docx" | "pdf" | "markdown"
+- citation_count: Number of citations in exported document
+- file_size_bytes: Size of generated file
+**And** the event links back to the original generation.complete event
+
+### AC-6: Admin API queries generation audit logs
+**Given** an admin user accesses GET /api/v1/admin/audit/generation
+**When** they query with optional filters (start_date, end_date, user_id, kb_id, action_type)
+**Then** the system returns matching audit events ordered by timestamp DESC with pagination (default 50 per page)
+**And** the response includes aggregated metrics: total_requests, success_count, failure_count, avg_generation_time_ms, total_citations
+**And** only users with is_superuser=true can access this endpoint (403 for non-admins)
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+**Product Requirements:**
+- Source: docs/prd.md
+- FR55: Generation events logged to audit system with metadata (user, KB, document type, sources, citations, timing)
+- Domain: Banking & Financial Services - requires SOC 2, GDPR, PCI-DSS awareness, ISO 27001 compliance
+- Compliance requirement: Audit trails mandatory for regulatory compliance
+
+**Architecture:**
+- Source: docs/architecture.md, Lines 1131-1159
+- Audit schema: PostgreSQL audit.events table (immutable, INSERT-only)
+- Table structure: id, timestamp, user_id, action, resource_type, resource_id, details (JSONB), ip_address
+- Indexes: idx_audit_user, idx_audit_timestamp, idx_audit_resource
+- Details field: JSONB for queryable, efficient storage of generation metadata
+
+**Epic 4 Tech Spec:**
+- Source: docs/sprint-artifacts/tech-spec-epic-4.md, Lines 1373-1488
+- Story 4.10: Generation Audit Logging technical approach
+- Integration pattern: Wrap streaming with try/finally for completion/failure logging
+- Admin query API for Epic 5 dashboard consumption
+- Event types: generation.request, generation.complete, generation.failed
+
+**Previous Story Learnings:**
+- Story 4.9 (Templates): Completed 2025-11-29, Quality 95/100, 29 tests PASSED
+- Story 4.8 (Feedback): Completed 2025-11-29, FeedbackService implemented, 15 tests PASSED
+- Story 4.7 (Export): Completed 2025-11-29, ExportService implemented (DOCX, PDF, Markdown), 10 tests PASSED
+- Story 4.5 (Generation Streaming): SSE streaming endpoint /api/v1/generate/stream implemented
+- Story 4.1 (Chat Backend): Multi-turn RAG chat backend completed
+    </docs>
+    <code>
+**Existing Audit Infrastructure (Epic 1):**
+- backend/app/models/audit.py: AuditEvent model (id, timestamp, user_id, action, resource_type, resource_id, details JSONB, ip_address)
+- backend/app/services/audit_service.py: AuditService with log_event() method (fire-and-forget pattern)
+- backend/app/repositories/audit_repo.py: AuditRepository for database operations
+- Pattern: async with async_session_factory() to create dedicated session for logging
+
+**Existing AuditService Methods:**
+- log_event(action, resource_type, user_id, resource_id, details, ip_address): Generic audit logging
+- log_search(user_id, query, kb_ids, result_count, latency_ms): Search-specific logging (Story 3)
+
+**Files to MODIFY (Add Audit Logging):**
+- backend/app/api/v1/chat.py: Add audit logging to chat endpoint
+- backend/app/api/v1/chat_stream.py: Add audit logging to streaming chat (EXISTING - Lines 1-80 show structure)
+- backend/app/api/v1/generate.py: Add audit logging to generation endpoint
+- backend/app/api/v1/generate_stream.py: Add audit logging to streaming generation
+- backend/app/api/v1/drafts.py: Add audit logging to feedback endpoint (verify if already done in Story 4.8)
+- backend/app/api/v1/admin.py: Add GET /audit/generation endpoint (EXISTING - Lines 1-100 show admin pattern)
+- backend/app/services/audit_service.py: Add generation-specific helper methods
+
+**Export Service (Story 4.7):**
+- backend/app/services/export_service.py: ExportService exists (DOCX, PDF, Markdown export)
+- backend/app/api/v1/export.py: Need to check if endpoint exists or create it
+
+**Factory Patterns for Tests:**
+- backend/tests/factories/feedback_factory.py: create_feedback_request() factory
+- Pattern: Factory functions with sensible defaults and explicit overrides using Faker
+    </code>
+    <dependencies>
+**Runtime Dependencies (Already Installed):**
+- SQLAlchemy 2.0.44 (async ORM)
+- PostgreSQL 16 (JSONB support)
+- structlog 25.5.0 (structured logging)
+- FastAPI 0.115.0+ (API framework)
+- Pydantic (schema validation)
+
+**Test Dependencies (Already Installed):**
+- pytest (testing framework)
+- pytest-asyncio (async test support)
+- faker (test data generation)
+- httpx (async HTTP client for integration tests)
+
+**No New Dependencies Required:**
+This story extends existing audit infrastructure with no new external dependencies.
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+**Security Constraints:**
+1. **S-1: PII Sanitization** - Error messages must be sanitized before logging (no email, phone, SSN patterns). Truncate to 500 chars max.
+2. **S-2: Admin Permission** - Admin endpoints MUST check is_superuser=true, return 403 for non-admin users
+3. **S-3: Audit Immutability** - Audit logs INSERT-only (no UPDATE or DELETE grants for app_user role)
+4. **S-4: JSONB Injection** - Validate all JSONB details to prevent injection attacks
+
+**Performance Constraints:**
+1. **P-1: Non-Blocking Logging** - Audit logging must be async, < 50ms latency, never block user workflows
+2. **P-2: Admin Query Performance** - Admin queries must return < 2s for 10,000 events with filters
+3. **P-3: Pagination Limits** - Enforce max per_page=100 to prevent excessive memory usage
+
+**Compliance Constraints:**
+1. **C-1: SOC 2 Compliance** - All generation events must be logged with user_id, timestamp, action
+2. **C-2: GDPR Right to Audit** - Users must be able to query their own generation history
+3. **C-3: Data Retention** - Audit logs retained per compliance policy (not deleted even if draft deleted)
+
+**Architectural Constraints:**
+1. **A-1: Fire-and-Forget** - Audit logging uses fire-and-forget pattern (don't fail generation on audit failure)
+2. **A-2: Dedicated Sessions** - Create dedicated DB session for each audit log operation
+3. **A-3: Event Linking** - Use request_id to link generation.request → generation.complete/failed → feedback → export
+  </constraints>
+  <interfaces>
+**Existing Interfaces (DO NOT CHANGE):**
+
+1. **AuditService.log_event()** (backend/app/services/audit_service.py)
+```python
+async def log_event(
+    self,
+    action: str,
+    resource_type: str,
+    user_id: UUID | None = None,
+    resource_id: UUID | None = None,
+    details: dict[str, Any] | None = None,
+    ip_address: str | None = None,
+) -> None
+```
+
+2. **AuditEvent Model** (backend/app/models/audit.py)
+```python
+class AuditEvent(Base):
+    __tablename__ = "events"
+    __table_args__ = {"schema": "audit"}
+
+    id: Mapped[uuid.UUID]
+    timestamp: Mapped[datetime]
+    user_id: Mapped[uuid.UUID | None]
+    action: Mapped[str]  # "generation.request", "generation.complete", "generation.failed", "generation.feedback", "document.export"
+    resource_type: Mapped[str]  # "draft", "document", "search"
+    resource_id: Mapped[uuid.UUID | None]
+    details: Mapped[dict[str, Any] | None]  # JSONB field for generation metadata
+    ip_address: Mapped[str | None]
+```
+
+**New Helper Methods to ADD to AuditService:**
+
+3. **log_generation_request()**
+```python
+async def log_generation_request(
+    self,
+    user_id: UUID,
+    kb_id: UUID,
+    document_type: str,
+    context: str,
+    selected_source_count: int = 0,
+    request_id: str | None = None,
+) -> None
+```
+
+4. **log_generation_complete()**
+```python
+async def log_generation_complete(
+    self,
+    user_id: UUID,
+    request_id: str,
+    kb_id: UUID,
+    document_type: str,
+    citation_count: int,
+    source_document_ids: list[str],
+    generation_time_ms: int,
+    output_word_count: int,
+    confidence_score: float,
+) -> None
+```
+
+5. **log_generation_failed()**
+```python
+async def log_generation_failed(
+    self,
+    user_id: UUID,
+    request_id: str,
+    kb_id: UUID,
+    document_type: str,
+    error_message: str,
+    error_type: str,
+    generation_time_ms: int,
+    failure_stage: str,  # "retrieval" | "context_build" | "llm_generation" | "citation_extraction"
+) -> None
+```
+
+6. **log_feedback()**
+```python
+async def log_feedback(
+    self,
+    user_id: UUID,
+    draft_id: UUID,
+    feedback_type: str,
+    feedback_comments: str | None = None,
+    related_request_id: str | None = None,
+) -> None
+```
+
+7. **log_export()**
+```python
+async def log_export(
+    self,
+    user_id: UUID,
+    draft_id: UUID | None,
+    export_format: str,
+    citation_count: int,
+    file_size_bytes: int,
+    related_request_id: str | None = None,
+) -> None
+```
+
+**New Admin API Endpoint:**
+
+8. **GET /api/v1/admin/audit/generation**
+Query Parameters:
+- start_date: Optional[datetime]
+- end_date: Optional[datetime]
+- user_id: Optional[UUID]
+- kb_id: Optional[UUID]
+- action_type: Optional[Literal["generation.request", "generation.complete", "generation.failed", "generation.feedback", "document.export"]]
+- page: int = 1
+- per_page: int = 50 (max 100)
+
+Response:
+```python
+{
+    "events": [
+        {
+            "id": "uuid",
+            "timestamp": "2025-11-29T10:30:00Z",
+            "user_id": "uuid",
+            "user_email": "user@example.com",
+            "action": "generation.complete",
+            "kb_id": "uuid",
+            "document_type": "rfp_response",
+            "citation_count": 12,
+            "generation_time_ms": 3450,
+            "success": true,
+            "error_message": null,
+            "request_id": "uuid"
+        }
+    ],
+    "pagination": {
+        "page": 1,
+        "per_page": 50,
+        "total": 150
+    },
+    "metrics": {
+        "total_requests": 200,
+        "success_count": 180,
+        "failure_count": 20,
+        "avg_generation_time_ms": 3200,
+        "total_citations": 2400
+    }
+}
+```
+  </interfaces>
+  <tests>
+    <standards>
+**Test Standards (Epic 4 Pattern):**
+
+1. **Unit Test Isolation:**
+   - Mock all external dependencies (database, services)
+   - Test one method/function per test
+   - Use AsyncMock for async methods
+   - Clear test names: test_<method>_<scenario>_<expected_result>
+
+2. **Integration Test Pattern:**
+   - Use real database (test fixtures)
+   - Test full request-response cycle
+   - Verify database state changes
+   - Clean up test data in fixtures
+
+3. **Coverage Requirements:**
+   - Unit tests: 100% coverage for new service methods
+   - Integration tests: All 6 acceptance criteria validated
+   - Error cases: Test failure paths, edge cases
+
+4. **Assertion Patterns:**
+   - Verify event created in database
+   - Check JSONB details structure matches spec
+   - Validate request_id linking across events
+   - Ensure admin permission checks (403 for non-admin)
+
+5. **Test Data Generation:**
+   - Use factory functions for consistent test data
+   - faker library for random unique data
+   - Explicit overrides to make test intent clear
+    </standards>
+    <locations>
+**NEW Test Files to CREATE:**
+
+1. backend/tests/unit/test_audit_logging.py
+   - 8 unit tests for AuditService generation helper methods
+   - test_log_generation_request_creates_audit_event
+   - test_log_generation_complete_includes_metrics
+   - test_log_generation_failed_includes_error_details
+   - test_log_feedback_links_to_draft
+   - test_log_export_includes_file_size
+   - test_context_truncation_to_500_chars
+   - test_error_message_sanitization
+   - test_request_id_linking
+
+2. backend/tests/integration/test_generation_audit.py
+   - 6+ integration tests for admin audit API
+   - test_get_audit_logs_requires_admin (403 for non-admin)
+   - test_get_audit_logs_filters_by_date_range
+   - test_get_audit_logs_filters_by_user
+   - test_get_audit_logs_filters_by_kb
+   - test_get_audit_logs_filters_by_action_type
+   - test_get_audit_logs_includes_aggregations
+   - test_get_audit_logs_pagination
+
+**Existing Test Files to UPDATE:**
+
+3. backend/tests/integration/test_chat_streaming.py
+   - Verify audit events created for chat generation
+
+4. backend/tests/integration/test_generation_streaming.py
+   - Verify audit events created for document generation
+
+5. backend/tests/integration/test_feedback_api.py
+   - Verify audit events created for feedback submission
+
+6. backend/tests/integration/test_export_api.py
+   - Verify audit events created for document export
+
+**Test Fixtures (Existing):**
+- backend/tests/integration/conftest.py: Shared fixtures for integration tests
+- backend/tests/factories/: Factory functions for test data generation
+    </locations>
+    <ideas>
+**Test Strategy Ideas:**
+
+1. **Audit Event Verification Helper:**
+   - Create helper function to query and verify audit events by action type
+   - Reuse across all integration tests for consistency
+   - Example: `async def assert_audit_event_created(session, action, **expected_details)`
+
+2. **Request ID Linking Test:**
+   - Create full workflow test: request → complete → feedback → export
+   - Verify all events share same request_id
+   - Demonstrates end-to-end audit trail
+
+3. **Performance Test:**
+   - Test admin API with 10,000 events
+   - Verify response time < 2s with filters
+   - Validate pagination works correctly at scale
+
+4. **Error Handling Tests:**
+   - Test audit logging continues even if database fails
+   - Verify fire-and-forget pattern (no exceptions propagated)
+   - Check structlog error events logged
+
+5. **Edge Cases:**
+   - Very long context (> 500 chars) - verify truncation
+   - Very long error messages - verify truncation
+   - Missing optional fields (null handling)
+   - Empty JSONB arrays (source_document_ids: [])
+   - Zero values (citation_count: 0, generation_time_ms: 0)
+
+6. **Security Tests:**
+   - Non-admin user attempts to access admin API (expect 403)
+   - SQL injection attempts in JSONB filters (should be sanitized)
+   - PII in error messages (should be removed)
+    </ideas>
+  </tests>
+</story-context>

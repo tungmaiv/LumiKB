@@ -68,9 +68,9 @@ class TestPermissionHierarchyExtended:
             user_val = PERMISSION_HIERARCHY[user_level]
             required_val = PERMISSION_HIERARCHY[required_level]
             result = user_val >= required_val
-            assert (
-                result == expected
-            ), f"Expected {user_level} >= {required_level} to be {expected}, got {result}"
+            assert result == expected, (
+                f"Expected {user_level} >= {required_level} to be {expected}, got {result}"
+            )
 
 
 class TestPermissionCreateSchema:

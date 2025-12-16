@@ -1,0 +1,343 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>3</storyId>
+    <title>Conversation Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-27</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-3-conversation-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with access to a Knowledge Base</asA>
+    <iWant>to manage my conversation threads (start new, clear history, view session context)</iWant>
+    <soThat>I can start fresh conversations or continue previous work without context mixing</soThat>
+    <tasks>
+- [ ] Backend: Add GET /api/v1/chat/metadata endpoint (AC4)
+  - [ ] Return conversation metadata: KB name, message count, start time
+  - [ ] Extract from Redis conversation history
+  - [ ] Handle missing conversation (return empty state)
+  - [ ] Add unit tests for metadata extraction
+
+- [ ] Backend: Add DELETE /api/v1/chat/{conversation_id} endpoint (AC2)
+  - [ ] Delete Redis key for conversation
+  - [ ] Return success response
+  - [ ] Add permission check (user owns session)
+  - [ ] Add integration test for clear endpoint
+
+- [ ] Frontend: Add NewChat button component (AC1)
+  - [ ] Button in chat header (next to KB name)
+  - [ ] onClick: Generate new conversation ID
+  - [ ] Clear local message state
+  - [ ] Clear citations panel
+  - [ ] Reset input field placeholder
+  - [ ] Add keyboard shortcut: Cmd/Ctrl+Shift+N
+  - [ ] Unit test: NewChat button click behavior
+
+- [ ] Frontend: Add ClearChat button with confirmation dialog (AC2)
+  - [ ] Button in chat header (secondary style)
+  - [ ] Confirmation dialog with Cancel/Clear buttons
+  - [ ] Dialog warns about undo window
+  - [ ] OnConfirm: Call DELETE endpoint, clear UI, show undo toast
+  - [ ] Unit test: Confirmation flow
+
+- [ ] Frontend: Implement Undo mechanism (AC3)
+  - [ ] Store cleared conversation in component state for 30 seconds
+  - [ ] Undo toast with 30-second countdown
+  - [ ] OnUndo: Restore messages, citations, Redis context
+  - [ ] Auto-clear undo state after 30 seconds
+  - [ ] Unit test: Undo restores state, timeout clears undo
+
+- [ ] Frontend: Add conversation metadata display (AC4)
+  - [ ] Fetch metadata from GET /api/v1/chat/metadata
+  - [ ] Display KB name, message count, start time in header
+  - [ ] Update message count on each new message
+  - [ ] Format start time as relative ("15 minutes ago")
+  - [ ] Unit test: Metadata display and updates
+
+- [ ] Frontend: Handle KB switching conversation isolation (AC5)
+  - [ ] Detect KB change in useEffect
+  - [ ] Load conversation for new KB from Redis
+  - [ ] Store previous KB conversation before switching
+  - [ ] Verify Redis key isolation per KB
+  - [ ] Integration test: Switch KB preserves conversations
+
+- [ ] Frontend: Error handling for edge cases (AC6)
+  - [ ] Stop SSE stream when clearing during streaming
+  - [ ] Handle Redis failures on undo (show error toast)
+  - [ ] Clear on empty conversation (safe no-op)
+  - [ ] Unit tests for all error scenarios
+
+- [ ] E2E Tests: Conversation management flows
+  - [ ] Test: New Chat clears context and starts fresh
+  - [ ] Test: Clear Chat with confirmation removes messages
+  - [ ] Test: Undo restores cleared conversation within 30s
+  - [ ] Test: Undo unavailable after 30s timeout
+  - [ ] Test: KB switching isolates conversations
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC1: New Chat Functionality
+**Given** I am in an active chat conversation with message history
+**When** I click the "New Chat" button in the header
+**Then** the conversation context is cleared immediately, chat message list becomes empty, citations panel is cleared, new conversation ID is generated, message input field shows placeholder: "Start a new conversation...", and conversation history in Redis is not deleted (session-scoped, expires naturally)
+
+### AC2: Clear Chat with Confirmation
+**Given** I am in an active conversation
+**When** I click "Clear Chat" button
+**Then** a confirmation dialog appears with undo warning, and upon confirmation all messages are removed from UI and Redis, with undo toast persisting for 30 seconds
+
+### AC3: Undo Clear Chat (30-Second Window)
+**Given** I just cleared chat history (undo toast visible)
+**When** I click "Undo" in the toast
+**Then** all previously cleared messages are restored including citations panel and Redis context
+
+### AC4: Conversation Metadata Display
+**Given** I am in an active conversation
+**When** I view the chat header
+**Then** I see conversation metadata: KB name, message count, session start time
+
+### AC5: Session-Scoped Conversation Isolation
+**Given** I have an active conversation in KB-A
+**When** I switch to KB-B
+**Then** a new conversation context starts for KB-B, messages from KB-A are NOT visible, and Redis key used is `conversation:{session_id}:{kb_b_id}`
+
+### AC6: Error Handling and Edge Cases
+**Given** I click "Clear Chat" while a message is streaming
+**When** the clear action executes
+**Then** streaming stops gracefully, partial message is removed, and undo restores state before streaming started
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>Chat Interface (FR31-35)</section>
+        <snippet>Users can engage in multi-turn conversations with the system. System maintains conversation context within a session. Users can start new conversation threads. Users can view conversation history within current session.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>Streaming Requirements (FR35a-b)</section>
+        <snippet>System streams AI responses in real-time (word-by-word) for perceived speed and engagement. Users can see typing/thinking indicators while the system processes their request.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification</title>
+        <section>TD-001: Conversation Storage</section>
+        <snippet>Use Redis for conversation session storage. Key structure: conversation:{session_id}:{kb_id}. Value: JSON array of messages. TTL: 24 hours. Sub-millisecond read latency for session retrieval.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification</title>
+        <section>TD-002: Streaming Architecture</section>
+        <snippet>Server-Sent Events (SSE) for streaming responses. HTTP-based, no upgrade handshake. Native EventSource API. One-way server→client streaming. Automatic reconnection handling.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Redis Cache Configuration</section>
+        <snippet>Redis used for session management, conversation storage, and Celery task queue. Session-scoped storage with configurable TTL. Shared instance for performance.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>ConversationService</symbol>
+        <lines>54-447</lines>
+        <reason>Core service managing multi-turn conversations. Contains get_history(), _append_to_history(), and Redis key structure (conversation:{session_id}:{kb_id}). Story 4.3 will add get_metadata() and delete_conversation() methods here.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>get_history</symbol>
+        <lines>293-310</lines>
+        <reason>Retrieves conversation history from Redis using key pattern conversation:{session_id}:{kb_id}. Needed for metadata extraction and KB-switching isolation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>_append_to_history</symbol>
+        <lines>312-366</lines>
+        <reason>Appends messages to Redis with 24h TTL. Shows Redis data structure and timestamp format. Story 4.3 clear/undo operations will manipulate this data.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/chat.py</path>
+        <kind>controller</kind>
+        <symbol>send_chat_message</symbol>
+        <lines>37-173</lines>
+        <reason>Existing chat POST endpoint. Story 4.3 will add GET /metadata and DELETE /{conversation_id} endpoints to this router.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/chat/chat-container.tsx</path>
+        <kind>component</kind>
+        <symbol>ChatContainer</symbol>
+        <lines>24-77</lines>
+        <reason>Main chat UI component. Story 4.3 will add ChatHeader with NewChat/ClearChat buttons, conversation metadata display, and KB-switching logic here or in parent.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/lib/hooks/use-chat-stream.ts</path>
+        <kind>hook</kind>
+        <symbol>useChatStream</symbol>
+        <lines>25-150</lines>
+        <reason>Chat streaming hook managing messages state and SSE connection. Story 4.3 will extend with clearMessages, undo buffer, and abortController management for stopping streams.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0" reason="REST API framework with SSE streaming support" />
+        <package name="redis" version=">=7.1.0" reason="Conversation storage, session management, undo buffer retrieval" />
+        <package name="pydantic" version=">=2.7.0" reason="Request/response schemas for metadata and delete endpoints" />
+        <package name="structlog" version=">=25.5.0" reason="Structured logging for conversation operations" />
+      </backend>
+      <frontend>
+        <package name="next" version="16.0.3" reason="React framework with App Router" />
+        <package name="react" version="19.2.0" reason="UI library" />
+        <package name="zustand" version="^5.0.8" reason="State management (potentially for undo buffer)" />
+        <package name="sonner" version="^2.0.7" reason="Toast notifications (undo toast with countdown)" />
+        <package name="date-fns" version="^4.1.0" reason="Date formatting for relative time (15 minutes ago)" />
+        <package name="@radix-ui/react-alert-dialog" version="^1.1.15" reason="Clear Chat confirmation dialog" />
+        <package name="lucide-react" version="^0.554.0" reason="Icons for NewChat, ClearChat buttons" />
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Redis key structure MUST follow pattern: conversation:{session_id}:{kb_id}
+    - Conversation TTL MUST be 24 hours (86400 seconds)
+    - Undo buffer MUST be client-side only (not persistent in Redis)
+    - Undo window MUST be exactly 30 seconds
+    - Clear Chat MUST delete Redis key immediately
+    - New Chat MUST NOT delete previous conversation (let TTL expire naturally)
+    - KB switching MUST trigger conversation load for new KB
+    - SSE stream MUST close properly when clearing during streaming
+    - All timestamps MUST use ISO 8601 format with 'Z' suffix
+    - Session ID derived from user_id (existing pattern from Story 4.1)
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/chat/metadata</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/chat/metadata?kb_id={kb_id}</signature>
+      <path>backend/app/api/v1/chat.py</path>
+    </interface>
+    <interface>
+      <name>DELETE /api/v1/chat/{conversation_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>DELETE /api/v1/chat/{conversation_id}?kb_id={kb_id}</signature>
+      <path>backend/app/api/v1/chat.py</path>
+    </interface>
+    <interface>
+      <name>ConversationService.get_metadata</name>
+      <kind>Python method</kind>
+      <signature>async get_metadata(session_id: str, kb_id: str) -> dict</signature>
+      <path>backend/app/services/conversation_service.py</path>
+    </interface>
+    <interface>
+      <name>ConversationService.delete_conversation</name>
+      <kind>Python method</kind>
+      <signature>async delete_conversation(session_id: str, kb_id: str) -> bool</signature>
+      <path>backend/app/services/conversation_service.py</path>
+    </interface>
+    <interface>
+      <name>useChatStream.clearMessages</name>
+      <kind>React hook method</kind>
+      <signature>clearMessages: () => void</signature>
+      <path>frontend/src/lib/hooks/use-chat-stream.ts</path>
+    </interface>
+    <interface>
+      <name>useChatStream.undoClear</name>
+      <kind>React hook method</kind>
+      <signature>undoClear: () => Promise&lt;void&gt;</signature>
+      <path>frontend/src/lib/hooks/use-chat-stream.ts</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+Backend (pytest + FastAPI TestClient):
+- Use ATDD pattern with RED-GREEN-REFACTOR cycle
+- Test file naming: test_{feature}.py (e.g., test_chat_conversation.py)
+- Test class naming: TestFeatureName (e.g., TestConversationManagement)
+- Test method naming: test_{scenario}_when_{condition} (snake_case)
+- Include docstrings with GIVEN-WHEN-THEN format
+- Mark integration tests with @pytest.mark.integration
+- Use fixtures for authenticated_headers, demo_kb_with_indexed_docs
+- Assert HTTP status codes explicitly (status.HTTP_200_OK)
+- Verify response structure and data types
+- Test error scenarios with proper status codes (400, 404, 503)
+
+Frontend (Vitest + React Testing Library):
+- Test file location: {component}/__tests__/{component}.test.tsx
+- Test structure: describe(Component, () => it(scenario, callback))
+- Use [P0], [P1], [P2] priority tags in test descriptions
+- Include docstrings with GIVEN-WHEN-THEN format
+- Use userEvent for user interactions (not fireEvent)
+- Use screen queries: getByRole, getByPlaceholderText, getByText
+- Use waitFor for async assertions
+- Mock functions with vi.fn() from vitest
+- Test accessibility (ARIA labels, keyboard navigation)
+- One logical assertion per test
+
+E2E Tests (Playwright):
+- Location: frontend/e2e/tests/{feature}/
+- Test realistic user flows (login → action → verification)
+- Use Page Object Model for maintainability
+- Test cross-browser (Chromium, Firefox, WebKit)
+    </standards>
+    <locations>
+Backend Unit Tests: backend/tests/unit/test_conversation_service.py
+Backend Integration Tests: backend/tests/integration/test_chat_api.py
+Frontend Component Tests: frontend/src/components/chat/__tests__/
+Frontend Hook Tests: frontend/src/lib/hooks/__tests__/use-chat-stream.test.ts
+E2E Tests: frontend/e2e/tests/chat/conversation-management.spec.ts
+    </locations>
+    <ideas>
+Backend Unit Tests (test_conversation_service.py):
+- AC4: test_get_metadata_returns_correct_message_count() - Extract count from Redis history
+- AC4: test_get_metadata_with_empty_conversation() - Handle missing conversation gracefully
+- AC4: test_get_metadata_calculates_start_time_from_first_message() - Parse timestamp from first message
+- AC2: test_delete_conversation_removes_redis_key() - Verify Redis DELETE operation
+- AC2: test_delete_conversation_returns_success_when_key_exists() - Return True on delete
+- AC2: test_delete_conversation_returns_false_when_key_missing() - Handle non-existent conversation
+
+Backend Integration Tests (test_chat_api.py):
+- AC4: test_get_metadata_endpoint_returns_200_with_valid_kb() - Full endpoint test
+- AC4: test_get_metadata_endpoint_requires_authentication() - 401 without auth
+- AC4: test_get_metadata_endpoint_requires_kb_permission() - 404 if no KB access
+- AC2: test_delete_conversation_endpoint_returns_204() - Successful deletion
+- AC2: test_delete_conversation_endpoint_validates_session_ownership() - 403 if not user's session
+- AC2: test_delete_clears_redis_and_backend_can_verify_empty() - Integration verification
+
+Frontend Component Tests (ChatHeader.test.tsx):
+- AC1: test_new_chat_button_clears_messages_and_generates_new_id() - Button click behavior
+- AC1: test_new_chat_keyboard_shortcut_ctrl_shift_n() - Keyboard shortcut works
+- AC2: test_clear_chat_shows_confirmation_dialog() - Dialog appears on click
+- AC2: test_clear_chat_cancel_preserves_messages() - Cancel button behavior
+- AC2: test_clear_chat_confirm_calls_delete_api() - API call on confirm
+- AC3: test_undo_toast_appears_after_clear() - Toast with countdown shown
+- AC3: test_undo_restores_messages_and_citations() - Undo button restores state
+- AC3: test_undo_disappears_after_30_seconds() - Toast auto-dismiss
+- AC4: test_metadata_display_shows_kb_name_and_message_count() - Metadata rendering
+- AC4: test_metadata_updates_on_new_message() - Count increments
+
+Frontend Hook Tests (use-chat-stream.test.ts):
+- AC5: test_kb_switch_loads_conversation_for_new_kb() - useEffect triggers load
+- AC5: test_kb_switch_preserves_previous_kb_conversation() - State isolation
+- AC6: test_clear_during_streaming_closes_sse_connection() - AbortController usage
+- AC6: test_undo_handles_redis_failure_gracefully() - Error toast shown
+- AC3: test_undo_buffer_expires_after_30_seconds() - setTimeout cleanup
+
+E2E Tests (conversation-management.spec.ts):
+- AC1: test_new_chat_flow_clears_ui_and_starts_fresh_conversation() - Full user flow
+- AC2+AC3: test_clear_chat_with_undo_within_30_seconds() - Clear → Undo flow
+- AC3: test_undo_unavailable_after_timeout() - Wait 30s, verify no undo
+- AC5: test_kb_switching_isolates_conversations() - Switch KB → verify isolation
+- AC6: test_clear_during_streaming_stops_gracefully() - Interrupt stream scenario
+    </ideas>
+  </tests>
+</story-context>

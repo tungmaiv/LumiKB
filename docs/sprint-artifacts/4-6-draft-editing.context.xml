@@ -1,0 +1,515 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>6</storyId>
+    <title>Draft Editing</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/home/tungmv/Projects/LumiKB/docs/sprint-artifacts/4-6-draft-editing.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with a generated document draft</asA>
+    <iWant>to edit the draft content directly while preserving citation markers and formatting</iWant>
+    <soThat>I can refine, customize, and perfect the AI-generated content before exporting</soThat>
+    <tasks>
+### Backend Tasks
+
+- Implement PATCH /api/v1/drafts/{id} endpoint (AC4)
+  - Update Draft model with content, citations, status
+  - Validate citation markers match citation data
+  - Set status = 'editing' on first edit
+  - Update word_count automatically
+  - Integration test for draft update
+  - Permission check: user must have WRITE on KB
+
+- Add section regeneration endpoint (AC3)
+  - POST /api/v1/drafts/{id}/regenerate endpoint
+  - Accept: selected_text, instructions, keep_citations
+  - Call GenerationService to regenerate section
+  - Merge regenerated content with existing draft
+  - Preserve or replace citations based on flag
+  - Integration test for regeneration
+
+- Enhance Draft model (AC4, AC5)
+  - Add 'editing' status to DraftStatus enum
+  - Add edit_history JSONB column (optional)
+  - Migration for new column
+  - Unit tests for status transitions
+
+### Frontend Tasks
+
+- Convert StreamingDraftView to DraftEditor (AC1)
+  - Add contentEditable to content panel
+  - Implement onChange handler to track edits
+  - Add markdown syntax highlighting (optional)
+  - Add auto-save logic (5s debounce)
+  - Show "Saved" / "Saving..." indicator
+  - Unit tests for editing behavior
+
+- Implement citation marker preservation (AC2)
+  - Create CitationMarker component (non-editable span)
+  - Render [n] as React component, not plain text
+  - Handle deletion: Remove marker → Remove citation from panel
+  - Handle copy/paste with citation markers
+  - Sync citations panel when markers change
+  - Unit tests for marker preservation
+
+- Build section regeneration UI (AC3)
+  - Add "Regenerate" button to editor toolbar
+  - Enable when text is selected
+  - RegenerateDialog component
+  - Textarea for user instructions
+  - "Keep existing citations" checkbox
+  - Call POST /api/v1/drafts/{id}/regenerate
+  - Replace selection with regenerated content
+  - Unit tests for regeneration flow
+
+- Add edit history and undo/redo (AC5)
+  - Implement undo/redo with useReducer
+  - Track content snapshots every 5s
+  - Store history in localStorage
+  - Ctrl+Z, Ctrl+Shift+Z keyboard shortcuts
+  - Undo/Redo buttons in toolbar
+  - Unit tests for undo/redo logic
+
+- Implement real-time validation (AC6)
+  - Create validation logic for orphaned citations
+  - Check for duplicate markers
+  - Check for missing citation data
+  - WarningBanner component
+  - Click warning → Highlight issue
+  - Auto-fix button for common issues
+  - Unit tests for validation rules
+
+- Update draft API calls (AC4)
+  - Modify lib/api/drafts.ts
+  - updateDraft(draftId, updates) function
+  - Auto-save debounced call (5s)
+  - Manual save on Ctrl+S
+  - Handle 409 Conflict (concurrent edits)
+  - Unit tests for API integration
+
+### Testing Tasks
+
+Coverage Targets: 40+ tests total (12 backend unit, 8 backend integration, 15 frontend unit, 5 E2E)
+
+- Unit tests - Backend (Target: 12 tests, 85%+ coverage)
+  - PATCH /api/v1/drafts/{id} endpoint (3 tests: success, permission denied, not found)
+  - Draft status transitions (3 tests: complete→editing, editing→editing, editing→exported)
+  - Section regeneration logic (4 tests: with/without keep_citations, merge citations, preserve rest of draft)
+  - Citation marker validation (2 tests: orphaned citations, duplicate markers)
+
+- Integration tests - Backend (Target: 8 tests)
+  - Update draft with new content (2 tests: success, validation)
+  - Regenerate section with instructions (2 tests: success, citation preservation)
+  - Permission checks (2 tests: user must own draft's KB, read-only user rejected)
+  - Concurrent edit handling (2 tests: optimistic locking, updated_at conflict)
+
+- Unit tests - Frontend (Target: 15 tests, 80%+ coverage)
+  - DraftEditor editing behavior (3 tests: typing updates state, markdown preserved, status changes to editing)
+  - Citation marker preservation (4 tests: backspace/delete near marker, explicit delete removes citation, copy/paste preserves marker, orphaned citation warning)
+  - Undo/redo functionality (3 tests: undo reverts change, redo restores, history limit 50)
+  - Auto-save logic (3 tests: debounced 5s, manual Ctrl+S, save indicator updates)
+  - Validation warnings (2 tests: orphaned citations detected, duplicate markers detected)
+
+- E2E tests (Playwright) (Target: 5 tests)
+  - Edit draft → Auto-save → Reload → Edits preserved
+  - Delete citation marker → Citation removed from panel
+  - Select text → Regenerate → Section updated
+  - Undo/redo → Content reverts/restores
+  - Warning shown for orphaned citations
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC1: Interactive Draft Editing
+
+**Given** a draft is displayed in StreamingDraftView (status = 'complete')
+**When** I click in the draft content area
+**Then** the content becomes editable
+**And** I can type, delete, and modify text directly
+**And** formatting is preserved (headers, lists, bold, italic)
+
+**And** the editor supports:
+- Plain text editing (markdown syntax)
+- Keyboard shortcuts: Ctrl+B (bold), Ctrl+I (italic)
+- Undo/Redo: Ctrl+Z, Ctrl+Shift+Z
+- Auto-save: Saves to localStorage every 5 seconds
+
+**Verification:**
+- Content is editable when draft status = 'complete'
+- Typing updates content in real-time
+- Markdown formatting preserved (headers, lists)
+- Undo/redo works for recent changes
+- Auto-save indicator shows "Saved 5s ago"
+
+[Source: docs/epics.md - Story 4.6, FR39]
+
+---
+
+### AC2: Citation Marker Preservation
+
+**Given** I'm editing a draft with citation markers [1], [2], etc.
+**When** I delete or modify text near a citation marker
+**Then** the citation marker remains intact UNLESS I explicitly delete it
+
+**Citation Marker Behavior:**
+- **Backspace before [1]:** Deletes preceding text, marker stays
+- **Delete after [1]:** Deletes following text, marker stays
+- **Select and delete [1]:** Marker is removed from text AND citations panel
+- **Copy/paste with [1]:** Citation marker is preserved in pasted text
+
+**Citation Panel Sync:**
+- When [n] marker deleted → Citation removed from panel
+- Citation count updates in real-time
+- Clicking citation in panel scrolls to corresponding [n] in editor
+- Orphaned citations (no marker in text) show warning badge
+
+**Verification:**
+- Citation markers survive text edits around them
+- Explicitly deleting [n] removes citation from panel
+- Copy/paste preserves citation markers
+- Orphaned citations show warning in panel
+- Citation count updates when markers added/removed
+
+[Source: docs/epics.md - Story 4.6, FR39]
+
+---
+
+### AC3: Section Regeneration
+
+**Given** I'm not satisfied with a section of the draft
+**When** I select text (e.g., a paragraph or subsection)
+**And** I click "Regenerate" button or press Ctrl+R
+**Then** a regeneration dialog appears
+
+**Regeneration Dialog:**
+```
+┌───────────────────────────────────────────────────┐
+│ Regenerate Section                                │
+│                                                    │
+│ Selected text:                                    │
+│ "Our authentication approach leverages..."        │
+│                                                    │
+│ Instructions (optional):                          │
+│ ┌───────────────────────────────────────────────┐│
+│ │ Make it more technical, include MFA details   ││
+│ └───────────────────────────────────────────────┘│
+│                                                    │
+│ ☐ Keep existing citations                        │
+│                                                    │
+│ [Cancel]                      [Regenerate]        │
+└───────────────────────────────────────────────────┘
+```
+
+**Regeneration Behavior:**
+- Backend receives: original text, user instructions, keep_citations flag
+- LLM regenerates section with user instructions applied
+- If keep_citations=true: Preserve existing [n] markers, add new ones
+- If keep_citations=false: Replace section entirely with new citations
+- Regenerated text replaces selection in editor
+- Rest of draft is preserved
+
+**Verification:**
+- Selecting text enables "Regenerate" button
+- Dialog shows selected text and instruction field
+- "Keep existing citations" checkbox available
+- Regeneration replaces selection only
+- User instructions applied to regenerated content
+- Existing citations preserved if checkbox checked
+
+[Source: docs/epics.md - Story 4.6, FR42]
+
+---
+
+### AC4: Draft Update Persistence
+
+**Given** I've edited a draft
+**When** auto-save triggers (every 5s) OR I manually save (Ctrl+S)
+**Then** PATCH /api/v1/drafts/{id} is called
+**And** the updated draft is persisted to backend
+
+**API Contract:**
+```typescript
+PATCH /api/v1/drafts/{draft_id}
+{
+  "content": "## Executive Summary\n\nUpdated content [1]...",
+  "citations": [
+    {
+      "number": 1,
+      "document_id": "uuid",
+      "document_name": "Acme Proposal.pdf",
+      "page": 14,
+      // ... full citation data
+    }
+  ],
+  "status": "editing",  // Status changes to 'editing' after first edit
+  "word_count": 850
+}
+
+Response 200 OK:
+{
+  "draft": {
+    "id": "uuid",
+    "status": "editing",
+    "updated_at": "2025-11-28T10:30:00Z",
+    // ... full draft object
+  }
+}
+```
+
+**Draft Status State Machine:**
+```
+complete → (first edit) → editing
+editing → (save) → editing
+editing → (export) → exported
+```
+
+**Verification:**
+- Auto-save triggers every 5s during active editing
+- Manual save with Ctrl+S
+- PATCH request includes updated content, citations, word count
+- Draft status changes to 'editing' after first edit
+- Updated_at timestamp reflects latest save
+- "Saved" indicator shows last save time
+
+[Source: docs/epics.md - Story 4.6, FR39]
+
+---
+
+### AC5: Edit History and Undo/Redo
+
+**Given** I'm editing a draft
+**When** I make changes
+**Then** edit history is tracked for undo/redo
+
+**Undo/Redo Behavior:**
+- Ctrl+Z: Undo last change (up to 50 changes)
+- Ctrl+Shift+Z or Ctrl+Y: Redo undone change
+- History preserved across sessions (localStorage)
+- History cleared on draft export
+
+**Edit Tracking:**
+- Track content snapshots at 5s intervals
+- Track citation marker changes (add/remove)
+- Don't track cursor position changes
+
+**Verification:**
+- Ctrl+Z undoes last change
+- Ctrl+Shift+Z redoes undone change
+- Undo history preserved in localStorage
+- History includes up to 50 changes
+- Undo disabled when no history available
+
+---
+
+### AC6: Real-Time Validation and Warnings
+
+**Given** I'm editing a draft
+**When** validation issues are detected
+**Then** warnings appear in the UI
+
+**Validation Rules:**
+1. **Orphaned Citations:** Citation exists in panel but [n] marker missing from text
+   - Warning: "Citation [3] has no marker in text. Add [3] or remove citation."
+2. **Duplicate Markers:** Multiple [1] markers in text
+   - Warning: "Duplicate citation marker [1] found."
+3. **Missing Citations:** [5] marker in text but no citation data
+   - Warning: "Citation [5] is missing metadata. Regenerate section or remove marker."
+4. **Non-Sequential Markers:** Citations jump numbers (e.g., [1], [3], [5])
+   - Info: "Citations are not sequential. Consider renumbering."
+
+**Warning Display:**
+- Yellow warning banner above editor
+- Click warning → Highlight problematic marker
+- "Fix" button for auto-correction (renumber, remove orphans)
+
+**Verification:**
+- Orphaned citation warning appears when marker deleted
+- Duplicate marker warning shown
+- Missing citation warning for unknown markers
+- Click warning highlights issue in editor
+- Auto-fix button available for common issues
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification</title>
+        <section>Story 4.6: Draft Editing</section>
+        <snippet>Draft Storage: interfaces for Draft model with content editing, citation preservation, localStorage state, regenerate section functionality. CitationMarker component pattern for non-editable inline citations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification</title>
+        <section>Pattern 1: Citation Assembly System</section>
+        <snippet>Citation system architecture: RETRIEVAL → rich metadata → GENERATION with [n] markers → EXTRACTION mapping to source chunks → STREAMING support via SSE events.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Implementation Patterns: KISS, DRY, YAGNI</section>
+        <snippet>Core principles: Keep It Simple Stupid - prefer simple solutions. Don't Repeat Yourself - extract after 3+ repetitions. You Aren't Gonna Need It - don't build until concrete need.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Error Handling</section>
+        <snippet>Centralized exception handling - all errors flow through single handler. Services raise exceptions, middleware formats responses. Standard error response with code, message, details, request_id.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Novel Pattern 1: Citation-First Trust System</section>
+        <snippet>Citation markers [1], [2] always visible inline, never hidden. One-click verification. Preview tooltip on hover. Full citation panel with preview options. Verified state with green checkmark.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Component Library: Citation Marker</section>
+        <snippet>Inline citation indicator linking to source. States: default (blue bg, white text), hover (darker blue), verified (green checkmark), low-confidence (yellow bg). Non-editable span component.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>frontend/src/lib/stores/draft-store.ts</path>
+        <description>Zustand store with localStorage persistence for selected search results. Pattern for state management.</description>
+        <keyPatterns>persist() middleware for localStorage, DraftResult interface, addToDraft/removeFromDraft actions</keyPatterns>
+      </file>
+      <file>
+        <path>backend/app/schemas/generation.py</path>
+        <description>Generation request/response schemas. Contains Citation model used throughout draft system.</description>
+        <keyPatterns>GenerationRequest, GenerationResponse, SSE event types (StatusEvent, TokenEvent, CitationEvent, DoneEvent)</keyPatterns>
+      </file>
+      <file>
+        <path>backend/app/services/generation_service.py</path>
+        <description>Generation service with streaming support. Shows LLM integration pattern and citation extraction.</description>
+        <keyPatterns>generate_document_stream() async generator, citation detection with regex r'\[(\d+)\]', mock chunk building</keyPatterns>
+      </file>
+      <file>
+        <path>frontend/src/components/search/citation-marker.tsx</path>
+        <description>Citation marker component with tooltip. Pattern for inline citations.</description>
+        <keyPatterns>Badge component, Tooltip, verified state (green), accessibility (role, tabIndex, aria-label), keyboard navigation</keyPatterns>
+      </file>
+      <file>
+        <path>frontend/src/types/citation.ts</path>
+        <description>TypeScript Citation interface. Matches backend Citation schema.</description>
+        <keyPatterns>number, document_id, document_name, page_number, section_header, excerpt, char_start, char_end, confidence</keyPatterns>
+      </file>
+    </code>
+    <dependencies>
+      <backend>
+        <package>fastapi</package>
+        <package>sqlalchemy[asyncio]</package>
+        <package>pydantic</package>
+        <package>structlog</package>
+      </backend>
+      <frontend>
+        <package>react</package>
+        <package>next</package>
+        <package>zustand</package>
+        <package>@radix-ui/react-*</package>
+        <package>tailwindcss</package>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- Use React components for citation markers (non-editable spans with contentEditable={false})
+- Debounced auto-save every 5 seconds using useMemo and useEffect patterns
+- Undo/redo with reducer pattern (maximum 50 snapshots in history)
+- Real-time validation with warning banner for orphaned citations, duplicate markers, missing citations
+- PATCH /api/v1/drafts/{id} must include updated content, citations array, status, word_count
+- Draft status state machine: complete → editing → editing (on save) → exported
+- Permission check required: user must have WRITE permission on KB
+- Follow KISS/DRY/YAGNI principles - simple solutions, extract common code after 3+ uses, build only when needed
+- All paths in artifacts must be project-relative (strip /home/tungmv/Projects/LumiKB prefix)
+- Error handling via centralized exception handler - services raise, middleware formats
+- Backend uses SQLAlchemy 2.0 + asyncpg + FastAPI patterns from existing codebase
+- Frontend uses Next.js 15 App Router + React 19 + Zustand for state + shadcn/ui components
+- Citations are THE differentiator - must be prominently displayed, easy to verify
+- Test coverage targets: 40+ tests (12 backend unit, 8 backend integration, 15 frontend unit, 5 E2E)
+  </constraints>
+  <interfaces>
+- PATCH /api/v1/drafts/{draft_id} - Update draft content, citations, status, word_count. Returns updated Draft object
+- POST /api/v1/drafts/{draft_id}/regenerate - Regenerate section with selected_text, instructions, keep_citations flag. Returns regenerated content and citations
+- Frontend: CitationMarker component (props: number, onClick, onDelete) - Non-editable span for [n] markers
+- Frontend: useDraftEditor hook - Editor state with undo/redo, citation tracking, validation logic
+- Frontend: lib/api/drafts.ts - updateDraft(draftId, updates), regenerateSection(draftId, request) functions
+- Backend: DraftUpdateRequest schema (content, citations, status, word_count)
+- Backend: RegenerateRequest schema (selected_text, instructions, keep_citations, selection_start, selection_end)
+- Backend: Draft model with 'editing' status in DraftStatus enum
+  </interfaces>
+  <tests>
+    <standards>
+- Backend unit tests: pytest with async fixtures (conftest.py patterns)
+- Backend integration tests: pytest with test database, real async DB sessions
+- Frontend unit tests: Jest + React Testing Library (@testing-library/react)
+- E2E tests: Playwright for full user flows
+- Coverage targets: 85%+ backend, 80%+ frontend unit tests
+- Test file naming: test_*.py (backend), *.test.tsx (frontend), *.spec.ts (E2E)
+- Use data-testid attributes for stable test selectors
+- Mock external dependencies (LLM, Qdrant) in unit tests, use real instances in integration tests
+    </standards>
+    <locations>
+- Backend unit: backend/tests/unit/test_*.py
+- Backend integration: backend/tests/integration/test_*.py
+- Frontend unit: frontend/src/**/__tests__/*.test.tsx
+- E2E: frontend/e2e/tests/**/*.spec.ts
+- Test fixtures: backend/tests/conftest.py (shared fixtures)
+- Test utilities: frontend/src/test-utils/ (render helpers, mock data)
+    </locations>
+    <ideas>
+### Backend Unit Tests (Target: 12 tests)
+1. Draft update endpoint validates permission (WRITE on KB)
+2. Draft update endpoint handles content + citations correctly
+3. Draft status transitions: complete→editing, editing→editing
+4. Section regeneration merges content correctly
+5. Regeneration preserves citations when keep_citations=true
+6. Regeneration replaces citations when keep_citations=false
+7. Citation marker validation detects orphaned citations
+8. Citation marker validation detects duplicate markers
+9. Word count calculation updates automatically
+10. Draft model validates status enum values
+11. Regenerate endpoint validates selection bounds
+12. Concurrent edit detection (optimistic locking with updated_at)
+
+### Backend Integration Tests (Target: 8 tests)
+1. PATCH /api/v1/drafts/{id} success flow with auth
+2. PATCH returns 403 when user lacks WRITE permission
+3. POST /api/v1/drafts/{id}/regenerate success flow
+4. Regenerate preserves rest of draft content
+5. Draft status persists across requests
+6. Citation array updates correctly in database
+7. Validation errors return 422 with details
+8. Concurrent edit returns 409 Conflict
+
+### Frontend Unit Tests (Target: 15 tests)
+1. DraftEditor renders contentEditable div
+2. Typing updates editor state
+3. Auto-save debounces to 5 seconds
+4. Manual save triggers on Ctrl+S
+5. Undo reverts last change (Ctrl+Z)
+6. Redo restores undone change (Ctrl+Shift+Z)
+7. CitationMarker deletion removes citation from list
+8. Orphaned citation shows warning banner
+9. Duplicate marker shows warning banner
+10. Save indicator shows "Saving..." then "Saved"
+11. Markdown formatting preserved during edit
+12. Regenerate dialog opens with selection
+13. RegenerateDialog submits with instructions
+14. Validation detects missing citation data
+15. History limit enforced (50 snapshots max)
+
+### E2E Tests (Target: 5 tests)
+1. Edit draft → Auto-save → Reload page → Edits preserved
+2. Delete citation marker → Citation removed from panel
+3. Select text → Click Regenerate → Section updated with spinner → Success
+4. Undo/redo with keyboard shortcuts → Content changes
+5. Orphaned citation warning appears → Click warning → Marker highlighted
+    </ideas>
+  </tests>
+</story-context>

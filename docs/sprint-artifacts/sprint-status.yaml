@@ -81,22 +81,25 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Chat & Document Generation (10 stories)
-  epic-4: backlog
-  4-1-chat-conversation-backend: backlog
-  4-2-chat-streaming-ui: backlog
-  4-3-conversation-management: backlog
-  4-4-document-generation-request: backlog
-  4-5-draft-generation-streaming: backlog
-  4-6-draft-editing: backlog
-  4-7-document-export: backlog
-  4-8-generation-feedback-and-recovery: backlog
-  4-9-generation-templates: backlog
-  4-10-generation-audit-logging: backlog
-  epic-4-retrospective: optional
+  epic-4: done  # ✅ COMPLETED 2025-11-29: All 10 stories delivered (Chat conversation, streaming UI, conversation mgmt, document generation, draft streaming, editing, export, feedback/recovery, templates, audit logging). Production-ready chat & generation features with comprehensive audit trail.
+  4-1-chat-conversation-backend: done  # ✅ Completed 2025-11-26: Multi-turn RAG chat backend, unit tests passing, integration fixtures created
+  4-2-chat-streaming-ui: done  # ✅ Completed 2025-11-27: Real LLM streaming, SSE event schema fixed, all 3 missing components created (ChatContainer, ChatInput, useChatStream), code review blockers resolved
+  4-3-conversation-management: done  # ✅ APPROVED 2025-11-28: All 6 ACs satisfied, 37 tests (15 new passing), localStorage persistence, Quality Score 95/100, production-ready
+  4-4-document-generation-request: done  # ✅ COMPLETED 2025-11-28: All 6 ACs satisfied, frontend 26/26 tests passing, backend stub implementation (full LLM generation deferred to Story 4.5), code review approved
+  4-5-draft-generation-streaming: done  # ✅ COMPLETED 2025-11-28: SSE streaming endpoint /api/v1/generate/stream implemented with progressive citation extraction, StreamingDraftView 3-panel UI, AbortController cancellation. Tests written (deferred to Story 5.15 for LLM mocks). AC1-AC4 satisfied.
+  4-6-draft-editing: done  # ✅ DONE 2025-11-29: All Priority 1 & 2 bugs fixed, migration fix applied. AC1-AC5 complete, citation preservation works, XSS protected, performance optimized. Quality: 92/100. Backend tests: 536 passed. AC6+tests deferred to Epic 5 (TD-4.6-1). Production-ready.
+  4-7-document-export: done  # ✅ DONE 2025-11-29: Export service implemented (DOCX, PDF, Markdown). AC1-AC5 complete, AC6 deferred. 10 unit tests PASSED. All linting clean. ExportModal, VerificationDialog, useExport hook working. Permission checks, format validation, filename sanitization implemented. Tests/features deferred to Epic 5: TD-4.7-1 (frontend unit), TD-4.7-2 (integration), TD-4.7-3 (E2E), TD-4.7-4 (AC6 audit logging). Production-ready.
+  4-8-generation-feedback-and-recovery: done  # ✅ DONE 2025-11-29: FeedbackService (5 types), POST /feedback endpoint, Alternative suggestions, RecoveryModal, ErrorRecoveryDialog, useFeedback hook. 15 unit tests PASSED. FeedbackRequest schema fixed (previous_draft_id added). Quality: 92/100. AC6, UI integration, tests deferred to Epic 5 (TD-4.8-1, TD-4.8-2, TD-4.8-3). Production-ready.
+  4-9-generation-templates: done  # ✅ APPROVED 2025-11-29: Quality 95/100. All 5 ACs implemented, all 8 tasks verified, 29/29 tests PASSED. Task 5 (generation-modal.tsx) complete. Build verified. Production-ready. Tech debt: TD-4.9-1 (E2E tests → 5-15), TD-4.9-2 (test file cleanup → 5-15).
+  4-10-generation-audit-logging: done  # ✅ DONE 2025-11-29: AuditService extended (5 methods), admin GET /audit/generation endpoint with filters/pagination/metrics, chat/generation streaming audit logging. 15/15 tests PASSED (8 unit + 7 integration). Fire-and-forget pattern, PII sanitization, request ID linking. Production-ready.
+  epic-4-retrospective: done  # ✅ COMPLETED 2025-11-30: Retrospective completed. Critical discovery: Epic 3 & 4 features built but not accessible via UI navigation. Added Story 5.0 (Epic Integration) and Story 5.16 (Docker E2E Infrastructure) to Epic 5 scope. 6 key learnings about DoD, integration stories, E2E testing, navigation, deployment frequency. 8 action items created. See: docs/sprint-artifacts/epic-4-retrospective-2025-11-30.md
 
-  # Epic 5: Administration & Polish (14 stories - includes 4 technical debt)
-  epic-5: backlog
-  5-1-admin-dashboard-overview: backlog
+  # Epic 5: Administration & Polish (13 stories - UPDATED 2025-11-30)
+  # Scope changes: Added Story 5.0 (Epic 3 & 4 Integration Completion - CRITICAL) and Story 5.16 (Docker E2E Infrastructure - HIGH)
+  # Total stories: 13 (was 11) - includes 2 new integration/testing stories and 4 technical debt stories
+  epic-5: contexted  # ✅ CONTEXTED 2025-11-30: Tech spec generated with comprehensive design, 93 ACs, traceability mapping, 6 risks, 7 assumptions, 7 open questions, detailed test strategy. Ready for story drafting. See: docs/sprint-artifacts/tech-spec-epic-5.md
+  5-0-epic-integration-completion: done  # ✅ APPROVED 2025-11-30: Code review APPROVED with 95/100 quality score. Chat page route with SSE streaming (237 lines), dashboard Quick Access cards functional, backend services verified. AC1-AC3, AC5 complete. AC4 (smoke tests) appropriately deferred to Story 5.16 (Docker E2E Infrastructure). Clean code following KISS/DRY/YAGNI, citation-first architecture preserved, 3 implementation issues fixed. Minor polish items (unused ref, generic errors) documented as future enhancements. Epic 3 & 4 features now fully accessible to users. Ready for production. See: docs/sprint-artifacts/5-0-epic-integration-completion.md
+  5-1-admin-dashboard-overview: in-progress  # 🚀 STARTED 2025-12-02: Story Context loaded. Beginning implementation of admin dashboard with system statistics. Context: strategic alignment (FR47), 5 ACs, API contract GET /api/v1/admin/stats, AdminStatsService with Redis caching, recharts sparklines. See: docs/sprint-artifacts/5-1-admin-dashboard-overview.md
   5-2-audit-log-viewer: backlog
   5-3-audit-log-export: backlog
   5-4-processing-queue-status: backlog
@@ -110,4 +113,6 @@ development_status:
   5-12-atdd-integration-tests-transition-to-green: backlog  # Technical debt from Epic 3 (31 integration tests)
   5-13-celery-beat-filesystem-fix: backlog  # Technical debt from infrastructure (discovered 2025-11-26)
   5-14-search-audit-logging: backlog  # Moved from Epic 3 (Story 3.11) - completes audit workflow with 5.2, 5.3
+  5-15-epic-4-atdd-transition-to-green: backlog  # Technical debt from Epic 4 (47 ATDD tests - chat & generation)
+  5-16-docker-e2e-infrastructure: backlog  # ✅ NEW 2025-11-30 (HIGH): Establish Docker-based E2E testing infrastructure. Create docker-compose.e2e.yml with all services, configure Playwright, implement database seeding, GitHub Actions CI integration, execute 15-20 E2E tests for Epic 3 & 4. See: docs/sprint-artifacts/5-16-docker-e2e-infrastructure.md
   epic-5-retrospective: optional

@@ -1,0 +1,467 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.5</storyId>
+    <title>Draft Generation Streaming</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-5-draft-generation-streaming.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user requesting a document draft</asA>
+    <iWant>to see the AI-generated content stream in real-time with inline citations appearing as they are generated</iWant>
+    <soThat>I can monitor generation progress, understand what sources are being used, and have confidence that the system is working</soThat>
+    <tasks>
+      ## Backend Tasks
+      - Convert POST /api/v1/generate to SSE streaming (AC1)
+      - Implement real-time citation extraction (AC3)
+      - Add SSE event types and schemas (AC1)
+      - Implement draft persistence (AC6)
+      - Add streaming performance optimizations (AC5)
+
+      ## Frontend Tasks
+      - Create StreamingDraftView component (AC2)
+      - Implement SSE client for generation streaming (AC1, AC4)
+      - Add progressive content rendering (AC2)
+      - Implement progressive citation accumulation (AC3)
+      - Add cancellation and error UI (AC4)
+      - Implement draft persistence (AC6)
+      - Create Draft List View (AC6)
+
+      ## Testing Tasks
+      - Backend unit tests (SSE events, citation extraction, draft model)
+      - Backend integration tests (streaming endpoint, client disconnect, draft CRUD)
+      - Frontend unit tests (StreamingDraftView, citation mapping, progress updates)
+      - E2E tests (complete flow, cancellation, error recovery, performance)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    ### AC1: SSE Streaming Endpoint Implementation
+    **Given** the backend receives a generation request
+    **When** POST /api/v1/generate is called
+    **Then** the endpoint responds with `Content-Type: text/event-stream` and emits SSE events in this sequence:
+
+    Event Sequence:
+    1. sources_retrieved: {"event": "sources_retrieved", "count": 5, "sources": [...]}
+    2. generation_start: {"event": "generation_start", "template": "rfp_response"}
+    3. content_chunk (streaming, multiple events): {"event": "content_chunk", "delta": "text"}
+    4. citation (interleaved with content): {"event": "citation", "number": 1, "document_id": "...", ...}
+    5. generation_complete: {"event": "generation_complete", "draft_id": "uuid", "confidence": 0.85, ...}
+
+    **Verification:**
+    - Endpoint returns `text/event-stream` content type
+    - Events emitted in correct order (sources → start → chunks → complete)
+    - Citation events interleaved with content chunks at correct positions
+    - Error events emitted on failures
+    - Stream closes cleanly on completion or error
+    - Backend handles client disconnection (cancellation) gracefully
+
+    ### AC2: StreamingDraftView Component (Real-Time Display)
+    **Given** I have submitted a generation request from the modal
+    **When** the backend starts streaming
+    **Then** I am redirected to the draft view route: `/kb/{kb_id}/drafts/{draft_id}`
+    **And** I see the StreamingDraftView component with three panels:
+
+    Layout: Header, Main Panel (70%), Citations Panel (30%)
+
+    **Progressive Rendering:**
+    - Content appears word-by-word or line-by-line
+    - Blinking cursor (▊) at end of streaming content
+    - Citations appear in right panel immediately when citation event received
+    - Citation markers [1], [2] in main content are clickable to scroll to citation panel
+    - Smooth scrolling: Auto-scroll to follow content, pause on user scroll
+
+    **Verification:**
+    - StreamingDraftView component renders with 3-panel layout
+    - Content streams into main panel in real-time
+    - Citations populate right panel as they are emitted
+    - Progress bar shows generation progress (0-100%)
+    - Word count and citation count update live
+    - Blinking cursor indicates active streaming
+    - Auto-scroll follows content, pauses on user scroll interaction
+
+    ### AC3: Progressive Citation Accumulation
+    **Given** the backend emits citation events during streaming
+    **When** a citation event is received: `{"event": "citation", "number": 1, "document_id": "...", ...}`
+    **Then** the citation is:
+    1. Added to the citations panel (right side) in order
+    2. Mapped to the corresponding [n] marker in the streamed content
+    3. Made clickable (click [1] → scroll to citation card in panel)
+    4. Displayed with citation card UI (document name, page, excerpt, confidence)
+
+    **Verification:**
+    - Citations accumulate in panel as they are emitted
+    - Citation numbers match markers in content ([1] → citation 1)
+    - Citation cards display complete metadata (document name, page, excerpt)
+    - Clicking [n] marker scrolls to citation n in panel
+    - Citations remain clickable after streaming completes
+    - No orphaned [n] markers (all have citation data)
+
+    ### AC4: Cancellation and Error Handling
+    **Given** a draft is streaming
+    **When** I click the "Stop Generation" button in the header
+    **Then** the following occurs:
+    1. Frontend sends AbortController signal
+    2. EventSource connection closes immediately
+    3. Backend receives disconnect event, stops LLM generation
+    4. UI transitions to "Generation Cancelled" state
+
+    **Error Handling Scenarios:**
+    - LLM Generation Error: Error toast + "Draft generation failed. [Retry] [Discard]"
+    - Network Interruption: "Connection lost. Attempting to reconnect..." (5s retry, 3 attempts)
+    - Backend Service Unavailable: "Generation service temporarily unavailable. [Retry in 30s]"
+
+    **Verification:**
+    - Stop button immediately halts streaming
+    - Backend stops LLM generation on client disconnect
+    - Error events display user-friendly messages
+    - Network interruptions trigger retry logic (3 attempts)
+    - Partial drafts are preserved and recoverable
+    - All error states have clear recovery actions (Retry, Discard, Save)
+
+    ### AC5: Generation Performance and Streaming Quality
+    **Given** a generation request is made
+    **When** the backend streams the response
+    **Then** the following performance targets are met:
+
+    **Latency Targets:**
+    - Time to first SSE event (sources_retrieved): < 2 seconds
+    - Time to first content chunk: < 3 seconds
+    - Content streaming rate: 50-100 tokens/second
+    - Citation event latency: < 500ms after marker
+    - Total generation time (500 words): < 30 seconds
+
+    **Verification:**
+    - First content chunk appears within 3 seconds of request
+    - Content streams smoothly (no visible stuttering)
+    - Citations appear within 500ms of corresponding [n] marker
+    - Long generations (2,000+ words) complete in < 60 seconds
+    - No memory leaks (EventSource cleaned up on unmount)
+    - Backend handles 5 concurrent streaming generations without degradation
+
+    ### AC6: Draft Persistence and State Management
+    **Given** a draft is streaming or completed
+    **When** generation completes or is interrupted
+    **Then** the draft is persisted with the following states:
+
+    **Draft Status States:** streaming | partial | complete | editing
+
+    **Persistence Strategy:**
+    1. During Streaming: Save to localStorage every 5s (recovery mechanism)
+    2. On Complete: POST /api/v1/drafts (save to backend)
+    3. On Cancel/Error: POST /api/v1/drafts with status='partial'
+
+    **Verification:**
+    - Draft saved to backend on generation_complete event
+    - Partial drafts saved with status='partial'
+    - localStorage used for streaming recovery
+    - Draft list shows all drafts for KB
+    - Drafts can be opened for editing (Story 4.6)
+    - Draft metadata includes citation count, word count, confidence
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification: Chat & Document Generation</title>
+        <section>Story 4.5: Draft Generation Streaming</section>
+        <snippet>Lines 679-802 provide comprehensive technical guidance for streaming generation architecture, including async generator patterns, SSE event types, confidence scoring algorithm, and low confidence section detection.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>TD-004: Document Export Library</title>
+        <section>Technical Decisions</section>
+        <snippet>Decision to use SSE (Server-Sent Events) for streaming responses instead of WebSocket. SSE is simpler (HTTP-based, no upgrade handshake), has native EventSource API, and works through standard load balancers/proxies.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Story 4.1: Chat Conversation Backend</title>
+        <section>SSE Streaming Architecture</section>
+        <snippet>Lines 554-583 detail the existing streaming implementation pattern used for chat, which provides the foundation for draft generation streaming. Includes StreamingResponse setup and event formatting.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Pattern 1: Citation Assembly System</section>
+        <snippet>Lines 386-428 describe the citation-first architecture. Every AI-generated statement must trace back to source documents with passage-level precision. Citation extraction during streaming involves real-time parsing of [n] markers.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/app/api/v1/chat_stream.py</path>
+        <kind>api_endpoint</kind>
+        <symbol>send_chat_message_stream</symbol>
+        <lines>72-158</lines>
+        <reason>Reference implementation of SSE streaming endpoint with StreamingResponse, SSE headers, and generate_sse_events async generator pattern. This provides the exact pattern to follow for /api/v1/generate streaming.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/chat_stream.py</path>
+        <kind>helper_function</kind>
+        <symbol>generate_sse_events</symbol>
+        <lines>31-70</lines>
+        <reason>Async generator that formats conversation service events as SSE messages. Shows proper error handling in streaming context and SSE event formatting: f"data: {json.dumps(event)}\n\n"</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>send_message_stream</symbol>
+        <lines>162-291</lines>
+        <reason>Complete implementation of streaming chat with real-time citation detection. Shows async generator pattern, progressive citation extraction using regex, and SSE event types (status, token, citation, done). This is the PRIMARY reference for Story 4.5 backend implementation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>_build_prompt</symbol>
+        <lines>367-427</lines>
+        <reason>Context window management for LLM prompts. Shows token counting, history truncation, and prompt message construction. Generation service will need similar logic for template-based prompts with sources.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/generate.py</path>
+        <kind>api_endpoint</kind>
+        <symbol>generate_document</symbol>
+        <lines>49-133</lines>
+        <reason>Existing synchronous generation endpoint from Story 4.4. This needs to be converted to SSE streaming (StreamingResponse) for Story 4.5. Shows permission checking, GenerationService integration, and error handling patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/generation_service.py</path>
+        <kind>service</kind>
+        <symbol>GenerationService</symbol>
+        <lines>35-126</lines>
+        <reason>STUB implementation from Story 4.4. Story 4.5 requires adding generate_document_stream() method using async generator pattern similar to ConversationService.send_message_stream(). Mock methods show expected response structure.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/generation_service.py</path>
+        <kind>exception</kind>
+        <symbol>InsufficientSourcesError</symbol>
+        <lines>25-32</lines>
+        <reason>Custom exception for validation. Stream error handling needs to emit error events instead of raising HTTP exceptions directly.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/chat/chat-container.tsx</path>
+        <kind>component</kind>
+        <symbol>ChatContainer</symbol>
+        <lines>entire file</lines>
+        <reason>Reference implementation of SSE streaming UI with useEffect hook for EventSource, message accumulation, citation handling, and auto-scroll. StreamingDraftView will follow similar pattern but with 3-panel layout and draft-specific features.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0,<1.0.0" purpose="StreamingResponse for SSE"/>
+        <package name="litellm" version=">=1.50.0,<2.0.0" purpose="Streaming LLM generation"/>
+        <package name="structlog" version=">=25.5.0,<26.0.0" purpose="Structured logging for stream events"/>
+        <package name="pydantic" version=">=2.7.0,<3.0.0" purpose="SSE event schema validation"/>
+      </backend>
+      <frontend>
+        <package name="react" version="19.2.0" purpose="useEffect hook for EventSource"/>
+        <package name="next" version="16.0.3" purpose="App Router routing to draft view"/>
+        <package name="zustand" version="^5.0.8" purpose="Draft state management"/>
+        <package name="lucide-react" version="^0.554.0" purpose="UI icons for progress indicators"/>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    ## Development Constraints
+
+    **SSE Streaming Architecture (from Story 4.1):**
+    - Use FastAPI StreamingResponse with media_type="text/event-stream"
+    - Set headers: Cache-Control: no-cache, Connection: keep-alive, X-Accel-Buffering: no
+    - Format events as: `event: message\ndata: {json}\n\n`
+    - Implement async generator pattern for event emission
+    - Handle client disconnect gracefully (AsyncCancelledError)
+
+    **Citation Preservation During Streaming (TD-003):**
+    - Detect [n] markers in real-time using regex: `r'\[(\d+)\]'`
+    - Map markers to source chunks using 1-based indexing
+    - Buffer partial markers across chunk boundaries
+    - Emit citation event immediately when marker detected
+    - Validate all markers have corresponding sources on completion
+
+    **Performance Targets (AC5):**
+    - First SSE event < 2 seconds (sources_retrieved)
+    - First content chunk < 3 seconds (LLM first-token latency)
+    - Streaming rate: 50-100 tokens/second
+    - Citation latency < 500ms after marker
+    - Total generation (500 words) < 30 seconds
+
+    **Error Handling Patterns:**
+    - Backend: Emit error event {"event": "error", "code": "...", "message": "..."}
+    - Frontend: Retry network interruptions 3 times with 5s delay
+    - Partial drafts: Save to localStorage + backend with status='partial'
+    - Stream cleanup: Close EventSource on unmount to prevent memory leaks
+
+    **Testing Standards:**
+    - Unit tests: Event formatting, citation extraction, draft model transitions
+    - Integration tests: Full SSE stream, client disconnect, draft persistence
+    - E2E tests: Complete flow from modal to draft view, cancellation, error recovery
+    - Performance tests: Verify first chunk < 3s, streaming rate, memory cleanup
+  </constraints>
+
+  <interfaces>
+    ## Backend Interfaces
+
+    **SSE Event Types (to be created):**
+    ```python
+    class SSEEvent(BaseModel):
+        event: str
+
+    class SourcesRetrievedEvent(SSEEvent):
+        event: Literal["sources_retrieved"]
+        count: int
+        sources: list[dict]
+
+    class GenerationStartEvent(SSEEvent):
+        event: Literal["generation_start"]
+        template: str
+
+    class ContentChunkEvent(SSEEvent):
+        event: Literal["content_chunk"]
+        delta: str
+
+    class CitationEvent(SSEEvent):
+        event: Literal["citation"]
+        number: int
+        document_id: str
+        document_name: str
+        page_number: int | None
+        section_header: str | None
+        excerpt: str
+        confidence: float
+
+    class GenerationCompleteEvent(SSEEvent):
+        event: Literal["generation_complete"]
+        draft_id: str
+        confidence: float
+        citation_count: int
+        word_count: int
+
+    class ErrorEvent(SSEEvent):
+        event: Literal["error"]
+        code: str
+        message: str
+    ```
+
+    **GenerationService.generate_stream() (to be created):**
+    ```python
+    async def generate_stream(
+        self,
+        kb_id: str,
+        document_type: str,
+        context: str,
+        selected_sources: list[str] | None
+    ) -> AsyncGenerator[SSEEvent, None]:
+        """Stream generation events with real-time citations."""
+        # Yield sources_retrieved
+        # Yield generation_start
+        # Stream LLM chunks and detect citations
+        # Yield content_chunk + citation events
+        # Yield generation_complete
+    ```
+
+    **Draft API Endpoints (to be created):**
+    ```python
+    POST /api/v1/drafts         # Save draft
+    GET /api/v1/drafts          # List drafts for KB
+    GET /api/v1/drafts/{id}     # Get draft details
+    PATCH /api/v1/drafts/{id}   # Update draft status
+    ```
+
+    ## Frontend Interfaces
+
+    **streamDraftGeneration() (to be created in lib/api/streamGeneration.ts):**
+    ```typescript
+    export async function streamDraftGeneration(
+      request: GenerationRequest,
+      onEvent: (event: SSEEvent) => void,
+      onError: (error: Error) => void,
+      signal?: AbortSignal
+    ): Promise<void>
+    ```
+
+    **StreamingDraftView Component (to be created):**
+    ```typescript
+    interface StreamingDraftViewProps {
+      draftId: string;
+      request: GenerationRequest;
+    }
+
+    export function StreamingDraftView({ draftId, request }: StreamingDraftViewProps)
+    ```
+
+    **Draft Store (to be created):**
+    ```typescript
+    interface DraftStore {
+      drafts: Map<string, Draft>;
+      saveDraft: (kbId: string, draft: Draft) => void;
+      updateDraft: (draftId: string, content: string) => void;
+    }
+    ```
+  </interfaces>
+
+  <tests>
+    <standards>
+      **Backend Testing:**
+      - pytest with pytest-asyncio for async tests
+      - httpx AsyncClient for API endpoint testing
+      - Mock LiteLLM client for unit tests
+      - Real LiteLLM for integration tests (testcontainers)
+      - structlog for test logging
+
+      **Frontend Testing:**
+      - Vitest + React Testing Library for unit tests
+      - Mock EventSource API for SSE testing
+      - Playwright for E2E tests
+      - jest.useFakeTimers() for auto-scroll testing
+
+      **Test Coverage Requirements:**
+      - Unit tests: >80% coverage
+      - Integration tests: All AC scenarios
+      - E2E tests: Critical path + error scenarios
+    </standards>
+
+    <locations>
+      **Backend:**
+      - backend/tests/unit/test_generation_service.py (SSE event generation, citation extraction)
+      - backend/tests/integration/test_generation_streaming.py (streaming endpoint, draft CRUD)
+
+      **Frontend:**
+      - frontend/src/components/generation/__tests__/streaming-draft-view.test.tsx
+      - frontend/src/lib/api/__tests__/streamGeneration.test.ts
+      - frontend/e2e/tests/generation/draft-streaming.spec.ts
+    </locations>
+
+    <ideas>
+      **Backend Unit Tests:**
+      - test_sse_event_formatting: Verify all event types serialize correctly
+      - test_streaming_citation_extraction: Buffered marker detection across chunks
+      - test_draft_model_status_transitions: streaming → complete, streaming → partial
+      - test_error_event_emission: LLM timeout triggers error event
+
+      **Backend Integration Tests:**
+      - test_generate_stream_success: Full SSE event sequence
+      - test_generate_stream_client_disconnect: AbortController cancellation
+      - test_draft_persistence_on_complete: POST /api/v1/drafts
+      - test_draft_list_api: GET /api/v1/drafts filters by KB
+
+      **Frontend Unit Tests:**
+      - test_streaming_content_accumulation: Chunks append to state
+      - test_citation_mapping: [1] → citation data
+      - test_progress_bar_updates: sources → start → chunks → complete
+      - test_auto_scroll_pause: User scroll disables auto-scroll
+      - test_abort_controller_cancellation: Stop button closes EventSource
+
+      **E2E Tests (Playwright):**
+      - test_complete_streaming_flow: Modal → Stream → View → Verify citations
+      - test_cancellation_mid_stream: Stop button → Partial draft saved
+      - test_network_interruption_recovery: Disconnect → Retry → Success
+      - test_partial_draft_reopen: Cancel → Save → Reopen from list
+      - test_performance_first_chunk: Measure time to first content chunk (< 3s)
+    </ideas>
+  </tests>
+</story-context>

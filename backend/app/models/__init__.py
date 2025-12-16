@@ -3,6 +3,7 @@
 from app.models.audit import AuditEvent
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.document import Document, DocumentStatus
+from app.models.draft import Draft, DraftStatus
 from app.models.knowledge_base import KnowledgeBase
 from app.models.outbox import Outbox
 from app.models.permission import KBPermission, PermissionLevel
@@ -18,9 +19,11 @@ __all__ = [
     "KnowledgeBase",
     "KBPermission",
     "Document",
+    "Draft",
     "Outbox",
     "AuditEvent",
     # Enums
     "DocumentStatus",
+    "DraftStatus",
     "PermissionLevel",
 ]

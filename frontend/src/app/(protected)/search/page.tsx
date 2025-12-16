@@ -19,7 +19,8 @@ import { useVerificationStore } from '@/lib/hooks/use-verification';
 import { similarSearch } from '@/lib/api/search';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, FileText } from 'lucide-react';
+import { GenerationModal } from '@/components/generation/generation-modal';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -36,6 +37,7 @@ export default function SearchPage() {
   const [previewCitation, setPreviewCitation] = useState<Citation | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [generationModalOpen, setGenerationModalOpen] = useState(false);
 
   const { addToDraft } = useDraftStore();
   const { isVerifying, currentCitationIndex, verifiedCitations } = useVerificationStore();
@@ -159,6 +161,16 @@ export default function SearchPage() {
     router.push(`/search?${params.toString()}`);
   };
 
+  const handleGenerate = (params: { templateId: string; context: string }) => {
+    // Story 4.9: Navigate to generation page with template and context
+    // This will be wired to the actual generation endpoint in later stories
+    toast.success('Generation started', {
+      description: `Using template: ${params.templateId}`,
+    });
+    console.log('Generation params:', params);
+    // TODO: Wire to /api/v1/generate/stream endpoint (Story 4.5)
+  };
+
   const renderAnswerWithCitations = (text: string) => {
     // Parse text and replace [n] with CitationMarker components
     const parts = text.split(/(\[\d+\])/g);
@@ -235,15 +247,27 @@ export default function SearchPage() {
       <main className="flex-1 overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Search Results</h2>
-          {/* Mobile/Tablet Citations Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="xl:hidden"
-            onClick={() => setCitationsPanelOpen(!citationsPanelOpen)}
-          >
-            Citations ({citations.length})
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Generate Draft Button (Story 4.9) */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setGenerationModalOpen(true)}
+              disabled={!answer}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Draft
+            </Button>
+            {/* Mobile/Tablet Citations Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="xl:hidden"
+              onClick={() => setCitationsPanelOpen(!citationsPanelOpen)}
+            >
+              Citations ({citations.length})
+            </Button>
+          </div>
         </div>
         {query && <p className="text-sm text-gray-600 mb-6">Query: &quot;{query}&quot;</p>}
 
@@ -363,8 +387,15 @@ export default function SearchPage() {
         onOpenDocument={handleOpenDocument}
       />
 
-      {/* Draft Selection Panel (Story 3.8, AC4) */}
-      <DraftSelectionPanel />
+      {/* Draft Selection Panel (Story 3.8, AC4 + Story 4.4, AC6) */}
+      <DraftSelectionPanel kbId={kbIds?.[0] || ''} />
+
+      {/* Generation Modal (Story 4.9) */}
+      <GenerationModal
+        open={generationModalOpen}
+        onClose={() => setGenerationModalOpen(false)}
+        onGenerate={handleGenerate}
+      />
     </div>
   );
 }

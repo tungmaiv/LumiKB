@@ -7,6 +7,7 @@ Provides:
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 from fastapi import (
@@ -25,10 +26,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import UserManager, current_superuser, get_user_manager
 from app.core.database import get_async_session
 from app.core.redis import get_client_ip
+from app.models.audit import AuditEvent
 from app.models.outbox import Outbox
 from app.models.user import User
+from app.schemas.admin import AdminStats
 from app.schemas.common import PaginatedResponse, PaginationMeta
 from app.schemas.user import AdminUserUpdate, UserCreate, UserRead
+from app.services.admin_stats_service import AdminStatsService
 from app.workers.outbox_tasks import MAX_OUTBOX_ATTEMPTS
 
 
@@ -43,7 +47,84 @@ class OutboxStats(BaseModel):
     average_processing_time_ms: float | None
 
 
+class AuditEventResponse(BaseModel):
+    """Single audit event response."""
+
+    id: UUID
+    timestamp: datetime
+    user_id: UUID | None
+    user_email: str | None
+    action: str
+    kb_id: str | None
+    document_type: str | None
+    citation_count: int | None
+    generation_time_ms: int | None
+    success: bool | None
+    error_message: str | None
+    request_id: str | None
+
+
+class AuditMetrics(BaseModel):
+    """Aggregated audit metrics."""
+
+    total_requests: int
+    success_count: int
+    failure_count: int
+    avg_generation_time_ms: float | None
+    total_citations: int
+
+
+class AuditGenerationResponse(BaseModel):
+    """Audit generation query response."""
+
+    events: list[AuditEventResponse]
+    pagination: PaginationMeta
+    metrics: AuditMetrics
+
+
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get(
+    "/stats",
+    response_model=AdminStats,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin (is_superuser=False)"},
+    },
+)
+async def get_admin_stats(
+    _admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminStats:
+    """Get system-wide statistics for admin dashboard.
+
+    Returns comprehensive metrics including:
+    - User counts (total, active, inactive)
+    - Knowledge base counts by status
+    - Document counts by processing status
+    - Storage usage statistics
+    - Search and generation activity (24h, 7d, 30d)
+    - Trend data for sparkline visualization (last 30 days)
+
+    Results cached in Redis for 5 minutes to reduce database load.
+
+    **Permissions:** Requires is_superuser=True (403 for non-admin).
+
+    **Performance:**
+    - < 500ms with Redis cache hit
+    - < 2s on cache miss (DB aggregation)
+
+    Returns:
+        AdminStats: Comprehensive system statistics.
+    """
+    try:
+        service = AdminStatsService(session)
+        return await service.get_dashboard_stats()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @router.get(
@@ -349,3 +430,211 @@ async def get_outbox_stats(
         queue_depth=queue_depth,
         average_processing_time_ms=average_processing_time_ms,
     )
+
+
+@router.get(
+    "/audit/generation",
+    response_model=AuditGenerationResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin (is_superuser=False)"},
+    },
+)
+async def get_generation_audit_logs(
+    _admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session),
+    start_date: datetime | None = Query(None, description="Filter by start date (UTC)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (UTC)"),
+    user_id: UUID | None = Query(None, description="Filter by user ID"),
+    kb_id: UUID | None = Query(None, description="Filter by knowledge base ID"),
+    action_type: Literal[
+        "generation.request",
+        "generation.complete",
+        "generation.failed",
+        "generation.feedback",
+        "document.export",
+    ]
+    | None = Query(None, description="Filter by action type"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(50, ge=1, le=100, description="Items per page (max 100)"),
+) -> AuditGenerationResponse:
+    """Query generation audit logs (admin only).
+
+    Returns audit events with filters, pagination, and aggregated metrics.
+
+    **Permissions:** Requires is_superuser=true (403 for non-admin).
+
+    **Filters:**
+    - start_date: Filter events after this timestamp (UTC)
+    - end_date: Filter events before this timestamp (UTC)
+    - user_id: Filter by user who performed the action
+    - kb_id: Filter by knowledge base ID
+    - action_type: Filter by specific action type
+
+    **Pagination:**
+    - page: Page number (default 1)
+    - per_page: Items per page (default 50, max 100)
+
+    **Response:**
+    - events: List of audit events with user email joined
+    - pagination: Page metadata with accurate total count
+    - metrics: Aggregated metrics (total_requests, success_count, etc.)
+    """
+    try:
+        # Build base query
+        query = select(AuditEvent).where(
+            AuditEvent.action.in_([
+                "generation.request",
+                "generation.complete",
+                "generation.failed",
+                "generation.feedback",
+                "document.export",
+            ])
+        )
+
+        # Apply filters
+        if start_date:
+            query = query.where(AuditEvent.timestamp >= start_date)
+        if end_date:
+            query = query.where(AuditEvent.timestamp <= end_date)
+        if user_id:
+            query = query.where(AuditEvent.user_id == user_id)
+        if kb_id:
+            query = query.where(AuditEvent.details["kb_id"].astext == str(kb_id))
+        if action_type:
+            query = query.where(AuditEvent.action == action_type)
+
+        # Get total count for pagination
+        count_query = select(func.count(AuditEvent.id)).where(
+            AuditEvent.action.in_([
+                "generation.request",
+                "generation.complete",
+                "generation.failed",
+                "generation.feedback",
+                "document.export",
+            ])
+        )
+        if start_date:
+            count_query = count_query.where(AuditEvent.timestamp >= start_date)
+        if end_date:
+            count_query = count_query.where(AuditEvent.timestamp <= end_date)
+        if user_id:
+            count_query = count_query.where(AuditEvent.user_id == user_id)
+        if kb_id:
+            count_query = count_query.where(AuditEvent.details["kb_id"].astext == str(kb_id))
+        if action_type:
+            count_query = count_query.where(AuditEvent.action == action_type)
+
+        total_result = await session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Apply pagination and ordering
+        query = query.order_by(AuditEvent.timestamp.desc())
+        query = query.offset((page - 1) * per_page).limit(per_page)
+
+        # Execute query
+        result = await session.execute(query)
+        events = result.scalars().all()
+
+        # Join user emails
+        user_ids = {event.user_id for event in events if event.user_id}
+        user_emails = {}
+        if user_ids:
+            users_result = await session.execute(
+                select(User.id, User.email).where(User.id.in_(user_ids))
+            )
+            user_emails = dict(users_result.all())
+
+        # Build response events
+        event_responses = []
+        for event in events:
+            details = event.details or {}
+            event_responses.append(
+                AuditEventResponse(
+                    id=event.id,
+                    timestamp=event.timestamp,
+                    user_id=event.user_id,
+                    user_email=user_emails.get(event.user_id) if event.user_id else None,
+                    action=event.action,
+                    kb_id=details.get("kb_id"),
+                    document_type=details.get("document_type"),
+                    citation_count=details.get("citation_count"),
+                    generation_time_ms=details.get("generation_time_ms"),
+                    success=details.get("success"),
+                    error_message=details.get("error_message"),
+                    request_id=details.get("request_id"),
+                )
+            )
+
+        # Calculate aggregated metrics
+        metrics_query = select(AuditEvent).where(
+            AuditEvent.action.in_([
+                "generation.request",
+                "generation.complete",
+                "generation.failed",
+            ])
+        )
+        if start_date:
+            metrics_query = metrics_query.where(AuditEvent.timestamp >= start_date)
+        if end_date:
+            metrics_query = metrics_query.where(AuditEvent.timestamp <= end_date)
+        if user_id:
+            metrics_query = metrics_query.where(AuditEvent.user_id == user_id)
+        if kb_id:
+            metrics_query = metrics_query.where(
+                AuditEvent.details["kb_id"].astext == str(kb_id)
+            )
+
+        metrics_result = await session.execute(metrics_query)
+        all_events = metrics_result.scalars().all()
+
+        total_requests = sum(1 for e in all_events if e.action == "generation.request")
+        success_count = sum(1 for e in all_events if e.action == "generation.complete")
+        failure_count = sum(1 for e in all_events if e.action == "generation.failed")
+
+        generation_times = [
+            e.details.get("generation_time_ms")
+            for e in all_events
+            if e.details
+            and e.details.get("generation_time_ms")
+            and e.action in ["generation.complete", "generation.failed"]
+        ]
+        avg_generation_time_ms = (
+            sum(generation_times) / len(generation_times) if generation_times else None
+        )
+
+        total_citations = sum(
+            e.details.get("citation_count", 0)
+            for e in all_events
+            if e.details and e.action == "generation.complete"
+        )
+
+        # Calculate total_pages
+        total_pages = (total + per_page - 1) // per_page if per_page > 0 else 1
+
+        return AuditGenerationResponse(
+            events=event_responses,
+            pagination=PaginationMeta(
+                page=page,
+                per_page=per_page,
+                total=total,
+                total_pages=total_pages,
+            ),
+            metrics=AuditMetrics(
+                total_requests=total_requests,
+                success_count=success_count,
+                failure_count=failure_count,
+                avg_generation_time_ms=avg_generation_time_ms,
+                total_citations=total_citations,
+            ),
+        )
+
+    except Exception as e:
+        # Log the actual error for debugging
+        import traceback
+        print(f"Error in get_generation_audit_logs: {type(e).__name__}: {str(e)}")
+        print(f"Traceback:\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve audit logs: {type(e).__name__}: {str(e)}",
+        ) from e

@@ -1,0 +1,246 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>1</storyId>
+    <title>Chat Conversation Backend</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-1-chat-conversation-backend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with access to a Knowledge Base</asA>
+    <iWant>to have multi-turn conversations with my Knowledge Base using natural language</iWant>
+    <soThat>I can explore topics in depth through contextual follow-up questions and get answers grounded in my documents</soThat>
+    <tasks>
+      <task id="1" title="Create ConversationService">
+        <subtask>Create backend/app/services/conversation_service.py</subtask>
+        <subtask>Implement send_message() with RAG retrieval, history management, response generation</subtask>
+        <subtask>Implement get_history() to retrieve from Redis</subtask>
+        <subtask>Implement append_to_history() to store in Redis with 24h TTL</subtask>
+        <subtask>Implement build_prompt() for context window management</subtask>
+        <subtask>Implement token counting and conversation_id generation</subtask>
+      </task>
+      <task id="2" title="Create Chat API Endpoint">
+        <subtask>Create backend/app/api/v1/chat.py</subtask>
+        <subtask>Implement POST /chat endpoint with permission checks</subtask>
+        <subtask>Integrate conversation_service.send_message()</subtask>
+        <subtask>Add router to main.py</subtask>
+      </task>
+      <task id="3" title="Create Pydantic Schemas">
+        <subtask>Create backend/app/schemas/chat.py with ChatRequest, ChatResponse, Citation</subtask>
+      </task>
+      <task id="4" title="Redis Integration">
+        <subtask>Verify backend/app/core/redis.py has async client</subtask>
+        <subtask>Test Redis set/get with TTL</subtask>
+      </task>
+      <task id="5" title="Error Handling">
+        <subtask>Implement NoDocumentsError in exceptions.py</subtask>
+        <subtask>Handle empty message validation, LLM failure, Redis unavailable, invalid conversation_id</subtask>
+      </task>
+      <task id="6" title="Audit Logging">
+        <subtask>Integrate AuditService in chat endpoint</subtask>
+        <subtask>Log chat.message action with metadata</subtask>
+      </task>
+      <task id="7" title="Unit Tests">
+        <subtask>Create backend/tests/unit/test_conversation_service.py with 8+ tests</subtask>
+      </task>
+      <task id="8" title="Integration Tests">
+        <subtask>Create backend/tests/integration/test_chat_api.py with 5+ tests</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" title="Single-Turn Conversation">
+      POST /api/v1/chat performs RAG retrieval and generates response with citations. Response includes answer text with inline [n] markers, citations array mapping markers to source chunks, confidence score (0-1), and conversation_id. Conversation stored in Redis with key conversation:{session_id}:{kb_id} and 24-hour TTL.
+    </criterion>
+    <criterion id="AC2" title="Multi-Turn Conversation with Context">
+      Follow-up messages with conversation_id retrieve history from Redis and include previous messages as context for RAG retrieval. Answer is contextually aware of conversation history without requiring user to repeat context.
+    </criterion>
+    <criterion id="AC3" title="Context Window Management">
+      System manages context window by retrieving last N messages from Redis, counting tokens for history and retrieved chunks, truncating history if combined tokens exceed MAX_CONTEXT limit, prioritizing recent messages over old messages.
+    </criterion>
+    <criterion id="AC4" title="Conversation Storage in Redis">
+      Conversations stored in Redis with key conversation:{session_id}:{kb_id}, JSON array of messages with role/content/timestamp, 24-hour TTL, KB-scoped (different KB = different conversation), session-scoped (logout/expire clears history).
+    </criterion>
+    <criterion id="AC5" title="Permission Enforcement">
+      Permission check on every chat request. Returns 404 Not Found (not 403) for unauthorized access. Permission changes take effect immediately.
+    </criterion>
+    <criterion id="AC6" title="Error Handling and Edge Cases">
+      NO_DOCUMENTS_INDEXED error for KB with no documents. 400 Bad Request for empty message. LLM failure preserves last valid conversation state. Redis unavailable falls back to stateless mode. Invalid conversation_id starts fresh conversation.
+    </criterion>
+    <criterion id="AC7" title="Audit Logging">
+      Every chat message logged to audit.events table with action='chat.message', metadata (message_length, response_length, citation_count, confidence, response_time_ms), async write (non-blocking), failed attempts logged with success=false.
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification</title>
+        <section>Story 4.1: Chat Conversation Backend</section>
+        <snippet>ConversationService manages multi-turn RAG conversations with Redis storage (24h TTL), context window management (MAX_CONTEXT_TOKENS=6000), and citation preservation through inline [n] markers.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Technical Decisions</title>
+        <section>TD-001: Conversation Storage (Redis vs PostgreSQL)</section>
+        <snippet>Decision: Use Redis for conversation session storage. Rationale: Sub-millisecond read latency, ephemeral (session-scoped), simple key expiry. Key structure: conversation:{session_id}:{kb_id}, TTL: 24 hours.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Technical Approach</title>
+        <section>Context Window Management Algorithm</section>
+        <snippet>build_prompt() counts tokens for chunks and history, includes last 10 messages up to MAX_CONTEXT_TOKENS (6000), truncates old messages first (FIFO), prioritizes recent messages. Token estimate: 1 token ≈ 4 chars.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Citation Assembly System</section>
+        <snippet>LLM Response includes inline [1], [2] citation markers. CitationService extracts markers and maps to source chunks with full metadata (document_id, document_name, page, section, excerpt, confidence). This is THE CORE DIFFERENTIATOR.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Data Stores</title>
+        <section>Redis Configuration</section>
+        <snippet>Redis ≥7.0.0 for sessions, queue, cache. redis-py ≥7.1.0 (requires Python ≥3.11). Async API: redis.asyncio module. Shared instance for Celery and session management.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>service</kind>
+        <symbol>SearchService</symbol>
+        <lines>58-200</lines>
+        <reason>Reuse SearchService.search() for RAG retrieval (Epic 3). Returns SearchResultSchema chunks with rich metadata for citation mapping.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/citation_service.py</path>
+        <kind>service</kind>
+        <symbol>CitationService</symbol>
+        <lines>16-150</lines>
+        <reason>Reuse CitationService.extract_citations() from Epic 3. Extracts [n] markers from LLM output and maps to source chunks with full metadata. THE CORE DIFFERENTIATOR.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/core/redis.py</path>
+        <kind>client</kind>
+        <symbol>RedisClient</symbol>
+        <lines>30-65</lines>
+        <reason>Existing Redis client with async support. Use RedisClient.get_client() for conversation storage. Already configured with redis.asyncio and decode_responses=True.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/core/redis.py</path>
+        <kind>store</kind>
+        <symbol>RedisSessionStore</symbol>
+        <lines>67-190</lines>
+        <reason>Existing session store pattern for Redis operations. Reference for implementing conversation history storage with TTL using setex() and JSON serialization.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService</symbol>
+        <lines>1-100</lines>
+        <reason>Reuse AuditService from Epic 1 for logging chat.message actions. Async logging with metadata (user_id, action, resource_type, resource_id, details).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/search.py</path>
+        <kind>schema</kind>
+        <symbol>SearchResultSchema</symbol>
+        <lines>1-50</lines>
+        <reason>Existing schema for search results. ConversationService will receive SearchResultSchema chunks from SearchService for RAG context.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/citation.py</path>
+        <kind>schema</kind>
+        <symbol>Citation</symbol>
+        <lines>1-50</lines>
+        <reason>Existing Citation schema from Epic 3. Reuse for ChatResponse citations. Includes number, document_id, document_name, page, section, excerpt, char_start, char_end, confidence.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.115.0,&lt;1.0.0">Web framework for chat API endpoint</package>
+        <package name="sqlalchemy" version=">=2.0.44,&lt;3.0.0">ORM for database operations</package>
+        <package name="pydantic" version=">=2.7.0,&lt;3.0.0">Request/response validation (ChatRequest, ChatResponse)</package>
+        <package name="redis" version=">=7.1.0,&lt;8.0.0">Redis client for conversation storage (requires Python 3.11)</package>
+        <package name="litellm" version=">=1.50.0,&lt;2.0.0">LLM client for response generation</package>
+        <package name="structlog" version=">=25.5.0,&lt;26.0.0">Structured logging</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Redis key structure: conversation:{session_id}:{kb_id} with 24-hour TTL</constraint>
+    <constraint>Context window: MAX_CONTEXT_TOKENS=6000 (reserve 2000 for response)</constraint>
+    <constraint>History limit: MAX_HISTORY_MESSAGES=10 (last 10 message pairs)</constraint>
+    <constraint>Token allocation: System prompt (~100), History (max ~2000), Retrieved context (~2000), Reserve (~2000)</constraint>
+    <constraint>Permission check required on EVERY chat request (not just conversation start)</constraint>
+    <constraint>Return 404 Not Found (not 403) for unauthorized KB access to avoid leaking existence</constraint>
+    <constraint>Audit logging must be async (non-blocking) and never fail chat response</constraint>
+    <constraint>Citations required: Every factual claim must use [n] notation</constraint>
+    <constraint>Conversation ID format: conv-{uuid4}</constraint>
+    <constraint>Error handling: Preserve last valid conversation state on LLM failure</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>SearchService.search()</name>
+      <kind>method</kind>
+      <signature>async def search(query: str, kb_ids: list[str] | None, user_id: str, limit: int = 10) -> SearchResponse</signature>
+      <path>backend/app/services/search_service.py</path>
+    </interface>
+    <interface>
+      <name>CitationService.extract_citations()</name>
+      <kind>method</kind>
+      <signature>def extract_citations(answer: str, source_chunks: list[SearchResultSchema]) -> tuple[str, list[Citation]]</signature>
+      <path>backend/app/services/citation_service.py</path>
+    </interface>
+    <interface>
+      <name>RedisClient.get_client()</name>
+      <kind>method</kind>
+      <signature>async def get_client() -> redis.Redis</signature>
+      <path>backend/app/core/redis.py</path>
+    </interface>
+    <interface>
+      <name>AuditService.log()</name>
+      <kind>method</kind>
+      <signature>async def log(user_id: str, action: str, resource_type: str, resource_id: str, details: dict)</signature>
+      <path>backend/app/services/audit_service.py</path>
+    </interface>
+    <interface>
+      <name>POST /api/v1/chat</name>
+      <kind>REST endpoint</kind>
+      <signature>Request: {"kb_id": str, "message": str, "conversation_id": str | None} -> Response: {"answer": str, "citations": list[Citation], "confidence": float, "conversation_id": str}</signature>
+      <path>backend/app/api/v1/chat.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use pytest with async fixtures. Integration tests use TestClient with test database. Follow existing patterns from Epic 3 tests (test_search_service.py, test_citation_service.py). Use mocks for external dependencies (Redis, LLM client). Assert on both happy path and error cases.
+    </standards>
+    <locations>
+      backend/tests/unit/test_conversation_service.py
+      backend/tests/integration/test_chat_api.py
+    </locations>
+    <ideas>
+      <test ac="AC1">test_send_message_creates_conversation: Verify first message creates conversation in Redis</test>
+      <test ac="AC2">test_send_message_appends_to_history: Verify follow-up message includes previous context</test>
+      <test ac="AC3">test_build_prompt_truncates_history: Create 20-message history, verify only recent messages included</test>
+      <test ac="AC3">test_build_prompt_prioritizes_recent: Verify most recent message always included even at token limit</test>
+      <test ac="AC4">test_redis_storage_with_ttl: Verify conversation stored with 24h TTL</test>
+      <test ac="AC4">test_kb_scoped_conversations: Verify different KBs have separate conversation keys</test>
+      <test ac="AC5">test_chat_permission_check: Verify 404 returned for unauthorized KB</test>
+      <test ac="AC5">test_permission_revoked_blocks_access: Revoke permission mid-conversation, verify access denied</test>
+      <test ac="AC6">test_no_documents_error: Verify clear error message for empty KB</test>
+      <test ac="AC6">test_empty_message_validation: Verify 400 for message=""</test>
+      <test ac="AC6">test_llm_failure_preserves_state: Simulate LLM error, verify conversation not corrupted</test>
+      <test ac="AC6">test_redis_unavailable_fallback: Mock Redis failure, verify stateless response attempted</test>
+      <test ac="AC7">test_audit_logging_success: Verify chat.message logged with metadata on success</test>
+      <test ac="AC7">test_audit_logging_failure: Verify chat.message logged with success=false on error</test>
+    </ideas>
+  </tests>
+</story-context>

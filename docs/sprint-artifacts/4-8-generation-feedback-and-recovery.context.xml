@@ -1,0 +1,413 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.8</storyId>
+    <title>Generation Feedback and Recovery</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-8-generation-feedback-and-recovery.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user who generated a document draft that doesn't meet my needs</asA>
+    <iWant>to provide feedback on what went wrong and receive recovery suggestions</iWant>
+    <soThat>I can quickly regenerate a better draft without starting over from scratch</soThat>
+    <tasks>
+### Backend Tasks
+
+- Create FeedbackService (backend/app/services/feedback_service.py)
+  - `suggest_alternatives(feedback_type: str) -> List[Alternative]` method
+  - Alternative mapping logic per feedback type
+  - Regeneration context builder (append feedback to prompt)
+  - Source retrieval strategy selector
+  - Unit tests for alternative suggestions (8 tests)
+
+- Implement feedback API endpoint (backend/app/api/v1/drafts.py)
+  - POST /api/v1/drafts/{draft_id}/feedback endpoint
+  - Accept FeedbackRequest schema (type, comments)
+  - Validate feedback type (not_relevant, wrong_format, etc.)
+  - Call FeedbackService.suggest_alternatives()
+  - Return AlternativeResponse with suggested actions
+  - Permission check: user must have READ on KB
+  - Log feedback to audit.events (AC6)
+
+- Add feedback schemas (backend/app/schemas/draft.py)
+  - FeedbackRequest schema (type, comments validation)
+  - Alternative schema (type, description, action)
+  - AlternativeResponse schema (alternatives list)
+
+- Enhance GenerationService for feedback-based regeneration
+  - Modify `generate()` to accept optional feedback parameter
+  - Append feedback instructions to system prompt
+  - Implement source retrieval strategies (NEW sources, reuse, add chunks, filter by confidence)
+  - Link previous draft in metadata (previous_draft_id)
+  - Unit tests for feedback-enhanced generation (6 tests)
+
+- Implement error recovery logic (backend/app/services/generation_service.py)
+  - Wrap generation in try/except with error type detection
+  - Map errors to recovery actions (LLMTimeout, RateLimitError, InsufficientSources)
+  - Return error response with recovery options
+  - Unit tests for error recovery (4 tests)
+
+### Frontend Tasks
+
+- Create feedback UI components
+  - FeedbackModal component (feedback type selection)
+  - RecoveryModal component (alternative suggestions)
+  - ErrorRecoveryDialog component (error recovery options)
+  - Feedback category radio buttons with descriptions
+  - "Other issue" text area (500 char limit)
+  - Unit tests for components (8 tests - deferred to Epic 5)
+
+- Implement feedback flow (frontend/src/hooks/useFeedback.ts)
+  - useFeedback hook for feedback submission
+  - Feedback type state, comments state
+  - POST /api/v1/drafts/{id}/feedback API call
+  - Alternative suggestions state
+  - Loading states + error handling
+  - Unit tests for hook (6 tests - deferred to Epic 5)
+
+- Add "This doesn't look right" button to DraftEditor (AC1)
+  - Button in toolbar (left of Export)
+  - Warning icon + text label
+  - Click opens FeedbackModal
+  - Disabled states during feedback submission
+  - Visible only when status ∈ {complete, editing}
+
+- Implement regeneration flow
+  - "Regenerate with feedback" action handler
+  - Append feedback to generation context
+  - Trigger POST /api/v1/generate with feedback object
+  - Navigate to streaming generation view
+  - Link previous draft in UI (breadcrumb)
+
+- Implement error recovery UI (AC5)
+  - ErrorRecoveryDialog component
+  - Retry button, Choose template button, Search button
+  - Error message display (sanitized)
+
+### Testing Tasks
+
+- Unit tests - Backend (18 tests)
+  - FeedbackService.suggest_alternatives() (5 tests: each feedback type)
+  - Feedback context builder (3 tests: append to prompt)
+  - Source retrieval strategies (4 tests: NEW, reuse, add, filter)
+  - Error recovery logic (4 tests: timeout, rate limit, insufficient sources, unknown)
+  - Regeneration with feedback (2 tests: feedback applied, draft linked)
+  - Test file: backend/tests/unit/test_feedback_service.py
+
+- Integration tests - Backend (8 tests - deferred to Epic 5)
+- Unit tests - Frontend (14 tests - deferred to Epic 5)
+- E2E tests (Playwright) (6 tests - deferred to Epic 5)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC1: Feedback Button Visibility
+- Button visible when draft status ∈ {complete, editing}
+- Button disabled when status ∈ {streaming, failed}
+- Positioned near Export button, styled as secondary/outline
+- Includes warning icon (⚠️)
+
+### AC2: Feedback Modal with Category Selection
+- Modal displays 5 feedback categories (not_relevant, wrong_format, needs_more_detail, low_confidence, other)
+- Radio buttons enforce single selection
+- Each category shows descriptive subtext
+- "Other issue" enables text area (500 char limit) when selected
+- Submit button disabled until category selected
+
+### AC3: Alternative Suggestions Based on Feedback
+- Recovery modal shows suggested alternatives after feedback submission
+- Alternatives match feedback type
+- 3 alternatives shown (max)
+- Action buttons functional
+- "Start fresh" always available
+
+### AC4: Regeneration with Feedback Context
+- Generation request includes feedback context
+- Feedback appended to system prompt
+- Source retrieval strategy changes based on type (NEW, reuse, add chunks, filter)
+- Draft history linked (previous_draft_id)
+
+### AC5: Error Recovery Options
+- Error modal appears when generation fails
+- 3 recovery options shown (Retry, Use template, Search more)
+- Actions match error type
+- Error message displayed (sanitized)
+- Retry triggers new generation attempt
+
+### AC6: Feedback Audit Logging
+- Every feedback submission creates 1 audit event
+- Audit event contains: user_id, action, resource_type, resource_id, details, timestamp
+- Content is NOT logged (privacy)
+- Metadata is logged (analysis)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR42: Document Generation with Feedback</section>
+        <snippet>FR42: Users can regenerate content with modified instructions. FR42c: Users can provide feedback on generation quality via "This doesn't look right" button. Generation feedback helps users recover from poor outputs and improves system learning.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Technical Specification - Epic 4 (Chat & Document Generation)</title>
+        <section>Story 4.8: Generation Feedback and Recovery (Lines 1063-1206)</section>
+        <snippet>Implements feedback API (POST /api/v1/generate/feedback) with alternative suggestions based on feedback type (not_relevant, wrong_format, needs_more_detail, low_confidence). Includes FeedbackModal, RecoveryModal, and error recovery patterns. Feedback logged to audit.events for analysis.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Service Layer Patterns</section>
+        <snippet>Service layer follows dependency injection pattern with async/await. Services use SQLAlchemy 2.0 async sessions. All services implement logging via structlog. Citation-first architecture ensures every AI-generated statement traces back to source documents.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/4-7-document-export.md</path>
+        <title>Story 4.7: Document Export (Learnings)</title>
+        <section>Dev Notes - Learnings</section>
+        <snippet>Fix all linting errors BEFORE marking story complete. Move imports to file top. Use session storage for UI state persistence. Sanitize error messages before displaying to user. Focus on unit tests first, defer integration/E2E to Epic 5.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/4-6-draft-editing.md</path>
+        <title>Story 4.6: Draft Editing (Learnings)</title>
+        <section>Dev Notes - Draft Model Patterns</section>
+        <snippet>Draft status field controls UI visibility (complete, editing, failed). Permission checks always verify KB permissions before operations. Use deep equality for state comparisons to prevent excessive re-renders. XSS protection: sanitize user input if rendering HTML.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/models/draft.py</path>
+        <kind>model</kind>
+        <symbol>Draft, DraftStatus</symbol>
+        <lines>1-92</lines>
+        <reason>Draft model with status enum (streaming, partial, complete, editing, exported). Essential for understanding draft lifecycle and status-based UI behavior.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/draft.py</path>
+        <kind>schema</kind>
+        <symbol>DraftResponse, DraftUpdate, RegenerateRequest</symbol>
+        <lines>1-225</lines>
+        <reason>Existing draft schemas. Story 4.8 adds FeedbackRequest, Alternative, AlternativeResponse schemas to this file.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/generation_service.py</path>
+        <kind>service</kind>
+        <symbol>GenerationService, InsufficientSourcesError</symbol>
+        <lines>1-100</lines>
+        <reason>Existing generation service. Story 4.8 enhances with feedback-based regeneration, error recovery logic, and source retrieval strategies.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService</symbol>
+        <lines>all</lines>
+        <reason>Audit service for logging feedback events (AC6). Logs user_id, action, resource_type, resource_id, details, timestamp.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/citation_service.py</path>
+        <kind>service</kind>
+        <symbol>CitationService</symbol>
+        <lines>all</lines>
+        <reason>Citation extraction from LLM responses. Used in generation service for progressive citation extraction during streaming.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/template_registry.py</path>
+        <kind>service</kind>
+        <symbol>TemplateRegistry, GenerationMode</symbol>
+        <lines>all</lines>
+        <reason>Template registry for document generation modes (rfp_response, checklist, gap_analysis). Used in feedback-enhanced generation.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/generation/draft-editor.tsx</path>
+        <kind>component</kind>
+        <symbol>DraftEditor</symbol>
+        <lines>all</lines>
+        <reason>Existing draft editor component. Story 4.8 adds "This doesn't look right" button and integrates FeedbackModal.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/generation/export-modal.tsx</path>
+        <kind>component</kind>
+        <symbol>ExportModal</symbol>
+        <lines>all</lines>
+        <reason>Reference for modal patterns, button placement, and session storage for UI state (verification prompt pattern).</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/hooks/useExport.ts</path>
+        <kind>hook</kind>
+        <symbol>useExport</symbol>
+        <lines>all</lines>
+        <reason>Reference for custom hook patterns with loading states, error handling, and API calls. Similar pattern needed for useFeedback hook.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/ui/radio-group.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>RadioGroup, RadioGroupItem</symbol>
+        <lines>all</lines>
+        <reason>Radix UI radio group component for feedback type selection (AC2). Already installed via @radix-ui/react-radio-group.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0,<1.0.0" reason="REST API framework" />
+        <package name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" reason="Database ORM with async support" />
+        <package name="pydantic" version=">=2.7.0,<3.0.0" reason="Schema validation (FeedbackRequest, Alternative)" />
+        <package name="structlog" version=">=25.5.0,<26.0.0" reason="Structured logging for feedback events" />
+        <package name="pytest" version=">=8.0.0" reason="Unit testing framework" />
+        <package name="pytest-asyncio" version=">=0.24.0" reason="Async test support" />
+      </backend>
+      <frontend>
+        <package name="react" version="19.2.0" reason="UI framework" />
+        <package name="next" version="16.0.3" reason="React framework with App Router" />
+        <package name="@radix-ui/react-radio-group" version="^1.3.8" reason="Radio group for feedback type selection (AC2)" />
+        <package name="@radix-ui/react-dialog" version="^1.1.15" reason="Modal dialogs for FeedbackModal and RecoveryModal" />
+        <package name="lucide-react" version="^0.554.0" reason="Icons (warning icon for feedback button)" />
+        <package name="zustand" version="^5.0.8" reason="State management (optional for feedback state)" />
+        <package name="vitest" version="^4.0.13" reason="Unit testing framework (deferred to Epic 5)" />
+        <package name="@playwright/test" version="^1.56.1" reason="E2E testing framework (deferred to Epic 5)" />
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="service-layer">All business logic in service layer. Controllers only route and validate input.</constraint>
+    <constraint type="async-pattern">Use async/await for all database and LLM operations. Services accept AsyncSession.</constraint>
+    <constraint type="error-handling">Sanitize all error messages before returning to client. Never expose internal stack traces or system paths.</constraint>
+    <constraint type="audit-logging">Every feedback submission MUST create audit event. Log metadata only, never full content (privacy).</constraint>
+    <constraint type="schema-validation">Use Pydantic for all request/response schemas. Validate feedback_type enum values.</constraint>
+    <constraint type="permission-checks">Verify user has READ permission on KB before processing feedback.</constraint>
+    <constraint type="linting">Fix all ruff/eslint errors BEFORE marking story complete. Zero tolerance for linting warnings.</constraint>
+    <constraint type="import-organization">Imports at top of file. No forward references or circular imports.</constraint>
+    <constraint type="testing-priority">Unit tests first (18 backend tests required). Integration/E2E deferred to Epic 5.</constraint>
+    <constraint type="ui-state-persistence">Use session storage for transient UI state (modal visibility, verification prompts).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/drafts/{draft_id}/feedback</name>
+      <kind>REST endpoint</kind>
+      <signature>
+POST /api/v1/drafts/{draft_id}/feedback
+Request Body: FeedbackRequest {feedback_type: str, comments: str | None}
+Response: AlternativeResponse {alternatives: List[Alternative]}
+Auth: Bearer token required
+Permissions: READ on draft's KB
+      </signature>
+      <path>backend/app/api/v1/drafts.py</path>
+    </interface>
+    <interface>
+      <name>FeedbackService.suggest_alternatives</name>
+      <kind>service method</kind>
+      <signature>
+async def suggest_alternatives(
+    self,
+    feedback_type: str  # "not_relevant" | "wrong_format" | "needs_more_detail" | "low_confidence" | "other"
+) -> List[Alternative]
+      </signature>
+      <path>backend/app/services/feedback_service.py</path>
+    </interface>
+    <interface>
+      <name>FeedbackService.build_regeneration_context</name>
+      <kind>service method</kind>
+      <signature>
+def build_regeneration_context(
+    self,
+    original_context: str,
+    feedback_type: str,
+    comments: str | None = None
+) -> str
+      </signature>
+      <path>backend/app/services/feedback_service.py</path>
+    </interface>
+    <interface>
+      <name>GenerationService.generate (enhanced)</name>
+      <kind>service method</kind>
+      <signature>
+async def generate(
+    self,
+    kb_id: str,
+    document_type: str,
+    context: str,
+    selected_sources: Optional[List[str]] = None,
+    feedback: Optional[Dict[str, Any]] = None  # NEW: {type, comments, previous_draft_id}
+) -> Draft
+      </signature>
+      <path>backend/app/services/generation_service.py</path>
+    </interface>
+    <interface>
+      <name>FeedbackModal component</name>
+      <kind>React component</kind>
+      <signature>
+export function FeedbackModal({
+  draft: Draft,
+  onClose: () => void,
+  onAlternative: (alternatives: Alternative[]) => void
+}: Props)
+      </signature>
+      <path>frontend/src/components/generation/feedback-modal.tsx</path>
+    </interface>
+    <interface>
+      <name>useFeedback hook</name>
+      <kind>React hook</kind>
+      <signature>
+export function useFeedback(draftId: string) {
+  return {
+    handleSubmit: (feedbackType: FeedbackType, comments?: string) => Promise<boolean>,
+    isSubmitting: boolean,
+    alternatives: Alternative[],
+    error: string | null
+  }
+}
+      </signature>
+      <path>frontend/src/hooks/useFeedback.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Backend testing: pytest with pytest-asyncio for async tests. Use factories for test data (backend/tests/factories/). Mock external dependencies (LLM, Qdrant). Focus on service layer unit tests.
+
+Frontend testing: Vitest for unit tests, Playwright for E2E. Mock API calls with msw. Test user interactions and state management. Component tests verify rendering and event handling.
+
+Test coverage: Unit tests required for Story 4.8 (18 backend tests). Integration and E2E tests deferred to Epic 5 per technical debt tracking (TD-4.8-2, TD-4.8-3).
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_feedback_service.py</location>
+      <location>backend/tests/integration/test_feedback_api.py (deferred to Epic 5)</location>
+      <location>frontend/src/hooks/__tests__/useFeedback.test.ts (deferred to Epic 5)</location>
+      <location>frontend/e2e/tests/feedback-recovery.spec.ts (deferred to Epic 5)</location>
+    </locations>
+    <ideas>
+      <test ac="AC1">
+        <description>Test feedback button visibility based on draft status</description>
+        <approach>Unit test: Render DraftEditor with different status values. Assert button visible when status=complete/editing, disabled when status=streaming/failed.</approach>
+      </test>
+      <test ac="AC2">
+        <description>Test feedback modal category selection</description>
+        <approach>Unit test: Render FeedbackModal. Verify 5 radio options present. Test "other" enables text area. Test submit disabled until selection.</approach>
+      </test>
+      <test ac="AC3">
+        <description>Test FeedbackService.suggest_alternatives for each feedback type</description>
+        <approach>Unit test (5 tests): Call suggest_alternatives with each type (not_relevant, wrong_format, needs_more_detail, low_confidence, other). Assert 3 alternatives returned with correct types.</approach>
+      </test>
+      <test ac="AC4">
+        <description>Test regeneration context builder appends feedback instructions</description>
+        <approach>Unit test (3 tests): Call build_regeneration_context with different feedback types. Assert enhanced context includes feedback-specific instructions.</approach>
+      </test>
+      <test ac="AC4">
+        <description>Test source retrieval strategies based on feedback type</description>
+        <approach>Unit test (4 tests): Mock SearchService. Call GenerationService.generate with feedback={type: X}. Assert correct retrieval strategy (NEW, reuse, add chunks, filter).</approach>
+      </test>
+      <test ac="AC5">
+        <description>Test error recovery logic maps errors to alternatives</description>
+        <approach>Unit test (4 tests): Simulate LLMTimeout, RateLimitError, InsufficientSources, Unknown error. Assert correct recovery alternatives returned.</approach>
+      </test>
+      <test ac="AC6">
+        <description>Test feedback audit logging</description>
+        <approach>Integration test (deferred): POST /drafts/{id}/feedback. Query audit.events table. Assert event created with correct fields (user_id, action, details). Assert content NOT logged.</approach>
+      </test>
+    </ideas>
+  </tests>
+</story-context>

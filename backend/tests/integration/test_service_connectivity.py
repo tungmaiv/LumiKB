@@ -179,9 +179,9 @@ class TestDataPersistence:
                 # Tables from Story 1.2 migrations should exist
                 expected_tables = ["users", "knowledge_bases", "documents"]
                 for table in expected_tables:
-                    assert (
-                        table in tables
-                    ), f"Table {table} not found, data may not have persisted"
+                    assert table in tables, (
+                        f"Table {table} not found, data may not have persisted"
+                    )
         finally:
             await engine.dispose()
 
@@ -196,8 +196,8 @@ class TestDataPersistence:
         try:
             # Check if appendonly is enabled
             config = await client.config_get("appendonly")
-            assert (
-                config.get("appendonly") == "yes"
-            ), "Redis AOF persistence not enabled"
+            assert config.get("appendonly") == "yes", (
+                "Redis AOF persistence not enabled"
+            )
         finally:
             await client.aclose()

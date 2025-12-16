@@ -1,0 +1,854 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <story-metadata>
+    <id>5-1</id>
+    <title>Admin Dashboard Overview</title>
+    <epic>Epic 5: Administration &amp; Polish</epic>
+    <created>2025-12-02</created>
+    <status>ready-for-dev</status>
+  </story-metadata>
+
+  <!-- ================================================================ -->
+  <!-- STRATEGIC CONTEXT -->
+  <!-- ================================================================ -->
+  <strategic-context>
+    <prd-alignment>
+      <requirement id="FR47" priority="high">
+        <description>Admin dashboard with system-wide statistics</description>
+        <rationale>Enable administrators to monitor system health, usage patterns, and capacity planning through aggregated metrics</rationale>
+      </requirement>
+    </prd-alignment>
+
+    <architectural-principles>
+      <principle id="ARCH-CACHING">
+        <name>Performance through Caching</name>
+        <guidance>Use Redis caching with 5-minute TTL for expensive aggregate queries. Fall back to direct DB queries if Redis unavailable.</guidance>
+      </principle>
+      <principle id="ARCH-ADMIN-SECURITY">
+        <name>Admin Role Enforcement</name>
+        <guidance>All /api/v1/admin/* endpoints require is_superuser=True check via FastAPI dependency injection (current_superuser)</guidance>
+      </principle>
+      <principle id="ARCH-OBSERVABILITY">
+        <name>Metrics &amp; Monitoring</name>
+        <guidance>Expose Prometheus metrics for admin dashboard requests: admin_stats_requests_total, admin_stats_cache_hits, admin_stats_duration_seconds</guidance>
+      </principle>
+    </architectural-principles>
+
+    <user-journey>
+      <step n="1">Admin logs into LumiKB with superuser credentials</step>
+      <step n="2">Navigates to /admin route from main navigation or direct URL</step>
+      <step n="3">Views dashboard with system statistics: users (total, active), KBs, documents, storage</step>
+      <step n="4">Reviews activity metrics: search queries and generation requests (24h, 7d, 30d)</step>
+      <step n="5">Examines sparkline charts showing trends for searches and generations over 30 days</step>
+      <step n="6">Clicks on specific metrics to drill down into detailed views (future stories)</step>
+    </user-journey>
+
+    <business-value>
+      <outcome>Administrators gain visibility into system health and usage patterns</outcome>
+      <outcome>Data-driven capacity planning enabled through historical trend analysis</outcome>
+      <outcome>Quick identification of usage anomalies or performance degradation</outcome>
+      <metric>Dashboard load time &lt; 500ms with Redis caching</metric>
+      <metric>Support 100+ concurrent admin users viewing dashboard</metric>
+    </business-value>
+  </strategic-context>
+
+  <!-- ================================================================ -->
+  <!-- TECHNICAL SPECIFICATION SUMMARY -->
+  <!-- ================================================================ -->
+  <technical-spec-summary>
+    <epic-context>
+      <epic-id>epic-5</epic-id>
+      <epic-title>Administration &amp; Polish</epic-title>
+      <tech-spec-reference>docs/sprint-artifacts/tech-spec-epic-5.md</tech-spec-reference>
+
+      <key-technical-decisions>
+        <decision id="TECH-5.1-CACHE">
+          <what>Use Redis for 5-minute stats caching</what>
+          <why>Admin dashboard stats involve expensive aggregate queries across users, KBs, documents, and audit tables. Caching reduces DB load.</why>
+          <how>AdminStatsService._get_cached_stats() checks Redis first, falls back to DB aggregation on cache miss, then stores result with 300s TTL</how>
+        </decision>
+
+        <decision id="TECH-5.1-SPARKLINES">
+          <what>Recharts library for sparkline visualizations</what>
+          <why>Lightweight, React-compatible charting library with good TypeScript support. Sparklines show 30-day trend data compactly.</why>
+          <how>AdminDashboardPage renders Recharts LineChart components with 30-day aggregated data from backend</how>
+        </decision>
+
+        <decision id="TECH-5.1-INDEXES">
+          <what>Database query optimization via indexed columns</what>
+          <why>Aggregate queries on users, knowledge_bases, documents, audit.events tables must complete &lt; 200ms</why>
+          <how>Use existing indexes: users.last_active, knowledge_bases.status, documents.processing_status, audit.events.timestamp, audit.events.action</how>
+        </decision>
+      </key-technical-decisions>
+    </epic-context>
+
+    <story-scope>
+      <in-scope>
+        <item>Backend: GET /api/v1/admin/stats endpoint</item>
+        <item>Backend: AdminStatsService for aggregating system-wide metrics</item>
+        <item>Backend: Redis caching layer with 5-minute TTL</item>
+        <item>Backend: Admin role authorization (current_superuser dependency)</item>
+        <item>Frontend: /app/(protected)/admin/page.tsx route</item>
+        <item>Frontend: AdminDashboardPage component with metric cards</item>
+        <item>Frontend: Sparkline charts using recharts library</item>
+        <item>Frontend: Loading states and error handling</item>
+      </in-scope>
+
+      <out-of-scope>
+        <item>Real-time metrics via WebSocket (deferred to future epic)</item>
+        <item>Drill-down detail views for metrics (covered in Stories 5.2-5.6)</item>
+        <item>Excel export of dashboard stats (not required by AC)</item>
+        <item>Custom date range selection (use fixed 24h/7d/30d periods)</item>
+        <item>User activity heatmaps (future enhancement)</item>
+      </out-of-scope>
+    </story-scope>
+  </technical-spec-summary>
+
+  <!-- ================================================================ -->
+  <!-- ACCEPTANCE CRITERIA (AUTHORITATIVE) -->
+  <!-- ================================================================ -->
+  <acceptance-criteria source="docs/sprint-artifacts/5-1-admin-dashboard-overview.md">
+    <criterion id="AC-5.1.1" priority="must">
+      <description>Admin user sees system statistics: total users, active users (30-day), total KBs, total documents</description>
+      <test-strategy>Integration test: GET /api/v1/admin/stats → verify response contains users.total, users.active, knowledgeBases.total, documents.total fields</test-strategy>
+      <validation-method>Manual: Login as admin → navigate to /admin → verify all 4 stat cards rendered with numeric values</validation-method>
+    </criterion>
+
+    <criterion id="AC-5.1.2" priority="must">
+      <description>Dashboard displays activity metrics: searches and generations for last 24h, 7d, 30d</description>
+      <test-strategy>Integration test: GET /api/v1/admin/stats → verify response contains activity.searches.last24h/last7d/last30d and activity.generations.last24h/last7d/last30d</test-strategy>
+      <validation-method>E2E test: Load admin dashboard → verify search/generation metric cards show 6 values (3 periods each)</validation-method>
+    </criterion>
+
+    <criterion id="AC-5.1.3" priority="must">
+      <description>Sparkline charts render trends for searches and generations over last 30 days using recharts library</description>
+      <test-strategy>E2E test: Load admin dashboard → verify sparkline SVG elements rendered within metric cards</test-strategy>
+      <validation-method>Manual: Inspect rendered dashboard → verify recharts LineChart components display with 30 data points</validation-method>
+    </criterion>
+
+    <criterion id="AC-5.1.4" priority="must">
+      <description>Statistics data refreshes every 5 minutes via Redis cache; cache miss triggers fresh database aggregation</description>
+      <test-strategy>Integration test: First GET /api/v1/admin/stats → DB hit, second GET within 5 min → Redis cache hit. Third GET after 5 min → DB hit again.</test-strategy>
+      <validation-method>Manual: Monitor Redis keys (KEYS admin:stats:*) and check TTL. Verify stats update after 5-minute expiry.</validation-method>
+    </criterion>
+
+    <criterion id="AC-5.1.5" priority="must">
+      <description>Non-admin users receive 403 Forbidden when accessing /api/v1/admin/stats</description>
+      <test-strategy>Integration test: Authenticate as regular user (is_superuser=False) → GET /api/v1/admin/stats → verify 403 response</test-strategy>
+      <validation-method>E2E test: Login as non-admin → attempt to navigate to /admin → verify redirect or 403 error page</validation-method>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ================================================================ -->
+  <!-- INTERFACE CONTRACTS -->
+  <!-- ================================================================ -->
+  <interface-contracts>
+    <api-endpoint id="ADMIN-STATS-001">
+      <http-method>GET</http-method>
+      <path>/api/v1/admin/stats</path>
+      <authentication>Required (JWT)</authentication>
+      <authorization>is_superuser=True (current_superuser dependency)</authorization>
+
+      <response status="200">
+        <content-type>application/json</content-type>
+        <schema>
+          <typescript><![CDATA[
+interface AdminStats {
+  users: {
+    total: number;
+    active: number;  // Active in last 30 days
+    inactive: number;
+  };
+  knowledgeBases: {
+    total: number;
+    byStatus: { active: number; archived: number; };
+  };
+  documents: {
+    total: number;
+    byStatus: { processed: number; queued: number; failed: number; };
+  };
+  storage: {
+    totalBytes: number;
+    avgDocSizeBytes: number;
+  };
+  activity: {
+    searches: { last24h: number; last7d: number; last30d: number; };
+    generations: { last24h: number; last7d: number; last30d: number; };
+  };
+  trends: {
+    searches: number[];  // Sparkline data (last 30 days)
+    generations: number[];  // Sparkline data (last 30 days)
+  };
+}
+          ]]></typescript>
+        </schema>
+      </response>
+
+      <response status="401">
+        <description>Not authenticated (missing or invalid JWT)</description>
+      </response>
+
+      <response status="403">
+        <description>Not admin (is_superuser=False)</description>
+      </response>
+
+      <performance-requirements>
+        <requirement>Response time &lt; 500ms with Redis cache hit</requirement>
+        <requirement>Response time &lt; 2s on cache miss (DB aggregation)</requirement>
+        <requirement>Redis cache TTL: 300 seconds (5 minutes)</requirement>
+      </performance-requirements>
+    </api-endpoint>
+
+    <frontend-route id="ADMIN-DASHBOARD-001">
+      <path>/app/(protected)/admin/page.tsx</path>
+      <component>AdminDashboardPage</component>
+      <layout>AdminLayout (with sidebar navigation)</layout>
+
+      <dependencies>
+        <dependency>shadcn/ui Card component for metric cards</dependency>
+        <dependency>recharts LineChart for sparklines</dependency>
+        <dependency>lucide-react icons (Users, Database, FileText, Activity)</dependency>
+        <dependency>react-query for data fetching and caching</dependency>
+      </dependencies>
+
+      <data-fetching>
+        <query id="useAdminStats">
+          <endpoint>GET /api/v1/admin/stats</endpoint>
+          <refetch-interval>300000 (5 minutes)</refetch-interval>
+          <stale-time>300000</stale-time>
+          <cache-time>600000 (10 minutes)</cache-time>
+        </query>
+      </data-fetching>
+
+      <ui-states>
+        <state name="loading">Display skeleton cards with shimmer effect</state>
+        <state name="success">Render metric cards with data and sparkline charts</state>
+        <state name="error">Display error message with retry button</state>
+        <state name="unauthorized">Redirect to /dashboard or show 403 page</state>
+      </ui-states>
+    </frontend-route>
+  </interface-contracts>
+
+  <!-- ================================================================ -->
+  <!-- EXISTING CODE INVENTORY -->
+  <!-- ================================================================ -->
+  <existing-code>
+    <backend-assets>
+      <file path="backend/app/api/v1/admin.py" status="exists">
+        <description>Admin API routes with user management endpoints. Contains current_superuser dependency pattern.</description>
+        <relevance>Story 5.1 will extend this file with GET /admin/stats endpoint. Reuse current_superuser for authorization.</relevance>
+        <key-exports>
+          <export>router (APIRouter with /admin prefix)</export>
+          <export>current_superuser dependency (from app.core.auth)</export>
+          <export>OutboxStats model (similar pattern for AdminStats)</export>
+        </key-exports>
+      </file>
+
+      <file path="backend/app/models/audit.py" status="exists">
+        <description>AuditEvent model in audit schema with indexed columns for efficient querying</description>
+        <relevance>Story 5.1 queries audit.events table to aggregate search/generation activity metrics</relevance>
+        <key-fields>
+          <field>timestamp (indexed)</field>
+          <field>action (for filtering by "search" or "generation")</field>
+          <field>user_id (indexed)</field>
+          <field>details JSONB (contains query, kb_ids, result_count, etc.)</field>
+        </key-fields>
+      </file>
+
+      <file path="backend/app/services/audit_service.py" status="exists">
+        <description>AuditService with log_event, log_search, log_generation_request methods</description>
+        <relevance>Story 5.1 will create AdminStatsService that queries audit.events table populated by this service</relevance>
+        <note>Fire-and-forget logging pattern ensures audit writes don't block request processing</note>
+      </file>
+
+      <file path="backend/app/models/user.py" status="exists">
+        <description>User model with is_superuser flag and last_active field</description>
+        <relevance>Story 5.1 aggregates user counts (total, active in 30d) from users table</relevance>
+        <note>Ensure last_active field exists and is updated on user login (check if migration needed)</note>
+      </file>
+
+      <file path="backend/app/models/knowledge_base.py" status="exists">
+        <description>KnowledgeBase model with status field (active, archived)</description>
+        <relevance>Story 5.1 aggregates KB counts by status</relevance>
+      </file>
+
+      <file path="backend/app/models/document.py" status="exists">
+        <description>Document model with processing_status field and file_size</description>
+        <relevance>Story 5.1 aggregates document counts by status and total storage usage</relevance>
+      </file>
+    </backend-assets>
+
+    <frontend-assets>
+      <file path="frontend/src/app/(protected)/dashboard/page.tsx" status="exists">
+        <description>User dashboard with KB cards and navigation</description>
+        <relevance>Story 5.1 creates similar admin dashboard at /admin route. Can reuse Card component patterns and layout structure.</relevance>
+        <note>Admin dashboard will have different content (system stats vs user KBs) but similar visual structure</note>
+      </file>
+
+      <file path="frontend/src/components/ui/card.tsx" status="exists">
+        <description>shadcn/ui Card component for metric display</description>
+        <relevance>Story 5.1 uses Card, CardHeader, CardTitle, CardContent for metric cards</relevance>
+      </file>
+
+      <file path="frontend/package.json" status="exists">
+        <description>Frontend dependencies</description>
+        <relevance>Story 5.1 requires adding recharts dependency for sparkline charts</relevance>
+        <action>Run: npm install recharts</action>
+      </file>
+    </frontend-assets>
+
+    <infrastructure>
+      <service name="Redis" status="available">
+        <description>Redis server for caching (already used for sessions, Celery)</description>
+        <relevance>Story 5.1 uses Redis for admin stats caching with 5-minute TTL</relevance>
+        <connection>Via app.core.redis module</connection>
+      </service>
+
+      <service name="PostgreSQL" status="available">
+        <description>Primary database with users, knowledge_bases, documents, audit.events tables</description>
+        <relevance>Story 5.1 queries all these tables for stats aggregation</relevance>
+        <indexes>Existing indexes on timestamp, user_id, action columns support efficient queries</indexes>
+      </service>
+    </infrastructure>
+  </existing-code>
+
+  <!-- ================================================================ -->
+  <!-- IMPLEMENTATION GUIDANCE -->
+  <!-- ================================================================ -->
+  <implementation-guidance>
+    <development-sequence>
+      <phase n="1" name="Backend Foundation">
+        <task id="5.1-T1">Create backend/app/schemas/admin_stats.py with AdminStats Pydantic models</task>
+        <task id="5.1-T2">Create backend/app/services/admin_stats_service.py with AdminStatsService class</task>
+        <task id="5.1-T3">Implement AdminStatsService.get_dashboard_stats() with DB aggregation logic</task>
+        <task id="5.1-T4">Implement AdminStatsService._get_cached_stats() with Redis caching</task>
+        <task id="5.1-T5">Add GET /api/v1/admin/stats endpoint to backend/app/api/v1/admin.py</task>
+        <task id="5.1-T6">Wire up current_superuser dependency for authorization</task>
+      </phase>
+
+      <phase n="2" name="Backend Testing">
+        <task id="5.1-T7">Write unit tests: backend/tests/unit/test_admin_stats_service.py</task>
+        <task id="5.1-T8">Write integration tests: backend/tests/integration/test_admin_dashboard_api.py</task>
+        <task id="5.1-T9">Test cache hit/miss scenarios with Redis</task>
+        <task id="5.1-T10">Test 403 Forbidden for non-admin users</task>
+      </phase>
+
+      <phase n="3" name="Frontend Implementation">
+        <task id="5.1-T11">Install recharts: npm install recharts</task>
+        <task id="5.1-T12">Create frontend/src/app/(protected)/admin/page.tsx</task>
+        <task id="5.1-T13">Create frontend/src/components/admin/admin-stats-card.tsx (reusable metric card)</task>
+        <task id="5.1-T14">Create frontend/src/components/admin/stats-sparkline.tsx (recharts wrapper)</task>
+        <task id="5.1-T15">Implement useAdminStats hook with react-query</task>
+        <task id="5.1-T16">Add loading, error, and unauthorized states</task>
+      </phase>
+
+      <phase n="4" name="Frontend Testing">
+        <task id="5.1-T17">Write unit tests: frontend/src/components/admin/__tests__/admin-stats-card.test.tsx</task>
+        <task id="5.1-T18">Write unit tests: frontend/src/components/admin/__tests__/stats-sparkline.test.tsx</task>
+        <task id="5.1-T19">Write E2E test: frontend/e2e/tests/admin/admin-dashboard.spec.ts</task>
+        <task id="5.1-T20">Test sparkline rendering, metric card display, loading states</task>
+      </phase>
+
+      <phase n="5" name="Integration &amp; Validation">
+        <task id="5.1-T21">Manual smoke test: Login as admin → verify dashboard loads with real data</task>
+        <task id="5.1-T22">Verify Redis caching behavior (check TTL, cache hits)</task>
+        <task id="5.1-T23">Verify 403 for non-admin users in browser</task>
+        <task id="5.1-T24">Performance test: Measure response time with/without cache</task>
+        <task id="5.1-T25">Update docs/sprint-artifacts/5-1-admin-dashboard-overview.md with validation results</task>
+      </phase>
+    </development-sequence>
+
+    <code-patterns>
+      <pattern id="PATTERN-ADMIN-SERVICE">
+        <name>Admin Stats Service with Redis Caching</name>
+        <implementation>
+          <python><![CDATA[
+# backend/app/services/admin_stats_service.py
+import structlog
+from datetime import datetime, timedelta, UTC
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.redis import get_redis_client
+from app.models.user import User
+from app.models.knowledge_base import KnowledgeBase
+from app.models.document import Document
+from app.models.audit import AuditEvent
+from app.schemas.admin_stats import AdminStats
+
+logger = structlog.get_logger()
+
+CACHE_KEY = "admin:stats:dashboard"
+CACHE_TTL = 300  # 5 minutes
+
+class AdminStatsService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_dashboard_stats(self) -> AdminStats:
+        """Get admin dashboard stats with Redis caching."""
+        redis = await get_redis_client()
+
+        # Try cache first
+        cached = await redis.get(CACHE_KEY)
+        if cached:
+            logger.info("admin_stats_cache_hit")
+            return AdminStats.model_validate_json(cached)
+
+        # Cache miss - aggregate from DB
+        logger.info("admin_stats_cache_miss")
+        stats = await self._aggregate_stats()
+
+        # Store in cache
+        await redis.setex(CACHE_KEY, CACHE_TTL, stats.model_dump_json())
+        return stats
+
+    async def _aggregate_stats(self) -> AdminStats:
+        """Aggregate stats from database."""
+        # User stats
+        total_users = await self.session.scalar(select(func.count(User.id)))
+        thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
+        active_users = await self.session.scalar(
+            select(func.count(User.id)).where(User.last_active >= thirty_days_ago)
+        )
+
+        # KB stats
+        total_kbs = await self.session.scalar(select(func.count(KnowledgeBase.id)))
+        # ... (continue with other aggregations)
+
+        # Audit activity stats
+        searches_24h = await self._count_audit_events("search", hours=24)
+        searches_7d = await self._count_audit_events("search", days=7)
+        searches_30d = await self._count_audit_events("search", days=30)
+
+        # Sparkline data (last 30 days)
+        search_trends = await self._get_daily_counts("search", days=30)
+        generation_trends = await self._get_daily_counts("generation", days=30)
+
+        return AdminStats(
+            users={"total": total_users, "active": active_users, "inactive": total_users - active_users},
+            # ... (populate other fields)
+            trends={"searches": search_trends, "generations": generation_trends}
+        )
+
+    async def _count_audit_events(self, action: str, hours: int = None, days: int = None) -> int:
+        """Count audit events for given action within time period."""
+        query = select(func.count(AuditEvent.id)).where(AuditEvent.action == action)
+
+        if hours:
+            since = datetime.now(UTC) - timedelta(hours=hours)
+        elif days:
+            since = datetime.now(UTC) - timedelta(days=days)
+
+        query = query.where(AuditEvent.timestamp >= since)
+        return await self.session.scalar(query)
+
+    async def _get_daily_counts(self, action: str, days: int) -> list[int]:
+        """Get daily counts for sparkline (last N days)."""
+        # Return list of counts, one per day, for last N days
+        # Use DATE_TRUNC and GROUP BY date
+        # ... (implementation)
+        pass
+          ]]></python>
+        </implementation>
+      </pattern>
+
+      <pattern id="PATTERN-ADMIN-ENDPOINT">
+        <name>Admin Stats API Endpoint</name>
+        <implementation>
+          <python><![CDATA[
+# backend/app/api/v1/admin.py (add to existing router)
+from app.services.admin_stats_service import AdminStatsService
+from app.schemas.admin_stats import AdminStats
+
+@router.get(
+    "/stats",
+    response_model=AdminStats,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin (is_superuser=False)"},
+    },
+)
+async def get_admin_stats(
+    _admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminStats:
+    """Get system-wide statistics for admin dashboard.
+
+    Requires admin role (is_superuser=True).
+    Results cached in Redis for 5 minutes.
+    """
+    service = AdminStatsService(session)
+    return await service.get_dashboard_stats()
+          ]]></python>
+        </implementation>
+      </pattern>
+
+      <pattern id="PATTERN-FRONTEND-HOOK">
+        <name>React Query Hook for Admin Stats</name>
+        <implementation>
+          <typescript><![CDATA[
+// frontend/src/hooks/useAdminStats.ts
+import { useQuery } from '@tanstack/react-query';
+import type { AdminStats } from '@/types/admin';
+
+export function useAdminStats() {
+  return useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: async (): Promise<AdminStats> => {
+      const res = await fetch('/api/v1/admin/stats', {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('Unauthorized');
+        throw new Error('Failed to fetch admin stats');
+      }
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 5 * 60 * 1000, // Auto-refetch every 5 minutes
+    retry: 1,
+  });
+}
+          ]]></typescript>
+        </implementation>
+      </pattern>
+
+      <pattern id="PATTERN-SPARKLINE">
+        <name>Recharts Sparkline Component</name>
+        <implementation>
+          <typescript><![CDATA[
+// frontend/src/components/admin/stats-sparkline.tsx
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
+
+interface StatsSparklineProps {
+  data: number[];
+  color?: string;
+}
+
+export function StatsSparkline({ data, color = '#3b82f6' }: StatsSparklineProps) {
+  const chartData = data.map((value, index) => ({ index, value }));
+
+  return (
+    <ResponsiveContainer width="100%" height={40}>
+      <LineChart data={chartData}>
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          strokeWidth={2}
+          dot={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+          ]]></typescript>
+        </implementation>
+      </pattern>
+    </code-patterns>
+
+    <testing-strategy>
+      <unit-tests>
+        <test-suite file="backend/tests/unit/test_admin_stats_service.py">
+          <test name="test_get_dashboard_stats_cache_hit">Mock Redis.get() to return cached JSON, verify AdminStats deserialized correctly</test>
+          <test name="test_get_dashboard_stats_cache_miss">Mock Redis.get() to return None, verify DB aggregation called, result cached</test>
+          <test name="test_aggregate_stats_user_counts">Mock User table queries, verify total/active/inactive calculations</test>
+          <test name="test_aggregate_stats_activity_metrics">Mock AuditEvent queries, verify 24h/7d/30d counts for searches and generations</test>
+          <test name="test_get_daily_counts_sparkline">Mock date-grouped queries, verify 30-element list returned</test>
+        </test-suite>
+
+        <test-suite file="frontend/src/components/admin/__tests__/admin-stats-card.test.tsx">
+          <test name="test_renders_metric_card_with_data">Render AdminStatsCard with mock data, verify title, value, and sparkline displayed</test>
+          <test name="test_renders_loading_skeleton">Render with isLoading=true, verify skeleton shimmer shown</test>
+          <test name="test_renders_error_state">Render with error, verify error message and retry button</test>
+        </test-suite>
+
+        <test-suite file="frontend/src/components/admin/__tests__/stats-sparkline.test.tsx">
+          <test name="test_renders_recharts_line">Render StatsSparkline with 30-element array, verify LineChart rendered</test>
+          <test name="test_handles_empty_data">Render with empty array, verify no errors, empty chart shown</test>
+        </test-suite>
+      </unit-tests>
+
+      <integration-tests>
+        <test-suite file="backend/tests/integration/test_admin_dashboard_api.py">
+          <test name="test_get_admin_stats_success">Authenticate as admin, GET /api/v1/admin/stats, verify 200 response with AdminStats schema</test>
+          <test name="test_get_admin_stats_cache_behavior">First request → cache miss, second request → cache hit (verify Redis TTL)</test>
+          <test name="test_get_admin_stats_non_admin_forbidden">Authenticate as regular user (is_superuser=False), GET /admin/stats, verify 403 Forbidden</test>
+          <test name="test_get_admin_stats_unauthenticated">No auth token, GET /admin/stats, verify 401 Unauthorized</test>
+          <test name="test_sparkline_data_format">Verify trends.searches and trends.generations are arrays of 30 numbers</test>
+        </test-suite>
+      </integration-tests>
+
+      <e2e-tests>
+        <test-suite file="frontend/e2e/tests/admin/admin-dashboard.spec.ts">
+          <test name="test_admin_dashboard_loads_with_stats">Login as admin, navigate to /admin, verify metric cards rendered with data</test>
+          <test name="test_sparkline_charts_render">Verify sparkline SVG elements present in search and generation cards</test>
+          <test name="test_non_admin_cannot_access">Login as non-admin, attempt to navigate to /admin, verify redirect to /dashboard or 403 error</test>
+          <test name="test_stats_refresh_after_cache_expiry">Wait 5 minutes, verify stats update (check for new request in network tab)</test>
+        </test-suite>
+      </e2e-tests>
+    </testing-strategy>
+
+    <edge-cases>
+      <case id="EDGE-5.1-1">
+        <scenario>Redis unavailable (connection error)</scenario>
+        <expected-behavior>AdminStatsService falls back to direct DB queries without caching. Returns stats successfully but logs error.</expected-behavior>
+        <implementation>Wrap Redis operations in try/except, catch redis.exceptions.ConnectionError, proceed with DB aggregation</implementation>
+      </case>
+
+      <case id="EDGE-5.1-2">
+        <scenario>Database query timeout on large dataset</scenario>
+        <expected-behavior>Query times out after 30s, returns 500 Internal Server Error. Frontend shows error state with retry button.</expected-behavior>
+        <mitigation>Use indexed columns for aggregation queries. Monitor query performance. Consider materialized views if needed.</mitigation>
+      </case>
+
+      <case id="EDGE-5.1-3">
+        <scenario>First-time admin (no historical data)</scenario>
+        <expected-behavior>Dashboard displays 0 for all metrics. Sparklines show flat line or "No data" message.</expected-behavior>
+        <implementation>Handle zero counts gracefully in frontend. Sparkline component renders empty state if all values are 0.</implementation>
+      </case>
+
+      <case id="EDGE-5.1-4">
+        <scenario>User changes from admin to non-admin during session</scenario>
+        <expected-behavior>Next request to /admin/stats returns 403 Forbidden. Frontend shows unauthorized error and redirects to /dashboard.</expected-behavior>
+        <implementation>current_superuser dependency checks is_superuser on every request (not cached in JWT)</implementation>
+      </case>
+
+      <case id="EDGE-5.1-5">
+        <scenario>Concurrent admin requests during cache refresh</scenario>
+        <expected-behavior>Multiple admins hit dashboard simultaneously after cache expiry. All see consistent data (no race condition).</expected-behavior>
+        <mitigation>Redis SETEX is atomic. First request to complete sets cache, subsequent requests use it. Brief window of duplicate DB queries acceptable.</mitigation>
+      </case>
+    </edge-cases>
+  </implementation-guidance>
+
+  <!-- ================================================================ -->
+  <!-- DEPENDENCIES AND INTEGRATION POINTS -->
+  <!-- ================================================================ -->
+  <dependencies>
+    <prerequisite-stories>
+      <story id="1.6" status="completed">
+        <title>JWT Authentication &amp; Authorization</title>
+        <rationale>Story 5.1 requires JWT auth and is_superuser flag for admin role enforcement</rationale>
+        <interface>current_superuser dependency from app.core.auth</interface>
+      </story>
+
+      <story id="1.7" status="completed">
+        <title>Audit Logging</title>
+        <rationale>Story 5.1 queries audit.events table for search/generation activity metrics</rationale>
+        <interface>AuditEvent model, audit.events table with indexed timestamp and action columns</interface>
+      </story>
+
+      <story id="2.1" status="completed">
+        <title>Knowledge Base Management</title>
+        <rationale>Story 5.1 aggregates KB counts by status</rationale>
+        <interface>KnowledgeBase model with status field</interface>
+      </story>
+
+      <story id="2.11" status="completed">
+        <title>Document Processing Pipeline</title>
+        <rationale>Story 5.1 aggregates document counts by processing_status</rationale>
+        <interface>Document model with processing_status and file_size fields</interface>
+      </story>
+    </prerequisite-stories>
+
+    <follow-on-stories>
+      <story id="5.2" blocked-by="5.1">
+        <title>Audit Log Viewer</title>
+        <integration>Clicking audit metrics on dashboard navigates to detailed audit log viewer</integration>
+      </story>
+
+      <story id="5.3" blocked-by="5.2">
+        <title>Audit Log Export</title>
+        <integration>Export button on audit viewer uses same data source as dashboard audit metrics</integration>
+      </story>
+
+      <story id="5.4" blocked-by="5.1">
+        <title>Processing Queue Status</title>
+        <integration>Dashboard links to queue monitoring page for drill-down on processing metrics</integration>
+      </story>
+
+      <story id="5.6" blocked-by="5.1">
+        <title>KB Statistics (Admin View)</title>
+        <integration>Clicking KB count on dashboard navigates to detailed KB stats page</integration>
+      </story>
+    </follow-on-stories>
+
+    <external-dependencies>
+      <dependency name="recharts" type="npm">
+        <version>^2.12.0</version>
+        <purpose>Sparkline chart visualization</purpose>
+        <installation>npm install recharts</installation>
+        <documentation>https://recharts.org/</documentation>
+      </dependency>
+
+      <dependency name="Redis" type="service">
+        <version>7.x</version>
+        <purpose>Stats caching with 5-minute TTL</purpose>
+        <connection>Via app.core.redis.get_redis_client()</connection>
+        <fallback>Direct DB queries if Redis unavailable</fallback>
+      </dependency>
+    </external-dependencies>
+  </dependencies>
+
+  <!-- ================================================================ -->
+  <!-- QUALITY GATES -->
+  <!-- ================================================================ -->
+  <quality-gates>
+    <gate id="QG-5.1-TESTS" phase="implementation" blocking="true">
+      <criterion>All unit tests pass (≥90% coverage for AdminStatsService)</criterion>
+      <criterion>All integration tests pass (API endpoint, cache behavior, auth)</criterion>
+      <criterion>E2E test passes (admin dashboard loads, sparklines render)</criterion>
+    </gate>
+
+    <gate id="QG-5.1-PERFORMANCE" phase="validation" blocking="true">
+      <criterion>GET /api/v1/admin/stats responds in &lt; 500ms with cache hit</criterion>
+      <criterion>GET /api/v1/admin/stats responds in &lt; 2s on cache miss</criterion>
+      <criterion>Dashboard page load time &lt; 1s with cached data</criterion>
+    </gate>
+
+    <gate id="QG-5.1-SECURITY" phase="validation" blocking="true">
+      <criterion>Non-admin users receive 403 Forbidden (verified in integration test)</criterion>
+      <criterion>Unauthenticated requests receive 401 Unauthorized</criterion>
+      <criterion>No PII exposure in admin stats response</criterion>
+    </gate>
+
+    <gate id="QG-5.1-ACCEPTANCE" phase="validation" blocking="true">
+      <criterion>AC-5.1.1: All system statistics displayed (users, KBs, documents)</criterion>
+      <criterion>AC-5.1.2: Activity metrics for 24h/7d/30d displayed</criterion>
+      <criterion>AC-5.1.3: Sparkline charts render using recharts</criterion>
+      <criterion>AC-5.1.4: Redis cache refreshes every 5 minutes</criterion>
+      <criterion>AC-5.1.5: Non-admin users blocked with 403</criterion>
+    </gate>
+
+    <definition-of-done checklist="docs/definition-of-done.md">
+      <item>Code implemented per technical spec and acceptance criteria</item>
+      <item>Unit tests written and passing (≥90% coverage)</item>
+      <item>Integration tests written and passing</item>
+      <item>E2E test written and passing</item>
+      <item>Code reviewed (senior dev or architect)</item>
+      <item>Manual smoke test completed</item>
+      <item>Performance benchmarks met (&lt; 500ms cache hit, &lt; 2s cache miss)</item>
+      <item>Security validation (403 for non-admin verified)</item>
+      <item>Documentation updated (validation report created)</item>
+      <item>All 5 acceptance criteria validated and marked PASS</item>
+    </definition-of-done>
+  </quality-gates>
+
+  <!-- ================================================================ -->
+  <!-- RISKS AND MITIGATIONS -->
+  <!-- ================================================================ -->
+  <risks>
+    <risk id="RISK-5.1-PERF" likelihood="medium" impact="medium">
+      <description>Admin dashboard stats queries may impact database performance on large datasets</description>
+      <indicators>
+        <indicator>Response time &gt; 2s on cache miss</indicator>
+        <indicator>Database CPU utilization spikes when admin dashboard accessed</indicator>
+      </indicators>
+      <mitigations>
+        <mitigation>Use 5-minute Redis caching to reduce DB load (AC-5.1.4)</mitigation>
+        <mitigation>Ensure indexed columns used for all aggregate queries (timestamp, status fields)</mitigation>
+        <mitigation>Monitor query performance in observability dashboards</mitigation>
+        <mitigation>Consider materialized views if performance degrades at scale (future enhancement)</mitigation>
+      </mitigations>
+    </risk>
+
+    <risk id="RISK-5.1-CACHE" likelihood="low" impact="low">
+      <description>Redis cache unavailability causes performance degradation</description>
+      <indicators>
+        <indicator>Redis connection errors in logs</indicator>
+        <indicator>All admin stats requests hit database (no cache hits)</indicator>
+      </indicators>
+      <mitigations>
+        <mitigation>Implement graceful fallback to direct DB queries if Redis unavailable</mitigation>
+        <mitigation>Log Redis errors but don't fail requests</mitigation>
+        <mitigation>Monitor Redis health in infrastructure monitoring</mitigation>
+      </mitigations>
+    </risk>
+
+    <risk id="RISK-5.1-AUTH" likelihood="low" impact="high">
+      <description>Authorization bypass allows non-admin access to sensitive stats</description>
+      <indicators>
+        <indicator>Non-admin users can view /admin route</indicator>
+        <indicator>403 checks not enforced on all admin endpoints</indicator>
+      </indicators>
+      <mitigations>
+        <mitigation>Use current_superuser FastAPI dependency on all /admin/* routes</mitigation>
+        <mitigation>Integration test verifies 403 for non-admin users (AC-5.1.5)</mitigation>
+        <mitigation>E2E test verifies redirect/block for non-admin navigation to /admin</mitigation>
+        <mitigation>Code review focuses on auth checks</mitigation>
+      </mitigations>
+    </risk>
+  </risks>
+
+  <!-- ================================================================ -->
+  <!-- OBSERVABILITY -->
+  <!-- ================================================================ -->
+  <observability>
+    <metrics>
+      <metric name="admin_stats_requests_total" type="counter">
+        <labels>status (200, 403, 500), cache_status (hit, miss)</labels>
+        <description>Total admin stats API requests</description>
+      </metric>
+
+      <metric name="admin_stats_cache_hits" type="counter">
+        <description>Redis cache hits for admin stats</description>
+      </metric>
+
+      <metric name="admin_stats_cache_misses" type="counter">
+        <description>Redis cache misses requiring DB aggregation</description>
+      </metric>
+
+      <metric name="admin_stats_duration_seconds" type="histogram">
+        <labels>cache_status (hit, miss)</labels>
+        <description>Admin stats request duration</description>
+        <buckets>0.1, 0.5, 1.0, 2.0, 5.0</buckets>
+      </metric>
+
+      <metric name="admin_stats_errors_total" type="counter">
+        <labels>error_type (db_timeout, redis_error, auth_failure)</labels>
+        <description>Admin stats request errors by type</description>
+      </metric>
+    </metrics>
+
+    <logging>
+      <log-event name="admin_stats_cache_hit">
+        <level>info</level>
+        <fields>user_id, cache_key, ttl_remaining</fields>
+      </log-event>
+
+      <log-event name="admin_stats_cache_miss">
+        <level>info</level>
+        <fields>user_id, aggregation_duration_ms</fields>
+      </log-event>
+
+      <log-event name="admin_stats_request">
+        <level>info</level>
+        <fields>user_id, status_code, duration_ms, cache_status</fields>
+      </log-event>
+
+      <log-event name="admin_stats_error">
+        <level>error</level>
+        <fields>user_id, error_type, error_message, stack_trace</fields>
+      </log-event>
+    </logging>
+
+    <alerts>
+      <alert name="AdminStatsHighLatency" severity="warning">
+        <condition>p95(admin_stats_duration_seconds{cache_status="miss"}) &gt; 5s for 5 minutes</condition>
+        <action>Investigate database query performance, check for missing indexes</action>
+      </alert>
+
+      <alert name="AdminStatsCacheMissRate" severity="info">
+        <condition>rate(admin_stats_cache_misses) / rate(admin_stats_requests_total) &gt; 0.5 for 10 minutes</condition>
+        <action>Verify Redis health, check cache TTL configuration</action>
+      </alert>
+
+      <alert name="AdminStatsErrors" severity="critical">
+        <condition>rate(admin_stats_errors_total) &gt; 10/min for 5 minutes</condition>
+        <action>Page on-call engineer, investigate root cause (DB down, Redis down, etc.)</action>
+      </alert>
+    </alerts>
+  </observability>
+</story-context>

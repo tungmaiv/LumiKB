@@ -1,0 +1,456 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>9</storyId>
+    <title>Generation Templates</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-9-generation-templates.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>pre-built templates for common document types</iWant>
+    <soThat>I can generate consistent, well-structured drafts</soThat>
+    <tasks>
+### Backend Tasks
+
+#### Task 1: Create Template Registry with 4 Templates (AC: #1, #2, #5)
+**File:** `backend/app/services/template_registry.py`
+
+- Define Template Pydantic model with fields: id, name, description, system_prompt, sections, example_output
+- Implement RFP Response template with 4 sections and citation requirements
+- Implement Technical Checklist template with checkbox format
+- Implement Gap Analysis template with table format
+- Implement Custom Prompt template (no predefined sections)
+- Add get_template(template_id: str) function with ValueError on invalid ID
+- Add list_templates() function returning List[Template]
+- **Testing:** Write 8 unit tests (see test_template_registry.py spec)
+
+**Acceptance Criteria:** AC-1 (templates available), AC-2 (system prompts), AC-5 (structured output)
+
+#### Task 2: Create Template API Endpoints (AC: #1)
+**Files:** `backend/app/api/v1/generate.py`, `backend/app/schemas/generation.py`
+
+- Extend `app/api/v1/generate.py` router with template routes
+- Add GET /api/v1/templates endpoint (returns TemplateListResponse)
+- Add GET /api/v1/templates/{template_id} endpoint (returns Template)
+- Handle 404 for invalid template_id with HTTPException
+- Define TemplateSchema in `app/schemas/generation.py`
+- Define TemplateListResponse schema
+- **Testing:** Write 4 integration tests (see test_template_api.py spec)
+
+**Acceptance Criteria:** AC-1 (API access to templates)
+
+### Frontend Tasks
+
+#### Task 3: Create TemplateSelector Component (AC: #1, #3)
+**File:** `frontend/src/components/generation/template-selector.tsx`
+
+- Create TemplateSelector component with value and onChange props
+- Implement 2x2 grid layout for 4 template cards
+- Add template icons from lucide-react (FileText, CheckSquare, GitCompare, Edit)
+- Implement selection state with border-primary highlight
+- Add template descriptions
+- Add example output preview (tooltip or truncated text)
+- Implement click handler to call onChange(templateId)
+- Add keyboard navigation support (Tab, Enter)
+- **Testing:** Write 6 component tests (see template-selector.test.tsx spec)
+
+**Acceptance Criteria:** AC-1 (UI templates), AC-3 (example previews)
+
+#### Task 4: Create useTemplates Hook (AC: #1)
+**File:** `frontend/src/hooks/useTemplates.ts`
+
+- Implement useTemplates() hook using React Query
+- Set queryKey: ["templates"]
+- Fetch from /api/v1/templates endpoint
+- Configure staleTime: Infinity (templates don't change)
+- Implement useTemplate(templateId) hook for single template
+- Set queryKey: ["templates", templateId]
+- Fetch from /api/v1/templates/{templateId}
+- Add enabled: !!templateId condition
+- Handle error states
+
+**Acceptance Criteria:** AC-1 (template data access)
+
+#### Task 5: Integration with Generation Modal (AC: #1, #4)
+**File:** `frontend/src/components/generation/generation-modal.tsx` (MODIFY)
+
+- Import TemplateSelector component
+- Add documentType state (default: "rfp_response")
+- Add TemplateSelector to modal UI
+- Wire onChange to setDocumentType
+- Update context textarea placeholder based on selected template
+- Pass documentType to onGenerate callback
+- Disable generate button when context is empty
+- Ensure custom template shows different placeholder
+
+**Acceptance Criteria:** AC-1 (template selection in UI), AC-4 (custom prompt)
+
+### Testing Tasks
+
+#### Task 6: Backend Unit Testing (AC: #1-#5)
+**File:** `backend/tests/unit/test_template_registry.py`
+
+- Test template retrieval (get_template)
+- Test invalid template ID raises ValueError
+- Test list_templates returns all 4 templates
+- Test ALL templates enforce citation requirements
+- Test RFP Response template has 4 sections
+- Test Checklist template format
+- Test Gap Analysis template table structure
+- Test Custom template has no predefined structure
+- Run with: `pytest backend/tests/unit/test_template_registry.py -v`
+
+**Acceptance Criteria:** All ACs (unit test coverage)
+
+#### Task 7: Backend Integration Testing (AC: #1)
+**File:** `backend/tests/integration/test_template_api.py`
+
+- Test GET /api/v1/templates returns all templates
+- Test GET /api/v1/templates/{id} returns specific template
+- Test GET /api/v1/templates/invalid_id returns 404
+- Test GET /api/v1/templates requires authentication (401 without token)
+- Run with: `pytest backend/tests/integration/test_template_api.py -v`
+
+**Acceptance Criteria:** AC-1 (API functionality)
+
+#### Task 8: Frontend Component Testing (AC: #1, #3)
+**File:** `frontend/src/components/generation/__tests__/template-selector.test.tsx`
+
+- Test renders all 4 templates
+- Test highlights selected template
+- Test calls onChange on click
+- Test displays descriptions
+- Test shows example previews
+- Test displays icons
+- Run with: `npm test template-selector.test.tsx`
+
+**Acceptance Criteria:** AC-1, AC-3 (UI component quality)
+
+#### Task 9: E2E Template Selection Testing (AC: #1-#5)
+**File:** `frontend/e2e/tests/generation/template-selection.spec.ts`
+
+- Test displays all four template options
+- Test selects template and shows preview
+- Test custom template changes placeholder text
+- Test generate button disabled without context
+- Run with: `npx playwright test template-selection.spec.ts`
+
+**Acceptance Criteria:** All ACs (end-to-end user flow)
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC-1: Four templates available in UI
+**Given** a user initiates document generation
+**When** they view the template selector
+**Then** four templates are available: RFP Response Section, Technical Checklist, Gap Analysis, Custom Prompt
+**And** each template shows name, description, and icon
+
+### AC-2: Each template has structured system prompt
+**Given** any template is selected
+**When** generation starts
+**Then** the system uses the template's predefined system_prompt with section structure and citation requirements
+**And** the prompt enforces citation using [1], [2] format
+
+### AC-3: Templates include example output preview
+**Given** a user hovers over a template option
+**When** the tooltip appears
+**Then** it shows a brief example of the expected output format (except Custom Prompt)
+**And** the example demonstrates citation usage
+
+### AC-4: Custom prompt template accepts user instructions
+**Given** a user selects "Custom Prompt" template
+**When** they provide context/instructions
+**Then** the system generates content based on their instructions while maintaining citation requirements
+**And** no specific structure is enforced
+
+### AC-5: Templates produce structured output
+**Given** a user generates with "RFP Response" template
+**When** generation completes
+**Then** the output includes sections: Executive Summary, Technical Approach, Relevant Experience, Pricing
+**And** each section has appropriate content with citations
+
+**Given** a user generates with "Checklist" template
+**When** generation completes
+**Then** the output includes checklist items with: Requirement, Status, Notes
+**And** each item is cited
+
+**Given** a user generates with "Gap Analysis" template
+**When** generation completes
+**Then** the output includes table with: Requirement, Current State, Gap, Recommendation, Source
+**And** all claims are cited
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+<!-- Documentation Artifacts -->
+<doc>
+  <path>docs/prd.md</path>
+  <title>Product Requirements Document</title>
+  <section>Document Generation Assist (FR36-FR42)</section>
+  <snippet>FR37: System supports generation of: RFP/RFI responses, questionnaires, checklists, gap analysis</snippet>
+</doc>
+
+<doc>
+  <path>docs/architecture.md</path>
+  <title>LumiKB Architecture</title>
+  <section>API Design Pattern</section>
+  <snippet>Router naming: Use plural for collections (/templates), singular for single resource (/templates/{id}). Response models: Use Pydantic schemas from app/schemas/generation.py</snippet>
+</doc>
+
+<doc>
+  <path>docs/architecture.md</path>
+  <title>LumiKB Architecture</title>
+  <section>Service Layer Pattern</section>
+  <snippet>Templates are registry pattern (hardcoded constants), not a service. Location: app/services/template_registry.py. No database access required (templates are static).</snippet>
+</doc>
+
+<doc>
+  <path>docs/architecture.md</path>
+  <title>LumiKB Architecture</title>
+  <section>Citation-First Architecture</section>
+  <snippet>ALL templates MUST enforce citation requirements. Citation service is "THE CORE DIFFERENTIATOR". Every template system_prompt includes "[1], [2]" citation instructions.</snippet>
+</doc>
+
+<doc>
+  <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+  <title>Epic 4 Technical Specification</title>
+  <section>Story 4.9: Generation Templates</section>
+  <snippet>Template Registry: TEMPLATES dict with Template model containing id, name, description, system_prompt, sections, example_output. Four templates: rfp_response, checklist, gap_analysis, custom.</snippet>
+</doc>
+
+<doc>
+  <path>docs/ux-design-specification.md</path>
+  <title>UX Design Specification</title>
+  <section>Component Library - TemplateSelector</section>
+  <snippet>2x2 grid layout with cards for 4 templates. Icons from lucide-react: FileText, CheckSquare, GitCompare, Edit. Selection state with border-primary highlight.</snippet>
+</doc>
+</docs>
+
+    <code>
+<!-- Existing Code Artifacts -->
+<code-artifact>
+  <path>backend/app/api/v1</path>
+  <kind>directory</kind>
+  <symbol>generate.py</symbol>
+  <lines>N/A</lines>
+  <reason>Router file where template endpoints will be added. Follows existing API pattern from chat.py and search.py</reason>
+</code-artifact>
+
+<code-artifact>
+  <path>backend/app/schemas</path>
+  <kind>directory</kind>
+  <symbol>generation.py</symbol>
+  <lines>N/A</lines>
+  <reason>Pydantic schemas location. Will add TemplateSchema and TemplateListResponse schemas following existing patterns</reason>
+</code-artifact>
+
+<code-artifact>
+  <path>backend/app/services</path>
+  <kind>directory</kind>
+  <symbol>Service pattern</symbol>
+  <lines>N/A</lines>
+  <reason>Services directory where template_registry.py will be created. Follows pattern from generation_service.py, feedback_service.py</reason>
+</code-artifact>
+
+<code-artifact>
+  <path>frontend/src/components/generation</path>
+  <kind>directory</kind>
+  <symbol>Generation components</symbol>
+  <lines>N/A</lines>
+  <reason>Generation components directory where template-selector.tsx will be created. Co-located with GenerationModal, FeedbackModal, RecoveryModal from Story 4.8</reason>
+</code-artifact>
+
+<code-artifact>
+  <path>frontend/src/hooks</path>
+  <kind>directory</kind>
+  <symbol>React hooks</symbol>
+  <lines>N/A</lines>
+  <reason>Custom hooks directory where useTemplates.ts will be created. Follows pattern from useFeedback.ts, useExport.ts, useGenerationStream.ts</reason>
+</code-artifact>
+
+<code-artifact>
+  <path>backend/app/services/feedback_service.py</path>
+  <kind>service</kind>
+  <symbol>FeedbackService</symbol>
+  <lines>N/A</lines>
+  <reason>Story 4.8 feedback service that suggests template switching when feedback type = "wrong_format". Templates from THIS story enable that recovery suggestion.</reason>
+</code-artifact>
+</code>
+
+    <dependencies>
+<!-- Dependencies -->
+<dependencies>
+  <backend>
+    <package name="fastapi" version="&gt;=0.115.0" reason="API routing for template endpoints" />
+    <package name="pydantic" version="&gt;=2.7.0" reason="Template and response schemas" />
+    <package name="pytest" version="latest" reason="Unit and integration testing" />
+  </backend>
+
+  <frontend>
+    <package name="react" version="19.x" reason="UI components" />
+    <package name="@tanstack/react-query" version="latest" reason="Data fetching with caching for useTemplates hook" />
+    <package name="lucide-react" version="latest" reason="Icons for template cards (FileText, CheckSquare, GitCompare, Edit)" />
+    <package name="@radix-ui/react-dialog" version="latest" reason="Modal for generation (via shadcn/ui)" />
+  </frontend>
+</dependencies>
+</artifacts>
+
+  <constraints>
+<!-- Development Constraints -->
+<constraints>
+  <architectural>
+    <constraint>Templates are hardcoded constants (TEMPLATES dict), not database entities</constraint>
+    <constraint>Template registry follows service pattern but has no database access</constraint>
+    <constraint>ALL template system_prompts MUST include citation requirements ("[1], [2]" format)</constraint>
+    <constraint>Templates cannot be modified by users (server-side only for MVP)</constraint>
+    <constraint>Router naming: /templates (plural collection), /templates/{id} (singular resource)</constraint>
+  </architectural>
+
+  <testing>
+    <constraint>Unit tests must validate citation requirements in ALL templates</constraint>
+    <constraint>Integration tests must verify authentication on template endpoints</constraint>
+    <constraint>E2E tests must verify full user flow: select template → generate → see structured output</constraint>
+    <constraint>Test priority: Backend unit → Frontend unit → Integration → E2E</constraint>
+  </testing>
+
+  <integration>
+    <constraint>Story 4.4 (Document Generation Request) completed - provides generation modal integration point</constraint>
+    <constraint>Story 4.5 (Draft Generation Streaming) completed - provides streaming generation infrastructure</constraint>
+    <constraint>Story 4.8 (Feedback & Recovery) integration - FeedbackService suggests template switching for "wrong_format" feedback</constraint>
+    <constraint>GenerationModal component exists and can be extended with TemplateSelector</constraint>
+  </integration>
+</constraints>
+</constraints>
+
+  <interfaces>
+<!-- API and Interface Signatures -->
+<interfaces>
+  <api>
+    <endpoint>
+      <method>GET</method>
+      <path>/api/v1/templates</path>
+      <auth>Required (Bearer token)</auth>
+      <response>TemplateListResponse { templates: List[TemplateSchema] }</response>
+    </endpoint>
+
+    <endpoint>
+      <method>GET</method>
+      <path>/api/v1/templates/{template_id}</path>
+      <auth>Required</auth>
+      <response>TemplateSchema { id, name, description, system_prompt, sections[], example_output? }</response>
+      <errors>404 - Template not found</errors>
+    </endpoint>
+  </api>
+
+  <function>
+    <signature>get_template(template_id: str) -> Template</signature>
+    <path>backend/app/services/template_registry.py</path>
+    <raises>ValueError if template_id not in TEMPLATES</raises>
+  </function>
+
+  <function>
+    <signature>list_templates() -> List[Template]</signature>
+    <path>backend/app/services/template_registry.py</path>
+    <returns>All available templates from TEMPLATES dict</returns>
+  </function>
+
+  <component>
+    <name>TemplateSelector</name>
+    <path>frontend/src/components/generation/template-selector.tsx</path>
+    <props>
+      <prop name="value" type="string" desc="Currently selected template ID" />
+      <prop name="onChange" type="(templateId: string) => void" desc="Callback when selection changes" />
+    </props>
+  </component>
+
+  <hook>
+    <name>useTemplates</name>
+    <path>frontend/src/hooks/useTemplates.ts</path>
+    <returns>{ data: Template[], isLoading, error }</returns>
+    <caching>staleTime: Infinity (templates don't change)</caching>
+  </hook>
+
+  <hook>
+    <name>useTemplate</name>
+    <path>frontend/src/hooks/useTemplates.ts</path>
+    <params>templateId: string</params>
+    <returns>{ data: Template, isLoading, error }</returns>
+    <caching>staleTime: Infinity, enabled: !!templateId</caching>
+  </hook>
+</interfaces>
+</interfaces>
+
+  <tests>
+    <standards>
+**Backend Testing Standards:**
+- Use pytest with async fixtures
+- Mock external dependencies (LiteLLM, Qdrant)
+- Integration tests use real FastAPI TestClient
+- All tests must be isolated and repeatable
+
+**Frontend Testing Standards:**
+- Jest + React Testing Library for components
+- Mock API calls with msw or jest.fn()
+- Test user interactions (click, hover, keyboard)
+- Playwright for E2E tests with real browser
+
+**Testing Frameworks:**
+- Backend: pytest, pytest-asyncio, httpx.AsyncClient
+- Frontend: Jest, @testing-library/react, @playwright/test
+</standards>
+
+    <locations>
+**Backend Test Locations:**
+- `backend/tests/unit/test_template_registry.py` - NEW file for template unit tests
+- `backend/tests/integration/test_template_api.py` - NEW file for API integration tests
+
+**Frontend Test Locations:**
+- `frontend/src/components/generation/__tests__/template-selector.test.tsx` - NEW component tests
+- `frontend/e2e/tests/generation/template-selection.spec.ts` - NEW E2E tests
+</locations>
+
+    <ideas>
+**Backend Unit Test Ideas (8 tests):**
+1. test_get_template_returns_correct_template - Verify template retrieval by ID
+2. test_get_template_raises_on_invalid_id - Verify ValueError on unknown template
+3. test_list_templates_returns_all_templates - Verify all 4 templates returned
+4. test_all_templates_have_citation_requirement - CRITICAL: Verify all templates enforce citations
+5. test_rfp_response_template_structure - Verify 4 sections: Executive Summary, Technical Approach, Relevant Experience, Pricing
+6. test_checklist_template_format - Verify checkbox format (- [ ], Status, Notes)
+7. test_gap_analysis_template_table_format - Verify table columns (Requirement, Current State, Gap, Recommendation, Source)
+8. test_custom_template_has_no_structure - Verify no predefined sections
+
+**Integration Test Ideas (4 tests):**
+1. test_get_templates_returns_all - Verify GET /api/v1/templates returns 4 templates with all fields
+2. test_get_template_by_id_success - Verify GET /api/v1/templates/rfp_response returns specific template
+3. test_get_template_not_found - Verify 404 for GET /api/v1/templates/invalid_id
+4. test_get_templates_requires_authentication - Verify 401 without Bearer token
+
+**Frontend Component Test Ideas (6 tests):**
+1. test_renders_all_four_templates - Verify 4 cards rendered with names
+2. test_highlights_selected_template - Verify border-primary class on selected
+3. test_calls_onChange_when_clicked - Verify onChange callback with correct template ID
+4. test_displays_template_descriptions - Verify all descriptions visible
+5. test_shows_example_preview_for_non_custom - Verify example output snippets shown
+6. test_displays_appropriate_icons - Verify FileText, CheckSquare, GitCompare, Edit icons
+
+**E2E Test Ideas (4 tests):**
+1. test_displays_all_four_template_options - Navigate to generation, verify all 4 visible
+2. test_selects_template_and_shows_preview - Click template, verify selection highlight
+3. test_custom_template_changes_placeholder - Select Custom, verify context placeholder changes
+4. test_generate_button_disabled_without_context - Verify button state logic
+
+**AC Mapping to Tests:**
+- AC-1 (Four templates): Backend unit (3, 4), Integration (1, 2), Frontend component (1), E2E (1)
+- AC-2 (System prompts): Backend unit (4, 5, 6, 7)
+- AC-3 (Example preview): Frontend component (5), E2E (2)
+- AC-4 (Custom prompt): Backend unit (8), E2E (3)
+- AC-5 (Structured output): Backend unit (5, 6, 7) - validates templates have correct sections
+</ideas>
+  </tests>
+</story-context>

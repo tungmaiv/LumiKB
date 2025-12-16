@@ -1,0 +1,390 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.4</storyId>
+    <title>Document Generation Request</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-4-document-generation-request.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user with access to a Knowledge Base</asA>
+    <iWant>to request AI-generated document drafts (RFP responses, checklists, gap analysis) based on my Knowledge Base sources</iWant>
+    <soThat>I can quickly create professional documents with citations in a fraction of the time compared to manual drafting</soThat>
+    <tasks>
+      ## Backend Tasks
+      - Create GenerationService class (AC3)
+        - generate(template, context, sources) method
+        - Template-based prompt building
+        - LLM integration via LiteLLM client
+        - Citation extraction and mapping
+        - Confidence score calculation
+        - Unit tests for generation logic
+
+      - Implement Template Registry (AC4)
+        - Create services/templates.py module
+        - Define Template data model (Pydantic)
+        - Implement RFP Response template with system_prompt
+        - Implement Technical Checklist template
+        - Implement Gap Analysis template
+        - Implement Custom Prompt template
+        - get_template(template_id) helper function
+        - Unit tests for template loading
+
+      - Add POST /api/v1/generate endpoint (AC3)
+        - Request schema: GenerationRequest (kb_id, document_type, context, selected_sources)
+        - Response schema: GenerationResponse (draft_id, content, citations, confidence, sources_used)
+        - Permission check: User has READ permission on kb_id
+        - Source retrieval: Use selected_sources or auto-search based on context
+        - Call GenerationService.generate()
+        - Return response with 200 OK
+        - Error handling: 400, 403, 404, 500
+        - Integration test for /api/v1/generate
+
+      - Implement audit logging for generation (AC5)
+        - Log generation.request on endpoint entry
+        - Log generation.complete on success (with metrics)
+        - Log generation.failed on error
+        - Include all required fields: user_id, kb_id, document_type, source_count, etc.
+        - Async background logging (don't block response)
+        - Integration test for audit logging
+
+      ## Frontend Tasks
+      - Create GenerationModal component (AC1)
+        - Modal dialog with shadcn/ui Dialog component
+        - Template selection dropdown (4 options)
+        - Context textarea (multi-line, minimum 3 rows)
+        - Source selection indicator
+        - Generate and Cancel buttons
+        - Template descriptions/tooltips
+        - Form validation (context required when no selected_sources)
+        - Unit tests for template selection
+
+      - Integrate selected sources from Story 3.8 (AC2)
+        - Read selected sources from draft store (useDraftStore)
+        - Display source count in modal
+        - "View Sources" link/dialog showing source details
+        - "Clear Selection" button
+        - Auto-retrieve mode when no sources selected
+        - Unit tests for source selection logic
+
+      - Implement POST /api/v1/generate API call (AC6)
+        - Create lib/api/generation.ts module
+        - generateDocument(request) function
+        - AbortController for request cancellation
+        - Error handling with retry logic
+        - TypeScript types for request/response
+
+      - Add generation loading states (AC6)
+        - Loading spinner in modal
+        - Progress messages ("Retrieving sources..." → "Generating content...")
+        - Disable Generate button during loading
+        - Enable Cancel button during loading
+        - Success toast on completion
+        - Error toast with retry option
+        - Unit tests for loading states
+
+      - Add "Generate Draft" button to search/chat views (AC1)
+        - Button in search results view (after query executed)
+        - Button in chat interface (below message input)
+        - onClick: Open GenerationModal
+        - Icon: FileText or similar
+        - Unit test for button visibility and click
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    ### AC1: Generation Modal with Template Selection
+    - Modal appears with document type dropdown (RFP Response, Technical Checklist, Gap Analysis, Custom Prompt)
+    - Context/instructions textarea with placeholder
+    - Source selection indicator ("Using X selected sources" OR "Auto-retrieve sources")
+    - Generate button (primary CTA) and Cancel button (secondary)
+    - Template descriptions/tooltips for each option
+    - Context textarea supports multi-line input (minimum 3 rows)
+    - Modal is responsive and accessible (keyboard navigation, screen reader labels)
+
+    ### AC2: Selected Sources Integration (from Search Results)
+    - When "Use in Draft" button clicked on search results (Story 3.8), selected sources tracked
+    - Modal shows "Using 5 selected sources" indicator
+    - Selected sources automatically included in generation request
+    - "View Sources" link shows which documents/chunks are selected
+    - "Clear Selection" button removes selected sources
+    - Auto-retrieve mode activates when no sources selected
+
+    ### AC3: POST /api/v1/generate Endpoint Implementation
+    - Validates authentication and KB permission (READ permission required)
+    - Loads template based on document_type
+    - Retrieves sources: Use selected_sources if provided, else perform semantic search using context
+    - Builds generation prompt: Template system_prompt + context + sources
+    - Generates content via LiteLLM (non-streaming for this story)
+    - Extracts citation markers [1], [2], etc.
+    - Maps citations to source chunks
+    - Returns GenerationResponse with draft_id, content, citations, confidence, sources_used
+    - Error responses: 400 (invalid document_type/missing context), 403 (no READ permission), 404 (kb_id/chunk_ids not found), 500 (LLM generation failed)
+
+    ### AC4: Template Registry with Prompt Engineering
+    - RFP Response template with system_prompt for structured sections (Executive Summary, Technical Approach, Relevant Experience, Pricing)
+    - Technical Checklist template with checkbox format
+    - Gap Analysis template with table format
+    - Custom Prompt template accepting user instructions
+    - Each template has clear system_prompt with citation requirements
+    - Templates tested with sample inputs
+
+    ### AC5: Audit Logging (FR55 Compliance)
+    - All generation requests logged to audit.events table
+    - Audit event includes: user_id, action (generation.request), resource_type (draft), resource_id (draft_id), timestamp, details (kb_id, document_type, context_length, source_count, selected_sources_provided), ip_address
+    - Success: Additional fields logged (generation_time_ms, citation_count, confidence_score)
+    - Failure: Error logged with action (generation.failed), error_message, partial_time_ms
+    - Audit writes are async (don't block response)
+    - Audit events are immutable (INSERT-only schema)
+
+    ### AC6: Frontend Generation Flow (Non-Streaming)
+    - Modal transitions to loading state when Generate clicked
+    - Loading state: Generate button disabled, spinner displayed, progress message, Cancel button active
+    - Success: Modal closes, redirect to draft view/editor, draft content with inline citation markers [1][2], citations panel populated, success toast
+    - Failure: Loading stops, error message in modal, Retry button, Cancel button
+    - Cancellation: Request aborted (AbortController), modal closes, no draft saved, toast notification
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Document Generation Assist (MAKE Capability)</section>
+        <snippet>
+          FR36: Users can request AI assistance to generate document drafts
+          FR37: System supports generation of: RFP/RFI responses, questionnaires, checklists, gap analysis
+          FR38: Generated content includes citations to source documents used
+          FR41: System allows users to provide context/instructions for generation
+          FR42: Users can regenerate content with modified instructions
+          FR55: System logs every generation request with user, timestamp, prompt, and sources used
+        </snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Novel Pattern Designs - Citation Assembly System</section>
+        <snippet>
+          The citation system is LumiKB's core differentiator. System prompt instructs LLM to cite using [1], [2], etc. Citation extraction parses output, extracts [n] markers, maps to source chunks. CitationService (services/citation_service.py) handles core citation logic. ChunkMetadata in Qdrant payload provides rich metadata at index time.
+        </snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Epic 4 Technical Specification</title>
+        <section>Story 4.4: Document Generation Request (Lines 578-675)</section>
+        <snippet>
+          Generation API accepts template selection (document_type), context (user instructions), and optional selected_sources (chunk IDs). If selected_sources provided, use those chunks directly. Otherwise, perform semantic search using context. Template registry defined with 4 templates: rfp_response, checklist, gap_analysis, custom. Each template has system_prompt emphasizing citation requirements. Confidence score calculated using multi-factor algorithm (retrieval_score, source_coverage, semantic_similarity, citation_density). Audit logging logs all generation.request, generation.complete, and generation.failed events.
+        </snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Technical Decision TD-005: Generation Templates</title>
+        <section>Prompt-based templates with structured sections</section>
+        <snippet>
+          Decision: Prompt-based templates. Rationale: MVP speed (faster to iterate on prompts), flexibility (easy to add/modify), LLM native (modern LLMs excel at structured generation). TEMPLATES registry (dict) defined in services/templates.py. Each template has: id, name, description, system_prompt, sections. System prompts emphasize citation requirements ("CRITICAL: Cite every claim using [1], [2] format"). Frontend template selection maps to backend template_id.
+        </snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Technical Decision TD-003: Citation Preservation During Generation</title>
+        <section>Inline citation markers with post-processing parser</section>
+        <snippet>
+          Decision: Inline citation markers with post-processing parser. LLM instructed to emit [1], [2] markers. CitationService extracts markers and maps to source chunks. Validation ensures all markers have corresponding sources. Implementation: System prompt includes "Always cite sources using [1], [2], etc." Post-process: Extract [n] markers via regex, map to source chunks, generate citation metadata (doc, page, excerpt), validate all markers have sources.
+        </snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>service</kind>
+        <symbol>SearchService</symbol>
+        <lines>1-50</lines>
+        <reason>SearchService provides semantic search functionality for auto-retrieving sources when no selected_sources provided in generation request. Used to retrieve relevant chunks based on context input.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/citation_service.py</path>
+        <kind>service</kind>
+        <symbol>CitationService</symbol>
+        <lines>1-50</lines>
+        <reason>CitationService is THE CORE DIFFERENTIATOR. Extract citation markers [n] from LLM output and map to source chunks. Used to extract citations from generated content and build rich Citation objects with full metadata.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>ConversationService</symbol>
+        <lines>exists</lines>
+        <reason>ConversationService (from Story 4.1) provides LLM integration pattern via LiteLLM. GenerationService will follow similar pattern for prompt building and LLM invocation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService</symbol>
+        <lines>exists</lines>
+        <reason>AuditService (from Epic 1) handles audit logging. GenerationService will use it to log generation.request, generation.complete, and generation.failed events for FR55 compliance.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/search.py</path>
+        <kind>schema</kind>
+        <symbol>SearchResultSchema, SearchResponse</symbol>
+        <lines>exists</lines>
+        <reason>SearchResultSchema represents source chunks with metadata. Used as input to GenerationService for citation mapping and prompt building.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/citation.py</path>
+        <kind>schema</kind>
+        <symbol>Citation</symbol>
+        <lines>exists</lines>
+        <reason>Citation schema defines citation structure (number, document_id, document_name, page, section, excerpt, confidence). Used in GenerationResponse to return citation metadata to frontend.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/litellm_client.py</path>
+        <kind>integration</kind>
+        <symbol>litellm client</symbol>
+        <lines>exists</lines>
+        <reason>LiteLLM client for LLM generation. GenerationService will use this for non-streaming completion (story 4.4) and streaming completion (story 4.5).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        fastapi>=0.115.0,&lt;1.0.0
+        pydantic>=2.7.0,&lt;3.0.0
+        litellm>=1.50.0,&lt;2.0.0
+        langchain>=0.3.0,&lt;1.0.0
+        langchain-qdrant>=0.1.0,&lt;1.0.0
+        qdrant-client>=1.10.0,&lt;2.0.0
+        sqlalchemy[asyncio]>=2.0.44,&lt;3.0.0
+        structlog>=25.5.0,&lt;26.0.0
+      </python>
+      <typescript>
+        next@16.0.3
+        react@19.2.0
+        zustand@5.0.8
+        zod@4.1.12
+        @radix-ui/react-dialog@1.1.15
+        @radix-ui/react-select@2.2.6
+        lucide-react@0.554.0
+        sonner@2.0.7
+      </typescript>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Follow Python naming conventions: snake_case for functions/variables, PascalCase for classes
+    - Use Pydantic BaseModel for all request/response schemas with proper type hints
+    - Always use async/await for database and external service calls
+    - Permission checks must occur at API layer before business logic
+    - Audit logging must be async and non-blocking (don't block response)
+    - All citation markers [n] must map to valid source chunks (validate before returning)
+    - Template system_prompts must emphasize citation requirements prominently
+    - Error handling: Raise HTTPException with appropriate status codes (400, 403, 404, 500)
+    - Frontend: Use shadcn/ui components for consistency (Dialog, Select, Textarea, Button)
+    - Frontend: Use Zustand for cross-component state (draft store for selected sources)
+    - Frontend: Implement loading states with clear user feedback (spinner + progress messages)
+    - Frontend: AbortController for request cancellation on user Cancel action
+    - Testing: Unit tests for service methods, integration tests for API endpoints
+    - Testing: E2E tests for full generation flow (search → select sources → generate → view draft)
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/generate</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Request: { kb_id: str, document_type: "rfp_response" | "checklist" | "gap_analysis" | "custom", context: str, selected_sources?: List[str] }
+        Response: { draft_id: str, content: str, citations: List[Citation], confidence: float, sources_used: int }
+      </signature>
+      <path>backend/app/api/v1/generate.py</path>
+    </interface>
+    <interface>
+      <name>GenerationService.generate</name>
+      <kind>function signature</kind>
+      <signature>
+        async def generate(template: Template, context: str, sources: List[Chunk], kb_id: str) -> GenerationResult
+      </signature>
+      <path>backend/app/services/generation_service.py</path>
+    </interface>
+    <interface>
+      <name>get_template</name>
+      <kind>function signature</kind>
+      <signature>
+        def get_template(template_id: str) -> Template
+      </signature>
+      <path>backend/app/services/templates.py</path>
+    </interface>
+    <interface>
+      <name>GenerationModal component</name>
+      <kind>React component</kind>
+      <signature>
+        function GenerationModal({ kbId }: { kbId: string }): JSX.Element
+      </signature>
+      <path>frontend/src/components/generation/generation-modal.tsx</path>
+    </interface>
+    <interface>
+      <name>generateDocument API function</name>
+      <kind>function signature</kind>
+      <signature>
+        async function generateDocument(request: GenerationRequest): Promise&lt;GenerationResponse&gt;
+      </signature>
+      <path>frontend/src/lib/api/generation.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      ## Testing Framework
+      - Backend: pytest with pytest-asyncio for async tests
+      - Frontend: Vitest for unit tests, Playwright for E2E tests
+      - Test markers: @pytest.mark.unit (fast, no deps), @pytest.mark.integration (testcontainers)
+
+      ## Coverage Requirements
+      - Unit tests: Service methods (prompt building, citation extraction, confidence scoring)
+      - Integration tests: API endpoints (permission checks, audit logging, source retrieval)
+      - E2E tests: Full user flows (search → select → generate → view)
+
+      ## Test Locations
+      - Backend unit: backend/tests/unit/test_generation_service.py, test_templates.py
+      - Backend integration: backend/tests/integration/test_generation_api.py, test_generation_audit.py
+      - Frontend unit: frontend/src/components/generation/__tests__/generation-modal.test.tsx
+      - E2E: frontend/e2e/tests/generation/document-generation.spec.ts
+    </standards>
+    <locations>
+      backend/tests/unit/
+      backend/tests/integration/
+      frontend/src/components/generation/__tests__/
+      frontend/e2e/tests/generation/
+    </locations>
+    <ideas>
+      ## Backend Unit Tests
+      - test_generate_with_selected_sources: Verify generation uses provided chunk IDs
+      - test_generate_with_auto_retrieve: Verify semantic search called when no selected_sources
+      - test_template_loading: Verify all 4 templates load correctly with proper system_prompts
+      - test_citation_extraction: Verify [n] markers extracted and mapped to source chunks
+      - test_confidence_calculation: Verify multi-factor algorithm (retrieval 40%, coverage 30%, similarity 20%, density 10%)
+      - test_invalid_template_id: Verify 400 error when document_type not in registry
+
+      ## Backend Integration Tests
+      - test_generate_endpoint_success: Full flow with selected_sources, verify 200 response
+      - test_generate_endpoint_auto_retrieve: Full flow without selected_sources, verify search called
+      - test_generate_endpoint_permission_check: Verify 403 when user lacks READ permission on kb_id
+      - test_generate_audit_logging: Verify generation.request and generation.complete logged
+      - test_generate_error_handling: Verify 500 logged as generation.failed with error_message
+
+      ## Frontend Unit Tests
+      - test_template_selection_updates_description: Verify tooltip changes when template selected
+      - test_context_required_when_no_sources: Verify form validation requires context when selected_sources empty
+      - test_source_indicator_shows_count: Verify "Using 5 selected sources" displayed correctly
+      - test_clear_selection_removes_sources: Verify "Clear Selection" button clears selected_sources
+      - test_loading_state_disables_generate: Verify Generate button disabled during loading
+
+      ## E2E Tests
+      - test_generate_from_search_with_selected_sources: Search → Select sources → Open modal → Generate → View draft
+      - test_generate_with_auto_retrieve: Open modal → Enter context → Generate → View draft
+      - test_template_switching: Click each template, verify description changes
+      - test_cancel_during_generation: Click Generate → Click Cancel → Verify request aborted
+      - test_error_handling_with_retry: Simulate 500 error → Verify error message → Click Retry
+    </ideas>
+  </tests>
+</story-context>

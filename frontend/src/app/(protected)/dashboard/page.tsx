@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { DocumentsPanel } from '@/components/documents';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Database, FileText, Search, MessageSquare, FolderOpen } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage(): React.ReactElement {
   const user = useUser();
@@ -29,6 +30,35 @@ export default function DashboardPage(): React.ReactElement {
               Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}!
             </h2>
             <p className="text-muted-foreground">Your knowledge base dashboard</p>
+          </div>
+        )}
+
+        {/* Quick Access Cards - Always show when KB is active */}
+        {activeKb && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <Link href="/search">
+              <Card className="cursor-pointer hover:bg-accent transition-colors">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Search</CardTitle>
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">Find answers with citations</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/chat">
+              <Card className="cursor-pointer hover:bg-accent transition-colors">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Chat</CardTitle>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">Ask AI questions</p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
         )}
 
@@ -62,27 +92,29 @@ export default function DashboardPage(): React.ReactElement {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Searches</CardTitle>
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">Coming in Epic 3</p>
-                </CardContent>
-              </Card>
+              <Link href="/search">
+                <Card className="cursor-pointer hover:bg-accent transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Search Knowledge Base</CardTitle>
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">Semantic search with citations</p>
+                  </CardContent>
+                </Card>
+              </Link>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Conversations</CardTitle>
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">Coming in Epic 4</p>
-                </CardContent>
-              </Card>
+              <Link href="/chat">
+                <Card className="cursor-pointer hover:bg-accent transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Chat</CardTitle>
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">Ask questions, get AI answers</p>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
 
             {/* Main Content Area */}
@@ -106,11 +138,11 @@ export default function DashboardPage(): React.ReactElement {
                     </p>
                     <p>
                       <strong className="text-foreground">3. Search & Ask Questions</strong> - Use
-                      semantic search to find answers with citations (coming in Epic 3)
+                      semantic search to find answers with citations
                     </p>
                     <p>
-                      <strong className="text-foreground">4. Generate Content</strong> - Create new
-                      documents based on your knowledge (coming in Epic 4)
+                      <strong className="text-foreground">4. Chat with AI</strong> - Have conversations
+                      about your knowledge base with AI-powered responses
                     </p>
                   </div>
                 </CardContent>

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, model_repr
 
 if TYPE_CHECKING:
+    from app.models.draft import Draft
     from app.models.knowledge_base import KnowledgeBase
     from app.models.permission import KBPermission
 
@@ -48,6 +49,10 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     knowledge_bases: Mapped[list["KnowledgeBase"]] = relationship(
         "KnowledgeBase",
         back_populates="owner",
+    )
+    drafts: Mapped[list["Draft"]] = relationship(
+        "Draft",
+        back_populates="user",
     )
     kb_permissions: Mapped[list["KBPermission"]] = relationship(
         "KBPermission",
