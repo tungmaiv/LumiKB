@@ -1,0 +1,201 @@
+<story-context id="5-19-group-management" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>19</storyId>
+    <title>Group Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-19-group-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>to create user groups and assign users to groups</iWant>
+    <soThat>I can manage KB access permissions at the group level rather than individually per user</soThat>
+    <tasks>
+      <task id="1" ac="1">Create Group Model and Migration - Group, UserGroup SQLAlchemy models with migration</task>
+      <task id="2" ac="1">Create Group Schemas - GroupBase, GroupCreate, GroupUpdate, GroupRead, GroupWithMembers</task>
+      <task id="3" ac="1,4">Create GroupService - CRUD operations, membership management, audit logging</task>
+      <task id="4" ac="1,6">Create Group API Endpoints - 7 admin endpoints with current_superuser protection</task>
+      <task id="5" ac="2,3,4">Create useGroups Hook - React Query hook with mutations and optimistic updates</task>
+      <task id="6" ac="2">Create Group Types - TypeScript interfaces matching API contracts</task>
+      <task id="7" ac="2">Create GroupTable Component - expandable rows, search, pagination, sorting</task>
+      <task id="8" ac="3">Create CreateGroupModal Component - form validation with react-hook-form + zod</task>
+      <task id="9" ac="3">Create EditGroupModal Component - pre-populated form, status toggle</task>
+      <task id="10" ac="4">Create GroupMembershipModal Component - member list, user picker, bulk add</task>
+      <task id="11" ac="2,5">Create Groups Page - integrate all components with URL state</task>
+      <task id="12" ac="5">Update Admin Navigation - add Groups link to MainNav and admin page</task>
+      <task id="13" ac="all">Write E2E Tests - full coverage of group management flows</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="5.19.1" title="Group Model and API Created">
+      Groups table (id, name, description, is_active, timestamps) and user_groups junction table.
+      API endpoints: GET/POST/PATCH/DELETE /admin/groups, POST/DELETE members.
+      All endpoints require current_superuser. Audit logging for mutations.
+    </ac>
+    <ac id="5.19.2" title="Group List Page Created">
+      Table showing Name, Description (truncated), Member Count, Status badge, Created date.
+      Search by name (debounced 300ms), expandable rows for members, 20 per page pagination.
+    </ac>
+    <ac id="5.19.3" title="Create/Edit Group Modal Implemented">
+      Modal with Name (required, max 255), Description (optional textarea).
+      Validation: empty name, duplicate (409), max length. Toast on success.
+    </ac>
+    <ac id="5.19.4" title="Group Membership Management Implemented">
+      Modal showing current members with remove action, user picker with search.
+      Multi-select for bulk add, confirmation dialog for remove.
+      Audit events: group.member_added, group.member_removed.
+    </ac>
+    <ac id="5.19.5" title="Admin Navigation Updated">
+      Groups link in admin section, navigates to /admin/groups, shows active state.
+    </ac>
+    <ac id="5.19.6" title="Access Control Enforced">
+      Non-admin redirected to /dashboard. API returns 403 Forbidden.
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Technical Specification" section="Story 5.19">
+        Group management technical details including data models, API contracts, and traceability matrix.
+      </doc>
+      <doc path="docs/epics.md" title="Product Epics" section="Epic 5: Administration &amp; Polish">
+        Story 5.19 definition with 6 acceptance criteria for group management functionality.
+      </doc>
+      <doc path="docs/sprint-artifacts/5-18-user-management-ui.md" title="Story 5.18 User Management UI" section="All">
+        Reference for UI patterns, React Query hooks, admin table components, and route protection.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Database Patterns, API Conventions">
+        Database design patterns, API response formats, authentication flows.
+      </doc>
+      <doc path="docs/coding-standards.md" title="Coding Standards" section="TypeScript, Testing">
+        TypeScript conventions, testing requirements, code organization standards.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="backend/app/api/v1/admin.py" kind="router" symbol="router" lines="1-1257" reason="Admin endpoint patterns: list_users, create_user, update_user with current_superuser dependency, pagination, audit logging">
+        Reference for admin API implementation patterns including PaginatedResponse, fire-and-forget audit logging.
+      </file>
+      <file path="backend/app/models/permission.py" kind="model" symbol="KBPermission" lines="27-77" reason="Junction table pattern for user-KB permissions with unique constraint and cascade deletes">
+        Pattern for user_groups junction table implementation.
+      </file>
+      <file path="backend/app/models/knowledge_base.py" kind="model" symbol="KnowledgeBase" lines="19-72" reason="SQLAlchemy model with relationships, timestamps, status field">
+        Reference for Group model structure with relationships.
+      </file>
+      <file path="frontend/src/hooks/useUsers.ts" kind="hook" symbol="useUsers" lines="1-192" reason="React Query hook pattern with mutations, optimistic updates, error handling">
+        Pattern for useGroups hook implementation.
+      </file>
+      <file path="frontend/src/components/admin/user-table.tsx" kind="component" symbol="UserTable" lines="1-308" reason="Admin table with sorting, filtering, pagination, badges">
+        Pattern for GroupTable component with expandable rows.
+      </file>
+      <file path="frontend/src/components/admin/create-user-modal.tsx" kind="component" symbol="CreateUserModal" lines="1-191" reason="Modal with react-hook-form + zod validation, 409 conflict handling">
+        Pattern for CreateGroupModal implementation.
+      </file>
+      <file path="frontend/src/components/auth/admin-guard.tsx" kind="component" symbol="AdminGuard" lines="1-67" reason="Route-level admin access control with redirect">
+        Reuse for /admin/groups page protection.
+      </file>
+    </code>
+
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0,&lt;1.0.0" />
+        <package name="sqlalchemy" version=">=2.0.44,&lt;3.0.0" />
+        <package name="pydantic" version=">=2.7.0,&lt;3.0.0" />
+        <package name="alembic" version=">=1.14.0,&lt;2.0.0" />
+      </backend>
+      <frontend>
+        <package name="@tanstack/react-query" version="^5.90.11" />
+        <package name="react-hook-form" version="^7.66.1" />
+        <package name="@hookform/resolvers" version="^5.2.2" />
+        <package name="zod" version="^4.1.12" />
+        <package name="lucide-react" version="^0.554.0" />
+        <package name="date-fns" version="^4.1.0" />
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Follow existing admin endpoint patterns from backend/app/api/v1/admin.py</constraint>
+    <constraint type="architecture">Use current_superuser dependency for all group endpoints (admin-only)</constraint>
+    <constraint type="architecture">Implement soft delete pattern (is_active=false) to preserve audit history</constraint>
+    <constraint type="database">Groups table must have unique constraint on name column</constraint>
+    <constraint type="database">user_groups junction table uses composite primary key (user_id, group_id)</constraint>
+    <constraint type="database">Cascade delete on user removal (user deleted = removed from all groups)</constraint>
+    <constraint type="frontend">Use React Query with optimistic updates for mutations</constraint>
+    <constraint type="frontend">Follow Shadcn UI component patterns (Dialog, Table, Badge, Input)</constraint>
+    <constraint type="frontend">Debounce search input at 300ms</constraint>
+    <constraint type="security">Handle 409 Conflict for duplicate group names</constraint>
+    <constraint type="security">Fire-and-forget audit logging for all mutations</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GroupsRouter" kind="REST API" path="backend/app/api/v1/groups.py">
+      <endpoint method="GET" path="/api/v1/admin/groups" returns="PaginatedResponse[GroupRead]" />
+      <endpoint method="POST" path="/api/v1/admin/groups" accepts="GroupCreate" returns="GroupRead" />
+      <endpoint method="GET" path="/api/v1/admin/groups/{id}" returns="GroupWithMembers" />
+      <endpoint method="PATCH" path="/api/v1/admin/groups/{id}" accepts="GroupUpdate" returns="GroupRead" />
+      <endpoint method="DELETE" path="/api/v1/admin/groups/{id}" returns="204 No Content" />
+      <endpoint method="POST" path="/api/v1/admin/groups/{id}/members" accepts="GroupMemberAdd" returns="{added_count: int}" />
+      <endpoint method="DELETE" path="/api/v1/admin/groups/{id}/members/{user_id}" returns="204 No Content" />
+    </interface>
+    <interface name="GroupService" kind="service class" path="backend/app/services/group_service.py">
+      <method name="list_groups" signature="(skip: int, limit: int, search: str | None) -> tuple[list[Group], int]" />
+      <method name="get_group" signature="(group_id: UUID) -> GroupWithMembers" />
+      <method name="create_group" signature="(data: GroupCreate) -> Group" />
+      <method name="update_group" signature="(group_id: UUID, data: GroupUpdate) -> Group" />
+      <method name="delete_group" signature="(group_id: UUID) -> bool" />
+      <method name="add_members" signature="(group_id: UUID, user_ids: list[UUID]) -> int" />
+      <method name="remove_member" signature="(group_id: UUID, user_id: UUID) -> bool" />
+    </interface>
+    <interface name="useGroups" kind="React hook" path="frontend/src/hooks/useGroups.ts">
+      <method name="useGroups" signature="(page?: number, search?: string) -> UseGroupsReturn" />
+      <method name="useGroup" signature="(id: string) -> UseGroupReturn" />
+      <method name="createGroup" signature="(data: GroupCreate) -> Promise&lt;Group&gt;" />
+      <method name="updateGroup" signature="(id: string, data: GroupUpdate) -> Promise&lt;Group&gt;" />
+      <method name="deleteGroup" signature="(id: string) -> Promise&lt;void&gt;" />
+      <method name="addMembers" signature="(groupId: string, userIds: string[]) -> Promise&lt;{added_count: number}&gt;" />
+      <method name="removeMember" signature="(groupId: string, userId: string) -> Promise&lt;void&gt;" />
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: pytest with pytest-asyncio, testcontainers for PostgreSQL/Redis.
+      Unit tests in tests/unit/, integration tests in tests/integration/.
+      Frontend: Vitest with @testing-library/react for unit tests.
+      E2E: Playwright tests in e2e/tests/admin/.
+      Coverage target: >80% for new code.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_group_service.py</location>
+      <location>backend/tests/integration/test_groups_api.py</location>
+      <location>frontend/src/hooks/__tests__/useGroups.test.tsx</location>
+      <location>frontend/src/components/admin/__tests__/group-table.test.tsx</location>
+      <location>frontend/src/components/admin/__tests__/create-group-modal.test.tsx</location>
+      <location>frontend/src/components/admin/__tests__/edit-group-modal.test.tsx</location>
+      <location>frontend/src/components/admin/__tests__/group-membership-modal.test.tsx</location>
+      <location>frontend/e2e/tests/admin/group-management.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="5.19.1">Test list_groups returns paginated results with search filter</idea>
+      <idea ac="5.19.1">Test create_group raises 409 on duplicate name</idea>
+      <idea ac="5.19.1">Test delete_group sets is_active=false (soft delete)</idea>
+      <idea ac="5.19.1">Test add_members adds users and returns count</idea>
+      <idea ac="5.19.1">Test remove_member removes user from group</idea>
+      <idea ac="5.19.2">Test GroupTable renders columns correctly</idea>
+      <idea ac="5.19.2">Test expandable row shows member list</idea>
+      <idea ac="5.19.2">Test search filters by group name</idea>
+      <idea ac="5.19.3">Test CreateGroupModal validates required name</idea>
+      <idea ac="5.19.3">Test CreateGroupModal handles 409 conflict error</idea>
+      <idea ac="5.19.4">Test GroupMembershipModal adds multiple users</idea>
+      <idea ac="5.19.4">Test GroupMembershipModal removes user with confirmation</idea>
+      <idea ac="5.19.5">Test Groups link appears in admin navigation</idea>
+      <idea ac="5.19.6">Test non-admin redirected to /dashboard</idea>
+      <idea ac="5.19.6">Test API returns 403 for non-admin user</idea>
+    </ideas>
+  </tests>
+</story-context>

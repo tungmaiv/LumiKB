@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-2" generated="2025-12-14" status="ready-for-dev">
+
+  <story-summary>
+    <title>PostgreSQL Provider Implementation</title>
+    <goal>Implement the PostgreSQLProvider class that stores all traces, spans, and events to the database with fire-and-forget pattern</goal>
+    <scope>
+      - ObservabilityProvider abstract base class definition
+      - PostgreSQLProvider implementing all interface methods
+      - Fire-and-forget error handling with structlog warnings
+      - Integration tests for data persistence
+    </scope>
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC-1">`PostgreSQLProvider` class implements `ObservabilityProvider` abstract interface</criterion>
+    <criterion id="AC-2">`start_trace()` creates Trace record with all context fields (trace_id, user_id, session_id, kb_id, operation_type)</criterion>
+    <criterion id="AC-3">`end_trace()` updates Trace with duration_ms, status, error fields, and aggregated token/cost metrics</criterion>
+    <criterion id="AC-4">`start_span()` creates Span record with parent context and returns database UUID for reference</criterion>
+    <criterion id="AC-5">`end_span()` updates Span with duration_ms, status, and type-specific metrics (LLM, embedding, retrieval, etc.)</criterion>
+    <criterion id="AC-6">`log_llm_call()` creates Span with LLM-specific fields (model, tokens, cost, temperature, input/output preview)</criterion>
+    <criterion id="AC-7">`log_chat_message()` creates ChatMessage record with role, content, turn_number, sources, and citations</criterion>
+    <criterion id="AC-8">`log_document_event()` creates DocumentEvent record with event_type, status, and step-specific metrics</criterion>
+    <criterion id="AC-9">All methods are fire-and-forget: catch and log exceptions without propagating them to callers</criterion>
+    <criterion id="AC-10">Integration tests verify data persistence for all provider methods</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" name="Create ObservabilityProvider abstract base class" acceptance-criteria="1">
+      <subtask id="1.1">Define abstract interface with all required methods</subtask>
+      <subtask id="1.2">Add `name` and `enabled` abstract properties</subtask>
+      <subtask id="1.3">Document method signatures with type hints and docstrings</subtask>
+    </task>
+    <task id="2" name="Implement PostgreSQLProvider class" acceptance-criteria="2,3,4,5,6,7,8,9">
+      <subtask id="2.1">Initialize with session factory and enabled flag (always True)</subtask>
+      <subtask id="2.2">Implement `_get_session()` for dedicated session management</subtask>
+      <subtask id="2.3">Implement `start_trace()` - create Trace with context fields</subtask>
+      <subtask id="2.4">Implement `end_trace()` - update with duration calculation and metrics</subtask>
+      <subtask id="2.5">Implement `start_span()` - create Span, return database ID</subtask>
+      <subtask id="2.6">Implement `end_span()` - update with type-specific metrics via **kwargs</subtask>
+      <subtask id="2.7">Implement `log_llm_call()` - create Span with LLM fields, auto-generate span_id</subtask>
+      <subtask id="2.8">Implement `log_chat_message()` - create ChatMessage, validate required context</subtask>
+      <subtask id="2.9">Implement `log_document_event()` - create DocumentEvent with metrics</subtask>
+      <subtask id="2.10">Wrap all database operations in try/except with structlog warning</subtask>
+    </task>
+    <task id="3" name="Add text truncation utilities" acceptance-criteria="9">
+      <subtask id="3.1">Truncate error_message to 1000 chars</subtask>
+      <subtask id="3.2">Truncate input_preview/output_preview to 500 chars</subtask>
+      <subtask id="3.3">Handle None values gracefully</subtask>
+    </task>
+    <task id="4" name="Write integration tests" acceptance-criteria="10">
+      <subtask id="4.1">Test start_trace creates record with correct fields</subtask>
+      <subtask id="4.2">Test end_trace updates status and calculates duration</subtask>
+      <subtask id="4.3">Test start_span/end_span lifecycle</subtask>
+      <subtask id="4.4">Test log_llm_call persists all LLM metrics</subtask>
+      <subtask id="4.5">Test log_chat_message with and without sources/citations</subtask>
+      <subtask id="4.6">Test log_document_event for all event types (upload, parse, chunk, embed, index)</subtask>
+      <subtask id="4.7">Test fire-and-forget: verify exception logging without propagation</subtask>
+      <subtask id="4.8">Test concurrent writes don't block each other</subtask>
+    </task>
+  </tasks>
+
+  <technical-context>
+    <architecture-patterns>
+      <pattern name="Fire-and-Forget">
+        <description>All database operations catch exceptions and log warnings via structlog without propagating</description>
+        <code-example language="python">
+async def start_trace(self, ctx, name, operation_type, metadata=None):
+    try:
+        async with self._get_session() as session:
+            trace = Trace(...)
+            session.add(trace)
+            await session.commit()
+    except Exception as e:
+        logger.warning("postgresql_start_trace_failed", error=str(e))
+        </code-example>
+      </pattern>
+      <pattern name="Dedicated Sessions">
+        <description>Use separate session factory to avoid blocking request sessions</description>
+        <reference>Similar to celery_session_factory pattern in app/core/database.py</reference>
+      </pattern>
+      <pattern name="Type-Specific Metrics">
+        <description>Use **kwargs pattern to pass type-specific span metrics dynamically</description>
+        <code-example language="python">
+async def end_span(self, span_id, status, duration_ms, **metrics):
+    values = {"status": status, "duration_ms": duration_ms, ...}
+    for key, value in metrics.items():
+        if hasattr(Span, key):
+            values[key] = value
+        </code-example>
+      </pattern>
+    </architecture-patterns>
+
+    <key-technical-decisions>
+      <decision id="1">
+        <topic>Always Enabled</topic>
+        <choice>PostgreSQLProvider is always active (no config toggle) - internal observability is mandatory</choice>
+      </decision>
+      <decision id="2">
+        <topic>Session Factory Pattern</topic>
+        <choice>Accept session factory in constructor for testability and separation from request sessions</choice>
+      </decision>
+      <decision id="3">
+        <topic>UTC Timestamps</topic>
+        <choice>Use datetime.utcnow() for all timing calculations for consistency</choice>
+      </decision>
+      <decision id="4">
+        <topic>Text Truncation</topic>
+        <choice>Truncate error_message to 1000 chars, input/output_preview to 500 chars</choice>
+      </decision>
+    </key-technical-decisions>
+  </technical-context>
+
+  <source-tree-components>
+    <component type="create" path="backend/app/services/observability_service.py">
+      <description>ObservabilityProvider abstract class and PostgreSQLProvider implementation</description>
+      <responsibilities>
+        - Define ObservabilityProvider abstract base class with all method signatures
+        - Implement PostgreSQLProvider with session factory pattern
+        - Implement all trace/span/chat/document logging methods
+        - Handle fire-and-forget error handling
+      </responsibilities>
+    </component>
+    <component type="modify" path="backend/app/services/__init__.py">
+      <description>Register new observability service exports</description>
+    </component>
+    <component type="create" path="backend/tests/integration/test_observability_provider.py">
+      <description>Integration tests for PostgreSQLProvider</description>
+      <responsibilities>
+        - Test start_trace creates record with correct fields
+        - Test end_trace updates status and calculates duration
+        - Test start_span/end_span lifecycle
+        - Test log_llm_call persists all LLM metrics
+        - Test log_chat_message with and without sources/citations
+        - Test log_document_event for all event types
+        - Test fire-and-forget exception handling
+      </responsibilities>
+    </component>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="Session Factory" file="backend/app/core/database.py">
+      <code-snippet language="python">
+# Existing session factories
+async_session_factory = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+# Usage pattern
+async with async_session_factory() as session:
+    # ... perform operations
+    await session.commit()
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Structlog Logging" file="backend/app/services/audit_service.py">
+      <description>Use structlog for consistent logging</description>
+      <code-snippet language="python">
+import structlog
+logger = structlog.get_logger(__name__)
+
+# Warning pattern for non-critical errors
+logger.warning("operation_failed", error=str(e), context_key=value)
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Service Pattern" file="backend/app/services/kb_service.py">
+      <description>Follow existing service class structure</description>
+      <note>Services use dependency injection for session management</note>
+    </pattern>
+
+    <pattern name="Model Import" file="backend/app/models/__init__.py">
+      <description>Import models from their respective modules</description>
+      <code-snippet language="python">
+from app.models.observability import (
+    Trace,
+    Span,
+    ChatMessage,
+    DocumentEvent,
+    MetricsAggregate,
+    ProviderSyncStatus,
+)
+      </code-snippet>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <interface-reference>
+    <class name="ObservabilityProvider">
+      <purpose>Abstract base class defining the provider interface</purpose>
+      <methods>
+        <method name="name" type="property">Returns provider identifier string</method>
+        <method name="enabled" type="property">Returns bool indicating if provider is active</method>
+        <method name="start_trace">Create new trace record</method>
+        <method name="end_trace">Complete trace with status and metrics</method>
+        <method name="start_span">Create span within trace, return UUID</method>
+        <method name="end_span">Complete span with duration and metrics</method>
+        <method name="log_llm_call">Log LLM API call with tokens/cost</method>
+        <method name="log_chat_message">Log chat message with sources/citations</method>
+        <method name="log_document_event">Log document processing step</method>
+      </methods>
+    </class>
+
+    <class name="PostgreSQLProvider">
+      <purpose>Always-on internal PostgreSQL provider implementation</purpose>
+      <constructor>
+        <param name="session_factory">Async session factory for database access</param>
+      </constructor>
+      <key-behaviors>
+        - Always enabled (self._enabled = True)
+        - Creates dedicated sessions for each operation
+        - Never propagates exceptions to callers
+        - Logs warnings via structlog on failures
+        - Truncates long text fields to schema limits
+      </key-behaviors>
+    </class>
+  </interface-reference>
+
+  <implementation-reference file="docs/sprint-artifacts/tech-spec-epic-9-observability.md" lines="909-1127">
+    <code-snippet language="python">
+class PostgreSQLProvider(ObservabilityProvider):
+    """Always-on internal PostgreSQL provider."""
+
+    def __init__(self, session_factory):
+        self._session_factory = session_factory
+        self._enabled = True  # Always enabled
+
+    @property
+    def name(self) -> str:
+        return "postgresql"
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    async def _get_session(self) -> AsyncSession:
+        """Get a new database session."""
+        return self._session_factory()
+
+    async def start_trace(
+        self,
+        ctx: TraceContext,
+        name: str,
+        operation_type: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        async with self._get_session() as session:
+            trace = Trace(
+                trace_id=ctx.trace_id,
+                name=name,
+                operation_type=operation_type,
+                user_id=ctx.user_id,
+                session_id=ctx.session_id,
+                kb_id=ctx.kb_id,
+                metadata=metadata or {},
+            )
+            session.add(trace)
+            await session.commit()
+            ctx.db_trace_id = trace.id
+    </code-snippet>
+  </implementation-reference>
+
+  <implementation-notes>
+    <note id="1" priority="high">
+      <topic>Session Context Manager</topic>
+      <content>
+        Use async context manager for session management:
+        async with self._session_factory() as session:
+            # ... operations
+            await session.commit()
+        This ensures proper cleanup and connection return to pool.
+      </content>
+    </note>
+    <note id="2" priority="high">
+      <topic>Error Message Truncation</topic>
+      <content>
+        Always truncate error_message before storing:
+        error_message=error_message[:1000] if error_message else None
+        This prevents database errors from oversized text.
+      </content>
+    </note>
+    <note id="3" priority="medium">
+      <topic>Duration Calculation</topic>
+      <content>
+        For end_trace/end_span, calculate duration from started_at if not provided:
+        ended_at = datetime.utcnow()
+        # duration_ms calculated by caller or by query on read
+      </content>
+    </note>
+    <note id="4" priority="medium">
+      <topic>ChatMessage Required Context</topic>
+      <content>
+        log_chat_message should early-return if required context missing:
+        if not ctx.user_id or not ctx.kb_id or not ctx.session_id:
+            return  # Cannot log without required context
+      </content>
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <integration-tests>
+      <test name="test_start_trace_creates_record">Verify Trace created with all context fields</test>
+      <test name="test_end_trace_updates_status">Verify status, duration, tokens, cost updated</test>
+      <test name="test_start_span_returns_uuid">Verify Span created and UUID returned</test>
+      <test name="test_end_span_with_metrics">Verify type-specific metrics stored via kwargs</test>
+      <test name="test_log_llm_call_all_fields">Verify model, tokens, cost, temperature, previews stored</test>
+      <test name="test_log_chat_message_with_sources">Verify JSONB sources and citations stored</test>
+      <test name="test_log_chat_message_without_context">Verify early return when context missing</test>
+      <test name="test_log_document_event_all_types">Test upload/parse/chunk/embed/index event types</test>
+      <test name="test_fire_and_forget_exception_handling">Verify exceptions logged but not propagated</test>
+      <test name="test_concurrent_writes">Verify parallel operations don't block</test>
+    </integration-tests>
+    <patterns>
+      - Use async test fixtures from conftest.py
+      - Create observability schema before tests
+      - Read back written records to verify persistence
+      - Use pytest.raises with mock to test exception handling
+    </patterns>
+  </testing-requirements>
+
+  <dependencies>
+    <dependency type="story">
+      <id>9-1</id>
+      <description>Observability Schema and Models must be complete (Trace, Span, ChatMessage, DocumentEvent models)</description>
+    </dependency>
+  </dependencies>
+
+  <references>
+    <document path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" section="5.1 ObservabilityService Interface">
+      PostgreSQLProvider implementation reference
+    </document>
+    <document path="docs/sprint-artifacts/9-2-postgresql-provider-implementation.md">
+      Story definition with tasks and subtasks
+    </document>
+    <document path="docs/epics/epic-9-observability.md" section="Design Principles">
+      Fire-and-Forget, Fail-Safe principles
+    </document>
+    <document path="backend/app/core/database.py">
+      Session factory patterns to follow
+    </document>
+    <document path="backend/app/services/audit_service.py">
+      Structlog logging patterns
+    </document>
+  </references>
+
+</story-context>

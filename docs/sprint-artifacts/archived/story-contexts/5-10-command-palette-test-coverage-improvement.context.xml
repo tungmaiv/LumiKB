@@ -1,0 +1,307 @@
+<story-context id="5-10-command-palette-test-coverage-improvement" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>10</storyId>
+    <title>Command Palette Test Coverage Improvement (Technical Debt)</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-10-command-palette-test-coverage-improvement.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>to achieve 100% test coverage for the command palette component</iWant>
+    <soThat>we have comprehensive test validation for the quick search feature</soThat>
+    <tasks>
+      <task id="1" ac="1">
+        <name>Research and Investigation</name>
+        <subtasks>
+          <subtask>Research cmdk library testing patterns</subtask>
+          <subtask>Check cmdk GitHub issues for testing discussions</subtask>
+          <subtask>Review shadcn/ui Command component testing examples</subtask>
+          <subtask>Check for cmdk test utilities</subtask>
+          <subtask>Analyze current test failures in detail</subtask>
+          <subtask>Run tests with verbose logging</subtask>
+          <subtask>Identify exact point of failure (debounce vs render vs filter)</subtask>
+          <subtask>Document findings in test file comments</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="2">
+        <name>Implement Fix</name>
+        <subtasks>
+          <subtask>Choose approach based on research findings</subtask>
+          <subtask>Implement fix for `fetches results after debounce` test</subtask>
+          <subtask>Implement fix for `displays results with metadata` test</subtask>
+          <subtask>Implement fix for `shows empty state when no results` test</subtask>
+          <subtask>Verify all 10 tests pass consistently (run 3x)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="3">
+        <name>Document Approach</name>
+        <subtasks>
+          <subtask>Update test file header comments with root cause explanation</subtask>
+          <subtask>Document chosen solution approach</subtask>
+          <subtask>Note any caveats or limitations</subtask>
+          <subtask>Update story completion notes</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" name="Investigate Test Failures">
+      <given>the command palette tests currently have 70% pass rate (7/10)</given>
+      <when>I investigate the test failures</when>
+      <then>I identify the specific root cause within the cmdk/Command component interaction</then>
+      <and>I document the findings in the test file comments</and>
+      <verification>
+        <item>Root cause documented in test file header comments</item>
+        <item>Investigation findings shared in completion notes</item>
+      </verification>
+    </criterion>
+    <criterion id="AC2" name="Implement Test Fix">
+      <given>the root cause is identified</given>
+      <when>I implement a fix</when>
+      <then>all 10 command palette tests pass consistently</then>
+      <and>tests properly validate: result fetching after debounce, result display with metadata, error state handling</and>
+      <verification>
+        <item>`npm run test:run -- command-palette.test.tsx` shows 10/10 passing</item>
+        <item>Tests run consistently without flakiness</item>
+        <item>No test timeouts</item>
+      </verification>
+    </criterion>
+    <criterion id="AC3" name="Document Chosen Approach">
+      <given>the fix is implemented</given>
+      <when>I complete the story</when>
+      <then>the chosen approach is documented in test file comments</then>
+      <and>any learnings about testing shadcn/ui Command component are recorded</and>
+      <verification>
+        <item>Test file header comments explain approach</item>
+        <item>Patterns can be reused for similar command/combobox components</item>
+      </verification>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/5-10-command-palette-test-coverage-improvement.md</path>
+        <title>Story 5.10 Definition</title>
+        <section>Full Story</section>
+        <snippet>Technical debt story to fix 3 failing command palette tests. Root cause: cmdk library filtering not working with mocked fetch responses.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-7-quick-search-and-command-palette.md</path>
+        <title>Story 3.7 - Command Palette Origin</title>
+        <section>Code Review Section</section>
+        <snippet>Original implementation story where the command palette and tests were created. Code review identified 7/10 tests passing with 3 timeout issues.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Story 5.10 (Lines 2087-2122)</section>
+        <snippet>Technical debt story definition specifying investigation, fix implementation, and documentation acceptance criteria.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Testing Conventions</section>
+        <snippet>Testing patterns: use data-testid attributes, mock external dependencies, use waitFor for async, prefer user-event over fireEvent.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>frontend/src/components/search/__tests__/command-palette.test.tsx</path>
+        <kind>test</kind>
+        <symbol>CommandPalette tests</symbol>
+        <lines>1-225</lines>
+        <reason>PRIMARY FILE TO FIX - Contains 10 tests, 3 failing due to cmdk filtering issue. Lines 65-107, 109-147, 149-165 are the timeout tests.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/search/command-palette.tsx</path>
+        <kind>component</kind>
+        <symbol>CommandPalette</symbol>
+        <lines>1-198</lines>
+        <reason>Component under test. Uses shadcn/ui Command (cmdk) with async fetch and debouncing. Lines 60-102 contain the debounced search effect.</reason>
+      </file>
+      <file>
+        <path>frontend/src/components/ui/command.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Command, CommandInput, CommandList, CommandItem, CommandEmpty, CommandGroup</symbol>
+        <reason>shadcn/ui wrapper around cmdk library. Understanding its behavior is key to fixing the tests.</reason>
+      </file>
+      <file>
+        <path>frontend/vitest.config.ts</path>
+        <kind>config</kind>
+        <symbol>vitest config</symbol>
+        <lines>1-32</lines>
+        <reason>Test configuration including timeouts (10s), jsdom environment, setup file location.</reason>
+      </file>
+      <file>
+        <path>frontend/src/test/setup.ts</path>
+        <kind>test-setup</kind>
+        <symbol>test setup</symbol>
+        <reason>Test setup file - may need modification if testing approach requires global mocks.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <frontend>
+        <package name="cmdk" version="^1.1.1" note="Command palette library - core to the issue" />
+        <package name="vitest" version="^4.0.13" note="Test runner" />
+        <package name="@testing-library/react" version="^16.3.0" note="React testing utilities" />
+        <package name="@testing-library/user-event" version="^14.6.1" note="User interaction simulation" />
+        <package name="@testing-library/jest-dom" version="^6.9.1" note="DOM matchers" />
+        <package name="@radix-ui/react-dialog" version="present" note="Dialog for command palette modal" />
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="testing">Test timeouts are 10s (vitest.config.ts). Current failing tests exceed this.</constraint>
+    <constraint type="pattern">Use data-testid attributes for test selectors</constraint>
+    <constraint type="pattern">Mock external dependencies (fetch, routers)</constraint>
+    <constraint type="pattern">Use waitFor for async operations</constraint>
+    <constraint type="pattern">Prefer user-event over fireEvent for realistic interactions</constraint>
+    <constraint type="code-quality">No TODO comments for deferred work after completion</constraint>
+    <constraint type="verification">Must pass linting: `npm run lint`</constraint>
+    <constraint type="verification">Tests must pass consistently 3x consecutively</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>QuickSearchResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>
+interface QuickSearchResult {
+  document_id: string;
+  document_name: string;
+  kb_id: string;
+  kb_name: string;
+  excerpt: string;
+  relevance_score: number;
+}
+      </signature>
+      <path>frontend/src/components/search/command-palette.tsx:16-23</path>
+    </interface>
+    <interface>
+      <name>QuickSearchResponse</name>
+      <kind>TypeScript interface</kind>
+      <signature>
+interface QuickSearchResponse {
+  query: string;
+  results: QuickSearchResult[];
+  kb_count: number;
+  response_time_ms: number;
+}
+      </signature>
+      <path>frontend/src/components/search/command-palette.tsx:25-30</path>
+    </interface>
+    <interface>
+      <name>POST /api/v1/search/quick</name>
+      <kind>REST endpoint</kind>
+      <signature>
+POST /api/v1/search/quick
+Request: { query: string, kb_ids: string[] | null }
+Response: QuickSearchResponse
+      </signature>
+      <path>backend/app/api/v1/search.py</path>
+    </interface>
+    <interface>
+      <name>CommandPaletteProps</name>
+      <kind>Component props</kind>
+      <signature>
+interface CommandPaletteProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+      </signature>
+      <path>frontend/src/components/search/command-palette.tsx:32-41</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Vitest with jsdom environment. React Testing Library for component testing.
+      Use @testing-library/user-event for realistic user interactions.
+      Current test timeout: 10000ms (10s). Coverage thresholds: 70% for statements, branches, functions, lines.
+      Setup file at frontend/src/test/setup.ts.
+    </standards>
+    <locations>
+      <location>frontend/src/components/search/__tests__/command-palette.test.tsx</location>
+      <location>frontend/e2e/tests/search/ (if E2E approach chosen)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">
+        <description>Research cmdk GitHub issues for testing patterns and known solutions</description>
+        <type>research</type>
+      </idea>
+      <idea ac="1">
+        <description>Run failing tests with DEBUG=1 or verbose logging to identify exact failure point</description>
+        <type>debugging</type>
+      </idea>
+      <idea ac="2">
+        <description>Option 1: Mock Command component behavior to bypass internal filtering</description>
+        <type>unit-test-fix</type>
+        <approach>vi.mock('../command-palette') or mock cmdk internals</approach>
+      </idea>
+      <idea ac="2">
+        <description>Option 2: Use longer waitFor timeouts with act() wrappers</description>
+        <type>unit-test-fix</type>
+        <approach>await act(async () => { await waitFor(..., { timeout: 3000 }) })</approach>
+      </idea>
+      <idea ac="2">
+        <description>Option 3: Convert failing tests to Playwright E2E tests</description>
+        <type>e2e-test</type>
+        <approach>Move to frontend/e2e/tests/search/command-palette.spec.ts</approach>
+      </idea>
+      <idea ac="2">
+        <description>Option 4: Use cmdk test utilities if available</description>
+        <type>unit-test-fix</type>
+        <approach>Check cmdk docs and source for testing helpers</approach>
+      </idea>
+      <idea ac="3">
+        <description>Update test file header with comprehensive explanation of issue and solution</description>
+        <type>documentation</type>
+      </idea>
+    </ideas>
+  </tests>
+
+  <rootCauseAnalysis>
+    <problem>3 of 10 CommandPalette tests timeout</problem>
+    <failingTests>
+      <test name="fetches results after debounce (AC10)" line="65-107" />
+      <test name="displays results with metadata (AC2)" line="109-147" />
+      <test name="shows empty state when no results (AC9)" line="149-165" />
+    </failingTests>
+    <passingTests>
+      <test name="renders when open" />
+      <test name="does not render when closed" />
+      <test name="auto-focuses search input when opened (AC1)" />
+      <test name="shows minimum character message for queries less than 2 chars" />
+      <test name="shows error state on API failure (AC9)" />
+      <test name="resets state when closed (AC7)" />
+      <test name="cancels pending requests on new query (AC10)" />
+    </passingTests>
+    <hypothesis>
+      The shadcn/ui Command component (built on cmdk library) performs internal filtering on CommandItem children.
+      When fetch results are mocked, the Command component's internal state doesn't update the rendered items
+      as expected in the test environment. This is a timing/state synchronization issue between:
+      1. The mocked fetch returning results
+      2. React state update (setResults)
+      3. cmdk's internal filtering/rendering logic
+      The error state test passes because it doesn't require CommandItem rendering.
+    </hypothesis>
+    <productionImpact>None - production code works correctly. Verified by manual testing and backend integration tests.</productionImpact>
+  </rootCauseAnalysis>
+
+  <recommendedApproach>
+    <primary>Option 1 (Mock at Component Level) + Option 4 (Research cmdk patterns)</primary>
+    <steps>
+      <step order="1">Research cmdk testing patterns (30 min) - check GitHub issues, examples</step>
+      <step order="2">If no clear pattern, implement component-level mocking</step>
+      <step order="3">If neither works, fall back to Option 3 (E2E tests)</step>
+    </steps>
+    <estimatedTime>1-2 hours</estimatedTime>
+  </recommendedApproach>
+</story-context>

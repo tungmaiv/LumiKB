@@ -2,11 +2,21 @@
 
 **Epic:** Epic 5 - Administration & Polish
 **Created:** 2025-11-26
-**Status:** Active
+**Status:** ARCHIVED - Migrated to Epic 7 Tech Debt
 
 ---
 
-## Purpose
+## Migration Notice
+
+> **IMPORTANT:** This file is archived. All active tech debt has been consolidated into:
+> **[epic-7-tech-debt.md](./epic-7-tech-debt.md)**
+>
+> **Migration Date:** 2025-12-10
+> **Reason:** Single-source-of-truth for all project tech debt
+
+---
+
+## Original Purpose (Historical)
 
 Track deferred technical work from Epic 5 and prior epics that:
 - Doesn't block production deployment
@@ -251,21 +261,91 @@ Focus for Story 4.9 was on production code quality, functional test coverage, an
 
 ---
 
+### TD-5.15-1: Backend Unit Test Service Constructor Mismatches (NEW)
+
+**Source:** Story 5.15 (Epic 4 ATDD Transition to GREEN)
+**Priority:** Medium
+**Effort:** 1-2 days
+**Target Story:** Future Epic 6 or Tech Debt Sprint
+
+**Description:**
+26 pre-existing backend unit test failures discovered during Story 5-15. These failures are NOT related to Epic 4 functionality and exist due to service constructor signature changes and mock configuration drift.
+
+**Current State:**
+- ❌ 12 failures in `test_draft_service.py` - TypeError: unexpected keyword argument 'draft_repository'
+- ❌ 8 failures in `test_search_service.py` - Mock configuration issues
+- ❌ 5 failures in `test_generation_service.py` - Service initialization errors
+- ❌ 1 failure in `test_explanation_service.py` - Mock configuration issue
+
+**Root Cause:**
+Services were refactored (likely to use dependency injection) without corresponding test updates.
+
+**Production Impact:**
+None - these are test-only issues. Integration tests provide adequate coverage.
+
+**Why Deferred:**
+- Not related to Epic 4 or Story 5-15 scope
+- Integration tests provide production coverage
+- Requires architectural understanding of DI patterns used
+
+**Proposed Resolution:**
+1. Audit current service constructor signatures
+2. Update test fixtures to match DI patterns
+3. Update mock configurations
+4. Document patterns for future tests
+
+**Reference:**
+- [docs/sprint-artifacts/tech-debt-backend-unit-tests.md](./tech-debt-backend-unit-tests.md) - Full breakdown of 26 failures
+- [backend/tests/unit/test_draft_service.py](../../backend/tests/unit/test_draft_service.py)
+- [backend/tests/unit/test_search_service.py](../../backend/tests/unit/test_search_service.py)
+- [backend/tests/unit/test_generation_service.py](../../backend/tests/unit/test_generation_service.py)
+- [backend/tests/unit/test_explanation_service.py](../../backend/tests/unit/test_explanation_service.py)
+
+---
+
 ## Summary
 
-**Total Items:** 5
+**Total Items:** 10 (4 resolved, 3 migrated to Epic 7, 3 new)
 **High Priority:** 0
-**Medium Priority:** 2
-  - TD-4.1-1 (Chat API integration test mocks)
-  - TD-4.2-2 (Chat Streaming integration test dependency)
-**Low Priority:** 3
-  - TD-3.7-1 (Command palette tests)
-  - TD-4.9-1 (Template selection E2E tests)
-  - TD-4.9-2 (Test file TypeScript cleanup)
+**Medium-High Priority:** 1
+  - TD-5.26-1 (Async Qdrant client migration) - **MIGRATED TO Epic 7 Story 7-7**
+**Medium Priority:** 5
+  - TD-4.1-1 (Chat API integration test mocks) - RESOLVED in Story 5.15
+  - TD-4.2-2 (Chat Streaming integration test dependency) - RESOLVED in Story 5.15
+  - TD-5.15-1 (Backend unit test service constructor mismatches) - **MIGRATED TO Epic 7 Story 7-6**
+  - TD-5.2-1 (Audit log retention & archiving) - NEW, Future Compliance
+  - TD-6.1-1 (Bulk document operations: archive, delete, clear) - NEW, Future Enhancement
+**Low Priority:** 4
+  - TD-3.7-1 (Command palette tests) - RESOLVED in Story 5.10
+  - TD-4.9-1 (Template selection E2E tests) - RESOLVED in Story 5.15
+  - TD-4.9-2 (Test file TypeScript cleanup) - RESOLVED in Story 5.15
+  - TD-7.16-1 (Dynamic KB presets with database storage) - NEW, Future Enhancement
 
 **Epic 5 Story Allocation:**
-- Story 5.10: TD-3.7-1 (Command palette test coverage)
-- Story 5.15: TD-4.1-1 + TD-4.2-2 + TD-4.9-1 + TD-4.9-2 (Epic 4 ATDD transition to GREEN)
+- Story 5.10: TD-3.7-1 (Command palette test coverage) - DONE
+- Story 5.15: TD-4.1-1 + TD-4.2-2 + TD-4.9-1 + TD-4.9-2 (Epic 4 ATDD transition to GREEN) - DONE
+
+---
+
+## Migration to Epic 7
+
+**Date:** 2025-12-08
+**Reason:** Epic 5 grew to 26 stories, exceeding manageable scope. Infrastructure and DevOps work extracted to new Epic 7.
+
+**Migrated Tech Debt Items:**
+
+| Item | Description | New Story |
+|------|-------------|-----------|
+| TD-5.15-1 | Backend unit test service constructor mismatches | Story 7-6 |
+| TD-5.26-1 | Async Qdrant client migration | Story 7-7 |
+| TD-scroll-1 | UI scroll isolation issue | Story 7-8 |
+
+**New Story Files Created:**
+- [7-6-backend-unit-test-fixes.md](./7-6-backend-unit-test-fixes.md)
+- [7-7-async-qdrant-migration.md](./7-7-async-qdrant-migration.md)
+- [7-8-ui-scroll-isolation-fix.md](./7-8-ui-scroll-isolation-fix.md)
+
+---
 
 **Notes:**
 - All deferred items have minimal production impact
@@ -275,3 +355,324 @@ Focus for Story 4.9 was on production code quality, functional test coverage, an
 - Story 5.10 and 5.15 already defined in Epic 5 to address tech debt
 - No blockers for Epic 3 or Epic 4 completion or MVP deployment
 - **Note:** TD-4.5-2 (Draft Generation tests) moved to epic-4-tech-debt.md (correct location)
+- **UPDATE 2025-12-08:** Remaining tech debt migrated to Epic 7 - Infrastructure & DevOps
+
+---
+
+### TD-5.26-1: Async Qdrant Client Migration
+
+**Source:** Story 5-26 (Document Chunk Viewer Frontend) - Code Review
+**Priority:** Medium-High
+**Effort:** 4-8 hours
+**Target Story:** Future Performance Optimization Sprint
+
+**Description:**
+Synchronous `QdrantClient` is used in async FastAPI context, blocking the event loop and reducing concurrency under load. This affects all Qdrant-dependent services.
+
+**Current State:**
+- ❌ `backend/app/integrations/qdrant_client.py` - Uses sync `QdrantClient`
+- ❌ `backend/app/services/chunk_service.py` - Direct sync calls (lines 156, 224, 262, 343)
+- ❌ `backend/app/services/search_service.py` - Mixed (one proper `asyncio.to_thread`, rest sync)
+
+**Impact Assessment:**
+| Factor | Impact |
+|--------|--------|
+| Event loop blocking | Each Qdrant call blocks ALL other requests |
+| Concurrency reduction | From ~1000 async to ~30 thread-based |
+| Latency spikes | Unpredictable under load |
+| Current usage | Low traffic = not noticeable yet |
+
+**Production Impact:**
+Low at current scale but will become significant as traffic increases. Each sync Qdrant call blocks the async event loop, reducing the server's ability to handle concurrent requests.
+
+**Why Deferred:**
+- Requires significant refactoring of `QdrantService` class
+- Need to replace `QdrantClient` with `AsyncQdrantClient`
+- All service methods need true async implementations
+- Requires thorough testing under load
+- Not a blocker for current Stories 5-25/5-26
+
+**Proposed Resolution:**
+1. Replace `QdrantClient` with `AsyncQdrantClient` in `qdrant_client.py`
+2. Update all service methods to use native async Qdrant calls
+3. Remove `asyncio.to_thread` workarounds
+4. Add load testing to validate concurrency improvements
+5. Update unit tests with async mock patterns
+
+**Reference:**
+- [backend/app/integrations/qdrant_client.py](../../backend/app/integrations/qdrant_client.py) - Qdrant client initialization
+- [backend/app/services/chunk_service.py](../../backend/app/services/chunk_service.py) - Chunk retrieval service
+- [backend/app/services/search_service.py](../../backend/app/services/search_service.py) - Search service
+
+---
+
+### TD-7.16-1: Dynamic KB Presets with Database Storage
+
+**Source:** Story 7-16 (KB Settings Presets) - Epic 7
+**Priority:** Low
+**Effort:** 8-16 hours (1-2 days)
+**Target Story:** Future Epic or Feature Request
+
+**Description:**
+KB settings presets are currently hard-coded in Python (`backend/app/core/kb_presets.py`). This approach works for system-defined presets but doesn't support:
+- Admin-created custom presets
+- User-saved preset configurations
+- Runtime preset modifications without code deployment
+
+**Current State:**
+- ✅ 5 system presets: Legal, Technical, Creative, Code, General
+- ✅ Hard-coded in `KB_PRESETS` dict with `KBSettings` Pydantic models
+- ✅ Helper functions: `get_preset()`, `list_presets()`, `detect_preset()`
+- ❌ No database storage
+- ❌ No admin UI for preset management
+- ❌ No user-saved presets
+
+**Proposed Enhancement:**
+
+1. **Database Schema:**
+   ```sql
+   CREATE TABLE kb_presets (
+       id UUID PRIMARY KEY,
+       name VARCHAR(100) NOT NULL,
+       description TEXT,
+       settings JSONB NOT NULL,  -- KBSettings as JSON
+       is_system BOOLEAN DEFAULT FALSE,  -- System presets read-only
+       created_by UUID REFERENCES users(id),
+       created_at TIMESTAMP DEFAULT NOW(),
+       updated_at TIMESTAMP
+   );
+   ```
+
+2. **API Endpoints:**
+   - `GET /api/v1/admin/presets` - List all presets (system + custom)
+   - `POST /api/v1/admin/presets` - Create custom preset (admin only)
+   - `PUT /api/v1/admin/presets/{id}` - Update custom preset
+   - `DELETE /api/v1/admin/presets/{id}` - Delete custom preset (not system)
+   - `POST /api/v1/admin/presets/{id}/duplicate` - Clone preset
+
+3. **Admin UI:**
+   - Preset management page under `/admin/presets`
+   - Create/Edit preset modal with full KBSettings form
+   - Import/Export presets (JSON)
+   - Lock icon for system presets
+
+4. **Migration Strategy:**
+   - Seed system presets from `kb_presets.py` on first run
+   - Mark system presets with `is_system=True`
+   - Keep `kb_presets.py` as fallback/defaults
+
+**Production Impact:**
+None - current hard-coded approach is fully functional for MVP. This is an enhancement for advanced admin workflows.
+
+**Why Deferred:**
+- Hard-coded presets sufficient for initial release
+- 5 system presets cover common use cases
+- Custom presets require additional admin UI work
+- Lower priority than core KB configuration features
+
+**Benefits When Implemented:**
+- Admins can create organization-specific presets
+- Presets can be updated without code deployment
+- Users can save their preferred configurations
+- Better multi-tenant support
+
+**Reference:**
+- [backend/app/core/kb_presets.py](../../backend/app/core/kb_presets.py) - Current hard-coded presets
+- [docs/sprint-artifacts/7-16-kb-settings-presets.md](./7-16-kb-settings-presets.md) - Story details
+
+---
+
+### TD-5.2-1: Audit Log Retention & Archiving
+
+**Source:** Story 5-2 (Audit Log Viewer) - Epic 5
+**Priority:** Medium
+**Effort:** 8-16 hours (1-2 days)
+**Target Story:** Future Epic or Compliance Sprint
+
+**Description:**
+Audit logs in `audit.events` table grow indefinitely with no retention policy or archiving mechanism. This will eventually impact:
+- Database storage costs
+- Query performance on large tables
+- Compliance requirements (GDPR right to erasure, data retention policies)
+
+**Current State:**
+- ✅ Audit events stored in `audit.events` table (PostgreSQL)
+- ✅ INSERT-only permissions (immutable audit trail)
+- ✅ Indexes on user_id, timestamp, resource_type/id
+- ✅ Export to CSV/JSON via admin API
+- ❌ No retention period configuration
+- ❌ No automatic cleanup/archiving
+- ❌ No cold storage integration
+- ❌ Table grows indefinitely
+
+**Risk Assessment:**
+| Factor | Current Risk | At Scale (100K+ events) |
+|--------|--------------|-------------------------|
+| Storage cost | Low | Medium |
+| Query performance | Low | Medium-High |
+| Compliance | Depends on domain | May be blocking |
+| Backup size | Low | Medium |
+
+**Proposed Enhancement:**
+
+1. **System Configuration:**
+   ```python
+   # Add to system_config table
+   AUDIT_RETENTION_DAYS = 365  # Default 1 year, 0 = forever
+   AUDIT_ARCHIVE_ENABLED = True  # Archive before delete
+   AUDIT_ARCHIVE_FORMAT = "jsonl"  # jsonl, csv, parquet
+   ```
+
+2. **Archive Table (Optional):**
+   ```sql
+   CREATE TABLE audit.events_archive (
+       -- Same schema as audit.events
+       archived_at TIMESTAMPTZ DEFAULT NOW()
+   );
+   ```
+
+3. **Celery Beat Task:**
+   ```python
+   @celery_app.task
+   def cleanup_old_audit_logs():
+       retention_days = get_config("AUDIT_RETENTION_DAYS", 365)
+       if retention_days == 0:
+           return  # Retention disabled
+
+       cutoff = datetime.utcnow() - timedelta(days=retention_days)
+
+       if get_config("AUDIT_ARCHIVE_ENABLED", True):
+           # Archive to file/S3 first
+           export_audit_events_to_storage(before=cutoff)
+
+       # Delete old events
+       DELETE FROM audit.events WHERE timestamp < cutoff
+   ```
+
+4. **Admin UI:**
+   - Retention period setting in `/admin/config`
+   - Archive download for date ranges
+   - Storage usage indicator
+   - "Archive & Purge" manual action
+
+5. **Compliance Modes:**
+   - **Standard:** Archive + delete after retention period
+   - **Compliance Hold:** Disable deletion, archive only
+   - **Minimal:** Delete without archiving (GDPR erasure)
+
+**Production Impact:**
+None currently - audit table is small. Will become important as system scales or if compliance requirements emerge.
+
+**Why Deferred:**
+- Audit table growth is slow (hundreds of events/day typical)
+- No immediate compliance requirements identified
+- MVP focus on core features
+- Can be added without schema changes
+
+**Benefits When Implemented:**
+- Controlled storage growth
+- Compliance with data retention policies
+- Faster queries on recent events
+- Historical audit data preserved in cold storage
+- Configurable per-deployment requirements
+
+**Implementation Order:**
+1. Add retention config to system_config
+2. Implement Celery Beat cleanup task
+3. Add archive-to-file before delete
+4. (Optional) Add S3/MinIO cold storage
+5. Add admin UI controls
+
+**Reference:**
+- [backend/app/models/audit.py](../../backend/app/models/audit.py) - AuditEvent model
+- [backend/app/services/audit_service.py](../../backend/app/services/audit_service.py) - AuditService
+- [backend/alembic/versions/002_audit_schema_and_role.py](../../backend/alembic/versions/002_audit_schema_and_role.py) - Audit schema migration
+- [docs/sprint-artifacts/5-2-audit-log-viewer.md](./5-2-audit-log-viewer.md) - Story details
+
+---
+
+### TD-6.1-1: Bulk Document Operations (Archive, Delete, Clear)
+
+**Source:** Epic 6 (Document Lifecycle Management)
+**Priority:** Medium
+**Effort:** 4-8 hours
+**Target Story:** Future Epic or Feature Request
+
+**Description:**
+Only bulk purge is implemented (`POST /documents/bulk-purge`). Missing bulk operations for archive, delete, and clear failed documents. This forces users to perform one-by-one operations which is tedious for large document sets.
+
+**Current State:**
+- ✅ Bulk purge: `POST /kb/{kb_id}/documents/bulk-purge` - Implemented
+- ❌ Bulk archive: Placeholder tests exist, endpoint not implemented
+- ❌ Bulk delete: Not implemented
+- ❌ Bulk clear failed: Not implemented
+- ❌ Select all / batch selection UI: Not implemented
+
+**Proposed Enhancement:**
+
+1. **Backend Endpoints:**
+   ```python
+   # Bulk archive (READY → archived)
+   POST /api/v1/knowledge-bases/{kb_id}/documents/bulk-archive
+   Request: { "document_ids": [uuid, ...] }
+   Response: { "archived_count": int, "skipped": [{ "id": uuid, "reason": str }] }
+
+   # Bulk delete (soft delete)
+   POST /api/v1/knowledge-bases/{kb_id}/documents/bulk-delete
+   Request: { "document_ids": [uuid, ...] }
+   Response: { "deleted_count": int, "skipped": [{ "id": uuid, "reason": str }] }
+
+   # Bulk clear failed (FAILED → removed)
+   POST /api/v1/knowledge-bases/{kb_id}/documents/bulk-clear
+   Request: { "document_ids": [uuid, ...] }  # Optional, if empty clears all FAILED
+   Response: { "cleared_count": int, "skipped": [{ "id": uuid, "reason": str }] }
+   ```
+
+2. **Service Layer:**
+   ```python
+   # document_service.py
+   async def bulk_archive(kb_id, document_ids, user) -> BulkResult
+   async def bulk_delete(kb_id, document_ids, user) -> BulkResult
+   async def bulk_clear_failed(kb_id, document_ids, user) -> BulkResult
+   ```
+
+3. **Frontend UI:**
+   - Checkbox selection in document list
+   - "Select All" / "Select None" toggle
+   - Bulk action dropdown (Archive, Delete, Clear)
+   - Confirmation modal with count
+   - Progress indicator for large batches
+   - Partial success toast with skipped count
+
+4. **Rate Limiting:**
+   - Max 100 documents per request
+   - Async processing for large batches (>50 docs)
+
+**Production Impact:**
+Low - single document operations work fine. Bulk operations are convenience/efficiency enhancement.
+
+**Why Deferred:**
+- Single document operations cover core use cases
+- Bulk purge (most critical) is already implemented
+- MVP focus on individual document lifecycle
+- Placeholder tests indicate future intent
+
+**Benefits When Implemented:**
+- Efficient cleanup of multiple documents
+- Better UX for large knowledge bases
+- Reduced API calls for batch operations
+- Consistent with bulk purge pattern
+
+**Implementation Order:**
+1. Add bulk_archive endpoint + service method
+2. Add bulk_delete endpoint + service method
+3. Add bulk_clear endpoint + service method
+4. Add frontend checkbox selection
+5. Add bulk action dropdown + confirmation
+6. Add tests (unskip existing placeholders)
+
+**Reference:**
+- [backend/app/api/v1/documents.py:914-952](../../backend/app/api/v1/documents.py#L914-L952) - Existing bulk_purge endpoint
+- [backend/tests/integration/test_archive_api.py:682-706](../../backend/tests/integration/test_archive_api.py#L682-L706) - Placeholder tests
+- [docs/sprint-artifacts/6-7-archive-management-ui.md](./6-7-archive-management-ui.md) - Archive UI story
+- [docs/sprint-artifacts/6-8-document-list-actions-ui.md](./6-8-document-list-actions-ui.md) - Document actions story

@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, Suspense } from 'react';
 import { FileTextIcon } from 'lucide-react';
 import { DocumentList, type SortField, type SortOrder } from './document-list';
 import { DocumentDetailModal } from './document-detail-modal';
+import { DocumentFilterBar } from './document-filter-bar';
+import { DocumentPagination } from './document-pagination';
 import { UploadDropzone } from './upload-dropzone';
 import { useDocuments, type DocumentListItem } from '@/lib/hooks/use-documents';
+import { useDocumentFilters } from '@/lib/hooks/use-document-filters';
 import type { DocumentStatus } from './document-status-badge';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +31,7 @@ interface DocumentForList {
   uploaded_by?: string | null;
   uploader_email?: string | null;
   version_number?: number;
+  tags?: string[];
 }
 
 interface DocumentsPanelProps {
@@ -37,6 +41,8 @@ interface DocumentsPanelProps {
   userPermission?: PermissionLevel;
   /** Additional CSS classes */
   className?: string;
+  /** Enable filtering UI (Story 5-24) */
+  showFilters?: boolean;
 }
 
 /**
@@ -48,26 +54,51 @@ interface DocumentsPanelProps {
  * - Document detail modal on click
  * - Automatic refetch after upload
  * - Status polling for processing documents
+ * - Filtering by search, status, type, tags, date range (Story 5-24)
  *
  * @example
  * <DocumentsPanel
  *   kbId="kb-uuid"
  *   userPermission="WRITE"
+ *   showFilters
  * />
  */
-export function DocumentsPanel({ kbId, userPermission = 'READ', className }: DocumentsPanelProps) {
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<SortField>('created_at');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+export function DocumentsPanel({ kbId, userPermission = 'READ', className, showFilters = true }: DocumentsPanelProps) {
   const [selectedDocument, setSelectedDocument] = useState<DocumentForList | null>(null);
+
+  // Use filter state from URL (Story 5-24)
+  const { filters, actions, hasActiveFilters, activeFilterCount } = useDocumentFilters();
+
+  // Memoize the document filters object to prevent unnecessary re-renders
+  const documentFilters = useMemo(
+    () => ({
+      search: filters.search,
+      status: filters.status,
+      mimeType: filters.mimeType,
+      tags: filters.tags,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+    }),
+    [filters.search, filters.status, filters.mimeType, filters.tags, filters.dateFrom, filters.dateTo]
+  );
 
   const { documents, total, totalPages, isLoading, error, refetch } = useDocuments({
     kbId,
-    page,
-    limit: 20,
-    sortBy,
-    sortOrder,
+    page: filters.page,
+    limit: filters.limit,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
+    filters: documentFilters,
   });
+
+  // Extract unique tags from all documents for filter options
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    documents.forEach((doc) => {
+      doc.tags?.forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [documents]);
 
   const handleUploadComplete = useCallback(() => {
     // Refetch documents to show newly uploaded ones
@@ -86,7 +117,19 @@ export function DocumentsPanel({ kbId, userPermission = 'READ', className }: Doc
     setSelectedDocument(null);
   }, []);
 
+  // Close detail modal if the currently viewed document was deleted/archived
+  const handleDocumentRemoved = useCallback(
+    (documentId: string) => {
+      if (selectedDocument?.id === documentId) {
+        setSelectedDocument(null);
+      }
+      refetch();
+    },
+    [selectedDocument?.id, refetch]
+  );
+
   const canUpload = userPermission === 'WRITE' || userPermission === 'ADMIN';
+  const canManage = userPermission === 'ADMIN';
 
   // Transform documents to compatible type (filter out ARCHIVED status for now)
   const documentsForList: DocumentForList[] = documents
@@ -106,6 +149,7 @@ export function DocumentsPanel({ kbId, userPermission = 'READ', className }: Doc
       uploaded_by: doc.uploaded_by,
       uploader_email: doc.uploader_email,
       version_number: doc.version_number,
+      tags: doc.tags,
     }));
 
   if (error) {
@@ -151,35 +195,76 @@ export function DocumentsPanel({ kbId, userPermission = 'READ', className }: Doc
         />
       )}
 
+      {/* Filter Bar (Story 5-24) */}
+      {showFilters && (
+        <Suspense fallback={<div className="h-10 bg-muted/30 animate-pulse rounded-md" />}>
+          <DocumentFilterBar
+            filters={filters}
+            actions={actions}
+            hasActiveFilters={hasActiveFilters}
+            activeFilterCount={activeFilterCount}
+            availableTags={availableTags}
+          />
+        </Suspense>
+      )}
+
       {/* Document List */}
       {documentsForList.length === 0 && !isLoading ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FileTextIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-medium mb-2">No documents yet</h3>
+          <h3 className="text-lg font-medium mb-2">
+            {hasActiveFilters ? 'No documents match your filters' : 'No documents yet'}
+          </h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            {canUpload
-              ? 'Upload your first document by dragging files above or clicking to browse.'
-              : 'No documents have been uploaded to this knowledge base yet.'}
+            {hasActiveFilters ? (
+              <>
+                Try adjusting your filters or{' '}
+                <button
+                  onClick={() => actions.resetFilters()}
+                  className="text-primary underline hover:no-underline"
+                >
+                  clear all filters
+                </button>
+              </>
+            ) : canUpload ? (
+              'Upload your first document by dragging files above or clicking to browse.'
+            ) : (
+              'No documents have been uploaded to this knowledge base yet.'
+            )}
           </p>
         </div>
       ) : (
-        <DocumentList
-          documents={documentsForList}
-          kbId={kbId}
-          onRetry={handleRetry}
-          onDocumentClick={handleDocumentClick}
-          showPagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          showSort
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSortByChange={setSortBy}
-          onSortOrderChange={setSortOrder}
-          isLoading={isLoading}
-          total={total}
-        />
+        <>
+          {/* Pagination Bar - Above Table (Story 5-24) */}
+          {/* Only show pagination when we have documents or are loading with existing data */}
+          {(total > 0 || (isLoading && documentsForList.length > 0)) && (
+            <DocumentPagination
+              page={filters.page}
+              totalPages={totalPages}
+              total={total}
+              limit={filters.limit}
+              onPageChange={actions.setPage}
+              onLimitChange={actions.setLimit}
+              isLoading={isLoading}
+            />
+          )}
+
+          <DocumentList
+            documents={documentsForList}
+            kbId={kbId}
+            onRetry={handleRetry}
+            onDocumentClick={handleDocumentClick}
+            onDeleted={handleDocumentRemoved}
+            showSort
+            sortBy={filters.sortBy}
+            sortOrder={filters.sortOrder}
+            onSortByChange={actions.setSortBy}
+            onSortOrderChange={actions.setSortOrder}
+            isLoading={isLoading}
+            total={total}
+            canManage={canManage}
+          />
+        </>
       )}
 
       {/* Document Detail Modal */}

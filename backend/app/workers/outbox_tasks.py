@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 import structlog
 from sqlalchemy import select, update
 
-from app.core.database import async_session_factory
+from app.core.database import celery_session_factory
 from app.models.outbox import Outbox
 from app.workers.celery_app import celery_app
 
@@ -19,11 +19,36 @@ MAX_OUTBOX_ATTEMPTS = 5
 def run_async(coro):
     """Run async coroutine in sync context for Celery tasks.
 
-    Always runs in a fresh event loop. For production Celery workers,
-    this is the normal execution path. For tests, run_async is typically
-    mocked or patched to avoid actual async execution.
+    Reuses an existing event loop if available, otherwise creates one.
+    This prevents "Future attached to different loop" errors that occur
+    when asyncio.run() creates and closes loops for each call.
+
+    For production Celery workers, this is the normal execution path.
+    For tests, run_async is typically mocked or patched.
     """
-    return asyncio.run(coro)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None and loop.is_running():
+        # If we're already in an async context (shouldn't happen in Celery workers)
+        # Create a new event loop in a new thread
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, coro).result()
+    else:
+        # Get or create an event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
 
 
 async def _poll_outbox_events(limit: int = 100) -> list[dict]:
@@ -35,7 +60,7 @@ async def _poll_outbox_events(limit: int = 100) -> list[dict]:
     Returns:
         List of event dictionaries with id, event_type, aggregate_id, payload.
     """
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         # Query for unprocessed events with row-level locking
         # skip_locked=True prevents worker contention
         result = await session.execute(
@@ -64,7 +89,7 @@ async def _poll_outbox_events(limit: int = 100) -> list[dict]:
 
 async def _mark_event_processed(event_id: str) -> None:
     """Mark an outbox event as processed."""
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         await session.execute(
             update(Outbox)
             .where(Outbox.id == event_id)
@@ -90,7 +115,7 @@ async def _increment_event_attempts(
     Returns:
         The new attempt count after incrementing.
     """
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         # Increment and get new value
         result = await session.execute(
             update(Outbox)
@@ -120,8 +145,11 @@ async def _increment_event_attempts(
         return new_attempts
 
 
-def dispatch_event(event: dict) -> None:
-    """Dispatch event to appropriate handler based on event_type.
+async def dispatch_event_async(event: dict) -> None:
+    """Async dispatch event to appropriate handler based on event_type.
+
+    This is the preferred method when calling from an async context to avoid
+    nested event loops.
 
     Args:
         event: Event dictionary with event_type, aggregate_id, payload.
@@ -181,11 +209,41 @@ def dispatch_event(event: dict) -> None:
         kb_id = event["payload"].get("kb_id")
 
         if kb_id:
-            # Run KB delete cleanup synchronously
-            run_async(_handle_kb_delete(kb_id, event["id"]))
+            # Await KB delete cleanup directly in async context
+            await _handle_kb_delete(kb_id, event["id"])
         else:
             logger.error(
                 "missing_kb_id_in_kb_delete_payload",
+                event_id=event["id"],
+                payload=event["payload"],
+            )
+
+    elif event_type == "kb.archive":
+        # Handle KB archive - update Qdrant payloads with is_archived: true (Story 7-24)
+        kb_id = event["payload"].get("kb_id")
+        collection_name = event["payload"].get("collection_name")
+        is_archived = event["payload"].get("is_archived", True)
+
+        if kb_id and collection_name:
+            await _handle_kb_archive(kb_id, collection_name, is_archived, event["id"])
+        else:
+            logger.error(
+                "missing_kb_id_or_collection_in_kb_archive_payload",
+                event_id=event["id"],
+                payload=event["payload"],
+            )
+
+    elif event_type == "kb.restore":
+        # Handle KB restore - update Qdrant payloads with is_archived: false (Story 7-25)
+        kb_id = event["payload"].get("kb_id")
+        collection_name = event["payload"].get("collection_name")
+        is_archived = event["payload"].get("is_archived", False)
+
+        if kb_id and collection_name:
+            await _handle_kb_archive(kb_id, collection_name, is_archived, event["id"])
+        else:
+            logger.error(
+                "missing_kb_id_or_collection_in_kb_restore_payload",
                 event_id=event["id"],
                 payload=event["payload"],
             )
@@ -197,11 +255,9 @@ def dispatch_event(event: dict) -> None:
         is_replacement = event["payload"].get("is_replacement", False)
 
         if document_id:
-            # Run document reprocess synchronously with replacement flag
-            run_async(
-                _handle_document_reprocess(
-                    document_id, reason, event["id"], is_replacement=is_replacement
-                )
+            # Await document reprocess directly in async context
+            await _handle_document_reprocess(
+                document_id, reason, event["id"], is_replacement=is_replacement
             )
         else:
             logger.error(
@@ -218,6 +274,18 @@ def dispatch_event(event: dict) -> None:
         )
 
 
+def dispatch_event(event: dict) -> None:
+    """Sync dispatch event to appropriate handler based on event_type.
+
+    NOTE: This sync version is kept for backward compatibility but should
+    be avoided when calling from an async context. Use dispatch_event_async instead.
+
+    Args:
+        event: Event dictionary with event_type, aggregate_id, payload.
+    """
+    run_async(dispatch_event_async(event))
+
+
 @celery_app.task(name="app.workers.outbox_tasks.process_outbox_events")
 def process_outbox_events() -> dict:
     """Periodic task to poll and process outbox events.
@@ -229,8 +297,19 @@ def process_outbox_events() -> dict:
     """
     logger.debug("outbox_poll_started")
 
+    # Run all async operations in a single event loop to avoid
+    # "Future attached to a different loop" errors
+    return run_async(_process_outbox_events_async())
+
+
+async def _process_outbox_events_async() -> dict:
+    """Async implementation of outbox event processing.
+
+    Consolidates all async operations into a single event loop context
+    to prevent asyncio event loop mismatch errors.
+    """
     try:
-        events = run_async(_poll_outbox_events(limit=100))
+        events = await _poll_outbox_events(limit=100)
     except Exception as e:
         logger.error("outbox_poll_failed", error=str(e))
         return {"processed": 0, "failed": 0, "error": str(e)}
@@ -240,9 +319,10 @@ def process_outbox_events() -> dict:
 
     for event in events:
         try:
-            dispatch_event(event)
+            # Use async dispatch to avoid nested event loops
+            await dispatch_event_async(event)
             # Mark as processed after successful dispatch
-            run_async(_mark_event_processed(event["id"]))
+            await _mark_event_processed(event["id"])
             processed_count += 1
             logger.info(
                 "outbox_event_processed",
@@ -251,13 +331,11 @@ def process_outbox_events() -> dict:
             )
         except Exception as e:
             # Increment attempts and record error (includes admin alert on max retries)
-            run_async(
-                _increment_event_attempts(
-                    event["id"],
-                    str(e),
-                    event_type=event["event_type"],
-                    aggregate_id=event["aggregate_id"],
-                )
+            await _increment_event_attempts(
+                event["id"],
+                str(e),
+                event_type=event["event_type"],
+                aggregate_id=event["aggregate_id"],
             )
             failed_count += 1
             logger.error(
@@ -278,6 +356,86 @@ def process_outbox_events() -> dict:
     return {"processed": processed_count, "failed": failed_count}
 
 
+async def _handle_kb_archive(
+    kb_id: str, collection_name: str, is_archived: bool, event_id: str
+) -> None:
+    """Handle kb.archive or kb.restore event - update Qdrant payloads with is_archived flag.
+
+    Story 7-24 (archive) and Story 7-25 (restore):
+    - Updates all point payloads in the KB's Qdrant collection with is_archived: true/false
+    - Uses set_payload to bulk update all points in the collection
+
+    Args:
+        kb_id: The knowledge base UUID string.
+        collection_name: The Qdrant collection name.
+        is_archived: True for archive, False for restore.
+        event_id: The outbox event ID for logging.
+    """
+    from qdrant_client.http import models as qdrant_models
+
+    from app.integrations.qdrant_client import qdrant_service
+
+    try:
+        # Check if collection exists
+        from uuid import UUID
+
+        kb_uuid = UUID(kb_id)
+        if not await qdrant_service.collection_exists(kb_uuid):
+            logger.warning(
+                "kb_archive_collection_not_found",
+                kb_id=kb_id,
+                collection_name=collection_name,
+                event_id=event_id,
+            )
+            return
+
+        # Get point count before update for logging
+        count_result = await qdrant_service.count(
+            collection_name=collection_name,
+            exact=True,
+        )
+        point_count = count_result.count
+
+        if point_count == 0:
+            logger.info(
+                "kb_archive_no_points_to_update",
+                kb_id=kb_id,
+                collection_name=collection_name,
+                is_archived=is_archived,
+                event_id=event_id,
+            )
+            return
+
+        # Update all points in the collection with is_archived flag
+        # Using an empty filter matches all points
+        await qdrant_service.set_payload(
+            collection_name=collection_name,
+            payload={"is_archived": is_archived},
+            points=qdrant_models.Filter(must=[]),  # Empty filter matches all points
+            wait=True,
+        )
+
+        logger.info(
+            "kb_archive_qdrant_updated",
+            kb_id=kb_id,
+            collection_name=collection_name,
+            is_archived=is_archived,
+            points_updated=point_count,
+            event_id=event_id,
+        )
+
+    except Exception as e:
+        logger.error(
+            "kb_archive_qdrant_update_failed",
+            kb_id=kb_id,
+            collection_name=collection_name,
+            is_archived=is_archived,
+            event_id=event_id,
+            error=str(e),
+        )
+        raise
+
+
 async def _handle_kb_delete(kb_id: str, event_id: str) -> None:
     """Handle kb.delete event - soft-delete docs, delete vectors and files.
 
@@ -295,7 +453,7 @@ async def _handle_kb_delete(kb_id: str, event_id: str) -> None:
 
     kb_uuid = UUID(kb_id)
 
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         # 1. Soft-delete all documents in the KB
         await session.execute(
             update(Document)
@@ -371,7 +529,7 @@ async def _handle_document_reprocess(
 
     doc_uuid = UUID(document_id)
 
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         # Reset document status to PENDING
         await session.execute(
             update(Document)
@@ -435,7 +593,7 @@ async def _run_reconciliation() -> dict:
     anomalies: list[dict] = []
     corrections_created = 0
 
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         # 1. Detect READY docs without vectors
         ready_without_vectors = await _detect_ready_docs_without_vectors(
             session, qdrant_service
@@ -606,12 +764,16 @@ async def _detect_ready_docs_without_vectors(session, qdrant_service) -> list[di
 
 
 async def _detect_stale_processing(session) -> list[dict]:
-    """Find documents stuck in PROCESSING status for > 30 minutes."""
+    """Find documents stuck in PROCESSING status for > 10 minutes.
+
+    Tech Debt Fix P2: Reduced threshold from 30 to 10 minutes for faster recovery.
+    """
     from datetime import timedelta
 
     from app.models.document import Document, DocumentStatus
 
-    stale_threshold = datetime.now(UTC) - timedelta(minutes=30)
+    # Tech Debt Fix P2: Reduced from 30 to 10 minutes
+    stale_threshold = datetime.now(UTC) - timedelta(minutes=10)
 
     result = await session.execute(
         select(Document.id, Document.kb_id, Document.processing_started_at)
@@ -811,7 +973,7 @@ async def _run_cleanup() -> dict:
 
     from sqlalchemy import delete, func
 
-    async with async_session_factory() as session:
+    async with celery_session_factory() as session:
         # Delete processed events older than 7 days
         processed_threshold = datetime.now(UTC) - timedelta(days=7)
         processed_result = await session.execute(

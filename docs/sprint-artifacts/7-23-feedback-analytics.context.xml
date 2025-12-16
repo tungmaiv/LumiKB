@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-23" title="Feedback Analytics">
+  <summary>
+    Add analytics tracking for feedback submissions to understand common issues
+    and improve generation quality over time.
+  </summary>
+
+  <key-files>
+    <file path="backend/app/api/v1/drafts.py" purpose="Feedback submission endpoint">
+      <note>Lines 464-544: submit_feedback() endpoint</note>
+      <note>Lines 536-542: Already logs to audit service</note>
+      <note>Need to add analytics-specific logging/metrics</note>
+    </file>
+    <file path="backend/app/services/feedback_service.py" purpose="Feedback processing">
+      <note>178 lines - handles feedback types and alternatives</note>
+      <note>ALTERNATIVES_MAP defines recovery suggestions</note>
+      <note>Consider adding analytics methods here</note>
+    </file>
+    <file path="backend/app/services/audit_service.py" purpose="Audit logging">
+      <note>Lines 323-360: log_feedback() method exists</note>
+      <note>Logs feedback_type, comments to audit table</note>
+      <note>Analytics could query audit logs or separate table</note>
+    </file>
+    <file path="backend/app/api/v1/admin.py" purpose="Admin API endpoints">
+      <note>Add new endpoint for feedback analytics dashboard</note>
+      <note>GET /api/v1/admin/analytics/feedback</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="Audit Log Feedback">
+      <description>From audit_service.py lines 323-360 - current feedback logging</description>
+      <code><![CDATA[
+async def log_feedback(
+    self,
+    user_id: UUID,
+    draft_id: UUID,
+    feedback_type: str,
+    feedback_comments: str | None = None,
+    related_request_id: str | None = None,
+) -> None:
+    """Log feedback event for analytics and improvement tracking."""
+    await self._log_event(
+        event_type=AuditEventType.FEEDBACK,
+        action="submit_feedback",
+        user_id=user_id,
+        resource_type="draft",
+        resource_id=str(draft_id),
+        details={
+            "feedback_type": feedback_type,
+            "has_comments": feedback_comments is not None,
+            "comments_length": len(feedback_comments) if feedback_comments else 0,
+        },
+        related_request_id=related_request_id,
+    )
+]]></code>
+    </pattern>
+    <pattern name="Admin Stats Pattern">
+      <description>From admin_stats_service.py - pattern for aggregate analytics</description>
+      <code><![CDATA[
+async def get_feedback_analytics(
+    self,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    kb_id: UUID | None = None,
+) -> FeedbackAnalytics:
+    """Get aggregated feedback analytics."""
+    query = select(
+        AuditLog.details["feedback_type"].astext.label("feedback_type"),
+        func.count().label("count"),
+    ).where(
+        AuditLog.event_type == "FEEDBACK"
+    )
+
+    if start_date:
+        query = query.where(AuditLog.created_at >= start_date)
+    if end_date:
+        query = query.where(AuditLog.created_at <= end_date)
+
+    query = query.group_by(AuditLog.details["feedback_type"].astext)
+    results = await self.session.execute(query)
+    # ... aggregate and return
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="analytics-metrics">
+      Key metrics to track:
+      1. Feedback count by type (not_relevant, wrong_format, etc.)
+      2. Feedback trends over time (daily/weekly)
+      3. Feedback by KB (which KBs have quality issues)
+      4. Recovery action selection rate
+      5. Repeat feedback rate (same user/draft)
+    </note>
+    <note type="data-source">
+      Two approaches:
+      1. Query existing audit_logs table (simpler, slower for large datasets)
+      2. Create separate feedback_analytics table (faster queries, more maintenance)
+      Recommend starting with audit_logs queries, optimize later if needed.
+    </note>
+    <note type="api-design">
+      New admin endpoint:
+      GET /api/v1/admin/analytics/feedback
+      Query params: start_date, end_date, kb_id, group_by (day/week/month)
+      Response: { by_type: {...}, by_date: [...], by_kb: [...] }
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.23.1" status="partially-implemented">
+      <description>Feedback events logged with type</description>
+      <implementation>audit_service.log_feedback() exists, logs feedback_type</implementation>
+    </criterion>
+    <criterion id="AC-7.23.2" status="not-implemented">
+      <description>Admin can view feedback analytics</description>
+      <implementation>Need new admin endpoint and/or dashboard component</implementation>
+    </criterion>
+    <criterion id="AC-7.23.3" status="not-implemented">
+      <description>Analytics aggregated by type</description>
+      <implementation>Need analytics service with aggregation queries</implementation>
+    </criterion>
+    <criterion id="AC-7.23.4" status="not-implemented">
+      <description>Time-based filtering</description>
+      <implementation>Add date range params to analytics endpoint</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <suggested-implementation>
+    <code-snippet name="FeedbackAnalytics schema">
+      <![CDATA[
+from pydantic import BaseModel
+from datetime import datetime
+
+class FeedbackTypeStat(BaseModel):
+    feedback_type: str
+    count: int
+    percentage: float
+
+class FeedbackTrend(BaseModel):
+    date: datetime
+    count: int
+    by_type: dict[str, int]
+
+class FeedbackAnalyticsResponse(BaseModel):
+    total_feedback: int
+    by_type: list[FeedbackTypeStat]
+    trends: list[FeedbackTrend]
+    top_kbs_with_issues: list[dict]  # [{kb_id, kb_name, feedback_count}]
+    period_start: datetime
+    period_end: datetime
+]]>
+    </code-snippet>
+    <code-snippet name="Analytics endpoint">
+      <![CDATA[
+@router.get(
+    "/analytics/feedback",
+    response_model=FeedbackAnalyticsResponse,
+)
+async def get_feedback_analytics(
+    start_date: datetime = Query(default=None),
+    end_date: datetime = Query(default=None),
+    kb_id: UUID = Query(default=None),
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+) -> FeedbackAnalyticsResponse:
+    """Get aggregated feedback analytics for admin dashboard."""
+    analytics_service = FeedbackAnalyticsService(session)
+    return await analytics_service.get_analytics(
+        start_date=start_date,
+        end_date=end_date,
+        kb_id=kb_id,
+    )
+]]>
+    </code-snippet>
+  </suggested-implementation>
+
+  <dependencies>
+    <dependency story="4-8" status="completed">Generation feedback and recovery</dependency>
+    <dependency story="1-7" status="completed">Audit logging infrastructure</dependency>
+    <dependency story="5-1" status="completed">Admin dashboard overview</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>FeedbackAnalyticsService aggregates by feedback_type correctly</test>
+      <test>Date range filtering works</test>
+      <test>KB filtering works</test>
+      <test>Empty result handling (no feedback in range)</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Submit feedback, call analytics endpoint, verify count increases</test>
+      <test>Verify admin-only access to analytics endpoint</test>
+    </integration-tests>
+  </test-strategy>
+</story-context>

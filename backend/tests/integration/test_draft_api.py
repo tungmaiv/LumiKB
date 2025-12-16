@@ -10,14 +10,12 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.draft import Draft, DraftStatus
+from app.models.draft import Draft
 from app.models.knowledge_base import KnowledgeBase
-from app.models.user import User
 from tests.factories import (
     create_citation,
     create_draft,
     create_draft_update_data,
-    create_draft_with_citations,
     create_regenerate_request,
 )
 

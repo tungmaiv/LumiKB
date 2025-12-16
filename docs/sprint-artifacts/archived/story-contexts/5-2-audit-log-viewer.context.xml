@@ -1,0 +1,560 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>2</storyId>
+    <title>Audit Log Viewer</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-2-audit-log-viewer.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>to view and filter audit logs</iWant>
+    <soThat>I can investigate issues and demonstrate compliance</soThat>
+    <tasks>
+### Backend Tasks
+
+- [ ] **Task 1: Extend `AuditService` with query methods** (1 hour)
+  - Add `query_audit_logs()` method with filtering and pagination
+  - Add `redact_pii()` method for PII sanitization
+  - Add query timeout handling (30s)
+  - Write 5 unit tests
+
+- [ ] **Task 2: Create audit log admin API endpoint** (1 hour)
+  - Add POST `/api/v1/admin/audit/logs` endpoint
+  - Implement `AuditLogFilterRequest` schema validation
+  - Add admin-only access control (`require_admin` dependency)
+  - Add PII permission check (`has_permission(user, "export_pii")`)
+  - Write 3 integration tests
+
+- [ ] **Task 3: Add audit log event type and resource type enums** (30 min)
+  - Create `AuditEventType` enum
+  - Create `ResourceType` enum
+  - Add enum validation to `AuditLogFilterRequest` schema
+  - Write 2 unit tests
+
+### Frontend Tasks
+
+- [ ] **Task 4: Create audit log types and interfaces** (30 min)
+  - Add `AuditEvent`, `AuditLogFilter`, `PaginatedAuditResponse` types
+
+- [ ] **Task 5: Implement `useAuditLogs` hook** (1 hour)
+  - Create `frontend/src/hooks/useAuditLogs.ts`
+  - Implement API call to POST `/api/v1/admin/audit/logs`
+  - Write 4 unit tests
+
+- [ ] **Task 6: Create `AuditLogFilters` component** (1.5 hours)
+  - Event type, user, date range, resource type filters
+  - Write 3 unit tests
+
+- [ ] **Task 7: Create `AuditLogTable` component** (2 hours)
+  - Display columns, sortable headers, pagination
+  - Write 5 unit tests
+
+- [ ] **Task 8: Create `AuditEventDetailsModal` component** (1 hour)
+  - JSON syntax highlighting, PII redaction
+  - Write 3 unit tests
+
+- [ ] **Task 9: Create `AuditLogViewer` page component** (2 hours)
+  - Wire up components, URL search params
+  - Write 3 integration tests
+
+- [ ] **Task 10: Add navigation link to admin sidebar** (30 min)
+
+### Testing Tasks
+
+- [ ] **Task 11: Write E2E tests for audit log viewer** (2 hours)
+- [ ] **Task 12: Verify PII redaction in integration tests** (1 hour)
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC-5.2.1: Admin can view paginated audit logs with filters
+- Paginated table with 50 events per page
+- Filters: event_type, user, date_range, resource_type
+- Pagination controls and total count display
+
+### AC-5.2.2: Audit log table displays required event fields
+- Columns: Timestamp, Event Type, User Email, Resource Type, Resource ID, Status, Duration
+- Sorted by Timestamp DESC by default
+- Sortable column headers
+
+### AC-5.2.3: PII fields are redacted in default view
+- IP Address masked to "XXX.XXX.XXX.XXX"
+- Sensitive fields redacted in JSON details
+- "View Full Details" button shows full JSON IF user has `export_pii` permission
+
+### AC-5.2.4: Pagination supports up to 10,000 records per request
+- Maximum 10,000 records returned
+- Warning message for large result sets
+- 30-second query timeout
+
+### AC-5.2.5: Filtering by date_range returns results sorted by timestamp DESC
+- Date range filter (inclusive)
+- Results sorted by timestamp DESC
+- Toggle sort direction by clicking column header
+
+### AC-5.2.6: Non-admin users receive 403 Forbidden
+- Regular users cannot access `/admin/audit`
+- 403 response with error message "Admin access required"
+- Frontend redirects to dashboard with error message
+</acceptanceCriteria>
+
+  <artifacts>
+    <documentation>
+      <doc id="tech-spec-epic-5">
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <summary>
+          Epic 5 Technical Specification: Compliance and Audit Features
+          - FR46: Comprehensive audit logging for all user actions (search, generation, admin actions)
+          - FR47: Admin dashboard with system statistics, trends, and health metrics
+          - FR48: Audit log viewer with filtering, pagination, and PII redaction
+          - Security: Audit logs in separate schema with INSERT-only permissions
+          - Performance: Redis caching for admin stats (5 min TTL), indexed queries
+        </summary>
+      </doc>
+
+      <doc id="architecture">
+        <path>docs/architecture.md</path>
+        <summary>
+          LumiKB System Architecture (relevant sections):
+          - Audit Logging: Separate 'audit' schema with INSERT-only permissions, fire-and-forget pattern
+          - Database: PostgreSQL 16 with asyncpg, SQLAlchemy 2.0, Alembic migrations
+          - API: FastAPI with dependency injection, background tasks for async audit logging
+          - Frontend: Next.js 15 with React 19, TanStack Query for data fetching
+          - Security: JWT authentication, RBAC with is_superuser flag for admin access
+          - Performance: Redis caching, indexed queries, pagination for large datasets
+          - Audit schema: audit.events table with indexes on user_id, timestamp, resource_type
+        </summary>
+      </doc>
+
+      <doc id="epic-5-story-2">
+        <path>docs/epics.md (lines 1832-1881)</path>
+        <summary>
+          Story 5.2: Audit Log Viewer (Epic Definition)
+          - User Story: Admin views and filters audit logs for investigation and compliance
+          - Prerequisites: Story 5.1 (Admin Dashboard), Story 1.7 (Audit Logging Foundation)
+          - Technical Notes: References FR48 from Epic 5 Tech Spec
+          - Acceptance Criteria: Pagination, filters (event_type, user, date_range, resource_type), PII redaction
+        </summary>
+      </doc>
+    </documentation>
+
+    <code>
+      <file id="audit-model">
+        <path>backend/app/models/audit.py</path>
+        <summary>
+          AuditEvent SQLAlchemy model - immutable audit logging
+          - Schema: 'audit' (separate from main schema)
+          - Columns: id (UUID), timestamp (TIMESTAMPTZ), user_id (UUID, nullable), action (VARCHAR 50),
+            resource_type (VARCHAR 50), resource_id (UUID, nullable), details (JSONB), ip_address (INET)
+          - Indexes: idx_audit_user (user_id), idx_audit_timestamp (timestamp), idx_audit_resource (resource_type, resource_id)
+          - INSERT-only pattern enforced via database permissions
+        </summary>
+        <keyLines>
+          14-62: AuditEvent model class with table args and mapped columns
+          30-36: Table args with indexes and audit schema specification
+        </keyLines>
+      </file>
+
+      <file id="audit-repo">
+        <path>backend/app/repositories/audit_repo.py</path>
+        <summary>
+          AuditRepository - Data access layer for audit events
+          - create_event: INSERT-only method for logging events
+          - Uses SQLAlchemy INSERT statement with commit
+          - No UPDATE or DELETE methods (immutable logging)
+          - NEED TO EXTEND: Add query methods for filtering and pagination (Story 5-2)
+        </summary>
+        <keyLines>
+          12-24: AuditRepository class and __init__
+          26-54: create_event method (INSERT-only pattern)
+        </keyLines>
+      </file>
+
+      <file id="audit-service">
+        <path>backend/app/services/audit_service.py</path>
+        <summary>
+          AuditService - Business logic for audit logging
+          - log_event: Fire-and-forget async logging with dedicated session
+          - Specialized methods: log_search, log_generation_request, log_generation_complete, log_generation_failed, log_feedback, log_export
+          - Error handling: Never propagates exceptions (logs internally)
+          - Singleton pattern: audit_service instance, get_audit_service() dependency
+          - NEED TO EXTEND: Add query methods for admin audit log viewer (Story 5-2)
+        </summary>
+        <keyLines>
+          14-68: AuditService class with log_event method
+          69-96: log_search method (example of specialized logging)
+          280-290: Singleton instance and dependency injection
+        </keyLines>
+      </file>
+
+      <file id="admin-api">
+        <path>backend/app/api/v1/admin.py</path>
+        <summary>
+          Admin API routes - Current endpoints:
+          - GET /admin/stats: Dashboard statistics (Story 5.1 - COMPLETED)
+          - GET /admin/users: List users with pagination
+          - POST /admin/users: Create user (admin only)
+          - PATCH /admin/users/{user_id}: Update user status
+          - GET /admin/outbox/stats: Outbox queue statistics
+          - GET /admin/audit/generation: Generation audit logs (Story 4.10 - COMPLETED)
+
+          EXISTING AUDIT ENDPOINT (lines 435-641):
+          - AuditEventResponse, AuditMetrics, AuditGenerationResponse schemas defined
+          - Filters: start_date, end_date, user_id, kb_id, action_type (generation events only)
+          - Pagination: page, per_page (max 100)
+          - Returns: events list, pagination metadata, aggregated metrics
+          - TODO: Can be enhanced or create new endpoint for Story 5-2 with all event types and PII redaction
+
+          Security: All endpoints require current_superuser dependency (is_superuser=True)
+        </summary>
+        <keyLines>
+          50-83: AuditEventResponse, AuditMetrics, AuditGenerationResponse schemas (existing)
+          435-641: get_generation_audit_logs endpoint (existing, can be reference or extended)
+          88-127: get_admin_stats endpoint (Story 5.1 reference)
+        </keyLines>
+      </file>
+
+      <file id="admin-schemas">
+        <path>backend/app/schemas/admin.py</path>
+        <summary>
+          Admin API response schemas:
+          - AdminStats: Comprehensive dashboard statistics (Story 5.1)
+          - UserStats, KnowledgeBaseStats, DocumentStats, StorageStats
+          - ActivityStats: PeriodStats for searches and generations (24h, 7d, 30d)
+          - TrendData: Daily counts for sparkline visualization (last 30 days)
+          - NEED TO ADD: AuditLogResponse, AuditLogFilters schemas for Story 5-2
+        </summary>
+        <keyLines>
+          6-21: UserStats, KnowledgeBaseStats examples
+          138-191: AdminStats comprehensive schema with examples
+        </keyLines>
+      </file>
+
+      <file id="admin-page-frontend">
+        <path>frontend/src/app/(protected)/admin/page.tsx</path>
+        <summary>
+          Admin Dashboard Page (Story 5.1 - COMPLETED)
+          - Uses useAdminStats hook to fetch statistics
+          - Displays user stats, content stats (KBs, documents, storage), activity stats (searches, generations)
+          - StatCard components with icons, values, descriptions, and trend sparklines
+          - Loading state: Skeleton components
+          - Error state: Error message display
+          - NEED TO EXTEND: Add navigation link or tab for Audit Log Viewer (Story 5-2)
+        </summary>
+        <keyLines>
+          10-41: Loading and error states
+          43-169: Main dashboard layout with StatCard sections
+        </keyLines>
+      </file>
+
+      <file id="use-admin-stats-hook">
+        <path>frontend/src/hooks/useAdminStats.ts</path>
+        <summary>
+          useAdminStats hook - TanStack Query hook for admin stats
+          - Fetches from GET /api/v1/admin/stats
+          - Authorization: Bearer token from localStorage
+          - Stale time: 5 minutes, auto-refetch every 5 minutes
+          - Error handling: 401 (auth required), 403 (admin access required)
+          - Returns: AdminStats interface
+          - NEED TO CREATE: useAuditLogs hook for Story 5-2 audit log viewer
+        </summary>
+        <keyLines>
+          5-37: AdminStats interface definition
+          39-66: useAdminStats query hook with auth, error handling, caching
+        </keyLines>
+      </file>
+
+      <file id="stat-card-component">
+        <path>frontend/src/components/admin/stat-card.tsx</path>
+        <summary>
+          StatCard component - Reusable card for displaying statistics
+          - Props: title, value, description, icon (LucideIcon), trend (number[]), trendColor, onClick
+          - Uses shadcn/ui Card components
+          - Renders Recharts LineChart for trend visualization (sparkline)
+          - Optional onClick for interactivity
+          - CAN REUSE: For audit log metrics in Story 5-2
+        </summary>
+        <keyLines>
+          12-20: StatCardProps interface
+          22-65: StatCard component implementation with trend chart
+        </keyLines>
+      </file>
+    </code>
+
+    <dependencies>
+      <backend>
+        <dependency name="fastapi" version=">=0.115.0,<1.0.0">REST API framework</dependency>
+        <dependency name="sqlalchemy" version=">=2.0.44,<3.0.0">ORM with async support</dependency>
+        <dependency name="asyncpg" version=">=0.30.0,<1.0.0">PostgreSQL async driver</dependency>
+        <dependency name="alembic" version=">=1.14.0,<2.0.0">Database migrations</dependency>
+        <dependency name="pydantic" version=">=2.7.0,<3.0.0">Data validation and schemas</dependency>
+        <dependency name="fastapi-users" version=">=14.0.0,<15.0.0">Authentication (current_superuser dependency)</dependency>
+        <dependency name="redis" version=">=7.1.0,<8.0.0">Caching (if needed for audit log queries)</dependency>
+        <dependency name="structlog" version=">=25.5.0,<26.0.0">Structured logging</dependency>
+      </backend>
+
+      <frontend>
+        <dependency name="next" version="16.0.3">React framework with App Router</dependency>
+        <dependency name="react" version="19.2.0">UI library</dependency>
+        <dependency name="@tanstack/react-query" version="^5.90.11">Data fetching and caching</dependency>
+        <dependency name="@radix-ui/react-dialog">Dialog component for audit event details modal</dependency>
+        <dependency name="@radix-ui/react-select">Select component for event type and resource type filters</dependency>
+        <dependency name="@radix-ui/react-checkbox">Checkbox component for filter options</dependency>
+        <dependency name="@radix-ui/react-tooltip">Tooltip for PII redaction indicators</dependency>
+        <dependency name="recharts" version="^3.5.1">Chart library (if trend charts needed)</dependency>
+        <dependency name="lucide-react" version="^0.554.0">Icon library (Filter, Eye, Calendar icons)</dependency>
+        <dependency name="date-fns" version="^4.1.0">Date formatting and manipulation for date range filter</dependency>
+        <dependency name="zod" version="^4.1.12">Schema validation for filter forms</dependency>
+        <dependency name="react-hook-form" version="^7.66.1">Form handling for filter inputs</dependency>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <architecture>
+      - Audit logs are READ-ONLY in the application layer (no UPDATE or DELETE operations)
+      - Separate 'audit' schema with INSERT-only permissions enforced at database level
+      - Fire-and-forget pattern for audit logging (never blocks request processing)
+      - Admin access required: All audit log viewer endpoints must use current_superuser dependency
+      - PII redaction: Default view must redact IP addresses and sensitive JSONB fields
+      - Query timeout: 30-second timeout for audit log queries to prevent long-running queries
+      - Pagination limit: Maximum 10,000 records per query to prevent performance issues
+    </architecture>
+
+    <security>
+      - Authentication: JWT token via Authorization header (Bearer token)
+      - Authorization: is_superuser=True required for all /admin/audit endpoints (403 for non-admin)
+      - PII Access Control: Only users with export_pii permission can view full unredacted details
+      - SQL Injection Prevention: Use SQLAlchemy parameterized queries (no raw SQL strings)
+      - XSS Prevention: Sanitize JSON details before rendering in frontend (use DOMPurify if needed)
+      - CSRF Protection: Not required for API-only endpoints (no session cookies)
+    </security>
+
+    <performance>
+      - Database indexes: Use existing indexes on user_id, timestamp, resource_type for efficient filtering
+      - Pagination: Server-side pagination with OFFSET/LIMIT (default 50 per page, max 100)
+      - Caching: Consider Redis caching for frequently accessed audit log summaries (optional)
+      - Query optimization: Use SQLAlchemy select with filters and join User table for email lookup
+      - Timeout handling: 30-second query timeout to prevent long-running queries
+    </performance>
+
+    <data>
+      - Date range filter: Inclusive (start_date <= timestamp <= end_date)
+      - Default sort: Timestamp DESC (most recent first)
+      - PII fields to redact: ip_address (mask to "XXX.XXX.XXX.XXX"), details.sensitive_field (based on field name patterns)
+      - Event type filter: Support all event types (not just generation events)
+      - Resource type filter: Support all resource types (user, knowledge_base, document, draft, search)
+    </data>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/api/v1/admin/audit/logs">
+        <description>Query audit logs with filtering and pagination</description>
+        <auth>Required: Bearer token, is_superuser=True</auth>
+        <queryParams>
+          <param name="event_type" type="string" optional="true">Filter by event type (e.g., "generation.request", "user.login")</param>
+          <param name="user_id" type="UUID" optional="true">Filter by user UUID</param>
+          <param name="resource_type" type="string" optional="true">Filter by resource type (e.g., "draft", "user")</param>
+          <param name="start_date" type="datetime" optional="true">Filter events after this timestamp (UTC, ISO 8601)</param>
+          <param name="end_date" type="datetime" optional="true">Filter events before this timestamp (UTC, ISO 8601)</param>
+          <param name="page" type="int" default="1">Page number (1-indexed)</param>
+          <param name="per_page" type="int" default="50">Items per page (max 100)</param>
+        </queryParams>
+        <response status="200">
+          <schema>
+            {
+              "events": [
+                {
+                  "id": "uuid",
+                  "timestamp": "2025-12-02T10:30:00Z",
+                  "user_id": "uuid",
+                  "user_email": "user@example.com",
+                  "action": "generation.request",
+                  "resource_type": "draft",
+                  "resource_id": "uuid",
+                  "details": { "kb_id": "uuid", "document_type": "technical_report" },
+                  "ip_address": "XXX.XXX.XXX.XXX",
+                  "duration_ms": 1500,
+                  "success": true
+                }
+              ],
+              "pagination": {
+                "page": 1,
+                "per_page": 50,
+                "total": 1250,
+                "total_pages": 25
+              }
+            }
+          </schema>
+        </response>
+        <response status="403">Forbidden: Admin access required</response>
+        <response status="401">Unauthorized: Authentication required</response>
+      </endpoint>
+
+      <endpoint method="GET" path="/api/v1/admin/audit/logs/{event_id}">
+        <description>Get full audit event details (unredacted for users with export_pii permission)</description>
+        <auth>Required: Bearer token, is_superuser=True</auth>
+        <pathParams>
+          <param name="event_id" type="UUID">Audit event UUID</param>
+        </pathParams>
+        <response status="200">
+          <schema>
+            {
+              "id": "uuid",
+              "timestamp": "2025-12-02T10:30:00Z",
+              "user_id": "uuid",
+              "user_email": "user@example.com",
+              "action": "generation.request",
+              "resource_type": "draft",
+              "resource_id": "uuid",
+              "details": { "kb_id": "uuid", "document_type": "technical_report", "context": "..." },
+              "ip_address": "192.168.1.100",
+              "full_details": true
+            }
+          </schema>
+        </response>
+        <response status="403">Forbidden: Admin access or export_pii permission required</response>
+        <response status="404">Not found: Event does not exist</response>
+      </endpoint>
+    </api>
+
+    <frontend>
+      <route path="/admin/audit">
+        <description>Audit Log Viewer page (admin-only)</description>
+        <components>
+          <component name="AuditLogViewer">Main page component orchestrating filters, table, pagination</component>
+          <component name="AuditLogFilters">Filter form with event type, user, date range, resource type</component>
+          <component name="AuditLogTable">Table displaying audit events with sortable columns</component>
+          <component name="AuditEventDetailsModal">Modal for viewing full event details with PII handling</component>
+        </components>
+      </route>
+
+      <hooks>
+        <hook name="useAuditLogs">
+          <description>TanStack Query hook for fetching audit logs</description>
+          <params>
+            <param name="filters" type="AuditLogFilter">Filter criteria (event_type, user_id, date_range, resource_type)</param>
+            <param name="pagination" type="{ page: number, per_page: number }">Pagination settings</param>
+          </params>
+          <returns>
+            {
+              data: PaginatedAuditResponse,
+              isLoading: boolean,
+              error: Error | null,
+              refetch: () => void
+            }
+          </returns>
+        </hook>
+      </hooks>
+
+      <types>
+        <type name="AuditEvent">
+          {
+            id: string,
+            timestamp: string,
+            user_id: string | null,
+            user_email: string | null,
+            action: string,
+            resource_type: string,
+            resource_id: string | null,
+            details: Record&lt;string, unknown&gt;,
+            ip_address: string,
+            duration_ms: number | null,
+            success: boolean | null
+          }
+        </type>
+
+        <type name="AuditLogFilter">
+          {
+            event_type?: string,
+            user_id?: string,
+            resource_type?: string,
+            start_date?: Date,
+            end_date?: Date
+          }
+        </type>
+
+        <type name="PaginatedAuditResponse">
+          {
+            events: AuditEvent[],
+            pagination: {
+              page: number,
+              per_page: number,
+              total: number,
+              total_pages: number
+            }
+          }
+        </type>
+      </types>
+    </frontend>
+  </interfaces>
+
+  <tests>
+    <standards>
+      - Backend unit tests: pytest with pytest-asyncio, minimum 80% coverage
+      - Backend integration tests: TestClient from FastAPI, test database with test fixtures
+      - Frontend unit tests: Vitest with @testing-library/react, test all components and hooks
+      - Frontend E2E tests: Playwright with page object model
+      - Test data: Use factories for creating test audit events (AuditEventFactory)
+      - Assertions: Test both success paths and error paths (401, 403, 400, 404)
+      - PII testing: Verify redaction in default view, verify full details require permission
+    </standards>
+
+    <locations>
+      <backend>
+        - Unit tests: backend/tests/unit/test_audit_service.py (extend with query methods)
+        - Integration tests: backend/tests/integration/test_audit_log_viewer_api.py (new file)
+        - Factories: backend/tests/factories/audit_factory.py (create if not exists)
+      </backend>
+
+      <frontend>
+        - Component tests: frontend/src/components/admin/__tests__/audit-log-*.test.tsx
+        - Hook tests: frontend/src/hooks/__tests__/useAuditLogs.test.ts
+        - E2E tests: frontend/e2e/tests/admin/audit-log-viewer.spec.ts (new file)
+        - Page tests: frontend/src/app/(protected)/admin/audit/__tests__/page.test.tsx
+      </frontend>
+    </locations>
+
+    <ideas>
+      <unit>
+        - Test AuditService.query_audit_logs with various filter combinations
+        - Test AuditService.redact_pii masks IP addresses correctly
+        - Test pagination calculates total_pages correctly
+        - Test enum validation for event_type and resource_type filters
+        - Test useAuditLogs hook refetch on filter change
+        - Test AuditLogFilters component updates URL search params
+        - Test AuditLogTable component sorts by column header click
+        - Test AuditEventDetailsModal shows/hides PII based on permission
+      </unit>
+
+      <integration>
+        - Test GET /admin/audit/logs returns 403 for non-admin users
+        - Test GET /admin/audit/logs returns 401 for unauthenticated users
+        - Test GET /admin/audit/logs filters by event_type correctly
+        - Test GET /admin/audit/logs filters by date_range correctly
+        - Test GET /admin/audit/logs pagination returns correct page
+        - Test GET /admin/audit/logs joins user email correctly
+        - Test GET /admin/audit/logs/{event_id} returns full details for admin with export_pii permission
+        - Test PII redaction: IP address masked in default view
+        - Test query timeout: 30-second timeout enforced
+      </integration>
+
+      <e2e>
+        - Test admin user can navigate to audit log viewer from dashboard
+        - Test audit log table displays events with correct columns
+        - Test filter by event type updates table results
+        - Test filter by date range updates table results
+        - Test pagination: navigate to page 2, verify results change
+        - Test click event row opens details modal
+        - Test details modal shows redacted PII for users without export_pii permission
+        - Test sort by timestamp column toggles sort direction
+        - Test non-admin user redirected to dashboard with 403 error
+      </e2e>
+    </ideas>
+  </tests>
+</story-context>

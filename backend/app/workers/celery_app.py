@@ -54,12 +54,34 @@ celery_app.conf.update(
         },
         "reconcile-data-consistency": {
             "task": "app.workers.outbox_tasks.reconcile_data_consistency",
-            "schedule": 3600.0,  # Every hour (3600 seconds)
+            # Tech Debt Fix P2: Reduced from 3600s to 300s for faster recovery
+            "schedule": 300.0,  # Every 5 minutes (300 seconds)
         },
         "cleanup-processed-outbox-events": {
             "task": "app.workers.outbox_tasks.cleanup_processed_outbox_events",
             # Daily at 3 AM UTC
             "schedule": crontab(hour=3, minute=0),
+        },
+        # Story 9-13: Metrics aggregation tasks
+        "aggregate-observability-metrics-hourly": {
+            "task": "app.workers.metrics_aggregation_tasks.aggregate_observability_metrics",
+            "schedule": crontab(minute=5),  # 5 minutes past every hour
+            "args": ("hour",),
+        },
+        "aggregate-observability-metrics-daily": {
+            "task": "app.workers.metrics_aggregation_tasks.aggregate_observability_metrics",
+            "schedule": crontab(hour=1, minute=0),  # 1 AM daily
+            "args": ("day",),
+        },
+        "rollup-weekly-metrics": {
+            "task": "app.workers.metrics_aggregation_tasks.rollup_daily_to_weekly",
+            "schedule": crontab(day_of_week=1, hour=2, minute=0),  # Mondays at 2 AM
+        },
+        # Story 9-14: Data retention cleanup
+        "cleanup-observability-data-daily": {
+            "task": "app.workers.retention_tasks.cleanup_observability_data",
+            "schedule": crontab(hour=3, minute=0),  # 3 AM daily
+            "args": (False,),  # dry_run=False
         },
     },
 )
@@ -69,5 +91,7 @@ celery_app.autodiscover_tasks(
     [
         "app.workers.outbox_tasks",
         "app.workers.document_tasks",
+        "app.workers.metrics_aggregation_tasks",
+        "app.workers.retention_tasks",
     ]
 )

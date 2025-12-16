@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-11" title="LangFuse Provider Implementation" status="ready-for-dev">
+  <metadata>
+    <created>2025-12-15</created>
+    <epic>9</epic>
+    <phase>4 - Advanced Features</phase>
+    <points>5</points>
+    <priority>P1</priority>
+  </metadata>
+
+  <artifacts>
+    <documentation>
+      <doc path="docs/sprint-artifacts/9-11-langfuse-provider-implementation.md" type="story">
+        Primary story definition with acceptance criteria and implementation tasks
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" type="tech-spec">
+        Comprehensive technical specification including LangFuseProvider implementation patterns
+      </doc>
+      <doc path="docs/epics/epic-9-observability.md" type="epic">
+        Epic overview and phase breakdown
+      </doc>
+      <doc path="docs/testing-guideline.md" type="testing">
+        Testing standards for mocking external SDKs
+      </doc>
+    </documentation>
+
+    <existing-code>
+      <file path="backend/app/services/observability_service.py" relevance="critical">
+        <description>
+          Contains ObservabilityProvider abstract base class that LangFuseProvider must implement.
+          Also contains PostgreSQLProvider as reference implementation and ObservabilityService
+          with provider registry pattern.
+        </description>
+        <key-interfaces>
+          <interface name="ObservabilityProvider" lines="129-337">
+            Abstract base class defining the provider interface:
+            - name (property): Provider identifier
+            - enabled (property): Whether provider is active
+            - start_trace(): Start a new trace with user/kb context
+            - end_trace(): End trace with status and duration
+            - start_span(): Start operation span within trace
+            - end_span(): End span with metrics
+            - log_llm_call(): Log LLM call as span with token metrics
+            - log_chat_message(): Log chat interaction
+            - log_document_event(): Log document processing event
+          </interface>
+          <interface name="PostgreSQLProvider" lines="340-696">
+            Reference implementation showing fire-and-forget pattern with try/except
+            wrapping all operations and logging warnings on failure
+          </interface>
+          <interface name="ObservabilityService" lines="711-1135">
+            Central service with get_instance() singleton pattern and provider registration
+            at lines 751-761 with TODO comment for LangFuseProvider integration
+          </interface>
+        </key-interfaces>
+      </file>
+
+      <file path="backend/app/models/observability.py" relevance="high">
+        <description>
+          SQLAlchemy models for observability schema including ProviderSyncStatus
+          model for tracking LangFuse sync state
+        </description>
+        <key-models>
+          <model name="ProviderSyncStatus" lines="323-363">
+            Tracks synchronization status with external providers:
+            - provider_name: External provider identifier (langfuse)
+            - entity_type: Type of entity (trace, span, chat_message)
+            - entity_id: ID of entity being synced
+            - sync_status: pending/synced/failed
+            - error_message: Error details if failed
+            - retry_count: Number of retry attempts
+          </model>
+        </key-models>
+      </file>
+
+      <file path="backend/app/core/config.py" relevance="high">
+        <description>
+          Application settings - needs LangFuse configuration added
+        </description>
+        <pattern>
+          Settings use pydantic-settings with LUMIKB_ prefix.
+          Add LANGFUSE_ENABLED, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST
+        </pattern>
+      </file>
+    </existing-code>
+  </artifacts>
+
+  <interfaces>
+    <provider-interface name="ObservabilityProvider">
+      <description>
+        LangFuseProvider must implement this abstract base class with all methods
+        following fire-and-forget pattern (never block, never propagate exceptions)
+      </description>
+      <methods>
+        <method name="start_trace" returns="None">
+          Creates LangFuse trace with trace_id, name, user_id, kb_id, metadata
+        </method>
+        <method name="end_trace" returns="None">
+          Updates trace with status, duration_ms, error_message; calls flush()
+        </method>
+        <method name="start_span" returns="None">
+          Creates LangFuse span within trace
+        </method>
+        <method name="end_span" returns="None">
+          Completes span with metrics
+        </method>
+        <method name="log_llm_call" returns="str">
+          Creates LangFuse generation with usage metrics (tokens, cost, model)
+        </method>
+        <method name="log_chat_message" returns="None">
+          Maps to LangFuse event
+        </method>
+        <method name="log_document_event" returns="None">
+          Maps to LangFuse event with document metadata
+        </method>
+      </methods>
+    </provider-interface>
+
+    <langfuse-sdk>
+      <description>LangFuse Python SDK integration</description>
+      <initialization>
+        <code><![CDATA[
+from langfuse import Langfuse
+
+client = Langfuse(
+    public_key=settings.langfuse_public_key,
+    secret_key=settings.langfuse_secret_key,
+    host=settings.langfuse_host or "https://cloud.langfuse.com",
+)
+        ]]></code>
+      </initialization>
+      <trace-creation>
+        <code><![CDATA[
+trace = client.trace(
+    id=trace_id,
+    name=name,
+    user_id=str(user_id) if user_id else None,
+    session_id=session_id,
+    metadata={"operation_type": operation_type, "kb_id": str(kb_id)},
+)
+        ]]></code>
+      </trace-creation>
+      <generation-logging>
+        <code><![CDATA[
+trace.generation(
+    name=f"llm.{model}",
+    model=model,
+    usage={
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    },
+    model_parameters={"temperature": temperature} if temperature else None,
+    metadata={"latency_ms": latency_ms, "cost_usd": float(cost_usd)},
+)
+        ]]></code>
+      </generation-logging>
+    </langfuse-sdk>
+  </interfaces>
+
+  <constraints>
+    <constraint type="pattern" name="fire-and-forget">
+      All LangFuse SDK calls MUST be wrapped in try/except. Exceptions are logged
+      with structlog but NEVER propagated to caller. Operations must be non-blocking.
+    </constraint>
+    <constraint type="configuration" name="conditional-enablement">
+      Provider MUST be disabled if langfuse_public_key is not configured.
+      Check in __init__ and return early from all methods if not enabled.
+    </constraint>
+    <constraint type="sync-tracking" name="provider-sync-status">
+      All operations MUST create/update ProviderSyncStatus records to track
+      sync state (pending/synced/failed) with retry_count for failures.
+    </constraint>
+    <constraint type="flush" name="trace-completion">
+      MUST call client.flush() on trace end to ensure data is sent to LangFuse
+      before the trace context is released.
+    </constraint>
+    <constraint type="dependency" name="optional-sdk">
+      langfuse SDK is an optional dependency. Provider should handle ImportError
+      gracefully and disable itself if SDK not installed.
+    </constraint>
+  </constraints>
+
+  <dependencies>
+    <dependency type="story" id="9-2">
+      PostgreSQL Provider Implementation - defines ObservabilityProvider interface
+    </dependency>
+    <dependency type="story" id="9-3">
+      TraceContext and Core Service - provides ObservabilityService provider registry
+    </dependency>
+    <dependency type="external" name="langfuse">
+      LangFuse Python SDK >= 2.0.0 (optional dependency in pyproject.toml)
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <test-file path="backend/tests/unit/test_langfuse_provider.py" type="unit">
+      <test-cases>
+        <case name="test_provider_disabled_when_no_credentials">
+          Verify provider.enabled returns False when langfuse_public_key not set
+        </case>
+        <case name="test_start_trace_creates_langfuse_trace">
+          Mock Langfuse client, verify trace() called with correct params
+        </case>
+        <case name="test_log_llm_call_creates_generation">
+          Mock trace.generation(), verify usage metrics passed correctly
+        </case>
+        <case name="test_fire_and_forget_catches_exceptions">
+          Simulate SDK exception, verify no exception propagated and warning logged
+        </case>
+        <case name="test_provider_sync_status_created">
+          Verify ProviderSyncStatus record created for each operation
+        </case>
+        <case name="test_flush_called_on_trace_end">
+          Verify client.flush() called when end_trace() is invoked
+        </case>
+      </test-cases>
+    </test-file>
+    <test-file path="backend/tests/integration/test_langfuse_integration.py" type="integration">
+      <test-cases>
+        <case name="test_full_trace_lifecycle_with_mock_server">
+          Integration test using mock LangFuse server or SDK mock
+        </case>
+        <case name="test_sync_status_tracked_correctly">
+          Verify ProviderSyncStatus records updated through lifecycle
+        </case>
+      </test-cases>
+    </test-file>
+    <testing-patterns>
+      <pattern name="mock-langfuse-sdk">
+        Use unittest.mock.patch to mock langfuse.Langfuse class
+      </pattern>
+      <pattern name="fire-and-forget-verification">
+        Test that exceptions don't propagate by asserting no exception raised
+        and checking structlog captured warnings
+      </pattern>
+    </testing-patterns>
+  </tests>
+
+  <source-tree>
+    <new-files>
+      <file>backend/app/services/langfuse_provider.py</file>
+      <file>backend/tests/unit/test_langfuse_provider.py</file>
+      <file>backend/tests/integration/test_langfuse_integration.py</file>
+    </new-files>
+    <modified-files>
+      <file>backend/app/core/config.py</file>
+      <file>backend/app/services/observability_service.py</file>
+      <file>backend/pyproject.toml</file>
+    </modified-files>
+  </source-tree>
+
+  <acceptance-criteria-mapping>
+    <ac id="1" task="1">LangFuseProvider implements ObservabilityProvider interface</ac>
+    <ac id="2" task="1">Provider disabled if langfuse_public_key not configured</ac>
+    <ac id="3" task="2">start_trace() creates LangFuse trace with user_id, session_id</ac>
+    <ac id="4" task="3">log_llm_call() creates LangFuse generation with usage metrics</ac>
+    <ac id="5" task="4">Document events logged as LangFuse events with metadata</ac>
+    <ac id="6" task="5">Provider sync status tracked in provider_sync_status table</ac>
+    <ac id="7" task="6">All LangFuse calls are async and non-blocking</ac>
+    <ac id="8" task="6">SDK errors caught and logged (fire-and-forget)</ac>
+    <ac id="9" task="2">Flush called on trace end to ensure data sent</ac>
+    <ac id="10" task="8">Integration test with LangFuse mock server</ac>
+  </acceptance-criteria-mapping>
+</story-context>

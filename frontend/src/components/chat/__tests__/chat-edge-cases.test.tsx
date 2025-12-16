@@ -48,6 +48,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       clearMessages: mockClearMessages,
       restoreMessages: vi.fn(),
       abortStream: mockAbortStream,
+      debugInfo: null,
     });
 
     vi.mocked(useChatManagement).mockImplementation((callbacks) => ({
@@ -117,6 +118,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       clearMessages: vi.fn(),
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
+      debugInfo: null,
     });
 
     vi.mocked(useChatManagement).mockReturnValue({
@@ -179,6 +181,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       clearMessages: vi.fn(),
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
+      debugInfo: null,
     });
 
     vi.mocked(useChatManagement).mockReturnValue({

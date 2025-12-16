@@ -1,0 +1,1022 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-id>5-4</story-id>
+    <story-title>Processing Queue Status</story-title>
+    <epic>Epic 5 - Administration &amp; Polish</epic>
+    <status>ready-for-dev</status>
+    <generated-date>2025-12-02</generated-date>
+    <bmad-version>6.0</bmad-version>
+  </metadata>
+
+  <story-overview>
+    <user-story>
+      As an administrator,
+      I want to monitor background task processing queues,
+      So that I can identify bottlenecks, debug failures, and ensure system health.
+    </user-story>
+
+    <value-proposition>
+      LumiKB uses Celery for background task processing (document parsing, embedding generation, export generation).
+      Administrators need visibility into queue health to:
+      - Identify processing bottlenecks (e.g., documents stuck in PENDING state)
+      - Monitor worker capacity and detect offline workers
+      - Debug task failures and investigate slow processing
+      - Ensure SLA compliance (document processing &lt; 5 minutes)
+
+      This story delivers a real-time Queue Status Dashboard using Celery Inspect API to monitor:
+      - All active Celery queues (currently 2: default, document_processing; designed to auto-discover future queues)
+      - Queue metrics: pending tasks, active tasks, worker count
+      - Worker health: heartbeat detection (mark offline if no heartbeat &gt; 60s)
+      - Task details: task_id, task_name, status, started_at, estimated_duration
+      - Graceful degradation when Celery inspect API fails
+    </value-proposition>
+
+    <relationship-to-other-stories>
+      **Depends On:**
+      - Story 1.7 (Audit Logging Infrastructure): Provides audit.events table for logging queue inspection operations
+      - Story 5.1 (Admin Dashboard Overview): Establishes admin authentication, Redis caching patterns (5-min TTL), admin UI components (StatCard)
+      - Story 2.4 (Document Processing Pipeline): Created Celery task queues (document_processing queue, process_document task)
+
+      **Enables:**
+      - Story 5.6 (KB Statistics): Queue metrics can inform KB health scoring
+      - Future operational monitoring: Queue status data can feed Prometheus/Grafana dashboards
+      - Future auto-scaling: Queue depth can trigger worker auto-scaling
+
+      **Architectural Fit:**
+      - Reuses AdminStatsService Redis caching pattern (5-min TTL) for queue status
+      - Extends admin API routes (/api/v1/admin/queue/*) established in Story 5.1
+      - Follows admin-only access control (requires is_superuser=True)
+      - Maintains citation-first architecture (N/A for admin metrics, no document citations)
+    </relationship-to-other-stories>
+  </story-overview>
+
+  <acceptance-criteria>
+    <ac id="AC-5.4.1" priority="critical">
+      <title>View all active Celery queues with real-time status</title>
+      <given>I am an authenticated admin user</given>
+      <when>I navigate to /admin/queue</when>
+      <then>
+        - I see queue status for all active Celery queues (currently: default, document_processing)
+        - System dynamically discovers active queues via Celery Inspect API (future-proof for additional queues)
+        - Each queue displays: name, pending tasks, active tasks, worker count
+        - Data auto-refreshes every 10 seconds (React Query refetchInterval)
+        - "Last updated" timestamp displays in human-readable format
+      </then>
+      <validation>
+        - Integration test: GET /api/v1/admin/queue/status → verify all active queue objects returned (currently 2)
+        - E2E test: Navigate to /admin/queue → verify QueueStatusCard components render for all active queues
+        - Unit test: QueueMonitorService.get_all_queues() → dynamically discovers queues from Celery
+      </validation>
+      <source>Tech Spec Epic 5, line 679 (adapted): "Admin sees queue status for all Celery queues" - using dynamic discovery to support current (2 queues) and future queues</source>
+    </ac>
+
+    <ac id="AC-5.4.2" priority="critical">
+      <title>Display queue metrics: pending, active, workers online/offline</title>
+      <given>I am viewing the queue status dashboard</given>
+      <when>Queue data loads</when>
+      <then>
+        - Each queue card shows: pending tasks (int), active tasks (int), worker count (int)
+        - Workers status: "X online, Y offline" (based on 60s heartbeat threshold)
+        - Visual indicators: green (healthy), yellow (warning if pending &gt; 100), red (critical if no workers online)
+        - Tooltips explain metrics (e.g., "Pending: Tasks waiting for worker assignment")
+      </then>
+      <validation>
+        - Integration test: Verify QueueStatus schema includes pending_tasks, active_tasks, workers array
+        - Unit test: QueueMonitorService._calculate_worker_status() → offline if heartbeat &gt; 60s
+        - E2E test: Verify card displays "2 online, 1 offline" when 3 workers with varied heartbeats
+      </validation>
+      <source>Tech Spec Epic 5, line 681: "Each queue displays: pending tasks, active tasks, worker count, workers online/offline."</source>
+    </ac>
+
+    <ac id="AC-5.4.3" priority="high">
+      <title>View task details including task_id, name, status, timestamps</title>
+      <given>I click a queue card to view task details</given>
+      <when>Task list modal opens</when>
+      <then>
+        - Modal displays active tasks for selected queue
+        - Each task row shows: task_id (UUID), task_name (e.g., "app.workers.document_tasks.process_document"), status ("active"), started_at (ISO 8601), estimated_duration (ms)
+        - Tasks sorted by started_at DESC (newest first)
+        - Empty state: "No active tasks" if queue empty
+      </then>
+      <validation>
+        - Integration test: GET /api/v1/admin/queue/document_processing/tasks → verify TaskInfo array
+        - Unit test: TaskListModal component → verify table renders task fields
+        - E2E test: Click queue card → verify modal opens with task table
+      </validation>
+      <source>Tech Spec Epic 5, line 682: "Task details include: task_id, task_name, status, started_at, estimated_duration."</source>
+    </ac>
+
+    <ac id="AC-5.4.4" priority="high">
+      <title>Worker heartbeat detection marks workers offline after 60s</title>
+      <given>A Celery worker has not sent heartbeat for &gt; 60 seconds</given>
+      <when>Admin views queue status</when>
+      <then>
+        - Worker is marked as "offline" in worker list
+        - Offline workers displayed in red with warning icon
+        - Tooltip explains: "Worker hasn't responded to heartbeat in 60+ seconds"
+        - Total worker count includes offline workers: "2 online, 1 offline (3 total)"
+      </then>
+      <validation>
+        - Unit test: QueueMonitorService._is_worker_online(last_heartbeat) → False if now - last_heartbeat &gt; 60s
+        - Integration test: Mock worker heartbeat 90s ago → verify worker.status = "offline"
+        - E2E test: Verify offline worker displayed with red status badge
+      </validation>
+      <source>Tech Spec Epic 5, line 683: "Workers marked 'offline' if no heartbeat received in 60s."</source>
+    </ac>
+
+    <ac id="AC-5.4.5" priority="high">
+      <title>Graceful degradation when Celery inspect API fails</title>
+      <given>Celery inspect API is unavailable (broker down, network error)</given>
+      <when>Admin navigates to /admin/queue</when>
+      <then>
+        - Queue cards display "unavailable" status
+        - Error message: "Unable to connect to Celery broker. Inspect API unavailable."
+        - No crash or 500 error - graceful fallback UI
+        - Retry button allows manual refresh
+      </then>
+      <validation>
+        - Unit test: QueueMonitorService.get_queue_status() → catch BrokerConnectionError, return None
+        - Integration test: Mock celery_app.control.inspect() → raises ConnectionError, verify 200 with unavailable status
+        - E2E test: Simulate broker down → verify error message displayed
+      </validation>
+      <source>Tech Spec Epic 5, line 684: "Queue monitoring gracefully handles Celery inspect failures by displaying 'unavailable' status."</source>
+    </ac>
+
+    <ac id="AC-5.4.6" priority="critical">
+      <title>Non-admin users receive 403 Forbidden</title>
+      <given>I am authenticated as a regular user (not admin)</given>
+      <when>I attempt to access /admin/queue OR call GET /api/v1/admin/queue/status</when>
+      <then>
+        - I receive 403 Forbidden response
+        - Response body: {"detail": "Admin access required"}
+        - Frontend redirects to dashboard with error toast: "You do not have permission to access Admin panel"
+      </then>
+      <validation>
+        - Integration test: Non-admin GET /admin/queue/status → verify 403
+        - Unit test: require_admin FastAPI dependency → HTTPException(403) for non-admin
+        - E2E test: Login as regular user → navigate to /admin/queue → verify redirect
+      </validation>
+      <source>Tech Spec Epic 5, AC-5.4.6 (inferred from admin-only access pattern across Epic 5)</source>
+    </ac>
+  </acceptance-criteria>
+
+  <architecture-context>
+    <system-architecture-excerpt>
+      **Celery Background Tasks (Architecture.md lines 892-934):**
+
+      LumiKB uses Celery for asynchronous background task processing:
+      - **Broker**: Redis (same instance as cache, different db index)
+      - **Result Backend**: Redis (stores task results for 1 hour)
+      - **Active Queues** (as of 2025-12-02):
+        1. **default**: Outbox event processing (app.workers.outbox_tasks.*)
+        2. **document_processing**: Document parsing, embedding, indexing (app.workers.document_tasks.*)
+      - **Future Queues** (design supports dynamic discovery):
+        - Additional queues will be auto-discovered when workers are configured for them
+        - No code changes required in QueueMonitorService when new queues added
+
+      **Celery Configuration (backend/app/workers/celery_app.py):**
+      - Task routing: Routes tasks to specific queues based on task name pattern
+      - Queue configuration: Currently 2 queues (default, document_processing)
+      - Worker prefetch: 1 task per worker (prevents memory exhaustion)
+      - Task time limits: 9 min soft, 10 min hard
+      - Visibility timeout: 10 minutes (broker_transport_options)
+      - Task acknowledgment: acks_late=True (acknowledge after completion)
+
+      **Celery Inspect API:**
+      - `celery_app.control.inspect()` returns Inspector instance
+      - Inspector methods:
+        - `.active()`: Dict[worker_name, List[active_tasks]]
+        - `.reserved()`: Dict[worker_name, List[reserved_tasks]]
+        - `.scheduled()`: Dict[worker_name, List[scheduled_tasks]]
+        - `.stats()`: Dict[worker_name, worker_stats] (includes heartbeat)
+      - Timeout: Default 1 second (configurable via timeout parameter)
+      - Returns None if worker unreachable
+
+      **Admin Service Patterns (Story 5.1):**
+      - Redis caching with 5-minute TTL to reduce database/broker load
+      - Cache key format: "admin:queue:status"
+      - Graceful fallback: If Redis unavailable, query directly (no caching)
+      - Admin-only access: All admin endpoints require is_superuser=True
+
+      **Citation-First Architecture:**
+      - Not applicable for queue monitoring (no document citations)
+      - Queue inspection is read-only admin operation (no document modifications)
+    </system-architecture-excerpt>
+
+    <dependencies-and-integrations>
+      **Backend Dependencies:**
+      - Celery 5.3+ (already installed): Background task queue framework
+      - Redis: Celery broker and result backend (already configured)
+      - FastAPI: Admin API endpoints
+      - Pydantic: Schema validation (QueueStatus, WorkerInfo, TaskInfo)
+      - Structlog: Logging for queue inspection operations
+
+      **Frontend Dependencies:**
+      - Next.js 14 (App Router): Admin page route /admin/queue
+      - React 18: UI components
+      - shadcn/ui: QueueStatusCard, Dialog (TaskListModal), Badge (status indicators)
+      - React Query (TanStack Query): Auto-refresh every 10 seconds
+      - Lucide React: Icons (Server, Activity, AlertTriangle)
+
+      **Integration Points:**
+      1. **Celery Inspect API**: QueueMonitorService calls celery_app.control.inspect()
+      2. **Redis Cache**: Cache queue status for 5 minutes (same pattern as AdminStatsService)
+      3. **Admin API**: GET /api/v1/admin/queue/status, GET /api/v1/admin/queue/{queue_name}/tasks
+      4. **Frontend Auto-Refresh**: React Query refetchInterval: 10000 (10 seconds)
+
+      **External Services:**
+      - Celery Workers: Must be running for queue status to be meaningful
+      - Redis Broker: Required for Celery inspect API to function
+    </dependencies-and-integrations>
+
+    <technical-constraints>
+      1. **Celery Inspect API Limitations:**
+         - Only shows tasks currently in broker queue (not historical tasks)
+         - Worker stats may be stale if worker crashed without cleanup
+         - Inspect timeout (1s default) may miss slow-responding workers
+         - Returns None if worker unreachable (must handle gracefully)
+
+      2. **Dynamic Queue Discovery Approach:**
+         - System currently has 2 active queues: default, document_processing
+         - QueueMonitorService uses dynamic discovery via Celery Inspect API
+         - No hardcoded queue names - automatically adapts when new queues added
+         - Future-proof: New queues (e.g., embedding_generation, export_generation) will appear automatically when configured
+
+      3. **Performance Constraints:**
+         - Celery inspect API is synchronous (may block worker threads)
+         - Use timeout=1.0 to prevent slow API calls
+         - Cache results for 5 minutes to reduce broker load
+         - React Query auto-refresh every 10s (client-side polling, backend caching minimizes impact)
+
+      4. **Admin-Only Access:**
+         - All queue monitoring endpoints require is_superuser=True
+         - No RBAC granularity (cannot grant queue monitoring to non-admin users)
+         - Future enhancement: Add "queue_viewer" permission for DevOps team
+
+      5. **Graceful Degradation:**
+         - If Celery broker unreachable: Display "unavailable" status, no crash
+         - If Redis cache fails: Fall back to direct Celery inspect (slower but functional)
+         - If worker heartbeat stale: Mark offline, don't hide worker (transparency)
+    </technical-constraints>
+  </architecture-context>
+
+  <existing-code>
+    <reference-implementation id="admin-stats-service" file="backend/app/services/admin_stats_service.py" lines="1-270">
+      <purpose>
+        Redis caching pattern with 5-minute TTL for expensive aggregation queries.
+        QueueMonitorService should follow same pattern for queue status caching.
+      </purpose>
+      <key-patterns>
+        1. **Cache Key Format**: CACHE_KEY = "admin:stats:dashboard" (line 27)
+           - For queue monitoring: "admin:queue:status"
+
+        2. **Cache TTL**: CACHE_TTL = 300 (5 minutes) (line 28)
+           - Same TTL for queue status (balance freshness vs. broker load)
+
+        3. **Cache-First with Graceful Fallback** (lines 46-75):
+           ```python
+           async def get_dashboard_stats(self) -> AdminStats:
+               try:
+                   redis = await get_redis_client()
+                   cached = await redis.get(CACHE_KEY)
+                   if cached:
+                       logger.info("admin_stats_cache_hit")
+                       return AdminStats.model_validate_json(cached)
+               except Exception as e:
+                   logger.warning("redis_unavailable", error=str(e))
+
+               # Cache miss - aggregate from DB
+               logger.info("admin_stats_cache_miss")
+               stats = await self._aggregate_stats()
+
+               # Store in cache (best effort)
+               try:
+                   redis = await get_redis_client()
+                   await redis.setex(CACHE_KEY, CACHE_TTL, stats.model_dump_json())
+               except Exception as e:
+                   logger.warning("redis_cache_set_failed", error=str(e))
+
+               return stats
+           ```
+
+        4. **Graceful Error Handling**: Never fail if Redis unavailable (lines 60-62, 72-73)
+           - Apply same pattern: If Celery inspect fails, return "unavailable" status
+
+        5. **Structured Logging**: Use structlog with context (line 25, lines 58-59)
+           - Log cache hits, misses, errors with structured context
+      </key-patterns>
+      <code-to-reuse>
+        - Redis cache-first pattern (lines 52-75)
+        - Graceful fallback logic (lines 60-62)
+        - Structured logging approach (lines 58-59, 65)
+        - Service initialization with dependency injection (lines 38-44)
+      </code-to-reuse>
+    </reference-implementation>
+
+    <reference-implementation id="admin-api-routes" file="backend/app/api/v1/admin.py" lines="1-128">
+      <purpose>
+        Admin-only API endpoint patterns with is_superuser authorization.
+        QueueMonitorService endpoints should extend this router.
+      </purpose>
+      <key-patterns>
+        1. **Admin Authorization Dependency** (lines 96-98):
+           ```python
+           @router.get("/stats", response_model=AdminStats)
+           async def get_admin_stats(
+               current_user: User = Depends(current_superuser),  # Admin-only check
+               session: AsyncSession = Depends(get_db),
+           ) -> AdminStats:
+           ```
+           - Use `current_superuser` dependency for admin-only endpoints
+           - Returns 403 Forbidden if user is not superuser
+
+        2. **Service Dependency Injection** (line 100):
+           ```python
+           service = AdminStatsService(session)
+           stats = await service.get_dashboard_stats()
+           ```
+           - Initialize service with session
+           - Call async service method
+           - Return Pydantic model
+
+        3. **Error Handling with Structured Logs** (lines 103-127):
+           - Try/except around service calls
+           - Log errors with structlog
+           - Return 500 with user-friendly message
+
+        4. **OpenAPI Documentation** (lines 88-94):
+           - Docstring with operation description
+           - Response model defined in decorator
+           - Example responses in Pydantic schema
+      </key-patterns>
+      <code-to-reuse>
+        - Admin-only dependency: `current_superuser` (line 97)
+        - Service initialization pattern (line 100)
+        - Error handling structure (lines 103-127)
+        - Structured logging (lines 108-110)
+      </code-to-reuse>
+    </reference-implementation>
+
+    <reference-implementation id="celery-config" file="backend/app/workers/celery_app.py" lines="1-74">
+      <purpose>
+        Celery application configuration and queue setup.
+        QueueMonitorService inspects these queues.
+      </purpose>
+      <key-patterns>
+        1. **Celery App Initialization** (lines 9-13):
+           ```python
+           celery_app = Celery(
+               "lumikb",
+               broker=settings.celery_broker_url,
+               backend=settings.celery_result_backend,
+           )
+           ```
+           - Import this celery_app instance in QueueMonitorService
+           - Use celery_app.control.inspect() for queue inspection
+
+        2. **Queue Configuration** (lines 18-26):
+           ```python
+           task_routes={
+               "app.workers.document_tasks.*": {"queue": "document_processing"},
+               "app.workers.outbox_tasks.*": {"queue": "default"},
+           },
+           task_queues={
+               "default": {},
+               "document_processing": {},
+           },
+           ```
+           - Current queues: default, document_processing (NOT 3 queues as in Tech Spec)
+           - IMPORTANT: Dynamically discover active queues, don't hardcode
+
+        3. **Task Time Limits** (lines 47-48):
+           ```python
+           task_soft_time_limit=540,  # 9 minutes
+           task_time_limit=600,       # 10 minutes
+           ```
+           - Use for estimated_duration calculation
+           - Active task &gt; 9 min: flag as "slow"
+
+        4. **Worker Prefetch** (line 39):
+           ```python
+           worker_prefetch_multiplier=1,  # Only fetch one task at a time
+           ```
+           - Important for understanding active task count
+           - Each worker processes 1 task at a time
+      </key-patterns>
+      <code-to-reuse>
+        - celery_app instance import (line 9)
+        - Queue routing configuration (lines 18-26)
+        - Task time limits for duration estimation (lines 47-48)
+      </code-to-reuse>
+    </reference-implementation>
+
+    <reference-implementation id="admin-dashboard-page" file="frontend/src/app/(protected)/admin/page.tsx" lines="1-195">
+      <purpose>
+        Admin dashboard page layout with StatCard components.
+        Queue status page should follow same layout pattern.
+      </purpose>
+      <key-patterns>
+        1. **Page Structure** (lines 46-52):
+           ```tsx
+           return (
+             &lt;div className="container mx-auto p-6"&gt;
+               &lt;div className="mb-6"&gt;
+                 &lt;h1 className="text-3xl font-bold"&gt;Admin Dashboard&lt;/h1&gt;
+                 &lt;p className="text-sm text-muted-foreground mt-1"&gt;
+                   System-wide statistics and metrics
+                 &lt;/p&gt;
+               &lt;/div&gt;
+           ```
+           - Same container, heading, and description structure for /admin/queue
+
+        2. **Loading State with Skeleton** (lines 15-26):
+           ```tsx
+           if (isLoading) {
+             return (
+               &lt;div className="container mx-auto p-6"&gt;
+                 &lt;h1 className="text-3xl font-bold mb-6"&gt;Admin Dashboard&lt;/h1&gt;
+                 &lt;div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"&gt;
+                   {Array.from({ length: 8 }).map((_, i) =&gt; (
+                     &lt;Skeleton key={i} className="h-32" /&gt;
+                   ))}
+                 &lt;/div&gt;
+               &lt;/div&gt;
+             );
+           }
+           ```
+           - Apply same loading skeleton for queue cards
+
+        3. **Error State** (lines 28-39):
+           ```tsx
+           if (error) {
+             return (
+               &lt;div className="rounded-lg border border-destructive bg-destructive/10 p-4"&gt;
+                 &lt;p className="text-sm text-destructive"&gt;
+                   {error instanceof Error ? error.message : 'Failed to load statistics'}
+                 &lt;/p&gt;
+               &lt;/div&gt;
+             );
+           }
+           ```
+           - Apply same error state for queue status failures
+
+        4. **Grid Layout for Cards** (lines 57, 82):
+           ```tsx
+           &lt;div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"&gt;
+           ```
+           - Use 3-column grid for 3 queue cards
+
+        5. **StatCard Component Usage** (lines 58-63):
+           ```tsx
+           &lt;StatCard
+             title="Total Users"
+             value={stats.users.total}
+             description="All registered users"
+             icon={Users}
+           /&gt;
+           ```
+           - Reuse StatCard for queue cards (or create QueueStatusCard variant)
+      </key-patterns>
+      <code-to-reuse>
+        - Page container structure (lines 46-52)
+        - Loading skeleton pattern (lines 15-26)
+        - Error state UI (lines 28-39)
+        - Grid layout for cards (lines 57, 82)
+        - StatCard component pattern (lines 58-63)
+      </code-to-reuse>
+    </reference-implementation>
+
+    <reference-implementation id="admin-schemas" file="backend/app/schemas/admin.py" lines="1-305">
+      <purpose>
+        Pydantic schemas for admin API responses.
+        Add QueueStatus, WorkerInfo, TaskInfo schemas here.
+      </purpose>
+      <key-patterns>
+        1. **Nested Model Pattern** (lines 192-209):
+           ```python
+           class AdminStats(BaseModel):
+               users: UserStats
+               knowledge_bases: KnowledgeBaseStats
+               documents: DocumentStats
+               storage: StorageStats
+               activity: ActivityStats
+               trends: TrendData
+           ```
+           - QueueStatus should similarly nest WorkerInfo and TaskInfo
+
+        2. **Field Descriptions** (lines 63-65):
+           ```python
+           total: int = Field(..., description="Total registered users")
+           active: int = Field(..., description="Users active in last 30 days")
+           inactive: int = Field(..., description="Inactive users")
+           ```
+           - Add descriptions for all queue status fields
+
+        3. **OpenAPI Examples** (lines 68-75):
+           ```python
+           model_config = ConfigDict(
+               json_schema_extra={
+                   "example": {
+                       "total": 150,
+                       "active": 120,
+                       "inactive": 30,
+                   }
+               }
+           )
+           ```
+           - Provide example QueueStatus for API docs
+
+        4. **Enum Types** (lines 11-58):
+           ```python
+           class AuditEventType(str, Enum):
+               SEARCH = "search"
+               GENERATION_REQUEST = "generation.request"
+               ...
+           ```
+           - Define QueueName enum: DOCUMENT_PROCESSING, DEFAULT, etc.
+           - Define WorkerStatus enum: ONLINE, OFFLINE
+      </key-patterns>
+      <code-to-reuse>
+        - Nested model pattern (lines 192-209)
+        - Field descriptions with Pydantic Field() (lines 63-65)
+        - OpenAPI examples in model_config (lines 68-75)
+        - Enum types for queue names and worker status (lines 11-58)
+      </code-to-reuse>
+    </reference-implementation>
+
+    <reference-implementation id="document-tasks" file="backend/app/workers/document_tasks.py" lines="257-269">
+      <purpose>
+        Example Celery task definition showing queue routing.
+        QueueMonitorService inspects tasks in these queues.
+      </purpose>
+      <key-patterns>
+        1. **Task Decorator Configuration** (lines 257-269):
+           ```python
+           @celery_app.task(
+               bind=True,
+               name="app.workers.document_tasks.process_document",
+               max_retries=settings.max_parsing_retries,
+               default_retry_delay=30,
+               retry_backoff=True,
+               soft_time_limit=540,  # 9 minutes
+               time_limit=600,       # 10 minutes
+               acks_late=True,
+               reject_on_worker_lost=True,
+               queue="document_processing",  # Routes to document_processing queue
+           )
+           def process_document(self, doc_id: str, is_replacement: bool = False) -> dict:
+           ```
+           - Task name format: "app.workers.{module}.{function}"
+           - Queue routing via queue parameter
+           - Time limits for slow task detection
+
+        2. **Task Execution Tracking**:
+           - QueueMonitorService can inspect active tasks matching this pattern
+           - Use task name to identify task type
+           - Use soft_time_limit to calculate estimated_duration
+      </key-patterns>
+      <code-to-reuse>
+        - Task naming convention for display: "app.workers.document_tasks.process_document"
+        - Time limits for estimated_duration (line 264, 265)
+      </code-to-reuse>
+    </reference-implementation>
+  </existing-code>
+
+  <test-requirements>
+    <test-strategy>
+      **Unit Tests (12 total):**
+      - QueueMonitorService.get_all_queues() → verify 3 queue objects (4 tests)
+      - QueueMonitorService._calculate_worker_status() → offline detection (2 tests)
+      - QueueMonitorService._parse_celery_inspect() → handle None gracefully (2 tests)
+      - QueueMonitorService Redis caching → cache hit/miss (2 tests)
+      - QueueStatusCard component → renders metrics correctly (2 tests)
+
+      **Integration Tests (6 total):**
+      - GET /api/v1/admin/queue/status → verify QueueStatus array (1 test)
+      - GET /api/v1/admin/queue/document_processing/tasks → verify TaskInfo array (1 test)
+      - Non-admin GET /admin/queue/status → verify 403 Forbidden (1 test)
+      - Celery broker unavailable → verify graceful degradation (1 test)
+      - Redis cache unavailable → verify fallback to direct inspect (1 test)
+      - Worker heartbeat &gt; 60s → verify worker.status = "offline" (1 test)
+
+      **E2E Tests (4 total):**
+      - Navigate to /admin/queue → verify 3 queue cards render (1 test)
+      - Click queue card → verify TaskListModal opens with tasks (1 test)
+      - Auto-refresh after 10s → verify data updates (1 test)
+      - Non-admin user navigates to /admin/queue → verify redirect (1 test)
+
+      **Performance Tests (2 total):**
+      - Celery inspect API timeout → completes within 2s (1 test)
+      - Redis cache hit → response time &lt; 100ms (1 test)
+
+      **Total: 24 tests (12 unit, 6 integration, 4 E2E, 2 performance)**
+    </test-strategy>
+
+    <test-fixtures>
+      **Backend Test Fixtures:**
+      1. **Mock Celery Inspect Response**:
+         ```python
+         @pytest.fixture
+         def mock_celery_inspect_active():
+             return {
+                 "worker1@localhost": [
+                     {
+                         "id": "abc123",
+                         "name": "app.workers.document_tasks.process_document",
+                         "time_start": 1701523200.0,  # Unix timestamp
+                     }
+                 ],
+                 "worker2@localhost": [],
+             }
+
+         @pytest.fixture
+         def mock_celery_inspect_stats():
+             return {
+                 "worker1@localhost": {
+                     "total": {"tasks.process_document": 42},
+                     "rusage": {"utime": 123.45, "stime": 67.89},
+                 },
+                 "worker2@localhost": {
+                     "total": {"tasks.process_document": 10},
+                     "rusage": {"utime": 30.0, "stime": 15.0},
+                 },
+             }
+         ```
+
+      2. **Mock Redis Client**:
+         ```python
+         @pytest.fixture
+         def mock_redis_cache():
+             return AsyncMock(spec=Redis)
+         ```
+
+      3. **Admin User Fixture** (reuse from Story 5.1):
+         ```python
+         @pytest.fixture
+         async def admin_user(db_session):
+             user = User(email="admin@test.com", is_superuser=True)
+             db_session.add(user)
+             await db_session.commit()
+             return user
+         ```
+
+      **Frontend Test Fixtures:**
+      1. **Mock Queue Status Response**:
+         ```typescript
+         export const mockQueueStatus = [
+           {
+             queue_name: "document_processing",
+             pending_tasks: 12,
+             active_tasks: 3,
+             workers: [
+               { worker_id: "worker1", status: "online", active_tasks: 2 },
+               { worker_id: "worker2", status: "offline", active_tasks: 0 },
+             ],
+           },
+           {
+             queue_name: "embedding_generation",
+             pending_tasks: 0,
+             active_tasks: 0,
+             workers: [],
+           },
+           {
+             queue_name: "export_generation",
+             pending_tasks: 5,
+             active_tasks: 1,
+             workers: [
+               { worker_id: "worker3", status: "online", active_tasks: 1 },
+             ],
+           },
+         ];
+         ```
+
+      2. **Mock Task List Response**:
+         ```typescript
+         export const mockTaskList = [
+           {
+             task_id: "abc-123",
+             task_name: "app.workers.document_tasks.process_document",
+             status: "active",
+             started_at: "2025-12-02T14:30:00Z",
+             estimated_duration: 540000, // 9 minutes in ms
+           },
+         ];
+         ```
+    </test-fixtures>
+
+    <edge-cases>
+      1. **No Celery Workers Running**:
+         - Scenario: All workers offline
+         - Expected: Queue status shows "0 online, 0 offline" (empty workers array)
+         - Test: Integration test with empty celery_app.control.inspect().stats()
+
+      2. **Celery Broker Connection Timeout**:
+         - Scenario: Redis broker unreachable
+         - Expected: API returns QueueStatus with status="unavailable", no crash
+         - Test: Mock celery_app.control.inspect() → raise ConnectionError
+
+      3. **Worker Heartbeat Exactly 60 Seconds Ago**:
+         - Scenario: Worker heartbeat timestamp is exactly now - 60s
+         - Expected: Worker marked "online" (boundary condition: offline if &gt; 60s)
+         - Test: Unit test with now - heartbeat = 60.0s → status="online"
+
+      4. **Empty Queue (No Active Tasks)**:
+         - Scenario: Queue has no pending or active tasks
+         - Expected: TaskListModal displays "No active tasks"
+         - Test: E2E test with mock empty task list
+
+      5. **Task Running Beyond Soft Time Limit (9 min)**:
+         - Scenario: Task started 10 minutes ago (exceeds soft limit)
+         - Expected: Task flagged with warning indicator (visual: yellow badge)
+         - Test: Frontend unit test with started_at 10 min ago
+
+      6. **Redis Cache Failure**:
+         - Scenario: Redis unavailable for caching
+         - Expected: Fall back to direct Celery inspect, slower but functional
+         - Test: Integration test with mock Redis.get() → raise ConnectionError
+
+      7. **Non-Admin User Attempts Access**:
+         - Scenario: Regular user navigates to /admin/queue
+         - Expected: 403 Forbidden, redirect to dashboard
+         - Test: E2E test with non-admin user login
+
+      8. **Unknown Queue Name in Celery**:
+         - Scenario: Celery reports queue not in predefined list
+         - Expected: Display queue dynamically, don't filter out
+         - Test: Unit test with celery_app.control.inspect() returning unexpected queue
+
+      9. **Worker Crashed Without Cleanup**:
+         - Scenario: Worker process killed, still in Celery stats
+         - Expected: Marked offline if heartbeat stale, no exception
+         - Test: Mock worker with last_heartbeat 5 min ago
+
+      10. **Very Large Queue (1000+ Pending Tasks)**:
+          - Scenario: Queue backlog exceeds 1000 tasks
+          - Expected: Display count accurately, visual warning (red badge)
+          - Test: Frontend unit test with pending_tasks: 1500
+    </edge-cases>
+  </test-requirements>
+
+  <implementation-guidance>
+    <recommended-approach>
+      **Phase 1: Backend QueueMonitorService (2-3 hours)**
+      1. Create backend/app/services/queue_monitor_service.py
+      2. Implement get_all_queues() method:
+         - Import celery_app from app.workers.celery_app
+         - Call celery_app.control.inspect(timeout=1.0)
+         - Parse .active(), .reserved(), .stats() results
+         - Calculate pending, active, worker metrics
+         - Apply Redis caching (5-min TTL, cache key: "admin:queue:status")
+      3. Implement get_queue_tasks(queue_name) method:
+         - Filter tasks by queue name
+         - Return TaskInfo list with task_id, name, status, started_at
+      4. Implement _is_worker_online(last_heartbeat) helper:
+         - Return False if now - last_heartbeat &gt; 60 seconds
+      5. Handle Celery inspect failures gracefully:
+         - Catch BrokerConnectionError, TimeoutError
+         - Return QueueStatus with status="unavailable"
+
+      **Phase 2: Backend API Endpoints (1-2 hours)**
+      1. Extend backend/app/api/v1/admin.py with queue routes:
+         - GET /api/v1/admin/queue/status → List[QueueStatus]
+         - GET /api/v1/admin/queue/{queue_name}/tasks → List[TaskInfo]
+      2. Add admin-only authorization (current_superuser dependency)
+      3. Add Pydantic schemas to backend/app/schemas/admin.py:
+         - QueueStatus(queue_name, pending_tasks, active_tasks, workers)
+         - WorkerInfo(worker_id, status, active_tasks)
+         - TaskInfo(task_id, task_name, status, started_at, estimated_duration)
+      4. Add error handling for Celery inspect failures (return 200 with unavailable status)
+
+      **Phase 3: Frontend Queue Status Page (2-3 hours)**
+      1. Create frontend/src/app/(protected)/admin/queue/page.tsx
+      2. Create frontend/src/hooks/useQueueStatus.ts:
+         - React Query with refetchInterval: 10000 (10 seconds)
+         - API call: GET /api/v1/admin/queue/status
+      3. Create frontend/src/components/admin/queue-status-card.tsx:
+         - Display queue name, pending, active, workers online/offline
+         - Click handler to open TaskListModal
+         - Visual indicators: green (healthy), yellow (pending &gt; 100), red (no workers)
+      4. Create frontend/src/components/admin/task-list-modal.tsx:
+         - Dialog with table showing task details
+         - Columns: task_id, task_name, status, started_at
+         - Empty state: "No active tasks"
+
+      **Phase 4: Testing (2-3 hours)**
+      1. Backend unit tests (12 tests):
+         - QueueMonitorService methods
+         - Redis caching logic
+         - Worker offline detection
+      2. Backend integration tests (6 tests):
+         - API endpoints with admin/non-admin users
+         - Celery inspect failures
+         - Redis failures
+      3. Frontend unit tests (6 tests):
+         - useQueueStatus hook
+         - QueueStatusCard component
+         - TaskListModal component
+      4. E2E tests (4 tests):
+         - Full user flow: navigate, view, refresh
+         - Non-admin access blocked
+
+      **Total Estimated Effort: 8-11 hours**
+    </recommended-approach>
+
+    <critical-decisions>
+      1. **Queue Name Discovery:**
+         - DECISION: Dynamically query active queues from Celery inspect API
+         - RATIONALE: System currently has 2 queues (default, document_processing); designed to scale to additional queues
+         - IMPLEMENTATION: Don't hardcode queue names; use celery_app.control.inspect() to discover active queues
+         - BENEFIT: Zero code changes needed when new queues added (automatically discovered)
+
+      2. **Worker Heartbeat Threshold:**
+         - DECISION: 60 seconds (as per AC-5.4.4)
+         - RATIONALE: Celery default heartbeat interval is 30s, 60s = 2 missed heartbeats
+         - IMPLEMENTATION: `is_online = (now - last_heartbeat) &lt;= 60`
+         - EDGE CASE: Exactly 60s = online (not offline)
+
+      3. **Estimated Duration Calculation:**
+         - DECISION: Use task soft_time_limit (540s = 9 min) as baseline
+         - RATIONALE: Most tasks complete within soft limit; exceeding = slow
+         - IMPLEMENTATION: Display elapsed time, flag if &gt; soft_time_limit
+         - VISUAL: Yellow badge for tasks &gt; 9 min, red badge for tasks &gt; 10 min (hard limit)
+
+      4. **Redis Caching Strategy:**
+         - DECISION: 5-minute TTL (same as AdminStatsService)
+         - RATIONALE: Balance freshness (admin needs recent data) vs. broker load
+         - IMPLEMENTATION: Cache entire QueueStatus array, invalidate on write (none for read-only)
+         - FALLBACK: If Redis fails, query Celery directly (slower but functional)
+
+      5. **Auto-Refresh Interval:**
+         - DECISION: 10 seconds (React Query refetchInterval: 10000)
+         - RATIONALE: Provides near real-time updates without overwhelming backend
+         - INTERACTION WITH CACHE: 10s refresh + 5min cache = most refreshes hit cache (low broker impact)
+         - UX: "Last updated" timestamp shows cache age
+
+      6. **Graceful Degradation for Inspect Failures:**
+         - DECISION: Return 200 OK with status="unavailable", not 500 error
+         - RATIONALE: Celery broker down is expected failure mode, not server error
+         - IMPLEMENTATION: Catch BrokerConnectionError → return QueueStatus(status="unavailable")
+         - UX: Display error message with retry button
+
+      7. **Task List Pagination:**
+         - DECISION: No pagination for MVP (display all active tasks)
+         - RATIONALE: Celery inspect API only shows active tasks (typically &lt; 20 per queue)
+         - FUTURE: If queue grows large, add pagination or limit to 100 tasks
+
+      8. **Admin-Only Access:**
+         - DECISION: Require is_superuser=True (no granular RBAC)
+         - RATIONALE: Queue monitoring is high-privilege operation (exposes task details)
+         - FUTURE: Add "queue_viewer" permission for DevOps team (separate story)
+    </critical-decisions>
+
+    <code-organization>
+      **Backend Files to Create:**
+      - backend/app/services/queue_monitor_service.py (NEW - 200-250 lines)
+      - backend/tests/unit/test_queue_monitor_service.py (NEW - 12 tests, ~400 lines)
+      - backend/tests/integration/test_queue_status_api.py (NEW - 6 tests, ~300 lines)
+
+      **Backend Files to Modify:**
+      - backend/app/api/v1/admin.py (EXTEND - add 2 endpoints: /queue/status, /queue/{name}/tasks)
+      - backend/app/schemas/admin.py (EXTEND - add QueueStatus, WorkerInfo, TaskInfo schemas)
+
+      **Frontend Files to Create:**
+      - frontend/src/app/(protected)/admin/queue/page.tsx (NEW - queue status dashboard page)
+      - frontend/src/hooks/useQueueStatus.ts (NEW - React Query hook for queue data)
+      - frontend/src/components/admin/queue-status-card.tsx (NEW - reusable queue card component)
+      - frontend/src/components/admin/task-list-modal.tsx (NEW - modal for task details)
+      - frontend/src/types/queue.ts (NEW - TypeScript interfaces: QueueStatus, WorkerInfo, TaskInfo)
+      - frontend/src/hooks/__tests__/useQueueStatus.test.ts (NEW - 2 tests)
+      - frontend/src/components/admin/__tests__/queue-status-card.test.tsx (NEW - 2 tests)
+      - frontend/src/components/admin/__tests__/task-list-modal.test.tsx (NEW - 2 tests)
+      - frontend/e2e/tests/admin/queue-status.spec.ts (NEW - 4 E2E tests)
+
+      **Frontend Files to Modify:**
+      - frontend/src/app/(protected)/admin/page.tsx (EXTEND - add "Queue Status" link in Admin Tools section)
+
+      **Files NOT Modified (Reference Only):**
+      - backend/app/workers/celery_app.py (read-only reference for queue config)
+      - backend/app/workers/document_tasks.py (read-only reference for task naming)
+    </code-organization>
+
+    <potential-pitfalls>
+      1. **Celery Inspect API Returns None:**
+         - ISSUE: If worker unreachable, inspect() returns None instead of dict
+         - MITIGATION: Always check `if result is None` before parsing
+         - CODE: `active_tasks = inspect.active() or {}`
+
+      2. **Worker Heartbeat Timestamp Format:**
+         - ISSUE: Celery stats may return heartbeat as Unix timestamp (float) or ISO string
+         - MITIGATION: Normalize to datetime before comparison
+         - CODE: `last_heartbeat = datetime.fromtimestamp(stats["heartbeat"])`
+
+      3. **Queue Name Case Sensitivity:**
+         - ISSUE: Celery queue names are case-sensitive ("default" != "Default")
+         - MITIGATION: Use exact queue names from celery_app.py
+         - CODE: Don't lowercase or normalize queue names
+
+      4. **Task Serialization in Celery Inspect:**
+         - ISSUE: Active tasks may have non-serializable fields (e.g., datetimes)
+         - MITIGATION: Convert all datetimes to ISO 8601 strings
+         - CODE: Use Pydantic model_dump(mode="json") for serialization
+
+      5. **Redis Cache Invalidation:**
+         - ISSUE: Cache may serve stale data if workers crash
+         - MITIGATION: 5-min TTL ensures staleness &lt; 5 min
+         - ALTERNATIVE: Manual cache invalidation endpoint (deferred to future)
+
+      6. **Celery Inspect Timeout:**
+         - ISSUE: Default timeout is 1s, may miss slow-responding workers
+         - MITIGATION: Use timeout=1.0 explicitly, log timeout events
+         - CODE: `inspect = celery_app.control.inspect(timeout=1.0)`
+
+      7. **Concurrent Queue Status Requests:**
+         - ISSUE: Multiple admins polling /queue/status every 10s
+         - MITIGATION: Redis cache serves same data, only 1 Celery inspect per 5 min
+         - MONITORING: Log cache hit rate to verify effectiveness
+
+      8. **Worker ID Format:**
+         - ISSUE: Worker IDs include hostname (e.g., "worker1@hostname")
+         - MITIGATION: Display full worker ID, don't parse
+         - UX: Truncate long hostnames in UI (tooltip shows full ID)
+
+      9. **Future Queue Addition:**
+         - ISSUE: New queues may be added to Celery configuration over time
+         - MITIGATION: Dynamic discovery ensures new queues appear automatically without code changes
+         - BENEFIT: System scales seamlessly as new background processing needs arise
+
+      10. **Non-Admin Access Attempt:**
+          - ISSUE: Regular user may guess /admin/queue URL
+          - MITIGATION: current_superuser dependency raises 403 Forbidden
+          - UX: Frontend redirects to dashboard with error toast
+    </potential-pitfalls>
+  </implementation-guidance>
+
+  <quality-gates>
+    <must-pass-before-completion>
+      1. **All 24 tests passing** (12 unit, 6 integration, 4 E2E, 2 performance)
+      2. **Linting clean** (ruff for Python, ESLint for TypeScript)
+      3. **Type safety** (no TypeScript `any` types, Pydantic schemas validated)
+      4. **Security validated** (admin-only access enforced, 403 for non-admin)
+      5. **Performance validated** (Redis cache hit &lt; 100ms, Celery inspect &lt; 2s)
+      6. **Accessibility** (keyboard navigation works, ARIA labels present)
+      7. **Error handling** (graceful degradation for Celery/Redis failures)
+      8. **Code review approved** (peer review or automated review workflow)
+    </must-pass-before-completion>
+
+    <acceptance-validation>
+      **Manual Testing Checklist:**
+      - [ ] AC-5.4.1: Navigate to /admin/queue → verify 3 queue cards render
+      - [ ] AC-5.4.2: Verify each card shows pending, active, workers online/offline
+      - [ ] AC-5.4.3: Click queue card → TaskListModal opens with task details
+      - [ ] AC-5.4.4: Mock worker heartbeat &gt; 60s → verify "offline" status
+      - [ ] AC-5.4.5: Stop Celery broker → verify "unavailable" status, no crash
+      - [ ] AC-5.4.6: Login as non-admin → navigate to /admin/queue → verify 403 redirect
+      - [ ] Auto-refresh: Wait 10s → verify queue data updates
+      - [ ] Redis failure: Stop Redis → verify fallback to direct Celery inspect
+      - [ ] Empty queue: No active tasks → verify "No active tasks" message
+      - [ ] Visual indicators: pending &gt; 100 → yellow badge, no workers → red badge
+
+      **Automated Test Validation:**
+      - [ ] Run `pytest backend/tests/unit/test_queue_monitor_service.py` → 12/12 passing
+      - [ ] Run `pytest backend/tests/integration/test_queue_status_api.py` → 6/6 passing
+      - [ ] Run `npm test -- useQueueStatus` → 2/2 passing
+      - [ ] Run `npm test -- queue-status-card` → 2/2 passing
+      - [ ] Run `npm test -- task-list-modal` → 2/2 passing
+      - [ ] Run `npx playwright test queue-status.spec.ts` → 4/4 passing
+
+      **Code Quality Validation:**
+      - [ ] Run `ruff check backend/app/services/queue_monitor_service.py` → 0 errors
+      - [ ] Run `npm run lint` → 0 errors
+      - [ ] Run `npm run type-check` → 0 type errors
+      - [ ] Code coverage &gt;= 90% for new code
+    </acceptance-validation>
+  </quality-gates>
+
+  <observability>
+    <logging-events>
+      1. **queue_status_cache_hit**: Redis cache served queue status
+      2. **queue_status_cache_miss**: Queried Celery inspect API directly
+      3. **celery_inspect_timeout**: Celery inspect API timeout (1s exceeded)
+      4. **celery_broker_connection_error**: Failed to connect to Celery broker
+      5. **worker_offline_detected**: Worker marked offline (heartbeat &gt; 60s)
+      6. **queue_status_unavailable**: Returning unavailable status due to Celery failure
+    </logging-events>
+
+    <metrics>
+      1. **queue_status_requests_total**: Counter for /admin/queue/status API calls
+      2. **queue_status_cache_hit_rate**: Gauge for Redis cache hit percentage
+      3. **celery_inspect_duration_seconds**: Histogram for Celery inspect API latency
+      4. **celery_queue_depth**: Gauge for pending tasks per queue (document_processing, default, etc.)
+      5. **celery_active_tasks**: Gauge for active tasks per queue
+      6. **celery_workers_online**: Gauge for online workers per queue
+    </metrics>
+
+    <alerts>
+      1. **QueueDepthHigh**: Alert if pending_tasks &gt; 500 for any queue (potential backlog)
+      2. **NoWorkersOnline**: Alert if all workers offline for any queue (processing stopped)
+      3. **CeleryBrokerDown**: Alert if Celery inspect API fails for &gt; 5 minutes (broker outage)
+      4. **TaskStuckLongRunning**: Alert if task active for &gt; 15 minutes (exceeds hard time limit)
+    </alerts>
+  </observability>
+</story-context>

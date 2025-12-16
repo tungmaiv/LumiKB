@@ -1,0 +1,455 @@
+<story-context id="7-9-llm-model-registry" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7-9</storyId>
+    <title>LLM Model Registry</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-9-llm-model-registry.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>a centralized LLM Model Registry to register and manage embedding and generation models from multiple providers</iWant>
+    <soThat>Knowledge Bases can be configured with specific models and the system supports diverse AI capabilities</soThat>
+    <tasks>
+      <task id="1" ac="7.9.1,7.9.2,7.9.3,7.9.4,7.9.5,7.9.6,7.9.7,7.9.9,7.9.10">
+        <name>Database Schema and Migration</name>
+        <subtasks>
+          <subtask id="1.1">Create model_type enum (embedding, generation, ner)</subtask>
+          <subtask id="1.2">Create model_provider enum (ollama, openai, azure, gemini, anthropic, cohere)</subtask>
+          <subtask id="1.3">Create llm_models table with all parameter columns</subtask>
+          <subtask id="1.4">Add encrypted api_key storage using pgcrypto</subtask>
+          <subtask id="1.5">Add is_default boolean for default model designation</subtask>
+          <subtask id="1.6">Create Alembic migration with proper indexes</subtask>
+          <subtask id="1.7">Write unit tests for model schema validation</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="7.9.1,7.9.2,7.9.8,7.9.9,7.9.10,7.9.11">
+        <name>Model Registry API Endpoints</name>
+        <subtasks>
+          <subtask id="2.1">Create LLMModel SQLAlchemy model in app/models/</subtask>
+          <subtask id="2.2">Create schemas for model CRUD operations</subtask>
+          <subtask id="2.3">Implement POST /api/v1/admin/models endpoint</subtask>
+          <subtask id="2.4">Implement GET /api/v1/admin/models with filtering by type/provider</subtask>
+          <subtask id="2.5">Implement GET /api/v1/admin/models/{id} endpoint</subtask>
+          <subtask id="2.6">Implement PUT /api/v1/admin/models/{id} endpoint</subtask>
+          <subtask id="2.7">Implement DELETE /api/v1/admin/models/{id} with KB dependency check</subtask>
+          <subtask id="2.8">Implement PATCH /api/v1/admin/models/{id}/default endpoint</subtask>
+          <subtask id="2.9">Write integration tests for all CRUD operations</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="7.9.8">
+        <name>Model Connection Testing</name>
+        <subtasks>
+          <subtask id="3.1">Implement POST /api/v1/admin/models/{id}/test endpoint</subtask>
+          <subtask id="3.2">Create provider-specific connection testers (Ollama, OpenAI, etc.)</subtask>
+          <subtask id="3.3">Validate embedding models with test embedding call</subtask>
+          <subtask id="3.4">Validate generation models with test completion call</subtask>
+          <subtask id="3.5">Return detailed error messages on connection failure</subtask>
+          <subtask id="3.6">Write integration tests for connection testing</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="7.9.1,7.9.2,7.9.3,7.9.4,7.9.5,7.9.6,7.9.7,7.9.9,7.9.10,7.9.11">
+        <name>Model Registry Admin UI</name>
+        <subtasks>
+          <subtask id="4.1">Create /admin/models page with model list table</subtask>
+          <subtask id="4.2">Implement model type tabs (All, Embedding, Generation)</subtask>
+          <subtask id="4.3">Create AddModelModal with type selector</subtask>
+          <subtask id="4.4">Implement provider-specific form fields with conditional rendering</subtask>
+          <subtask id="4.5">Add embedding parameter fields (dimensions, max_tokens, etc.)</subtask>
+          <subtask id="4.6">Add generation parameter fields (context_window, temperature, etc.)</subtask>
+          <subtask id="4.7">Implement "Test Connection" button with loading state</subtask>
+          <subtask id="4.8">Create EditModelModal with pre-populated fields</subtask>
+          <subtask id="4.9">Implement delete confirmation with KB dependency warning</subtask>
+          <subtask id="4.10">Add status toggle and default model designation</subtask>
+          <subtask id="4.11">Write component tests for model registry UI</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="7.9.1">
+        <name>Public Model List Endpoints</name>
+        <subtasks>
+          <subtask id="5.1">Implement GET /api/v1/models/embedding (active models only)</subtask>
+          <subtask id="5.2">Implement GET /api/v1/models/generation (active models only)</subtask>
+          <subtask id="5.3">Filter out sensitive fields (api_key) for non-admin users</subtask>
+          <subtask id="5.4">Write tests for public model list endpoints</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="7.9.12">
+        <name>Audit Logging Integration</name>
+        <subtasks>
+          <subtask id="6.1">Log model creation events with full configuration</subtask>
+          <subtask id="6.2">Log model update events with changed fields</subtask>
+          <subtask id="6.3">Log model deletion events with KB impact</subtask>
+          <subtask id="6.4">Log connection test attempts and results</subtask>
+          <subtask id="6.5">Write tests for audit logging</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.9.1" priority="P0">
+      <description>Admin Model Registry page lists all registered models with type, provider, and status</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Navigate to /admin/models, verify table shows model name, type (Embedding/Generation), provider, and status columns</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.2" priority="P0">
+      <description>Add model form with type selection (Embedding/Generation)</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Open AddModelModal, verify type dropdown with Embedding and Generation options</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.3" priority="P0">
+      <description>Type selection shows relevant parameter fields for embedding or generation models</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Select Embedding type shows dimensions field; select Generation shows context_window field</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.4" priority="P0">
+      <description>Provider selection (Ollama, OpenAI, Azure, Gemini, Anthropic, Cohere) shows dynamic fields</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Select different providers, verify appropriate API endpoint/key fields appear</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.5" priority="P0">
+      <description>Embedding model parameters include dimensions, max_tokens, normalize, distance_metric, batch_size</description>
+      <testable>true</testable>
+      <verificationMethod>Unit test: EmbeddingModelConfig schema validates all required fields</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.6" priority="P0">
+      <description>Generation model parameters include context_window, max_output_tokens, temperature, top_p, top_k</description>
+      <testable>true</testable>
+      <verificationMethod>Unit test: GenerationModelConfig schema validates all required fields</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.7" priority="P1">
+      <description>API endpoint and API key fields shown based on provider requirements</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Ollama shows endpoint field; OpenAI shows API key field; Azure shows both</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.8" priority="P0">
+      <description>Connection test validates model accessibility before saving</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: POST /api/v1/admin/models/{id}/test returns success/failure with detailed message</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.9" priority="P1">
+      <description>Model status (active/inactive) displayed and toggleable</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Click status toggle, verify model status changes in table</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.10" priority="P1">
+      <description>Default model designation available per type (one default embedding, one default generation)</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Setting model as default unsets previous default of same type</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.11" priority="P1">
+      <description>Edit/delete actions with KB dependency warnings before deletion</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Delete model with KB references shows warning dialog with KB names</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.9.12" priority="P1">
+      <description>Audit logging for all model registry changes</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Model CRUD operations create audit log entries with correct action types</verificationMethod>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md">
+        <relevance>Architecture reference for LLM integration patterns</relevance>
+        <keyInfo>
+          - LiteLLM proxy for multi-provider abstraction
+          - pgcrypto for encrypted API key storage
+          - Admin-only access pattern for sensitive operations
+        </keyInfo>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md">
+        <relevance>Tech spec with LLM Model Registry design</relevance>
+        <keyInfo>
+          - llm_models table schema with JSONB config
+          - EmbeddingModelConfig and GenerationModelConfig schemas
+          - Provider-specific connection testing
+          - Admin API endpoints specification
+        </keyInfo>
+      </doc>
+    </docs>
+    <code>
+      <existing>
+        <file path="backend/app/integrations/litellm_client.py">
+          <purpose>LiteLLM client for embedding and completion calls</purpose>
+          <status>EXISTS - Reference for provider API patterns</status>
+          <keyElements>
+            - LiteLLMEmbeddingClient class with batching and retry
+            - aembedding() and acompletion() API calls via LiteLLM
+            - Model name and API base configuration from settings
+            - Connection to LiteLLM proxy at settings.litellm_url
+          </keyElements>
+          <codeSnippet>
+response = await aembedding(
+    model=self.model,
+    input=texts,
+    api_base=self.api_base,
+    api_key=self.api_key,
+    timeout=settings.embedding_timeout,
+    custom_llm_provider="openai",
+)
+          </codeSnippet>
+        </file>
+        <file path="backend/app/core/config.py">
+          <purpose>Application configuration with LLM settings</purpose>
+          <status>EXISTS - Shows current model configuration pattern</status>
+          <keyElements>
+            - embedding_model: str = "ollama-embedding"
+            - llm_model: str = "ollama/gemma3:4b"
+            - litellm_url and litellm_api_key settings
+            - Settings loaded from environment variables
+          </keyElements>
+        </file>
+        <file path="backend/app/api/v1/admin.py">
+          <purpose>Admin API endpoints</purpose>
+          <status>EXISTS - Add model registry endpoints here</status>
+          <keyElements>
+            - Admin role requirement pattern
+            - Audit logging integration
+            - Paginated list responses
+          </keyElements>
+        </file>
+        <file path="backend/app/services/audit_service.py">
+          <purpose>Audit logging service</purpose>
+          <status>EXISTS - Use for model registry audit logging</status>
+          <keyElements>
+            - log_event() method for async audit logging
+            - action types: create, update, delete patterns
+          </keyElements>
+        </file>
+        <file path="frontend/src/app/(protected)/admin/page.tsx">
+          <purpose>Admin dashboard page</purpose>
+          <status>EXISTS - Reference for admin UI patterns</status>
+        </file>
+      </existing>
+      <toCreate>
+        <file path="backend/alembic/versions/xxxx_create_llm_models_table.py">
+          <purpose>Database migration for llm_models table</purpose>
+          <pattern>Alembic migration with enums, JSONB config, encrypted api_key</pattern>
+        </file>
+        <file path="backend/app/models/llm_model.py">
+          <purpose>SQLAlchemy model for LLM models</purpose>
+          <pattern>SQLAlchemy model with enum columns, JSONB config field</pattern>
+        </file>
+        <file path="backend/app/schemas/llm_model.py">
+          <purpose>Pydantic schemas for model CRUD</purpose>
+          <pattern>LLMModelCreate, LLMModelUpdate, LLMModelResponse, EmbeddingModelConfig, GenerationModelConfig</pattern>
+        </file>
+        <file path="backend/app/services/model_registry_service.py">
+          <purpose>Business logic for model registry operations</purpose>
+          <pattern>ModelRegistryService with CRUD, connection testing, default management</pattern>
+        </file>
+        <file path="backend/app/api/v1/models.py">
+          <purpose>Public model list API endpoints</purpose>
+          <pattern>GET /models/embedding, GET /models/generation for non-admin users</pattern>
+        </file>
+        <file path="frontend/src/app/(protected)/admin/models/page.tsx">
+          <purpose>Admin model registry page</purpose>
+          <pattern>Table with tabs, AddModelModal, EditModelModal</pattern>
+        </file>
+        <file path="frontend/src/components/admin/model-list-table.tsx">
+          <purpose>Model list table component</purpose>
+          <pattern>DataTable with type filter tabs, status toggle, actions</pattern>
+        </file>
+        <file path="frontend/src/components/admin/add-model-modal.tsx">
+          <purpose>Add model form modal</purpose>
+          <pattern>Form with type selector, provider-specific fields, connection test button</pattern>
+        </file>
+        <file path="frontend/src/hooks/useModelRegistry.ts">
+          <purpose>React hook for model registry API</purpose>
+          <pattern>useQuery/useMutation hooks for model CRUD operations</pattern>
+        </file>
+        <file path="backend/tests/unit/test_model_registry_service.py">
+          <purpose>Unit tests for model registry service</purpose>
+          <pattern>pytest with AsyncMock for database operations</pattern>
+        </file>
+        <file path="backend/tests/integration/test_model_registry_api.py">
+          <purpose>Integration tests for model registry API</purpose>
+          <pattern>pytest with test database, admin user fixtures</pattern>
+        </file>
+      </toCreate>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="litellm" version="existing" status="EXISTS">
+          <purpose>Multi-provider LLM abstraction for connection testing</purpose>
+        </package>
+        <package name="cryptography" version=">=41.0.0" status="NEEDS_ADD">
+          <purpose>API key encryption at application level (alternative to pgcrypto)</purpose>
+        </package>
+        <package name="pydantic" version="existing" status="EXISTS">
+          <purpose>Schema validation for model config</purpose>
+        </package>
+      </backend>
+      <frontend>
+        <package name="@tanstack/react-query" version="existing" status="EXISTS">
+          <purpose>Data fetching for model registry</purpose>
+        </package>
+        <package name="react-hook-form" version="existing" status="EXISTS">
+          <purpose>Form handling for add/edit modals</purpose>
+        </package>
+        <package name="zod" version="existing" status="EXISTS">
+          <purpose>Form validation schemas</purpose>
+        </package>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">
+      API Key Storage: API keys must be encrypted at rest; never returned in API responses
+    </constraint>
+    <constraint type="security">
+      Admin-Only Access: All /api/v1/admin/models endpoints require is_superuser=true
+    </constraint>
+    <constraint type="architecture">
+      LiteLLM Integration: Use LiteLLM proxy for all provider connections; no direct provider SDK calls
+    </constraint>
+    <constraint type="data-integrity">
+      Default Uniqueness: Only one model per type can be marked as default (unique partial index)
+    </constraint>
+    <constraint type="data-integrity">
+      KB Dependency Check: Warn before deleting models referenced by Knowledge Bases
+    </constraint>
+    <constraint type="ux">
+      Connection Test Required: Connection test should be available before and after model creation
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      <name>llm_models</name>
+      <description>Database table for registered LLM models</description>
+      <schema>
+CREATE TABLE llm_models (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type VARCHAR(20) NOT NULL,  -- 'embedding' | 'generation'
+    provider VARCHAR(50) NOT NULL,  -- 'ollama' | 'openai' | 'anthropic' | 'azure' | 'cohere' | 'google'
+    name VARCHAR(255) NOT NULL,
+    model_id VARCHAR(255) NOT NULL,  -- provider-specific model identifier
+    config JSONB NOT NULL DEFAULT '{}',  -- provider-specific configuration
+    api_endpoint VARCHAR(500),  -- custom endpoint URL
+    api_key_encrypted BYTEA,  -- encrypted API key
+    status VARCHAR(20) NOT NULL DEFAULT 'active',  -- 'active' | 'inactive' | 'deprecated'
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_llm_models_default ON llm_models (type) WHERE is_default = true;
+      </schema>
+    </interface>
+    <interface type="api">
+      <name>Admin Model Registry API</name>
+      <description>CRUD endpoints for model management (admin-only)</description>
+      <endpoints>
+        <endpoint method="GET" path="/api/v1/admin/models">List all models with optional type/provider/status filters</endpoint>
+        <endpoint method="POST" path="/api/v1/admin/models">Register new model</endpoint>
+        <endpoint method="GET" path="/api/v1/admin/models/{id}">Get model details</endpoint>
+        <endpoint method="PUT" path="/api/v1/admin/models/{id}">Update model configuration</endpoint>
+        <endpoint method="DELETE" path="/api/v1/admin/models/{id}">Delete model (with KB dependency check)</endpoint>
+        <endpoint method="POST" path="/api/v1/admin/models/{id}/test">Test model connection</endpoint>
+        <endpoint method="PATCH" path="/api/v1/admin/models/{id}/default">Set model as default for its type</endpoint>
+      </endpoints>
+    </interface>
+    <interface type="api">
+      <name>Public Model List API</name>
+      <description>Public endpoints for active model lists (non-admin)</description>
+      <endpoints>
+        <endpoint method="GET" path="/api/v1/models/embedding">List active embedding models (no sensitive fields)</endpoint>
+        <endpoint method="GET" path="/api/v1/models/generation">List active generation models (no sensitive fields)</endpoint>
+      </endpoints>
+    </interface>
+    <interface type="schema">
+      <name>EmbeddingModelConfig</name>
+      <description>JSONB config schema for embedding models</description>
+      <fields>
+        <field name="dimensions" type="int" required="true">Vector dimensions (768, 1536, 3072)</field>
+        <field name="max_tokens" type="int" required="true">Max input tokens</field>
+        <field name="normalize" type="bool" default="true">Normalize vectors</field>
+        <field name="distance_metric" type="string" default="cosine">cosine, dot, euclidean</field>
+        <field name="batch_size" type="int" default="32">Batch size for API calls</field>
+      </fields>
+    </interface>
+    <interface type="schema">
+      <name>GenerationModelConfig</name>
+      <description>JSONB config schema for generation models</description>
+      <fields>
+        <field name="context_window" type="int" required="true">Max context tokens</field>
+        <field name="max_output_tokens" type="int" required="true">Max output tokens</field>
+        <field name="supports_streaming" type="bool" default="true">Streaming support</field>
+        <field name="supports_json_mode" type="bool" default="false">JSON output mode</field>
+        <field name="supports_vision" type="bool" default="false">Vision/image support</field>
+        <field name="temperature_default" type="float" default="0.7">Default temperature</field>
+        <field name="top_p_default" type="float" default="1.0">Default top_p</field>
+      </fields>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Unit Tests: Model validation, schema parsing, encryption utilities</standard>
+      <standard>Integration Tests: CRUD operations, connection testing, default management</standard>
+      <standard>E2E Tests: Full admin workflow - add model, test connection, set default, delete</standard>
+      <standard>Coverage Target: 80% for ModelRegistryService</standard>
+    </standards>
+    <locations>
+      <location path="backend/tests/unit/test_model_registry_service.py">Unit tests for model registry service</location>
+      <location path="backend/tests/integration/test_model_registry_api.py">Integration tests for model registry API</location>
+      <location path="frontend/src/components/admin/__tests__/model-registry.test.tsx">Component tests for model registry UI</location>
+    </locations>
+    <ideas>
+      <idea ac="7.9.1">
+        Integration test: GET /api/v1/admin/models returns list with type, provider, status fields
+      </idea>
+      <idea ac="7.9.2">
+        E2E test: Open AddModelModal, select Embedding type, verify form changes
+      </idea>
+      <idea ac="7.9.4">
+        E2E test: Select Ollama provider shows endpoint field; select OpenAI shows API key field
+      </idea>
+      <idea ac="7.9.5">
+        Unit test: EmbeddingModelConfig validates dimensions is positive integer
+      </idea>
+      <idea ac="7.9.8">
+        Integration test: POST /api/v1/admin/models/{id}/test with invalid credentials returns error details
+      </idea>
+      <idea ac="7.9.8">
+        Integration test: POST /api/v1/admin/models/{id}/test with valid Ollama model returns success
+      </idea>
+      <idea ac="7.9.10">
+        Integration test: Setting embedding model as default unsets previous embedding default
+      </idea>
+      <idea ac="7.9.11">
+        Integration test: DELETE model with KB references returns 409 with KB list
+      </idea>
+      <idea ac="7.9.12">
+        Integration test: Model creation creates audit log entry with action="model.created"
+      </idea>
+    </ideas>
+  </tests>
+
+  <notes>
+    <note type="implementation">
+      Provider Support Matrix:
+      - Ollama: Embedding + Generation (self-hosted, endpoint required)
+      - OpenAI: Embedding + Generation (API key required)
+      - Azure OpenAI: Embedding + Generation (API key + endpoint required)
+      - Gemini: Embedding + Generation (API key required)
+      - Anthropic: Generation only (API key required)
+      - Cohere: Embedding + Generation (API key required)
+    </note>
+    <note type="security">
+      API keys should be encrypted using Fernet symmetric encryption at the application
+      level rather than pgcrypto. The encryption key should be derived from the
+      SECRET_KEY environment variable.
+    </note>
+    <note type="dependency">
+      This story is a prerequisite for Story 7-10 (KB Model Configuration).
+      KB model selection depends on the Model Registry being in place.
+    </note>
+  </notes>
+</story-context>

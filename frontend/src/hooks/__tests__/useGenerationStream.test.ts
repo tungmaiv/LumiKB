@@ -3,14 +3,15 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useGenerationStream } from '../useGenerationStream';
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('useGenerationStream', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should initialize with default state', () => {
@@ -35,7 +36,7 @@ describe('useGenerationStream', () => {
       },
     });
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       body: mockReadableStream,
     });
@@ -72,7 +73,7 @@ describe('useGenerationStream', () => {
       },
     });
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       body: mockReadableStream,
     });
@@ -117,7 +118,7 @@ describe('useGenerationStream', () => {
       },
     });
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       body: mockReadableStream,
     });
@@ -151,7 +152,7 @@ describe('useGenerationStream', () => {
       },
     });
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       body: mockReadableStream,
     });
@@ -186,7 +187,7 @@ describe('useGenerationStream', () => {
       },
     });
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       body: mockReadableStream,
     });
@@ -220,7 +221,7 @@ describe('useGenerationStream', () => {
       },
     });
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       body: mockReadableStream,
     });
@@ -271,7 +272,7 @@ describe('useGenerationStream', () => {
   });
 
   it('should handle fetch errors', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,
       json: async () => ({ detail: 'Permission denied' }),
     });

@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 5-23: Document Processing Progress Screen
+  Generated: 2025-12-06
+
+  This document provides the dev agent with all necessary context to implement
+  the story. It includes relevant documentation excerpts, code references,
+  interface contracts, and constraints.
+-->
+<storyContext version="1.0" storyId="5-23">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Document Processing Progress Screen</storyTitle>
+    <epicId>5</epicId>
+    <epicName>Administration and Polish</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>8</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-06</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>knowledge base admin or writer</asA>
+      <iWant>to view the processing progress of all documents in my KB with detailed step-by-step status</iWant>
+      <soThat>I can monitor document ingestion, identify failures, and troubleshoot processing issues</soThat>
+    </userStory>
+
+    <context>
+      LumiKB's document processing pipeline consists of 5 steps: Upload, Parse, Chunk, Embed, Index.
+      Currently users only see binary status ("Processing" or "Ready"). This story delivers a
+      Document Processing Progress Screen with per-document pipeline status, error messages,
+      chunk counts, filtering, and real-time updates.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.23.1">
+      <title>Processing screen accessible from KB dashboard</title>
+      <given>I am authenticated and have ADMIN or WRITE permission on a KB</given>
+      <when>I navigate to the KB dashboard</when>
+      <then>I see a new tab/section "Processing" alongside Search and Chat</then>
+      <and>Clicking it shows the document processing progress view</and>
+      <and>If I only have READ permission, I do NOT see the Processing tab</and>
+      <validation>
+        - Integration test: Admin/Writer sees Processing tab, Reader does not
+        - E2E test: Navigate to Processing tab, verify page loads
+        - Unit test: Permission check returns correct visibility
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.23.2">
+      <title>Document list with processing status</title>
+      <given>I am viewing the Processing screen for a KB</given>
+      <when>The page loads</when>
+      <then>I see a table with columns: Document Name, File Type, Upload Date, Status, Current Step, Chunk Count, Actions</then>
+      <and>Table supports sorting by each column (click header to toggle)</and>
+      <and>Table auto-refreshes every 10 seconds</and>
+      <validation>
+        - Integration test: GET /api/v1/knowledge-bases/{kb_id}/documents/processing returns all fields
+        - Unit test: Document list displays all columns correctly
+        - E2E test: Verify auto-refresh updates status
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.23.3">
+      <title>Filtering by name, type, date range, status, step</title>
+      <given>I am viewing the Processing screen</given>
+      <when>I use the filter bar</when>
+      <then>I can filter by: Name (partial match), File Type (dropdown), Date Range (date picker), Status (dropdown), Current Step (dropdown)</then>
+      <and>Filters apply immediately (no submit button needed)</and>
+      <and>Filter state is preserved in URL query params</and>
+      <and>"Clear Filters" button resets all filters</and>
+      <validation>
+        - Integration test: API accepts filter params, returns filtered results
+        - Unit test: Filter UI updates query params
+        - E2E test: Apply filters, verify URL updates and results change
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.23.4">
+      <title>Per-step status with errors and duration</title>
+      <given>I click "View Details" on a document row</given>
+      <when>The details modal opens</when>
+      <then>I see step-by-step progress: Step Name, Status per Step, Duration per Step, Error Message, Timestamp</then>
+      <and>For completed documents: Total Chunks, Total Processing Time, File Size</and>
+      <and>Modal shows a visual progress indicator (stepper or timeline)</and>
+      <validation>
+        - Integration test: GET /api/v1/documents/{doc_id}/processing-details returns step data
+        - Unit test: Modal displays step timeline correctly
+        - E2E test: Open modal, verify all step information visible
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.23.5">
+      <title>Pagination with 50 documents per page</title>
+      <given>A KB has more than 50 documents</given>
+      <when>I view the Processing screen</when>
+      <then>I see pagination controls at the bottom of the table</then>
+      <and>Each page displays up to 50 documents</and>
+      <and>I can navigate using Previous/Next buttons or page numbers</and>
+      <and>Total count displayed: "Showing 1-50 of 127 documents"</and>
+      <validation>
+        - Integration test: API accepts page/limit params, returns paginated results
+        - Unit test: Pagination controls render correctly
+        - E2E test: Navigate between pages, verify data changes
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.23.6">
+      <title>Real-time updates with 10-second auto-refresh</title>
+      <given>I am viewing the Processing screen</given>
+      <when>Documents are being processed in the background</when>
+      <then>Table auto-refreshes every 10 seconds</then>
+      <and>I see "Last updated: X seconds ago" indicator</and>
+      <and>I can click "Refresh Now" for immediate update</and>
+      <and>Auto-refresh pauses when details modal is open</and>
+      <validation>
+        - Unit test: Auto-refresh triggers every 10 seconds
+        - E2E test: Upload document, verify status updates in real-time
+      </validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <artifact type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-5.md">
+      <summary>Epic 5 technical specification covering admin dashboard, audit logging, queue monitoring, and KB management features</summary>
+    </artifact>
+
+    <artifact type="related-story" path="docs/sprint-artifacts/5-4-processing-queue-status.md">
+      <summary>Story 5.4 established queue monitoring patterns, Celery inspect integration, and 10-second auto-refresh pattern</summary>
+      <relevance>Provides patterns for auto-refresh, queue status display, and Celery integration</relevance>
+    </artifact>
+
+    <artifact type="related-story" path="docs/sprint-artifacts/5-2-audit-log-viewer.md">
+      <summary>Story 5.2 established filter and pagination patterns for admin views</summary>
+      <relevance>Provides patterns for filter bar, URL query param sync, date range picker, pagination</relevance>
+    </artifact>
+
+    <artifact type="tech-debt" path="docs/sprint-artifacts/tech-debt-document-processing.md">
+      <summary>Document processing pipeline fixes including PostgreSQL connection pool and stale detection</summary>
+      <relevance>Required fixes for stable document processing tracking</relevance>
+    </artifact>
+  </artifacts>
+
+  <codeReferences>
+    <reference type="model" path="backend/app/models/document.py">
+      <description>Document SQLAlchemy model with status, chunk_count, processing timestamps</description>
+      <relevantLines>29-120</relevantLines>
+      <keyElements>
+        - DocumentStatus enum: PENDING, PROCESSING, READY, FAILED, ARCHIVED
+        - chunk_count: INTEGER for tracking chunks
+        - processing_started_at, processing_completed_at: TIMESTAMPTZ
+        - last_error: TEXT for error messages
+        - Status needs new columns: processing_steps JSONB, current_step VARCHAR, step_errors JSONB
+      </keyElements>
+    </reference>
+
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService with document CRUD and processing operations</description>
+      <relevantLines>48-200</relevantLines>
+      <keyElements>
+        - DocumentService class: handles document operations
+        - Need to add: list_with_processing_status() method
+        - Need to add: get_processing_details() method
+      </keyElements>
+    </reference>
+
+    <reference type="worker" path="backend/app/workers/document_tasks.py">
+      <description>Celery document processing tasks with 5-step pipeline</description>
+      <relevantLines>1-150</relevantLines>
+      <keyElements>
+        - process_document task: handles full pipeline
+        - _update_document_status(): updates status in DB
+        - Pipeline: Download → Parse → Chunk → Embed → Index
+        - Need to add: update_step_status() helper for per-step tracking
+      </keyElements>
+    </reference>
+
+    <reference type="schema" path="backend/app/schemas/document.py">
+      <description>Document Pydantic schemas for API responses</description>
+      <relevantLines>23-180</relevantLines>
+      <keyElements>
+        - DocumentStatus enum
+        - DocumentResponse, DocumentListItem
+        - Need to add: ProcessingStep, StepStatus enums
+        - Need to add: ProcessingStepInfo, DocumentProcessingStatus, DocumentProcessingDetails
+        - Need to add: PaginatedDocumentProcessingResponse
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useQueueStatus.ts">
+      <description>React Query hook with 10-second auto-refresh pattern</description>
+      <relevantLines>1-42</relevantLines>
+      <keyElements>
+        - REFETCH_INTERVAL = 10000 (10 seconds)
+        - useQuery with refetchInterval
+        - staleTime: 5000
+        - Pattern to follow for useDocumentProcessing hook
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useKBStats.ts">
+      <description>KB stats hook with auto-refresh pattern</description>
+      <relevantLines>55-60</relevantLines>
+      <keyElements>
+        - refetchInterval pattern example
+        - enabled conditional fetching pattern
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents/processing">
+        <description>Get document processing status for a knowledge base with filters and pagination</description>
+        <authorization>ADMIN or WRITE permission on KB required</authorization>
+        <queryParams>
+          <param name="name" type="string" optional="true">Filter by document name (partial match, case-insensitive)</param>
+          <param name="file_type" type="string" optional="true">Filter by file type (pdf, docx, txt, md)</param>
+          <param name="status" type="enum" optional="true">Filter by status (PENDING, PROCESSING, READY, FAILED)</param>
+          <param name="current_step" type="enum" optional="true">Filter by step (upload, parse, chunk, embed, index, complete)</param>
+          <param name="date_from" type="datetime" optional="true">Filter by upload date from</param>
+          <param name="date_to" type="datetime" optional="true">Filter by upload date to</param>
+          <param name="page" type="int" default="1">Page number (min 1)</param>
+          <param name="page_size" type="int" default="50">Results per page (1-100)</param>
+          <param name="sort_by" type="string" default="created_at">Sort field</param>
+          <param name="sort_order" type="string" default="desc">Sort order (asc/desc)</param>
+        </queryParams>
+        <response>
+          <field name="documents" type="array[DocumentProcessingStatus]">List of documents with processing status</field>
+          <field name="total" type="int">Total count</field>
+          <field name="page" type="int">Current page</field>
+          <field name="page_size" type="int">Page size</field>
+        </response>
+      </endpoint>
+
+      <endpoint method="GET" path="/api/v1/documents/{doc_id}/processing-details">
+        <description>Get detailed processing status for a single document</description>
+        <authorization>ADMIN or WRITE permission on document's KB required</authorization>
+        <response>
+          <field name="id" type="uuid">Document ID</field>
+          <field name="original_filename" type="string">Original filename</field>
+          <field name="file_type" type="string">MIME type</field>
+          <field name="file_size" type="int">File size in bytes</field>
+          <field name="status" type="enum">Document status</field>
+          <field name="current_step" type="enum">Current processing step</field>
+          <field name="chunk_count" type="int|null">Number of chunks created</field>
+          <field name="total_duration_ms" type="int|null">Total processing duration</field>
+          <field name="steps" type="array[ProcessingStepInfo]">Step-by-step status</field>
+          <field name="processing_started_at" type="datetime|null">When processing started</field>
+          <field name="processing_completed_at" type="datetime|null">When processing completed</field>
+        </response>
+      </endpoint>
+    </api>
+
+    <database>
+      <migration name="Add processing step tracking columns to documents table">
+        <changes>
+          <add column="processing_steps" type="JSONB" default="{}" />
+          <add column="current_step" type="VARCHAR(20)" default="upload" />
+          <add column="step_errors" type="JSONB" default="{}" />
+          <add index="idx_documents_current_step" columns="current_step" />
+          <add index="idx_documents_status_step" columns="status, current_step" />
+        </changes>
+      </migration>
+    </database>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="5.4" status="completed">
+      <name>Processing Queue Status</name>
+      <provides>Queue monitoring patterns, Celery inspect integration, 10-second auto-refresh pattern</provides>
+    </dependency>
+
+    <dependency type="story" id="5.2" status="completed">
+      <name>Audit Log Viewer</name>
+      <provides>Filter bar patterns, URL query param sync, pagination patterns</provides>
+    </dependency>
+
+    <dependency type="epic" id="2" status="completed">
+      <name>Document Management</name>
+      <provides>Original document processing pipeline implementation (Stories 2.5-2.7)</provides>
+    </dependency>
+
+    <dependency type="tech-debt" id="document-processing" status="completed">
+      <name>Document Processing Tech Debt</name>
+      <provides>PostgreSQL connection pool fixes, stale detection</provides>
+    </dependency>
+  </dependencies>
+
+  <constraints>
+    <constraint type="security">
+      <description>Only ADMIN and WRITE permission users can access Processing tab</description>
+      <implementation>Check permission_level IN ('ADMIN', 'WRITE') on KB before showing tab or returning API data</implementation>
+    </constraint>
+
+    <constraint type="performance">
+      <description>Document list query must complete in under 500ms for 1000 documents</description>
+      <implementation>Use database indexes on current_step and status columns; efficient pagination with LIMIT/OFFSET</implementation>
+    </constraint>
+
+    <constraint type="performance">
+      <description>Details query must complete in under 200ms per document</description>
+      <implementation>Single document fetch with JSONB processing_steps column</implementation>
+    </constraint>
+
+    <constraint type="ux">
+      <description>Auto-refresh must pause when modal is open</description>
+      <implementation>Use React Query enabled flag based on modal open state</implementation>
+    </constraint>
+
+    <constraint type="backward-compatibility">
+      <description>Existing documents without step tracking show as "Complete" or current status</description>
+      <implementation>Handle null/empty processing_steps gracefully in API response</implementation>
+    </constraint>
+  </constraints>
+
+  <tests>
+    <testCategory name="Backend Unit Tests" count="20">
+      <test>DocumentService.list_with_processing_status returns filtered results</test>
+      <test>DocumentService.list_with_processing_status pagination works correctly</test>
+      <test>DocumentService.list_with_processing_status sorting works correctly</test>
+      <test>DocumentService.get_processing_details returns step data</test>
+      <test>DocumentService.get_processing_details calculates total duration</test>
+      <test>update_step_status helper updates JSONB correctly</test>
+      <test>ProcessingStepInfo schema validates correctly</test>
+      <test>Permission check returns correct visibility for ADMIN/WRITE/READ</test>
+    </testCategory>
+
+    <testCategory name="Backend Integration Tests" count="6">
+      <test>GET /documents/processing returns 200 for ADMIN user</test>
+      <test>GET /documents/processing returns 403 for READ user</test>
+      <test>GET /documents/processing filters by status correctly</test>
+      <test>GET /documents/processing-details returns step timeline</test>
+      <test>GET /documents/processing-details returns 404 for non-existent document</test>
+      <test>API pagination returns correct page counts</test>
+    </testCategory>
+
+    <testCategory name="Frontend Unit Tests" count="30">
+      <test>useDocumentProcessing hook fetches with correct filters</test>
+      <test>useDocumentProcessing hook auto-refreshes every 10 seconds</test>
+      <test>useDocumentProcessingDetails hook fetches single document</test>
+      <test>ProcessingFilterBar updates URL query params</test>
+      <test>ProcessingFilterBar clears all filters</test>
+      <test>DocumentProcessingTable sorts by column</test>
+      <test>DocumentProcessingTable displays status badges</test>
+      <test>ProcessingDetailsModal shows step timeline</test>
+      <test>ProcessingDetailsModal shows error messages</test>
+      <test>ProcessingTab integrates filter, table, modal</test>
+      <test>Processing tab hidden for READ-only users</test>
+    </testCategory>
+
+    <testCategory name="E2E Tests" count="5">
+      <test>Admin navigates to Processing tab and views documents</test>
+      <test>Apply filters and verify URL updates with results</test>
+      <test>Open document details modal and view step information</test>
+      <test>Verify real-time status updates during document processing</test>
+      <test>Non-writer user cannot see Processing tab</test>
+    </testCategory>
+  </tests>
+
+  <implementationNotes>
+    <note category="patterns">
+      Follow auto-refresh pattern from useQueueStatus.ts: refetchInterval: 10000, staleTime: 5000
+    </note>
+    <note category="patterns">
+      Follow filter bar pattern from Story 5.2 Audit Log Viewer: URL query params, debounced search, immediate dropdown apply
+    </note>
+    <note category="database">
+      Use JSONB columns for flexible step tracking without separate tables. Index current_step for efficient filtering.
+    </note>
+    <note category="worker">
+      Update document_tasks.py to call update_step_status() at start and end of each pipeline step.
+    </note>
+    <note category="ui">
+      Status badges: green=ready, yellow=processing, red=failed. Use shadcn/ui Badge component.
+    </note>
+    <note category="permission">
+      Use existing kb_service.get_user_permission() method for permission checks.
+    </note>
+  </implementationNotes>
+
+</storyContext>

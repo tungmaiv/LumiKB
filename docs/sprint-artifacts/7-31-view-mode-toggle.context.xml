@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-31" title="View Mode Toggle for Chunk Viewer (Frontend)" epic="7">
+  <metadata>
+    <status>Draft</status>
+    <story-points>2</story-points>
+    <created>2025-12-11</created>
+    <generated>2025-12-11</generated>
+  </metadata>
+
+  <user-story>
+    <as-a>user</as-a>
+    <i-want-to>toggle between Original and Markdown view modes</i-want-to>
+    <so-that>I can choose the viewing experience that works best for me</so-that>
+  </user-story>
+
+  <background>
+    <summary>
+      Story 7-30 implements the enhanced markdown viewer with precise highlighting. This story
+      adds a user-facing toggle that allows switching between the original document format
+      (PDF/DOCX) and the markdown view.
+    </summary>
+    <problem-statement>
+      Users may prefer different viewing modes depending on their needs:
+      - Markdown view: Precise chunk highlighting, faster loading, consistent format
+      - Original view: See exact document formatting, images, layout
+      There is currently no way to switch between these modes.
+    </problem-statement>
+    <solution-approach>
+      Create a ViewModeToggle component using shadcn/ui ToggleGroup that:
+      1. Defaults to Markdown view when available
+      2. Disables Markdown option when unavailable (older documents)
+      3. Persists user preference in localStorage
+      4. Shows clear visual indication of current mode
+    </solution-approach>
+  </background>
+
+  <acceptance-criteria>
+    <criterion id="AC-7.31.1" title="Toggle Component">
+      <given>I open Document Chunk Viewer</given>
+      <then>I see a view mode toggle in the viewer header area</then>
+      <and>toggle has options: "Original" | "Markdown"</and>
+      <implementation-notes>
+        - Use shadcn/ui ToggleGroup component
+        - Place in viewer toolbar/header area
+        - Clear visual design matching existing UI
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.31.2" title="Default Mode">
+      <given>markdown content is available for the document</given>
+      <then>Markdown view is selected by default</then>
+      <implementation-notes>
+        - Check markdown availability first
+        - If available, default to Markdown
+        - If not, default to Original
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.31.3" title="Disabled When Unavailable">
+      <given>markdown content is not available (older document)</given>
+      <then>toggle is disabled with Markdown option grayed out</then>
+      <and>Original view is shown</and>
+      <implementation-notes>
+        - Disable Markdown option when useMarkdownContent returns null
+        - Show tooltip explaining why: "Markdown not available for this document"
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.31.4" title="Preference Persistence">
+      <given>I change view mode preference</given>
+      <then>preference is saved in localStorage</then>
+      <and>persists across page refreshes</and>
+      <implementation-notes>
+        - localStorage key: lumikb-chunk-viewer-mode
+        - Values: "markdown" | "original"
+        - Check stored preference on component mount
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.31.5" title="Visual Indication">
+      <given>toggle is displayed</given>
+      <then>current mode has clear visual indication (selected state)</then>
+      <implementation-notes>
+        - Use ToggleGroupItem with data-state="on" styling
+        - Match existing UI patterns for toggle buttons
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.31.6" title="Unit Tests">
+      <given>toggle component tests exist</given>
+      <then>tests cover: mode switching, preference persistence, disabled state</then>
+    </criterion>
+  </acceptance-criteria>
+
+  <technical-design>
+    <toggle-component>
+      <![CDATA[
+// frontend/src/components/documents/chunk-viewer/view-mode-toggle.tsx
+
+'use client';
+
+import { useEffect, useState } from 'react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { FileText, Code } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+const STORAGE_KEY = 'lumikb-chunk-viewer-mode';
+
+type ViewMode = 'original' | 'markdown';
+
+interface ViewModeToggleProps {
+  markdownAvailable: boolean;
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+}
+
+export function ViewModeToggle({
+  markdownAvailable,
+  value,
+  onChange,
+}: ViewModeToggleProps) {
+  // Load preference from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY) as ViewMode | null;
+    if (stored && (stored === 'original' || stored === 'markdown')) {
+      // Only use stored if markdown is available, otherwise force original
+      if (stored === 'markdown' && !markdownAvailable) {
+        onChange('original');
+      } else if (stored !== value) {
+        onChange(stored);
+      }
+    }
+  }, [markdownAvailable]);
+
+  // Save preference when changed
+  const handleChange = (newValue: string) => {
+    if (newValue === 'original' || newValue === 'markdown') {
+      localStorage.setItem(STORAGE_KEY, newValue);
+      onChange(newValue);
+    }
+  };
+
+  return (
+    <TooltipProvider>
+      <ToggleGroup
+        type="single"
+        value={value}
+        onValueChange={handleChange}
+        className="border rounded-md"
+      >
+        <ToggleGroupItem
+          value="original"
+          aria-label="Original view"
+          className="px-3 py-1.5 text-sm"
+        >
+          <FileText className="h-4 w-4 mr-1.5" />
+          Original
+        </ToggleGroupItem>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <ToggleGroupItem
+                value="markdown"
+                aria-label="Markdown view"
+                disabled={!markdownAvailable}
+                className="px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Code className="h-4 w-4 mr-1.5" />
+                Markdown
+              </ToggleGroupItem>
+            </span>
+          </TooltipTrigger>
+          {!markdownAvailable && (
+            <TooltipContent>
+              <p>Markdown not available for this document</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </ToggleGroup>
+    </TooltipProvider>
+  );
+}
+      ]]>
+    </toggle-component>
+
+    <preference-hook>
+      <![CDATA[
+// frontend/src/hooks/useViewModePreference.ts
+
+import { useState, useEffect, useCallback } from 'react';
+
+const STORAGE_KEY = 'lumikb-chunk-viewer-mode';
+
+type ViewMode = 'original' | 'markdown';
+
+export function useViewModePreference(markdownAvailable: boolean) {
+  const [viewMode, setViewMode] = useState<ViewMode>('original');
+
+  // Initialize from localStorage or default based on availability
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY) as ViewMode | null;
+
+    if (markdownAvailable) {
+      // Default to markdown if available, unless user chose original
+      setViewMode(stored === 'original' ? 'original' : 'markdown');
+    } else {
+      // Force original if markdown unavailable
+      setViewMode('original');
+    }
+  }, [markdownAvailable]);
+
+  // Persist preference
+  const setMode = useCallback((mode: ViewMode) => {
+    localStorage.setItem(STORAGE_KEY, mode);
+    setViewMode(mode);
+  }, []);
+
+  return { viewMode, setViewMode: setMode };
+}
+      ]]>
+    </preference-hook>
+
+    <integration-pattern>
+      <![CDATA[
+// In chunks/page.tsx
+
+import { ViewModeToggle } from '@/components/documents/chunk-viewer/view-mode-toggle';
+import { useViewModePreference } from '@/hooks/useViewModePreference';
+import { useMarkdownContent } from '@/hooks/useMarkdownContent';
+
+// In component:
+const { data: markdownData, isLoading: markdownLoading } = useMarkdownContent({
+  kbId,
+  documentId,
+});
+
+const markdownAvailable = !!markdownData?.markdown_content;
+const { viewMode, setViewMode } = useViewModePreference(markdownAvailable);
+
+// In header/toolbar area:
+<ViewModeToggle
+  markdownAvailable={markdownAvailable}
+  value={viewMode}
+  onChange={setViewMode}
+/>
+
+// In viewer area:
+{viewMode === 'markdown' && markdownAvailable ? (
+  <EnhancedMarkdownViewer
+    content={markdownData.markdown_content}
+    highlightRange={selectedChunk ? {
+      start: selectedChunk.char_start,
+      end: selectedChunk.char_end,
+    } : undefined}
+  />
+) : (
+  <OriginalDocumentViewer document={document} />
+)}
+      ]]>
+    </integration-pattern>
+  </technical-design>
+
+  <files-to-modify>
+    <file path="frontend/src/components/documents/chunk-viewer/view-mode-toggle.tsx" action="create">
+      New toggle component for view mode selection
+    </file>
+    <file path="frontend/src/hooks/useViewModePreference.ts" action="create">
+      New hook for preference management
+    </file>
+    <file path="frontend/src/app/(protected)/documents/[id]/chunks/page.tsx" action="modify">
+      Integrate toggle and viewer selection logic
+    </file>
+    <file path="frontend/src/components/documents/chunk-viewer/index.tsx" action="modify">
+      Update viewer selection based on mode
+    </file>
+    <file path="frontend/src/components/documents/chunk-viewer/__tests__/view-mode-toggle.test.tsx" action="create">
+      Component tests
+    </file>
+    <file path="frontend/src/hooks/__tests__/useViewModePreference.test.ts" action="create">
+      Hook tests
+    </file>
+  </files-to-modify>
+
+  <code-references>
+    <reference file="frontend/src/components/ui/toggle-group.tsx" description="shadcn/ui ToggleGroup component">
+      Use existing ToggleGroup and ToggleGroupItem components from shadcn/ui
+    </reference>
+
+    <reference file="frontend/src/components/ui/tooltip.tsx" description="shadcn/ui Tooltip component">
+      Use for explaining why Markdown is disabled
+    </reference>
+
+    <reference file="frontend/src/app/(protected)/documents/[id]/chunks/page.tsx" lines="1-50">
+      <description>Chunk viewer page - integration point for toggle</description>
+      <code><![CDATA[
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+// Toggle will be integrated in the header/toolbar area
+      ]]></code>
+    </reference>
+
+    <reference file="frontend/src/hooks/useMarkdownContent.ts" description="Story 7-30 hook">
+      useMarkdownContent hook provides markdownAvailable state for toggle
+    </reference>
+
+    <reference file="frontend/src/components/documents/chunk-viewer/viewers/enhanced-markdown-viewer.tsx" description="Story 7-30 component">
+      EnhancedMarkdownViewer shown when markdown mode is selected
+    </reference>
+  </code-references>
+
+  <dependencies>
+    <prerequisite>Story 7-30 (Enhanced Markdown Viewer with Highlighting)</prerequisite>
+    <blocked-by>Story 7-30 must be completed for markdown viewer to exist</blocked-by>
+    <blocks>None - final story in Markdown-First feature chain</blocks>
+  </dependencies>
+
+  <test-plan>
+    <unit-tests>
+      <test name="test_toggle_renders">Component renders with both options visible</test>
+      <test name="test_toggle_default_markdown">Default when markdown available is Markdown selected</test>
+      <test name="test_toggle_default_original">Default when markdown unavailable is Original selected</test>
+      <test name="test_toggle_markdown_disabled">Markdown unavailable shows disabled button with tooltip</test>
+      <test name="test_toggle_onChange">User clicks toggle calls onChange with new value</test>
+      <test name="test_preference_save">Mode changed updates localStorage</test>
+      <test name="test_preference_load">Component mounts reads from localStorage</test>
+      <test name="test_preference_fallback">Stored markdown but unavailable falls back to original</test>
+    </unit-tests>
+
+    <e2e-tests>
+      <test name="test_toggle_visible_in_viewer">Open chunk viewer shows toggle in header</test>
+      <test name="test_toggle_switch_modes">Click toggle options switches between views</test>
+      <test name="test_toggle_persists">Change mode, refresh, same mode shown</test>
+      <test name="test_toggle_disabled_old_doc">Open old document shows Markdown toggle disabled</test>
+    </e2e-tests>
+  </test-plan>
+
+  <definition-of-done>
+    <item>ViewModeToggle component implemented</item>
+    <item>useViewModePreference hook implemented</item>
+    <item>Toggle renders in chunk viewer header</item>
+    <item>Original/Markdown modes switch correctly</item>
+    <item>Markdown disabled when unavailable (with tooltip)</item>
+    <item>Preference persisted in localStorage</item>
+    <item>Preference loaded on page refresh</item>
+    <item>Unit tests pass with coverage >= 80%</item>
+    <item>E2E tests pass</item>
+    <item>Code review approved</item>
+    <item>ESLint/TypeScript checks pass</item>
+  </definition-of-done>
+
+  <notes>
+    <note>Use shadcn/ui ToggleGroup for consistent styling</note>
+    <note>localStorage key follows existing app conventions (lumikb- prefix)</note>
+    <note>Consider adding analytics event when mode changed (optional)</note>
+    <note>Icon choices: FileText for Original, Code for Markdown</note>
+    <note>Tooltip explains why Markdown is disabled for clarity</note>
+    <note>This is the final story in the Markdown-First Document Processing feature chain</note>
+  </notes>
+</story-context>

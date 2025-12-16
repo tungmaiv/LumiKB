@@ -1,0 +1,92 @@
+# AlertManager Configuration
+# Story 7.5: Monitoring and Observability (AC-7.5.3)
+
+global:
+  resolve_timeout: 5m
+  # SMTP configuration (configure with real values in production)
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alerts@lumikb.io'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Templates for alert notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert routing
+route:
+  # Default receiver
+  receiver: 'default-receiver'
+  # Group alerts by alertname and service
+  group_by: ['alertname', 'service']
+  # Wait before sending first notification
+  group_wait: 30s
+  # Wait before sending updates
+  group_interval: 5m
+  # Wait before repeating notification
+  repeat_interval: 4h
+
+  # Child routes for specific alerts
+  routes:
+    # Critical alerts go to PagerDuty/on-call
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts go to Slack
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+      group_wait: 1m
+      repeat_interval: 4h
+
+# Inhibition rules
+inhibit_rules:
+  # If API is down, inhibit all other API alerts
+  - source_match:
+      alertname: 'APIDown'
+    target_match:
+      service: 'lumikb-api'
+    equal: ['service']
+
+# Receivers define notification channels
+receivers:
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'devops@lumikb.io'
+        send_resolved: true
+        headers:
+          Subject: '[LumiKB] {{ .Status | toUpper }} {{ .CommonLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <h2>{{ .Status | toUpper }}: {{ .Labels.alertname }}</h2>
+          <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Service:</strong> {{ .Labels.service }}</p>
+          <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
+          {{ if .Annotations.runbook_url }}
+          <p><strong>Runbook:</strong> <a href="{{ .Annotations.runbook_url }}">{{ .Annotations.runbook_url }}</a></p>
+          {{ end }}
+          <hr>
+          {{ end }}
+
+  - name: 'critical-receiver'
+    email_configs:
+      - to: 'oncall@lumikb.io'
+        send_resolved: true
+    # Webhook for PagerDuty integration (configure in production)
+    webhook_configs:
+      - url: '${PAGERDUTY_WEBHOOK_URL}'
+        send_resolved: true
+
+  - name: 'warning-receiver'
+    # Slack webhook (configure in production)
+    webhook_configs:
+      - url: '${SLACK_WEBHOOK_URL}'
+        send_resolved: true
+    email_configs:
+      - to: 'devops@lumikb.io'
+        send_resolved: true

@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-25" title="KB Restore Backend">
+  <summary>
+    Implement KB Restore functionality allowing administrators to restore an archived
+    Knowledge Base. Restoration clears archived_at on KB and all documents, updates
+    Qdrant payloads to is_archived: false, and makes the KB active and searchable again.
+    This is the inverse operation of Story 7-24 (KB Archive).
+  </summary>
+
+  <key-files>
+    <file path="backend/app/models/knowledge_base.py" purpose="KB model with archived_at">
+      <note>After 7-24: Will have archived_at column</note>
+      <note>Restore clears archived_at to null</note>
+    </file>
+    <file path="backend/app/models/document.py" purpose="Document model with archived_at">
+      <note>Lines 118-121: archived_at column exists</note>
+      <note>Restore clears archived_at to null for all KB documents</note>
+    </file>
+    <file path="backend/app/services/kb_service.py" purpose="KB service - add restore method">
+      <note>Add restore_kb() method mirroring archive_kb()</note>
+      <note>Inverse logic: clear archived_at, create KB_RESTORE outbox event</note>
+    </file>
+    <file path="backend/app/api/v1/knowledge_bases.py" purpose="KB API endpoints">
+      <note>Add POST /knowledge-bases/{id}/restore endpoint</note>
+    </file>
+    <file path="backend/app/workers/outbox_tasks.py" purpose="Outbox event handlers">
+      <note>Add _handle_kb_restore() to set is_archived: false on Qdrant points</note>
+    </file>
+    <file path="backend/app/services/audit_service.py" purpose="Audit logging">
+      <note>Use audit_service.log_event(action="kb.restored", ...)</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="KB Archive Method (From 7-24)">
+      <description>Pattern to mirror for restore</description>
+      <code><![CDATA[
+async def archive_kb(self, kb_id: UUID, user_id: UUID) -> KnowledgeBase:
+    """Archive KB with document cascade."""
+    # 1. Check ADMIN permission
+    # 2. Validate KB is not already archived
+    # 3. Set archived_at = now()
+    # 4. Cascade to documents: SET archived_at = now()
+    # 5. Create outbox event: KB_ARCHIVE
+    # 6. Audit log: kb.archived
+    return kb
+]]></code>
+    </pattern>
+    <pattern name="KB Delete Handler (Outbox Pattern)">
+      <description>From outbox_tasks.py - Qdrant batch update pattern</description>
+      <code><![CDATA[
+async def _handle_kb_delete(kb_id: str, event_id: str) -> None:
+    """Handle kb.delete event."""
+    kb_uuid = UUID(kb_id)
+
+    async with celery_session_factory() as session:
+        # Update documents in DB
+        await session.execute(
+            update(Document)
+            .where(Document.kb_id == kb_uuid)
+            .values(...)
+        )
+        await session.commit()
+
+    # Update Qdrant
+    try:
+        await qdrant_service.delete_collection(kb_uuid)
+    except Exception as e:
+        logger.warning("cleanup_failed", ...)
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-plan>
+    <task id="1" name="Restore Service Method">
+      <description>Add restore_kb() method to kb_service.py</description>
+      <code><![CDATA[
+async def restore_kb(self, kb_id: UUID, user: User) -> KnowledgeBase:
+    """Restore an archived Knowledge Base.
+
+    Args:
+        kb_id: The KB UUID.
+        user: The user performing the restore.
+
+    Returns:
+        The restored KnowledgeBase.
+
+    Raises:
+        PermissionError: If user doesn't have ADMIN permission.
+        ValueError: If KB is not archived.
+    """
+    # 1. Check ADMIN permission
+    has_admin = await self.check_permission(kb_id, user, PermissionLevel.ADMIN)
+    if not has_admin:
+        raise PermissionError("ADMIN permission required to restore KB")
+
+    # 2. Get and validate KB is archived
+    result = await self.session.execute(
+        select(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+    )
+    kb = result.scalar_one_or_none()
+
+    if not kb:
+        raise ValueError("Knowledge Base not found")
+
+    if kb.archived_at is None:
+        raise ValueError("KB is not archived")
+
+    # 3. Clear archived_at
+    kb.archived_at = None
+
+    # 4. Cascade to documents - clear archived_at
+    doc_count_result = await self.session.execute(
+        update(Document)
+        .where(Document.kb_id == kb_id)
+        .where(Document.archived_at.isnot(None))
+        .values(archived_at=None)
+        .returning(func.count())
+    )
+    document_count = doc_count_result.scalar() or 0
+
+    # 5. Create outbox event for Qdrant payload updates
+    outbox_event = Outbox(
+        event_type="KB_RESTORE",
+        aggregate_id=kb_id,
+        aggregate_type="knowledge_base",
+        payload={"kb_id": str(kb_id)}
+    )
+    self.session.add(outbox_event)
+
+    # 6. Audit log
+    await audit_service.log_event(
+        action="kb.restored",
+        resource_type="knowledge_base",
+        user_id=user.id,
+        resource_id=kb_id,
+        details={"document_count": document_count},
+    )
+
+    logger.info(
+        "kb_restored",
+        kb_id=str(kb_id),
+        user_id=str(user.id),
+        document_count=document_count,
+    )
+
+    return kb
+]]></code>
+    </task>
+    <task id="2" name="Restore API Endpoint">
+      <description>Add POST /knowledge-bases/{id}/restore endpoint</description>
+      <code><![CDATA[
+@router.post("/{kb_id}/restore", response_model=KBResponse)
+async def restore_knowledge_base(
+    kb_id: UUID,
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> KBResponse:
+    """Restore an archived Knowledge Base.
+
+    Requires ADMIN permission on the KB.
+    Clears archived_at on KB and all its documents.
+    Creates outbox event for Qdrant payload updates.
+    KB becomes active and searchable again.
+    """
+    kb_service = KBService(session)
+
+    try:
+        kb = await kb_service.restore_kb(kb_id, current_user)
+    except PermissionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "PERMISSION_DENIED",
+                "message": "ADMIN permission required to restore this KB",
+            },
+        ) from None
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Knowledge Base not found",
+            ) from None
+        # "KB is not archived" case
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "KB_NOT_ARCHIVED",
+                "message": error_msg,
+            },
+        ) from None
+
+    # Get document stats for response
+    doc_count, total_size = await kb_service.get_document_stats(kb_id)
+
+    return KBResponse(
+        id=kb.id,
+        name=kb.name,
+        description=kb.description,
+        owner_id=kb.owner_id,
+        status=kb.status,
+        document_count=doc_count,
+        total_size_bytes=total_size,
+        permission_level=PermissionLevel.ADMIN,
+        tags=kb.tags or [],
+        archived_at=kb.archived_at,  # Should be None after restore
+        created_at=kb.created_at,
+        updated_at=kb.updated_at,
+    )
+]]></code>
+    </task>
+    <task id="3" name="Outbox Handler for KB Restore">
+      <description>Add KB_RESTORE handler to outbox_tasks.py</description>
+      <code><![CDATA[
+async def _handle_kb_restore(kb_id: str, event_id: str) -> None:
+    """Handle KB_RESTORE event - update Qdrant payloads to is_archived: false.
+
+    Args:
+        kb_id: The knowledge base UUID string.
+        event_id: The outbox event ID for logging.
+    """
+    from app.integrations.qdrant_client import qdrant_service
+
+    kb_uuid = UUID(kb_id)
+    collection_name = f"kb_{kb_id}"
+
+    try:
+        # Check if collection exists
+        collection_exists = await qdrant_service.collection_exists(collection_name)
+        if not collection_exists:
+            logger.warning(
+                "kb_restore_collection_not_found",
+                kb_id=kb_id,
+                event_id=event_id,
+            )
+            return
+
+        # Scroll all points and update payload
+        points_updated = 0
+        offset = None
+
+        while True:
+            # Get batch of points
+            scroll_result = await qdrant_service.scroll(
+                collection_name=collection_name,
+                limit=100,
+                offset=offset,
+                with_payload=False,
+                with_vectors=False,
+            )
+
+            if not scroll_result.points:
+                break
+
+            point_ids = [p.id for p in scroll_result.points]
+
+            # Update payload: is_archived = false
+            await qdrant_service.set_payload(
+                collection_name=collection_name,
+                payload={"is_archived": False},
+                points=point_ids,
+            )
+
+            points_updated += len(point_ids)
+            offset = scroll_result.next_page_offset
+
+            if offset is None:
+                break
+
+        logger.info(
+            "kb_restore_qdrant_completed",
+            kb_id=kb_id,
+            event_id=event_id,
+            points_updated=points_updated,
+        )
+
+    except Exception as e:
+        logger.error(
+            "kb_restore_qdrant_failed",
+            kb_id=kb_id,
+            event_id=event_id,
+            error=str(e),
+        )
+        raise
+]]></code>
+    </task>
+    <task id="4" name="Register Handler in Outbox Worker">
+      <description>Add KB_RESTORE to event handler dispatch</description>
+      <code><![CDATA[
+# In process_outbox_events() or event dispatcher
+if event_type == "KB_RESTORE":
+    await _handle_kb_restore(
+        kb_id=payload["kb_id"],
+        event_id=str(event["id"])
+    )
+]]></code>
+    </task>
+  </implementation-plan>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.25.1" status="not-implemented">
+      <description>Restore endpoint clears KB.archived_at</description>
+      <implementation>POST /knowledge-bases/{id}/restore sets archived_at = null</implementation>
+    </criterion>
+    <criterion id="AC-7.25.2" status="not-implemented">
+      <description>Cascade restore to documents</description>
+      <implementation>UPDATE documents SET archived_at = null WHERE kb_id = {id}</implementation>
+    </criterion>
+    <criterion id="AC-7.25.3" status="not-implemented">
+      <description>Qdrant payload updates via outbox</description>
+      <implementation>Add KB_RESTORE handler to set is_archived: false</implementation>
+    </criterion>
+    <criterion id="AC-7.25.4" status="not-implemented">
+      <description>Restored KB visible in listings</description>
+      <implementation>KB appears in default list after archived_at cleared</implementation>
+    </criterion>
+    <criterion id="AC-7.25.5" status="not-implemented">
+      <description>Audit logging</description>
+      <implementation>Log kb.restored event with document_count in metadata</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <dependency story="7-24" status="not-started">KB Archive Backend - must be completed first</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>Test restore_kb clears KB.archived_at</test>
+      <test>Test restore_kb cascades to all documents</test>
+      <test>Test restore_kb creates KB_RESTORE outbox event</test>
+      <test>Test restoring non-archived KB returns 400</test>
+      <test>Test restoring non-existent KB returns 404</test>
+      <test>Test ADMIN permission required</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Archive KB, then restore, verify archived_at null on KB and docs</test>
+      <test>Verify restored KB appears in default listing</test>
+      <test>Verify document upload works after restore</test>
+      <test>Verify search returns restored KB documents</test>
+      <test>Verify audit log created with document_count</test>
+    </integration-tests>
+    <test-fixtures>
+      <fixture name="archived_kb">
+        <code><![CDATA[
+@pytest.fixture
+async def archived_kb(db_session, admin_user):
+    """Create an archived KB with documents for restore tests."""
+    kb = KnowledgeBase(
+        name="Archived Test KB",
+        owner_id=admin_user.id,
+        archived_at=datetime.now(UTC),
+    )
+    docs = [
+        Document(kb_id=kb.id, name=f"doc_{i}", archived_at=datetime.now(UTC))
+        for i in range(3)
+    ]
+    db_session.add_all([kb, *docs])
+    await db_session.commit()
+    return kb
+]]></code>
+      </fixture>
+    </test-fixtures>
+  </test-strategy>
+
+  <api-contract>
+    <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/restore">
+      <description>Restore an archived Knowledge Base</description>
+      <request>
+        <param name="kb_id" type="UUID" location="path" required="true">Knowledge Base ID</param>
+      </request>
+      <response status="200">
+        <body schema="KBResponse">Restored KB details with archived_at=null</body>
+      </response>
+      <response status="400">
+        <body>{"code": "KB_NOT_ARCHIVED", "message": "KB is not archived"}</body>
+      </response>
+      <response status="403">
+        <body>{"code": "PERMISSION_DENIED", "message": "ADMIN permission required"}</body>
+      </response>
+      <response status="404">
+        <body>{"detail": "Knowledge Base not found"}</body>
+      </response>
+    </endpoint>
+  </api-contract>
+</story-context>

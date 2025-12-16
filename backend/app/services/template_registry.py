@@ -6,8 +6,6 @@ Templates are server-side only and cannot be modified by users.
 Story 4.9: Generation Templates
 """
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
@@ -19,7 +17,7 @@ class Template(BaseModel):
     description: str
     system_prompt: str
     sections: list[str]
-    example_output: Optional[str] = None
+    example_output: str | None = None
 
 
 TEMPLATES: dict[str, Template] = {
@@ -81,7 +79,7 @@ CRITICAL RULES:
 - Never include requirements not found in sources
 """,
         sections=["Requirements List"],
-        example_output='## Authentication Requirements\n\n- [ ] **OAuth 2.0 Support**: System must support OAuth 2.0 authentication flow [1]\n  - **Status**: To be assessed\n  - **Notes**: PKCE extension required for mobile clients [1]',
+        example_output="## Authentication Requirements\n\n- [ ] **OAuth 2.0 Support**: System must support OAuth 2.0 authentication flow [1]\n  - **Status**: To be assessed\n  - **Notes**: PKCE extension required for mobile clients [1]",
     ),
     "gap_analysis": Template(
         id="gap_analysis",

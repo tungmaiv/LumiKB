@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-6" title="LiteLLM Integration Hooks" generated="2025-12-15">
+  <story-definition>
+    <summary>
+      Implement LiteLLM callback handler to automatically trace all LLM calls (embeddings, completions)
+      with model, tokens, and cost metrics without manual instrumentation at each call site.
+    </summary>
+    <acceptance-criteria>
+      <criterion id="AC1">LiteLLM callback handler implements success_callback and failure_callback hooks</criterion>
+      <criterion id="AC2">Embedding calls automatically create LLM spans with model, input_tokens, dimensions, duration_ms</criterion>
+      <criterion id="AC3">Chat completion calls automatically create LLM spans with model, prompt_tokens, completion_tokens, duration_ms</criterion>
+      <criterion id="AC4">Streaming completions aggregate token counts and create span after stream completes</criterion>
+      <criterion id="AC5">Cost tracking extracts cost_usd from LiteLLM response when available</criterion>
+      <criterion id="AC6">Failed LLM calls log error type and message without exposing prompt content</criterion>
+      <criterion id="AC7">Callback handler uses fire-and-forget pattern - never blocks LLM responses</criterion>
+      <criterion id="AC8">TraceContext passed via LiteLLM metadata for correlation with parent traces</criterion>
+      <criterion id="AC9">Unit tests verify callback creates correct spans for embeddings and completions</criterion>
+      <criterion id="AC10">Integration test demonstrates automatic LLM call tracing through callback</criterion>
+    </acceptance-criteria>
+  </story-definition>
+
+  <source-files>
+    <file path="backend/app/integrations/litellm_client.py" purpose="Existing LiteLLM client to modify">
+      <description>
+        LiteLLM embedding and completion client. Singleton pattern used across application.
+        Needs modification to pass trace context via metadata parameter.
+      </description>
+      <key-sections>
+        <section name="class_definition" lines="56-279">
+          LiteLLMEmbeddingClient class with get_embeddings() and chat_completion() methods.
+          Both methods need trace_ctx parameter added.
+        </section>
+        <section name="get_embeddings" lines="99-151">
+          Batched embedding generation. Add trace_id to metadata for callback correlation.
+        </section>
+        <section name="_call_embedding_api" lines="209-271">
+          Actual LiteLLM aembedding() call. Add metadata parameter here.
+        </section>
+        <section name="chat_completion" lines="285-363">
+          LLM completion via acompletion(). Add metadata parameter here.
+        </section>
+        <section name="singleton" lines="366-367">
+          embedding_client singleton instance used across application.
+        </section>
+      </key-sections>
+      <modification-points>
+        <point name="get_embeddings_signature" location="line 99">
+          Add trace_ctx: TraceContext | None = None parameter
+        </point>
+        <point name="aembedding_metadata" location="lines 237, 245">
+          Add metadata={"trace_id": trace_ctx.trace_id} if trace_ctx else {}
+        </point>
+        <point name="chat_completion_signature" location="line 285">
+          Add trace_ctx: TraceContext | None = None parameter
+        </point>
+        <point name="acompletion_metadata" location="line 327">
+          Add metadata={"trace_id": trace_ctx.trace_id} if trace_ctx else {}
+        </point>
+      </modification-points>
+    </file>
+
+    <file path="backend/app/integrations/litellm_callback.py" purpose="New callback handler (CREATE)">
+      <description>
+        New file implementing ObservabilityCallback class for LiteLLM integration.
+        Handles success and failure events, creates spans via ObservabilityService.
+      </description>
+      <implementation-structure>
+        <![CDATA[
+"""LiteLLM observability callback for automatic LLM call tracing."""
+
+import litellm
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+
+from app.core.logging import get_logger
+from app.services.observability_service import (
+    ObservabilityService,
+    TraceContext,
+    generate_trace_id,
+)
+
+logger = get_logger()
+
+
+class ObservabilityCallback(litellm.Callback):
+    """Callback handler for automatic LLM observability.
+
+    Implements LiteLLM callback interface to trace:
+    - Embedding calls (model, input_tokens, dimensions, duration_ms)
+    - Chat completions (model, prompt_tokens, completion_tokens, duration_ms)
+    - Streaming completions (aggregated tokens after stream completes)
+    - Failed calls (error type, message - no prompt content)
+    """
+
+    def __init__(self):
+        """Initialize callback with observability service reference."""
+        self.obs = ObservabilityService.get_instance()
+
+    async def async_log_success_event(
+        self,
+        kwargs: dict,
+        response_obj: Any,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> None:
+        """Called after successful LLM API call.
+
+        Fire-and-forget - exceptions logged but never propagated.
+        """
+        try:
+            # Extract trace context from metadata
+            metadata = kwargs.get("litellm_params", {}).get("metadata", {})
+            trace_id = metadata.get("trace_id") or generate_trace_id()
+
+            # Calculate duration
+            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # Detect call type from response
+            call_type = getattr(response_obj, "call_type", None)
+            if call_type is None:
+                # Fallback: check response structure
+                call_type = "embedding" if hasattr(response_obj, "data") else "completion"
+
+            if call_type == "embedding":
+                await self._log_embedding(trace_id, response_obj, duration_ms, metadata)
+            else:
+                await self._log_completion(trace_id, response_obj, duration_ms, metadata)
+
+        except Exception as e:
+            # Fire-and-forget - log but never propagate
+            logger.warning("litellm_callback_error", error=str(e))
+
+    async def async_log_failure_event(
+        self,
+        kwargs: dict,
+        response_obj: Any,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> None:
+        """Called after failed LLM API call.
+
+        Logs error type and message without exposing prompt content.
+        """
+        try:
+            metadata = kwargs.get("litellm_params", {}).get("metadata", {})
+            trace_id = metadata.get("trace_id") or generate_trace_id()
+            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # Extract error info safely
+            exception = kwargs.get("exception")
+            error_type = type(exception).__name__ if exception else "Unknown"
+            error_message = str(exception) if exception else "LLM call failed"
+
+            # Create minimal context for logging
+            ctx = TraceContext(trace_id=trace_id)
+
+            await self.obs.log_llm_call(
+                ctx=ctx,
+                name="llm_call_failed",
+                model=kwargs.get("model", "unknown"),
+                duration_ms=duration_ms,
+                status="failed",
+                error_message=f"{error_type}: {error_message}",
+            )
+
+        except Exception as e:
+            logger.warning("litellm_failure_callback_error", error=str(e))
+
+    async def _log_embedding(
+        self,
+        trace_id: str,
+        response: Any,
+        duration_ms: int,
+        metadata: dict,
+    ) -> None:
+        """Log embedding call with metrics."""
+        model = getattr(response, "model", "unknown")
+        usage = getattr(response, "usage", None)
+        input_tokens = usage.prompt_tokens if usage else None
+
+        # Get embedding dimensions from first result
+        dimensions = None
+        if hasattr(response, "data") and response.data:
+            first_embedding = response.data[0].get("embedding", [])
+            dimensions = len(first_embedding)
+
+        ctx = TraceContext(trace_id=trace_id)
+
+        await self.obs.log_llm_call(
+            ctx=ctx,
+            name="embedding",
+            model=model,
+            input_tokens=input_tokens,
+            duration_ms=duration_ms,
+            metadata={"dimensions": dimensions} if dimensions else None,
+        )
+
+    async def _log_completion(
+        self,
+        trace_id: str,
+        response: Any,
+        duration_ms: int,
+        metadata: dict,
+    ) -> None:
+        """Log chat completion with metrics."""
+        model = getattr(response, "model", "unknown")
+        usage = getattr(response, "usage", None)
+        cost = getattr(response, "response_cost", None)
+
+        ctx = TraceContext(trace_id=trace_id)
+
+        span_metadata = {}
+        if cost is not None:
+            span_metadata["cost_usd"] = str(Decimal(str(cost)))
+
+        await self.obs.log_llm_call(
+            ctx=ctx,
+            name="chat_completion",
+            model=model,
+            input_tokens=usage.prompt_tokens if usage else None,
+            output_tokens=usage.completion_tokens if usage else None,
+            duration_ms=duration_ms,
+            metadata=span_metadata if span_metadata else None,
+        )
+
+
+# Singleton callback instance
+observability_callback = ObservabilityCallback()
+        ]]>
+      </implementation-structure>
+    </file>
+
+    <file path="backend/app/main.py" purpose="Callback registration point">
+      <description>
+        FastAPI application entry point with lifespan handler.
+        Register LiteLLM callback during startup.
+      </description>
+      <modification-point>
+        <location>lifespan startup section</location>
+        <code><![CDATA[
+# In lifespan startup
+import litellm
+from app.integrations.litellm_callback import observability_callback
+
+# Register observability callback
+litellm.callbacks.append(observability_callback)
+logger.info("litellm_observability_callback_registered")
+        ]]></code>
+      </modification-point>
+    </file>
+
+    <file path="backend/app/services/observability_service.py" purpose="Observability API reference">
+      <description>
+        ObservabilityService provides log_llm_call() method for recording LLM API calls.
+        Callback handler uses this to create LLMCall records.
+      </description>
+      <key-method>
+        <name>log_llm_call</name>
+        <signature><![CDATA[
+async def log_llm_call(
+    self,
+    ctx: TraceContext,
+    name: str,
+    model: str,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+    duration_ms: int | None = None,
+    status: str = "completed",
+    error_message: str | None = None,
+    metadata: dict | None = None,
+) -> None:
+        ]]></signature>
+        <description>
+          Logs LLM API call to obs_llm_calls table. Creates record with:
+          - trace_id (for correlation with parent trace)
+          - model, operation (name)
+          - input_tokens, output_tokens
+          - latency_ms (duration)
+          - cost_usd (from metadata if available)
+          - status (completed/failed)
+          - error_message (for failures)
+        </description>
+      </key-method>
+      <helper-function>
+        <name>generate_trace_id</name>
+        <description>
+          Generates W3C-compliant 32-hex trace ID for standalone calls.
+          Used when no parent trace context provided.
+        </description>
+      </helper-function>
+    </file>
+
+    <file path="backend/app/models/observability.py" purpose="Database model reference">
+      <description>
+        LLMCall model for storing LLM API call records.
+      </description>
+      <model name="LLMCall">
+        <fields>
+          - id: UUID primary key
+          - trace_id: 32-hex trace ID for correlation
+          - timestamp: Call timestamp
+          - model: Model name (e.g., "gpt-4", "text-embedding-3-small")
+          - operation: Call type ("embedding", "chat_completion")
+          - input_tokens: Prompt/input token count
+          - output_tokens: Completion/output token count
+          - latency_ms: Call duration in milliseconds
+          - cost_usd: Estimated cost (from LiteLLM pricing)
+          - status: "completed" or "failed"
+          - error_message: Error details for failed calls
+        </fields>
+      </model>
+    </file>
+  </source-files>
+
+  <architecture-patterns>
+    <pattern name="Callback Hook Pattern">
+      LiteLLM calls registered callbacks after each API call.
+      Callback receives kwargs, response, start_time, end_time.
+      <callback-lifecycle>
+        1. LiteLLM API call starts
+        2. Call completes (success or failure)
+        3. LiteLLM invokes async_log_success_event or async_log_failure_event
+        4. Callback extracts metrics and logs via ObservabilityService
+      </callback-lifecycle>
+    </pattern>
+
+    <pattern name="Fire-and-Forget">
+      All callback code wrapped in try/except.
+      Exceptions logged but never propagated to caller.
+      LLM response delivery never blocked by observability.
+      <example><![CDATA[
+async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
+    try:
+        # Extract and log metrics
+        await self._log_completion(...)
+    except Exception as e:
+        # Log warning but never raise
+        logger.warning("callback_error", error=str(e))
+      ]]></example>
+    </pattern>
+
+    <pattern name="Metadata Propagation">
+      Trace context passed via litellm_params["metadata"].
+      Allows correlation with parent traces from chat/document flows.
+      <example><![CDATA[
+# In conversation_service.py when calling LLM
+response = await self.llm_client.chat_completion(
+    messages=prompt_messages,
+    trace_ctx=trace_ctx,  # TraceContext passed from endpoint
+)
+
+# In litellm_client.py
+response = await acompletion(
+    model=model_name,
+    messages=messages,
+    metadata={"trace_id": trace_ctx.trace_id} if trace_ctx else {},
+)
+
+# In callback
+metadata = kwargs.get("litellm_params", {}).get("metadata", {})
+trace_id = metadata.get("trace_id") or generate_trace_id()
+      ]]></example>
+    </pattern>
+
+    <pattern name="Singleton Registration">
+      One callback instance registered at application startup.
+      Lives for duration of application lifecycle.
+      <example><![CDATA[
+# In main.py lifespan
+import litellm
+from app.integrations.litellm_callback import observability_callback
+
+litellm.callbacks.append(observability_callback)
+      ]]></example>
+    </pattern>
+  </architecture-patterns>
+
+  <implementation-notes>
+    <note title="Call Type Detection">
+      Use response.call_type when available (LiteLLM populates this).
+      Fallback: check response structure (has "data" = embedding, has "choices" = completion).
+    </note>
+    <note title="Token Extraction">
+      Embedding: usage.prompt_tokens (input), usage.total_tokens
+      Completion: usage.prompt_tokens (input), usage.completion_tokens (output)
+      Streaming: Aggregate from stream chunks or use final usage object
+    </note>
+    <note title="Cost Source">
+      LiteLLM calculates cost from model pricing tables.
+      Available as response.response_cost (float).
+      Convert to Decimal for precision, store as string.
+    </note>
+    <note title="No Prompt Logging">
+      Never log prompt content - may contain sensitive user data.
+      Only log: model, token counts, duration, error type/message.
+    </note>
+    <note title="Streaming Handling">
+      For streaming completions, callback fires after stream completes.
+      Token counts from final aggregated response usage field.
+    </note>
+    <note title="Standalone Calls">
+      Some LLM calls may not have parent trace (e.g., health checks).
+      Generate new trace_id if not provided in metadata.
+    </note>
+  </implementation-notes>
+
+  <litellm-callback-interface>
+    <response-structures>
+      <embedding-response>
+        <![CDATA[
+response_obj = {
+    "data": [{"embedding": [0.1, 0.2, ...], "index": 0}],
+    "model": "text-embedding-3-small",
+    "usage": {"prompt_tokens": 100, "total_tokens": 100},
+    "call_type": "embedding",
+}
+        ]]>
+      </embedding-response>
+      <completion-response>
+        <![CDATA[
+response_obj = {
+    "choices": [{"message": {"content": "..."}}],
+    "model": "gpt-4",
+    "usage": {"prompt_tokens": 500, "completion_tokens": 200, "total_tokens": 700},
+    "response_cost": 0.025,  # Optional
+    "call_type": "completion",
+}
+        ]]>
+      </completion-response>
+      <kwargs-structure>
+        <![CDATA[
+kwargs = {
+    "model": "gpt-4",
+    "messages": [...],  # Don't log this!
+    "litellm_params": {
+        "metadata": {"trace_id": "abc123..."},  # Our trace context
+        ...
+    },
+    "exception": <Exception>,  # Only in failure callback
+}
+        ]]>
+      </kwargs-structure>
+    </response-structures>
+  </litellm-callback-interface>
+
+  <testing-patterns>
+    <unit-tests>
+      <test name="test_callback_creates_embedding_span">
+        Mock ObservabilityService, simulate embedding response, verify log_llm_call() called with correct args.
+      </test>
+      <test name="test_callback_creates_completion_span">
+        Mock response with usage, verify prompt_tokens and completion_tokens extracted.
+      </test>
+      <test name="test_streaming_completion_aggregates_tokens">
+        Simulate streaming response with final usage, verify token aggregation.
+      </test>
+      <test name="test_cost_extraction">
+        Include response_cost in mock, verify cost_usd in metadata.
+      </test>
+      <test name="test_failure_callback_logs_error">
+        Simulate failure with exception, verify error_type and error_message logged.
+      </test>
+      <test name="test_trace_context_propagation">
+        Pass trace_id in metadata, verify it's used in log_llm_call().
+      </test>
+      <test name="test_callback_never_raises">
+        Simulate ObservabilityService error, verify callback logs warning but doesn't raise.
+      </test>
+    </unit-tests>
+    <integration-tests>
+      <test name="test_embedding_call_creates_trace">
+        Call get_embeddings() with trace_ctx, verify LLMCall record in database.
+      </test>
+      <test name="test_completion_call_creates_trace">
+        Call chat_completion() with trace_ctx, verify LLMCall record with tokens.
+      </test>
+      <test name="test_parent_trace_correlation">
+        Create parent trace, call LLM with that trace_id in metadata, verify LLMCall has same trace_id.
+      </test>
+    </integration-tests>
+  </testing-patterns>
+
+  <file-changes>
+    <change file="backend/app/integrations/litellm_callback.py" type="create">
+      New ObservabilityCallback class implementing litellm.Callback interface.
+    </change>
+    <change file="backend/app/integrations/litellm_client.py" type="modify">
+      Add trace_ctx parameter to get_embeddings() and chat_completion().
+      Pass trace_id in metadata to LiteLLM API calls.
+    </change>
+    <change file="backend/app/main.py" type="modify">
+      Register observability_callback in lifespan startup.
+    </change>
+    <change file="backend/app/services/conversation_service.py" type="modify">
+      Pass trace_ctx to llm_client.chat_completion() calls.
+    </change>
+    <change file="backend/app/workers/document_tasks.py" type="modify">
+      Pass trace_ctx to embedding_client.get_embeddings() calls.
+    </change>
+    <change file="backend/tests/unit/test_litellm_callback.py" type="create">
+      Unit tests for callback handler.
+    </change>
+    <change file="backend/tests/integration/test_litellm_trace_flow.py" type="create">
+      Integration tests for automatic LLM tracing.
+    </change>
+  </file-changes>
+
+  <dependencies>
+    <dependency story="9-1">Observability schema and models (LLMCall model)</dependency>
+    <dependency story="9-2">PostgreSQL provider implementation</dependency>
+    <dependency story="9-3">TraceContext and ObservabilityService.log_llm_call()</dependency>
+  </dependencies>
+
+  <external-references>
+    <reference name="LiteLLM Callback Documentation">
+      https://docs.litellm.ai/docs/observability/custom_callback
+    </reference>
+  </external-references>
+</story-context>

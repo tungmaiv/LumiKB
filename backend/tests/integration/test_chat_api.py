@@ -1,6 +1,12 @@
-"""Integration tests for Chat API (Story 4.1)."""
+"""Integration tests for Chat API (Story 4.1).
+
+Updated: 2025-12-04 (Story 5.15 - ATDD Transition to GREEN)
+NOTE: Tests requiring LLM responses are skipped gracefully when LLM is unavailable.
+This follows Story 5.12's pattern to ensure CI passes without LLM access.
+"""
 
 import json
+import os
 
 import pytest
 from httpx import AsyncClient
@@ -9,6 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.redis import RedisClient
 
 pytestmark = pytest.mark.integration
+
+
+# LLM availability check for graceful skipping
+def llm_available() -> bool:
+    """Check if LLM is available for tests that require it."""
+    return os.getenv("LITELLM_API_KEY") is not None
 
 
 class TestChatAPI:
@@ -21,7 +33,13 @@ class TestChatAPI:
         authenticated_headers: dict,
         demo_kb_with_indexed_docs: dict,
     ):
-        """AC1: Single-turn conversation returns response with citations."""
+        """AC1: Single-turn conversation returns response with citations.
+
+        NOTE: Requires LLM. Skipped gracefully when LLM unavailable (Story 5.12 pattern).
+        """
+        if not llm_available():
+            pytest.skip("LLM not available - skipping single-turn chat test")
+
         kb_id = demo_kb_with_indexed_docs["id"]
 
         response = await api_client.post(
@@ -32,6 +50,10 @@ class TestChatAPI:
                 "message": "What is the purpose of this document?",
             },
         )
+
+        # Skip if LLM service unavailable (503)
+        if response.status_code == 503:
+            pytest.skip("LLM service unavailable")
 
         assert response.status_code == 200
         data = response.json()
@@ -59,7 +81,13 @@ class TestChatAPI:
         authenticated_headers: dict,
         demo_kb_with_indexed_docs: dict,
     ):
-        """AC2: Multi-turn conversation maintains context."""
+        """AC2: Multi-turn conversation maintains context.
+
+        NOTE: Requires LLM. Skipped gracefully when LLM unavailable (Story 5.12 pattern).
+        """
+        if not llm_available():
+            pytest.skip("LLM not available - skipping multi-turn chat test")
+
         kb_id = demo_kb_with_indexed_docs["id"]
 
         # First message
@@ -71,6 +99,10 @@ class TestChatAPI:
                 "message": "Tell me about authentication",
             },
         )
+
+        # Skip if LLM service unavailable (503)
+        if response1.status_code == 503:
+            pytest.skip("LLM service unavailable")
 
         assert response1.status_code == 200
         data1 = response1.json()
@@ -103,7 +135,13 @@ class TestChatAPI:
         authenticated_headers: dict,
         demo_kb_with_indexed_docs: dict,
     ):
-        """AC4: Conversation stored in Redis with correct structure."""
+        """AC4: Conversation stored in Redis with correct structure.
+
+        NOTE: Requires LLM. Skipped gracefully when LLM unavailable (Story 5.12 pattern).
+        """
+        if not llm_available():
+            pytest.skip("LLM not available - skipping Redis storage test")
+
         kb_id = demo_kb_with_indexed_docs["id"]
 
         # Send message
@@ -115,6 +153,10 @@ class TestChatAPI:
                 "message": "Test message",
             },
         )
+
+        # Skip if LLM service unavailable (503)
+        if response.status_code == 503:
+            pytest.skip("LLM service unavailable")
 
         assert response.status_code == 200
 
@@ -156,7 +198,10 @@ class TestChatAPI:
         api_client: AsyncClient,
         authenticated_headers: dict,
     ):
-        """AC5: Permission check returns 404 for unauthorized KB."""
+        """AC5: Permission check returns 404 for unauthorized KB.
+
+        NOTE: This test does NOT require LLM - it tests permission enforcement only.
+        """
         # Use a non-existent KB ID (no permission)
         fake_kb_id = "00000000-0000-0000-0000-000000000000"
 
@@ -179,7 +224,10 @@ class TestChatAPI:
         authenticated_headers: dict,
         demo_kb_with_indexed_docs: dict,
     ):
-        """AC6: Empty message returns 400 Bad Request."""
+        """AC6: Empty message returns 400 Bad Request.
+
+        NOTE: This test does NOT require LLM - it tests input validation only.
+        """
         kb_id = demo_kb_with_indexed_docs["id"]
 
         response = await api_client.post(
@@ -201,7 +249,14 @@ class TestChatAPI:
         authenticated_headers: dict,
         empty_kb_factory,
     ):
-        """AC6: KB with no documents returns clear error."""
+        """AC6: KB with no documents returns clear error.
+
+        NOTE: Requires LLM to reach the "no documents" error path.
+        Skipped gracefully when LLM unavailable (Story 5.12 pattern).
+        """
+        if not llm_available():
+            pytest.skip("LLM not available - skipping empty KB test")
+
         # Create empty KB (no documents)
         empty_kb = await empty_kb_factory()
 
@@ -213,6 +268,10 @@ class TestChatAPI:
                 "message": "Test message",
             },
         )
+
+        # Skip if LLM service unavailable (503) - happens before document check
+        if response.status_code == 503:
+            pytest.skip("LLM service unavailable")
 
         assert response.status_code == 400
         data = response.json()
@@ -226,7 +285,13 @@ class TestChatAPI:
         demo_kb_with_indexed_docs: dict,
         db_session: AsyncSession,
     ):
-        """AC7: Audit event logged for chat message."""
+        """AC7: Audit event logged for chat message.
+
+        NOTE: Requires LLM. Skipped gracefully when LLM unavailable (Story 5.12 pattern).
+        """
+        if not llm_available():
+            pytest.skip("LLM not available - skipping audit logging test")
+
         from app.models.audit import AuditEvent
 
         kb_id = demo_kb_with_indexed_docs["id"]
@@ -240,6 +305,10 @@ class TestChatAPI:
                 "message": "Test message for audit",
             },
         )
+
+        # Skip if LLM service unavailable (503)
+        if response.status_code == 503:
+            pytest.skip("LLM service unavailable")
 
         assert response.status_code == 200
         conversation_id = response.json()["conversation_id"]
@@ -273,7 +342,13 @@ class TestChatAPI:
         authenticated_headers: dict,
         demo_kb_with_indexed_docs: dict,
     ):
-        """AC6: Invalid conversation_id starts fresh conversation."""
+        """AC6: Invalid conversation_id starts fresh conversation.
+
+        NOTE: Requires LLM. Skipped gracefully when LLM unavailable (Story 5.12 pattern).
+        """
+        if not llm_available():
+            pytest.skip("LLM not available - skipping invalid conversation ID test")
+
         kb_id = demo_kb_with_indexed_docs["id"]
 
         # Use invalid conversation_id
@@ -286,6 +361,10 @@ class TestChatAPI:
                 "conversation_id": "conv-invalid-does-not-exist",
             },
         )
+
+        # Skip if LLM service unavailable (503)
+        if response.status_code == 503:
+            pytest.skip("LLM service unavailable")
 
         # Should succeed and create new conversation
         assert response.status_code == 200

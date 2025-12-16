@@ -1,0 +1,173 @@
+<story-context id="bmad/bmm/story-context/7-3" v="1.0">
+  <metadata>
+    <epicId>epic-7</epicId>
+    <storyId>7-3</storyId>
+    <title>CI/CD Pipeline Setup</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-3-ci-cd-pipeline-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>development team</asA>
+    <iWant>GitHub Actions CI/CD pipelines with automated testing and Docker image builds</iWant>
+    <soThat>code quality is enforced automatically and deployments are consistent and repeatable</soThat>
+    <tasks>
+      <task id="1" title="Create PR Validation Workflow" acs="1,4">
+        <subtask>1.1 Create `.github/workflows/pr-validation.yml`</subtask>
+        <subtask>1.2 Configure matrix strategy: Python 3.11, Node 20</subtask>
+        <subtask>1.3 Backend job: `ruff check`, `ruff format --check`, `mypy`, `pytest`</subtask>
+        <subtask>1.4 Frontend job: `npm run lint`, `npm run type-check`, `npm run test:run`, `npm run build`</subtask>
+        <subtask>1.5 Configure job parallelization for &lt; 10 min total</subtask>
+        <subtask>1.6 Add dependency caching (pip, npm)</subtask>
+      </task>
+      <task id="2" title="Add Coverage Reporting" acs="3">
+        <subtask>2.1 Configure pytest-cov for backend coverage XML output</subtask>
+        <subtask>2.2 Configure vitest coverage for frontend (lcov format)</subtask>
+        <subtask>2.3 Add coverage comment action (e.g., `coverage-comment-action` or `codecov`)</subtask>
+        <subtask>2.4 Set minimum coverage thresholds (backend: 70%, frontend: 60%)</subtask>
+        <subtask>2.5 Fail PR if coverage drops below threshold</subtask>
+      </task>
+      <task id="3" title="Create Docker Build Workflow" acs="2">
+        <subtask>3.1 Create `.github/workflows/docker-build.yml` triggered on main merge</subtask>
+        <subtask>3.2 Build and push `lumikb-api:${{ github.sha }}` image</subtask>
+        <subtask>3.3 Build and push `lumikb-worker:${{ github.sha }}` image</subtask>
+        <subtask>3.4 Build and push `lumikb-frontend:${{ github.sha }}` image</subtask>
+        <subtask>3.5 Tag images with `latest` on main branch</subtask>
+        <subtask>3.6 Configure GHCR authentication with `GITHUB_TOKEN`</subtask>
+      </task>
+      <task id="4" title="Create Reusable Workflow Components" acs="1,2,4">
+        <subtask>4.1 Create `.github/actions/setup-backend/action.yml` (Python, deps, cache)</subtask>
+        <subtask>4.2 Create `.github/actions/setup-frontend/action.yml` (Node, deps, cache)</subtask>
+        <subtask>4.3 Add concurrency control (cancel in-progress for same PR)</subtask>
+        <subtask>4.4 Configure branch protection rules documentation</subtask>
+      </task>
+      <task id="5" title="Add Pipeline Status Badges" acs="1,2">
+        <subtask>5.1 Add CI status badge to README.md</subtask>
+        <subtask>5.2 Add coverage badge to README.md</subtask>
+        <subtask>5.3 Verify pipeline on test PR</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.3.1">PR triggers lint, type-check, unit tests, and build verification</criterion>
+    <criterion id="AC-7.3.2">Main branch merge builds and pushes Docker images to registry (ghcr.io)</criterion>
+    <criterion id="AC-7.3.3">Coverage report posted as PR comment (backend and frontend)</criterion>
+    <criterion id="AC-7.3.4">Frontend and backend tests run in parallel, total pipeline time &lt; 10 minutes</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/sprint-artifacts/tech-spec-epic-7.md" relevance="high">
+        Epic 7 technical specification with CI/CD pipeline requirements
+      </artifact>
+      <artifact path="docs/architecture.md" relevance="medium">
+        Architecture document with testing standards and infrastructure patterns
+      </artifact>
+    </docs>
+    <code>
+      <artifact path=".github/workflows/test.yml" relevance="critical">
+        Existing test workflow (176 lines) to extend/consolidate:
+        - lint-backend job: ruff check, ruff format --check (lines 14-35)
+        - lint-frontend job: npm run lint, npm run type-check (lines 37-57)
+        - test-unit job: pytest -m unit (lines 59-82)
+        - test-integration job: pytest -m integration (lines 84-115)
+        - test-frontend job: npm run test:run (lines 117-143)
+        - coverage job: pytest --cov, codecov upload (lines 145-176)
+        - Python 3.11, Node 20 versions
+        - pip and npm caching configured
+      </artifact>
+      <artifact path=".github/workflows/e2e.yml" relevance="medium">
+        Existing E2E workflow (69 lines):
+        - Manual trigger (workflow_dispatch)
+        - Playwright tests
+        - Artifact upload patterns
+      </artifact>
+      <artifact path="backend/pyproject.toml" relevance="high">
+        Backend configuration:
+        - pytest markers: unit, integration, e2e, smoke, slow (lines 183-189)
+        - pytest-cov configuration (lines 191-201)
+        - ruff configuration (lines 114-156)
+        - Python 3.11+ requirement (line 10)
+      </artifact>
+      <artifact path="frontend/package.json" relevance="high">
+        Frontend scripts (lines 5-21):
+        - "lint": "eslint"
+        - "type-check": "tsc --noEmit"
+        - "test:run": "vitest run"
+        - "test:coverage": "vitest run --coverage"
+        - "build": "next build"
+      </artifact>
+      <artifact path="backend/Dockerfile" relevance="high">
+        Existing Dockerfile for backend image build
+      </artifact>
+    </code>
+    <dependencies>
+      <dependency name="pytest-cov" version=">=5.0.0">Backend coverage reporting</dependency>
+      <dependency name="vitest" version="^4.0.13">Frontend test runner with coverage</dependency>
+      <dependency name="actions/checkout" version="v4">GitHub Actions checkout</dependency>
+      <dependency name="actions/setup-python" version="v5">Python setup action</dependency>
+      <dependency name="actions/setup-node" version="v4">Node.js setup action</dependency>
+      <dependency name="codecov/codecov-action" version="v4">Coverage reporting</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance">Total pipeline time must be &lt; 10 minutes</constraint>
+    <constraint type="pattern">Use ubuntu-latest runner for consistency</constraint>
+    <constraint type="pattern">Pin action versions (e.g., actions/checkout@v4)</constraint>
+    <constraint type="security">Use GITHUB_TOKEN for GHCR (no additional secrets needed)</constraint>
+    <constraint type="quality">Coverage thresholds: backend 70%, frontend 60%</constraint>
+    <constraint type="pattern">Set timeout-minutes to prevent runaway jobs</constraint>
+  </constraints>
+
+  <interfaces>
+    <workflows>
+      <workflow file=".github/workflows/pr-validation.yml">
+        Triggered on: pull_request to main/develop
+        Jobs: lint-backend, lint-frontend, test-unit, test-integration, test-frontend, coverage-report
+      </workflow>
+      <workflow file=".github/workflows/docker-build.yml">
+        Triggered on: push to main
+        Jobs: build-api, build-worker, build-frontend, push-to-ghcr
+      </workflow>
+    </workflows>
+    <actions>
+      <action file=".github/actions/setup-backend/action.yml">
+        Reusable action for Python environment setup with caching
+      </action>
+      <action file=".github/actions/setup-frontend/action.yml">
+        Reusable action for Node.js environment setup with caching
+      </action>
+    </actions>
+    <images>
+      <image name="ghcr.io/user/lumikb-api" tag="${{ github.sha }}">API server image</image>
+      <image name="ghcr.io/user/lumikb-worker" tag="${{ github.sha }}">Celery worker image</image>
+      <image name="ghcr.io/user/lumikb-frontend" tag="${{ github.sha }}">Next.js frontend image</image>
+    </images>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Self-testing: Workflows tested via PR to feature branch</standard>
+      <standard>Pipeline verification: Document expected timing benchmarks</standard>
+      <standard>Coverage thresholds: Enforced to prevent regression</standard>
+    </standards>
+    <locations>
+      <location>.github/workflows/pr-validation.yml</location>
+      <location>.github/workflows/docker-build.yml</location>
+      <location>.github/actions/setup-backend/action.yml</location>
+      <location>.github/actions/setup-frontend/action.yml</location>
+    </locations>
+    <ideas>
+      <idea>Verify parallel job execution completes in &lt; 10 min</idea>
+      <idea>Test coverage comment appears on PR with correct format</idea>
+      <idea>Test Docker image builds successfully for all three services</idea>
+      <idea>Test GHCR push with both SHA and latest tags</idea>
+      <idea>Test concurrency control cancels in-progress workflows for same PR</idea>
+      <idea>Test cache hit rates for pip and npm dependencies</idea>
+    </ideas>
+  </tests>
+</story-context>

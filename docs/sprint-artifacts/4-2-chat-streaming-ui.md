@@ -1682,3 +1682,28 @@ None.
 - Note: Integration tests deferred to Epic 5.15 per TD-4.2-2 (acceptable - implementation verified production-ready)
 - Note: SSE reconnection logic (TD-4.2-1 in epic-4-tech-debt.md) remains deferred per original Epic 4 plan
 - Note: Confidence calculation uses simple average (acceptable for MVP per completion notes line 1530, tech spec algorithm deferred)
+
+---
+
+## Technical Notes: LiteLLM Streaming Fix
+
+### Issue: Duplicate Tokens in Chat Streaming (Resolved 2025-12-16)
+
+**Problem:** Chat streaming responses displayed duplicate tokens (e.g., "HereHere's's a a").
+
+**Root Cause:** LiteLLM's `num_retries` setting triggered automatic retries that duplicated streaming responses.
+
+**Solution Applied:**
+1. Set `num_retries: 0` in `infrastructure/docker/litellm_config.yaml` (router_settings)
+2. Set `num_retries=0` in `backend/app/integrations/litellm_client.py` (acompletion call)
+3. Use `litellm_proxy/` model prefix for proxy routing
+4. Disable streaming logging to prevent worker event loop issues
+
+**Verification:** Clean sequential tokens now delivered:
+```
+data: {"type": "token", "content": "Phase"}
+data: {"type": "token", "content": " A"}
+...
+```
+
+**Reference:** See TD-002a in [tech-spec-epic-4.md](./tech-spec-epic-4.md)

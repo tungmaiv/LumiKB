@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
+from markdownify import markdownify as md
 
 logger = structlog.get_logger(__name__)
 
@@ -52,11 +53,13 @@ class ParsedContent:
         text: Full concatenated text content.
         elements: List of parsed elements with metadata.
         metadata: Document-level metadata (page_count, sections, etc.).
+        markdown_content: Optional markdown representation of document (Story 7.28).
     """
 
     text: str
     elements: list[ParsedElement]
     metadata: dict[str, Any]
+    markdown_content: str | None = None
 
     @property
     def extracted_chars(self) -> int:
@@ -72,6 +75,68 @@ class ParsedContent:
     def section_count(self) -> int:
         """Number of sections/headings found."""
         return self.metadata.get("section_count", 0)
+
+
+def elements_to_markdown(elements: list[ParsedElement]) -> str:
+    """Convert parsed elements to Markdown format.
+
+    Story 7.28 (AC-7.28.2): Converts document elements to markdown for
+    accurate chunk position highlighting in the document viewer.
+
+    Args:
+        elements: List of ParsedElement from document parsing.
+
+    Returns:
+        Markdown-formatted string with heading levels, lists, and tables.
+    """
+    if not elements:
+        return ""
+
+    markdown_parts: list[str] = []
+
+    for el in elements:
+        element_type = el.element_type
+        text = el.text.strip() if el.text else ""
+
+        if not text:
+            continue
+
+        if element_type == "Title":
+            # Title = top-level heading
+            markdown_parts.append(f"# {text}\n")
+        elif element_type == "Header":
+            # Header with configurable depth (default level 2)
+            level = el.metadata.get("heading_level", 2)
+            # Clamp to valid markdown heading levels (1-6)
+            level = max(1, min(level, 6))
+            prefix = "#" * level
+            markdown_parts.append(f"{prefix} {text}\n")
+        elif element_type == "ListItem":
+            # Unordered list item
+            markdown_parts.append(f"- {text}\n")
+        elif element_type == "Table":
+            # Use markdownify for HTML tables if available
+            html = el.metadata.get("text_as_html")
+            if html:
+                table_md = md(html, strip=["a"]).strip()
+                markdown_parts.append(f"{table_md}\n\n")
+            else:
+                # Fallback: plain text with newlines
+                markdown_parts.append(f"{text}\n\n")
+        elif element_type == "CodeSnippet":
+            # Code block with triple backticks
+            markdown_parts.append(f"```\n{text}\n```\n\n")
+        elif element_type == "FigureCaption":
+            # Italic caption
+            markdown_parts.append(f"*{text}*\n\n")
+        elif element_type in ("NarrativeText", "Text"):
+            # Regular paragraph text
+            markdown_parts.append(f"{text}\n\n")
+        else:
+            # Default: plain text with spacing
+            markdown_parts.append(f"{text}\n\n")
+
+    return "".join(markdown_parts).strip()
 
 
 # Minimum character threshold for valid content
@@ -103,10 +168,27 @@ def parse_pdf(file_path: str) -> ParsedContent:
     logger.info("parsing_pdf_started", file_path=file_path)
 
     try:
+        # Use "fast" strategy first - extracts text without OCR/image processing
+        # This is much faster for large PDFs with embedded text
+        logger.info("parsing_pdf_trying_fast", file_path=file_path)
         elements = partition_pdf(
             filename=file_path,
-            strategy="auto",  # auto-detect best strategy
+            strategy="fast",  # text extraction only, no OCR
         )
+
+        # Check if we got any text
+        text_elements = [
+            el for el in elements if hasattr(el, "text") and el.text.strip()
+        ]
+
+        if not text_elements:
+            # No text found - likely scanned PDF, try OCR
+            logger.info("parsing_pdf_fallback_ocr", file_path=file_path)
+            elements = partition_pdf(
+                filename=file_path,
+                strategy="ocr_only",  # Use OCR for scanned documents
+                ocr_languages="eng",  # English OCR
+            )
     except Exception as e:
         error_str = str(e).lower()
         if "password" in error_str or "encrypted" in error_str:
@@ -115,11 +197,11 @@ def parse_pdf(file_path: str) -> ParsedContent:
             ) from e
         raise ParsingError(f"Failed to parse PDF: {e}") from e
 
-    # Check for scanned document (no text elements)
+    # Check for text after both strategies
     text_elements = [el for el in elements if hasattr(el, "text") and el.text.strip()]
     if not text_elements:
         raise ScannedDocumentError(
-            "Document appears to be scanned (OCR required - MVP 2)"
+            "No text could be extracted (OCR failed or document is empty)"
         )
 
     # Extract elements with metadata
@@ -169,18 +251,23 @@ def parse_pdf(file_path: str) -> ParsedContent:
         "source_format": "pdf",
     }
 
+    # Story 7.28 (AC-7.28.3): Generate markdown content for PDF
+    markdown_content = elements_to_markdown(parsed_elements)
+
     logger.info(
         "parsing_pdf_completed",
         file_path=file_path,
         extracted_chars=len(full_text),
         page_count=metadata["page_count"],
         element_count=len(parsed_elements),
+        markdown_chars=len(markdown_content),
     )
 
     return ParsedContent(
         text=full_text,
         elements=parsed_elements,
         metadata=metadata,
+        markdown_content=markdown_content,
     )
 
 
@@ -251,18 +338,23 @@ def parse_docx(file_path: str) -> ParsedContent:
         "source_format": "docx",
     }
 
+    # Story 7.28 (AC-7.28.3): Generate markdown content for DOCX
+    markdown_content = elements_to_markdown(parsed_elements)
+
     logger.info(
         "parsing_docx_completed",
         file_path=file_path,
         extracted_chars=len(full_text),
         section_count=len(sections),
         element_count=len(parsed_elements),
+        markdown_chars=len(markdown_content),
     )
 
     return ParsedContent(
         text=full_text,
         elements=parsed_elements,
         metadata=metadata,
+        markdown_content=markdown_content,
     )
 
 
@@ -355,14 +447,26 @@ def parse_markdown(file_path: str) -> ParsedContent:
     )
 
 
-def parse_document(file_path: str, mime_type: str) -> ParsedContent:
-    """Parse a document based on its MIME type.
+def parse_document(
+    file_path: str,
+    mime_type: str,
+    parser_backend: str | None = None,
+) -> ParsedContent:
+    """Parse a document based on its MIME type and parser backend selection.
 
-    Dispatches to appropriate parser based on MIME type.
+    Story 7-32 (AC-7.32.4): Strategy pattern dispatcher for parser selection.
+
+    Dispatches to appropriate parser based on MIME type and backend selection.
+    Backend selection follows three-layer precedence:
+    1. System flag LUMIKB_PARSER_DOCLING_ENABLED must be True for docling
+    2. KB-level parser_backend setting (unstructured/docling/auto)
+    3. Default: unstructured
 
     Args:
         file_path: Path to the document file.
         mime_type: MIME type of the document.
+        parser_backend: Parser backend selection ('unstructured', 'docling', 'auto').
+            If None or not specified, uses 'unstructured' (default).
 
     Returns:
         ParsedContent with extracted text and metadata.
@@ -370,6 +474,84 @@ def parse_document(file_path: str, mime_type: str) -> ParsedContent:
     Raises:
         ParsingError: If MIME type is unsupported or parsing fails.
     """
+    from app.core.config import settings
+    from app.schemas.kb_settings import DocumentParserBackend
+
+    # Normalize backend selection
+    if parser_backend is None:
+        backend = DocumentParserBackend.UNSTRUCTURED
+    elif isinstance(parser_backend, str):
+        try:
+            backend = DocumentParserBackend(parser_backend.lower())
+        except ValueError:
+            logger.warning(
+                "invalid_parser_backend",
+                parser_backend=parser_backend,
+                fallback="unstructured",
+            )
+            backend = DocumentParserBackend.UNSTRUCTURED
+    else:
+        backend = parser_backend
+
+    # Check system-level feature flag (AC-7.32.1)
+    docling_system_enabled = settings.parser_docling_enabled
+
+    # Determine effective parser to use
+    use_docling = False
+    if backend == DocumentParserBackend.DOCLING:
+        if docling_system_enabled:
+            use_docling = True
+        else:
+            logger.warning(
+                "docling_requested_but_disabled",
+                parser_backend=backend.value,
+                system_flag="LUMIKB_PARSER_DOCLING_ENABLED=false",
+                fallback="unstructured",
+            )
+    elif backend == DocumentParserBackend.AUTO and docling_system_enabled:
+        use_docling = True  # AUTO mode: try docling first when system flag enabled
+
+    logger.info(
+        "parser_backend_selected",
+        requested_backend=backend.value,
+        system_docling_enabled=docling_system_enabled,
+        effective_parser="docling" if use_docling else "unstructured",
+        mime_type=mime_type,
+    )
+
+    # Try Docling parser if selected
+    if use_docling:
+        try:
+            from app.workers.docling_parser import (
+                DoclingNotAvailableError,
+                parse_document_docling,
+            )
+
+            result = parse_document_docling(file_path, mime_type)
+            result.metadata["parser_backend"] = "docling"
+            return result
+
+        except DoclingNotAvailableError:
+            if backend == DocumentParserBackend.AUTO:
+                logger.warning(
+                    "docling_not_available_fallback",
+                    fallback="unstructured",
+                )
+            else:
+                # Explicit docling request but not available
+                raise
+        except Exception as e:
+            if backend == DocumentParserBackend.AUTO:
+                logger.warning(
+                    "docling_parse_failed_fallback",
+                    error=str(e),
+                    fallback="unstructured",
+                )
+            else:
+                # Explicit docling request - don't fallback
+                raise
+
+    # Use Unstructured parser (default)
     mime_parsers = {
         "application/pdf": parse_pdf,
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": parse_docx,
@@ -381,4 +563,6 @@ def parse_document(file_path: str, mime_type: str) -> ParsedContent:
     if not parser:
         raise ParsingError(f"Unsupported MIME type: {mime_type}")
 
-    return parser(file_path)
+    result = parser(file_path)
+    result.metadata["parser_backend"] = "unstructured"
+    return result

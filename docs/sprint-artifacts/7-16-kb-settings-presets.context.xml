@@ -1,0 +1,182 @@
+<story-context id="7-16-kb-settings-presets" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7.16</storyId>
+    <title>KB Settings Presets</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-16-kb-settings-presets.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>KB owner</asA>
+    <iWant>preset configurations to quickly optimize my KB for common use cases</iWant>
+    <soThat>I don't have to manually configure each individual setting</soThat>
+    <tasks>
+      <task id="1">Create backend preset definitions (kb_presets.py)</task>
+      <task id="2">Create backend presets API endpoint (GET /api/v1/kb-presets)</task>
+      <task id="3">Create frontend preset types (kb-presets.ts)</task>
+      <task id="4">Create preset selector component (preset-selector.tsx)</task>
+      <task id="5">Integrate preset selector with KB settings modal</task>
+      <task id="6">Implement preset detection logic (detect current preset match)</task>
+      <task id="7">Implement preset application logic with confirmation</task>
+      <task id="8">Update KBSettings schema for preset tracking</task>
+      <task id="9">Backend unit tests for presets</task>
+      <task id="10">Frontend unit tests for preset selector</task>
+      <task id="11">Integration tests for presets API</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="7.16.1">Quick Preset dropdown at top of KB settings with Custom, Legal, Technical, Creative, Code, General</ac>
+    <ac id="7.16.2">Legal preset: temperature 0.3, chunk_size 1000, chunk_overlap 200, citation_style footnote, uncertainty_handling acknowledge</ac>
+    <ac id="7.16.3">Technical preset: temperature 0.5, chunk_size 800, chunk_overlap 100, citation_style inline</ac>
+    <ac id="7.16.4">Creative preset: temperature 0.9, top_p 0.95, chunk_size 500, uncertainty_handling best_effort</ac>
+    <ac id="7.16.5">Code preset: temperature 0.2, chunk_size 600, chunk_overlap 50</ac>
+    <ac id="7.16.6">General preset: system defaults</ac>
+    <ac id="7.16.7">Confirmation dialog warns about overwriting custom settings</ac>
+    <ac id="7.16.8">Preset indicator shows matching preset or "Custom" when modified</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/7-16-kb-settings-presets.md">Story definition with preset specifications</doc>
+      <doc path="docs/sprint-artifacts/7-14-kb-settings-ui-general.md">Tab structure and form patterns</doc>
+      <doc path="docs/sprint-artifacts/7-15-kb-settings-ui-prompts.md">Prompt templates pattern (similar concept)</doc>
+      <doc path="docs/sprint-artifacts/7-12-kb-settings-schema.md">Backend schema definitions</doc>
+    </docs>
+    <code>
+      <file path="backend/app/schemas/kb_settings.py" lines="239-267">
+        <description>KBSettings composite schema with preset field</description>
+        <content><![CDATA[
+class KBSettings(BaseModel):
+    """Complete KB-level configuration stored in settings JSONB (AC-7.12.9)."""
+    chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    reranking: RerankingConfig = Field(default_factory=RerankingConfig)
+    generation: GenerationConfig = Field(default_factory=GenerationConfig)
+    ner: NERConfig = Field(default_factory=NERConfig)
+    processing: DocumentProcessingConfig = Field(default_factory=DocumentProcessingConfig)
+    prompts: KBPromptConfig = Field(default_factory=KBPromptConfig)
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    preset: str | None = Field(
+        default=None,
+        description="Preset name used for configuration (e.g., 'legal', 'technical')",
+    )
+    model_config = {"extra": "forbid"}
+]]></content>
+      </file>
+      <file path="backend/app/schemas/kb_settings.py" lines="18-65">
+        <description>Enum types for chunking strategy, citation style, uncertainty handling</description>
+        <content><![CDATA[
+class ChunkingStrategy(str, Enum):
+    FIXED = "fixed"
+    RECURSIVE = "recursive"
+    SEMANTIC = "semantic"
+
+class CitationStyle(str, Enum):
+    INLINE = "inline"
+    FOOTNOTE = "footnote"
+    NONE = "none"
+
+class UncertaintyHandling(str, Enum):
+    ACKNOWLEDGE = "acknowledge"
+    REFUSE = "refuse"
+    BEST_EFFORT = "best_effort"
+]]></content>
+      </file>
+      <file path="backend/app/schemas/kb_settings.py" lines="72-119">
+        <description>Sub-config schemas (ChunkingConfig, RetrievalConfig, GenerationConfig)</description>
+        <content><![CDATA[
+class ChunkingConfig(BaseModel):
+    strategy: ChunkingStrategy = Field(default=ChunkingStrategy.RECURSIVE)
+    chunk_size: int = Field(default=512, ge=100, le=2000)
+    chunk_overlap: int = Field(default=50, ge=0, le=500)
+    separators: list[str] = Field(default_factory=lambda: ["\n\n", "\n", " ", ""])
+
+class RetrievalConfig(BaseModel):
+    top_k: int = Field(default=10, ge=1, le=100)
+    similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    method: RetrievalMethod = Field(default=RetrievalMethod.VECTOR)
+    mmr_enabled: bool = Field(default=False)
+    mmr_lambda: float = Field(default=0.5, ge=0.0, le=1.0)
+    hybrid_alpha: float = Field(default=0.5, ge=0.0, le=1.0)
+
+class GenerationConfig(BaseModel):
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    top_p: float = Field(default=0.9, ge=0.0, le=1.0)
+    top_k: int = Field(default=40, ge=1, le=100)
+    max_tokens: int = Field(default=2048, ge=100, le=16000)
+    frequency_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
+    presence_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
+]]></content>
+      </file>
+      <file path="frontend/src/components/kb/kb-settings-modal.tsx" lines="1-251">
+        <description>Existing KB settings modal - add PresetSelector at top before tabs</description>
+      </file>
+    </code>
+    <dependencies>
+      <dependency type="npm">react-hook-form - Form state management with setValue for preset application</dependency>
+      <dependency type="shadcn">Select - Preset dropdown</dependency>
+      <dependency type="shadcn">AlertDialog - Confirmation before overwriting custom settings</dependency>
+      <dependency type="shadcn">Badge - Optional indicator showing current preset</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Preset definitions must be kept in sync between backend (kb_presets.py) and frontend (kb-presets.ts)</constraint>
+    <constraint>Preset field in KBSettings must be updated when preset applied or settings modified to "custom"</constraint>
+    <constraint>Confirmation dialog required when applying preset over existing custom settings</constraint>
+    <constraint>Preset detection must deep-compare all relevant fields to identify matching presets</constraint>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint>GET /api/v1/kb-presets</endpoint>
+      <response><![CDATA[
+{
+  "presets": [
+    {"id": "legal", "name": "Legal", "description": "Optimized for legal documents..."},
+    {"id": "technical", "name": "Technical", "description": "Optimized for technical documentation..."},
+    {"id": "creative", "name": "Creative", "description": "Higher creativity..."},
+    {"id": "code", "name": "Code", "description": "Optimized for code repositories..."},
+    {"id": "general", "name": "General", "description": "Balanced defaults..."}
+  ]
+}
+]]></response>
+    </api>
+    <components>
+      <component name="PresetSelector" props="form: UseFormReturn, onPresetSelect: (presetId: string) => void" />
+    </components>
+    <hooks>
+      <hook name="usePresetDetection" returns="string (preset id or 'custom')" />
+    </hooks>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Backend: pytest with async fixtures</standard>
+      <standard>Frontend: Vitest + React Testing Library</standard>
+    </standards>
+    <locations>
+      <location>backend/app/core/kb_presets.py</location>
+      <location>backend/tests/unit/test_kb_presets.py</location>
+      <location>backend/tests/integration/test_kb_presets_api.py</location>
+      <location>frontend/src/lib/kb-presets.ts</location>
+      <location>frontend/src/components/kb/settings/preset-selector.tsx</location>
+      <location>frontend/src/components/kb/settings/__tests__/preset-selector.test.tsx</location>
+    </locations>
+    <ideas>
+      <test>Each preset has required config values with correct types</test>
+      <test>get_preset() returns correct preset by name</test>
+      <test>list_presets() returns all preset metadata</test>
+      <test>Dropdown renders all preset options</test>
+      <test>Confirmation dialog appears when selecting preset with custom settings</test>
+      <test>Preset detection identifies matching preset correctly</test>
+      <test>Settings are populated correctly when preset applied</test>
+      <test>"Custom" indicator appears after any setting modification</test>
+      <test>GET /kb-presets returns valid preset list</test>
+    </ideas>
+  </tests>
+</story-context>

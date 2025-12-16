@@ -1,30 +1,48 @@
 """Document upload API endpoints."""
 
+import io
 import math
+from datetime import datetime
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status as http_status
 
-from app.core.auth import current_active_user
+from app.core.auth import current_active_user, get_current_operator
 from app.core.database import get_async_session
+from app.core.redis import get_redis_client
 from app.models.document import Document
 from app.models.permission import PermissionLevel
 from app.models.user import User
 from app.schemas.document import (
+    ArchiveResponse,
+    BulkPurgeRequest,
+    BulkPurgeResponse,
+    CancelResponse,
+    ClearResponse,
+    DocumentChunksResponse,
+    DocumentContentResponse,
     DocumentDetailResponse,
+    DocumentStatus,
     DocumentStatusResponse,
     DocumentUploadResponse,
     DuplicateCheckResponse,
+    MarkdownContentResponse,
     PaginatedDocumentResponse,
+    PurgeResponse,
+    ReplaceResponse,
+    RestoreResponse,
     RetryResponse,
     SortField,
     SortOrder,
     UploadErrorResponse,
 )
+from app.services.chunk_service import ChunkService, ChunkServiceError
 from app.services.document_service import DocumentService, DocumentValidationError
 from app.services.kb_service import KBService
 from app.workers.parsed_content_storage import load_parsed_content
@@ -51,10 +69,26 @@ async def list_documents(
         default=SortField.CREATED_AT, description="Field to sort by"
     ),
     sort_order: SortOrder = Query(default=SortOrder.DESC, description="Sort direction"),
+    search: str | None = Query(
+        default=None, max_length=200, description="Search in document name and filename"
+    ),
+    status: DocumentStatus | None = Query(
+        default=None, description="Filter by document status"
+    ),
+    mime_type: str | None = Query(default=None, description="Filter by MIME type"),
+    tags: list[str] | None = Query(
+        default=None, description="Filter by tags (documents must have all specified)"
+    ),
+    date_from: datetime | None = Query(
+        default=None, description="Filter documents created on or after this date"
+    ),
+    date_to: datetime | None = Query(
+        default=None, description="Filter documents created on or before this date"
+    ),
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> PaginatedDocumentResponse:
-    """List documents in a Knowledge Base with pagination and sorting.
+    """List documents in a Knowledge Base with pagination, sorting, and filtering.
 
     Returns a paginated list of documents with summary information including
     uploader email and status. Documents are sorted by the specified field.
@@ -66,6 +100,12 @@ async def list_documents(
     - limit: Documents per page (default 20, max 100)
     - sort_by: Sort field (name, created_at, file_size_bytes, status)
     - sort_order: Sort direction (asc, desc)
+    - search: Search string to filter by name or filename
+    - status: Filter by document status (PENDING, PROCESSING, READY, FAILED, ARCHIVED)
+    - mime_type: Filter by MIME type
+    - tags: Filter by tags (documents must have all specified tags)
+    - date_from: Filter documents created on or after this date
+    - date_to: Filter documents created on or before this date
 
     **Response:**
     - data: Array of document summaries
@@ -84,6 +124,12 @@ async def list_documents(
             limit=limit,
             sort_by=sort_by.value,
             sort_order=sort_order.value,
+            search=search,
+            status=status.value if status else None,
+            mime_type=mime_type,
+            tags=tags,
+            date_from=date_from,
+            date_to=date_to,
         )
 
         total_pages = math.ceil(total / limit) if total > 0 else 1
@@ -98,7 +144,7 @@ async def list_documents(
 
     except DocumentValidationError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Knowledge Base not found",
         ) from None
 
@@ -137,7 +183,7 @@ async def check_duplicate(
 
     except DocumentValidationError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Knowledge Base not found",
         ) from None
 
@@ -186,7 +232,7 @@ async def get_document(
 
     except DocumentValidationError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         ) from None
 
@@ -194,7 +240,7 @@ async def get_document(
 @router.post(
     "/knowledge-bases/{kb_id}/documents",
     response_model=DocumentUploadResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=http_status.HTTP_202_ACCEPTED,
     responses={
         400: {
             "model": UploadErrorResponse,
@@ -212,7 +258,11 @@ async def get_document(
 async def upload_document(
     kb_id: UUID,
     file: UploadFile = File(..., description="Document file to upload"),
-    current_user: User = Depends(current_active_user),
+    tags: list[str] | None = Query(
+        default=None,
+        description="Optional tags for the document (max 10, each max 50 chars)",
+    ),
+    current_user: User = Depends(get_current_operator),
     session: AsyncSession = Depends(get_async_session),
 ) -> DocumentUploadResponse:
     """Upload a document to a Knowledge Base.
@@ -231,6 +281,8 @@ async def upload_document(
 
     **Permissions:** Requires WRITE permission on the Knowledge Base.
 
+    **Optional tags:** You can provide tags during upload (max 10 tags, each max 50 chars).
+
     **Error responses:**
     - 400: Unsupported file type or empty file
     - 404: KB not found or no permission (security through obscurity)
@@ -239,7 +291,14 @@ async def upload_document(
     doc_service = DocumentService(session)
 
     try:
-        document = await doc_service.upload(kb_id, file, current_user)
+        document, auto_cleared_id = await doc_service.upload(
+            kb_id, file, current_user, tags=tags
+        )
+
+        # Build response with optional auto-clear message
+        message = None
+        if auto_cleared_id:
+            message = "Previous failed upload was automatically cleared"
 
         return DocumentUploadResponse(
             id=document.id,
@@ -248,7 +307,10 @@ async def upload_document(
             mime_type=document.mime_type,
             file_size_bytes=document.file_size_bytes,
             status=document.status,
+            tags=document.tags or [],
             created_at=document.created_at,
+            auto_cleared_document_id=auto_cleared_id,
+            message=message,
         )
 
     except DocumentValidationError as e:
@@ -263,13 +325,13 @@ async def upload_document(
         if e.status_code == 404:
             # Don't leak error details for 404
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Knowledge Base not found",
             ) from None
 
         if e.status_code == 413:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=http_status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail={
                     "error": {
                         "code": e.code,
@@ -336,14 +398,14 @@ async def get_document_status(
 
     except DocumentValidationError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         ) from None
 
 
 @router.delete(
     "/knowledge-bases/{kb_id}/documents/{doc_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=http_status.HTTP_204_NO_CONTENT,
     responses={
         400: {"description": "Document is in PROCESSING status or already deleted"},
         404: {"description": "Document or Knowledge Base not found"},
@@ -352,7 +414,7 @@ async def get_document_status(
 async def delete_document(
     kb_id: UUID,
     doc_id: UUID,
-    current_user: User = Depends(current_active_user),
+    current_user: User = Depends(get_current_operator),
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
     """Delete a document from a Knowledge Base (soft delete).
@@ -383,13 +445,13 @@ async def delete_document(
 
         if e.status_code == 404:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
             ) from None
 
         # 400 Bad Request for PROCESSING or already deleted
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": {
                     "code": e.code,
@@ -444,7 +506,7 @@ async def get_document_content_range(
         if not row:
             # Document not found
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
             )
 
@@ -458,7 +520,7 @@ async def get_document_content_range(
         if not has_permission:
             # Security: Return 404 instead of 403 to not leak document existence
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
             )
 
@@ -467,7 +529,7 @@ async def get_document_content_range(
 
         if not parsed or not parsed.text:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Document content not available",
             )
 
@@ -476,13 +538,13 @@ async def get_document_content_range(
         # Validate range
         if start > len(content) or end > len(content) or start < 0 or end < 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="Invalid character range",
             )
 
         if start > end:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="Start position must be less than or equal to end position",
             )
 
@@ -499,7 +561,7 @@ async def get_document_content_range(
             user_id=str(current_user.id),
         )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve document content",
         ) from None
 
@@ -507,7 +569,7 @@ async def get_document_content_range(
 @router.post(
     "/knowledge-bases/{kb_id}/documents/{doc_id}/retry",
     response_model=RetryResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=http_status.HTTP_202_ACCEPTED,
     responses={
         400: {"description": "Document is not in FAILED status"},
         404: {"description": "Document or Knowledge Base not found"},
@@ -551,13 +613,77 @@ async def retry_document_processing(
 
         if e.status_code == 404:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
             ) from None
 
         # 400 Bad Request for invalid status
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/cancel",
+    response_model=CancelResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        400: {"description": "Document is not in PROCESSING or PENDING status"},
+        404: {"description": "Document or Knowledge Base not found"},
+    },
+)
+async def cancel_document_processing(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> CancelResponse:
+    """Cancel processing of a document.
+
+    Marks a PROCESSING or PENDING document as FAILED so it can be
+    retried later or deleted.
+
+    **Permissions:** Requires WRITE permission on the Knowledge Base.
+
+    **Response:** 200 OK on success.
+
+    **Error responses:**
+    - 400: Document is not in PROCESSING or PENDING status
+    - 404: Document or KB not found (security through obscurity)
+    """
+    doc_service = DocumentService(session)
+
+    try:
+        await doc_service.cancel(kb_id, doc_id, current_user)
+
+        return CancelResponse(message="Document processing cancelled")
+
+    except DocumentValidationError as e:
+        logger.warning(
+            "document_cancel_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error_code=e.code,
+            error_message=e.message,
+            user_id=str(current_user.id),
+        )
+
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            ) from None
+
+        # 400 Bad Request for invalid status
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": {
                     "code": e.code,
@@ -571,7 +697,7 @@ async def retry_document_processing(
 @router.post(
     "/knowledge-bases/{kb_id}/documents/{doc_id}/reupload",
     response_model=DocumentUploadResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=http_status.HTTP_202_ACCEPTED,
     responses={
         400: {
             "model": UploadErrorResponse,
@@ -638,13 +764,13 @@ async def reupload_document(
 
         if e.status_code == 404:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
             ) from None
 
         if e.status_code == 413:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=http_status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail={
                     "error": {
                         "code": e.code,
@@ -664,4 +790,969 @@ async def reupload_document(
                     "details": e.details,
                 }
             },
+        ) from None
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/archive",
+    response_model=ArchiveResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        400: {"description": "Document is not in READY status or already archived"},
+        404: {"description": "Document or Knowledge Base not found"},
+    },
+)
+async def archive_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(get_current_operator),
+    session: AsyncSession = Depends(get_async_session),
+) -> ArchiveResponse:
+    """Archive a completed document (soft-delete without removing data).
+
+    This endpoint marks a document as archived, which:
+    - Sets the archived_at timestamp
+    - Updates Qdrant payload to exclude from search results
+    - Logs an audit event
+
+    Only documents with READY status can be archived.
+    Archived documents remain in storage but are excluded from searches.
+
+    Args:
+        kb_id: Knowledge base UUID
+        doc_id: Document UUID
+        current_user: Authenticated user (requires WRITE permission)
+        session: Database session
+
+    Returns:
+        ArchiveResponse with success message and timestamp
+
+    Raises:
+        404: Document or KB not found
+        400: Document is not READY or already archived
+    """
+    document_service = DocumentService(session)
+
+    try:
+        document = await document_service.archive(
+            kb_id=kb_id,
+            doc_id=doc_id,
+            user=current_user,
+        )
+        return ArchiveResponse(
+            message="Document archived successfully",
+            archived_at=document.archived_at,
+        )
+    except DocumentValidationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/restore",
+    response_model=RestoreResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        400: {"description": "Document is not archived"},
+        404: {"description": "Document or Knowledge Base not found"},
+    },
+)
+async def restore_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(get_current_operator),
+    session: AsyncSession = Depends(get_async_session),
+) -> RestoreResponse:
+    """Restore an archived document (Story 6-2).
+
+    This endpoint restores an archived document, which:
+    - Clears the archived_at timestamp
+    - Updates Qdrant payload to include in search results again
+    - Logs an audit event
+
+    Only archived documents can be restored.
+
+    Args:
+        kb_id: Knowledge base UUID
+        doc_id: Document UUID
+        current_user: Authenticated user (requires WRITE permission)
+        session: Database session
+
+    Returns:
+        RestoreResponse with success message and timestamp
+
+    Raises:
+        404: Document or KB not found
+        400: Document is not archived
+    """
+    document_service = DocumentService(session)
+
+    try:
+        document = await document_service.restore(
+            kb_id=kb_id,
+            doc_id=doc_id,
+            user=current_user,
+        )
+        return RestoreResponse(
+            message="Document restored successfully",
+            restored_at=document.updated_at,
+        )
+    except DocumentValidationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+@router.delete(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/purge",
+    response_model=PurgeResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        400: {"description": "Document is not archived (must archive first)"},
+        404: {"description": "Document or Knowledge Base not found"},
+    },
+)
+async def purge_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(get_current_operator),
+    session: AsyncSession = Depends(get_async_session),
+) -> PurgeResponse:
+    """Permanently delete an archived document (Story 6-3).
+
+    This endpoint permanently deletes an archived document:
+    - Deletes vectors from Qdrant
+    - Deletes file from MinIO
+    - Hard deletes database record
+    - Logs an audit event
+
+    Only archived documents can be purged. This action is irreversible.
+
+    Args:
+        kb_id: Knowledge base UUID
+        doc_id: Document UUID
+        current_user: Authenticated user (requires ADMIN permission or KB owner)
+        session: Database session
+
+    Returns:
+        PurgeResponse with success message
+
+    Raises:
+        404: Document or KB not found
+        400: Document is not archived
+    """
+    document_service = DocumentService(session)
+
+    try:
+        await document_service.purge_document(
+            kb_id=kb_id,
+            doc_id=doc_id,
+            user=current_user,
+        )
+        return PurgeResponse(message="Document permanently deleted")
+    except DocumentValidationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/bulk-purge",
+    response_model=BulkPurgeResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        404: {"description": "Knowledge Base not found"},
+    },
+)
+async def bulk_purge_documents(
+    kb_id: UUID,
+    request: BulkPurgeRequest,
+    current_user: User = Depends(get_current_operator),
+    session: AsyncSession = Depends(get_async_session),
+) -> BulkPurgeResponse:
+    """Permanently delete multiple archived documents (Story 6-3).
+
+    This endpoint permanently deletes multiple archived documents at once.
+    Non-archived documents in the list will be skipped.
+
+    Args:
+        kb_id: Knowledge base UUID
+        request: BulkPurgeRequest containing list of document IDs
+        current_user: Authenticated user (requires ADMIN permission or KB owner)
+        session: Database session
+
+    Returns:
+        BulkPurgeResponse with purged count and skipped IDs
+
+    Raises:
+        404: KB not found
+    """
+    document_service = DocumentService(session)
+
+    try:
+        result = await document_service.bulk_purge(
+            kb_id=kb_id,
+            document_ids=request.document_ids,
+            user=current_user,
+        )
+        return BulkPurgeResponse(
+            message=f"Purged {result['purged']} documents",
+            purged=result["purged"],
+            skipped=result["skipped"],
+            skipped_ids=result["skipped_ids"],
+        )
+    except DocumentValidationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+@router.delete(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/clear",
+    response_model=ClearResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        400: {"description": "Document is not in FAILED status"},
+        404: {"description": "Document or Knowledge Base not found"},
+    },
+)
+async def clear_failed_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(get_current_operator),
+    session: AsyncSession = Depends(get_async_session),
+) -> ClearResponse:
+    """Clear a failed document from the system (Story 6-4).
+
+    This endpoint removes a failed document:
+    - Deletes any partial vectors from Qdrant
+    - Deletes uploaded file from MinIO
+    - Hard deletes database record
+    - Logs an audit event
+
+    Only documents with FAILED status can be cleared.
+
+    Args:
+        kb_id: Knowledge base UUID
+        doc_id: Document UUID
+        current_user: Authenticated user (requires WRITE permission)
+        session: Database session
+
+    Returns:
+        ClearResponse with success message
+
+    Raises:
+        404: Document or KB not found
+        400: Document is not in FAILED status
+    """
+    document_service = DocumentService(session)
+
+    try:
+        await document_service.clear_failed_document(
+            kb_id=kb_id,
+            doc_id=doc_id,
+            user=current_user,
+        )
+        return ClearResponse(message="Failed document cleared successfully")
+    except DocumentValidationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/replace",
+    response_model=ReplaceResponse,
+    status_code=http_status.HTTP_200_OK,
+    responses={
+        400: {
+            "description": "Document is in PROCESSING status or validation error",
+        },
+        404: {"description": "Document or Knowledge Base not found"},
+        413: {"description": "File too large (max 50MB)"},
+    },
+)
+async def replace_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    file: UploadFile = File(..., description="New document file"),
+    current_user: User = Depends(get_current_operator),
+    session: AsyncSession = Depends(get_async_session),
+) -> ReplaceResponse:
+    """Replace an existing document with a new file (Story 6-6).
+
+    This endpoint performs an atomic replace operation:
+    - Deletes old vectors from Qdrant
+    - Deletes old file from MinIO
+    - Uploads new file to MinIO
+    - Updates document metadata (preserves ID, created_at, tags)
+    - Sets status to PENDING for reprocessing
+    - Queues new Celery task
+    - Logs an audit event
+
+    Cannot replace while document is in PROCESSING status.
+
+    Args:
+        kb_id: Knowledge base UUID
+        doc_id: Document UUID
+        file: New document file (multipart/form-data)
+        current_user: Authenticated user (requires WRITE permission)
+        session: Database session
+
+    Returns:
+        ReplaceResponse with updated document details
+
+    Raises:
+        404: Document or KB not found
+        400: Document is in PROCESSING status
+        413: File exceeds 50MB limit
+    """
+    document_service = DocumentService(session)
+
+    try:
+        document = await document_service.replace_document(
+            kb_id=kb_id,
+            doc_id=doc_id,
+            file=file,
+            user=current_user,
+        )
+        return ReplaceResponse(
+            id=document.id,
+            name=document.name,
+            status=document.status,
+            message="Document replaced and queued for processing",
+        )
+    except DocumentValidationError as e:
+        logger.warning(
+            "document_replace_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error_code=e.code,
+            error_message=e.message,
+            user_id=str(current_user.id),
+        )
+
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            ) from None
+
+        if e.status_code == 413:
+            raise HTTPException(
+                status_code=http_status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail={
+                    "error": {
+                        "code": e.code,
+                        "message": e.message,
+                        "details": e.details,
+                    }
+                },
+            ) from None
+
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={
+                "error": {
+                    "code": e.code,
+                    "message": e.message,
+                    "details": e.details,
+                }
+            },
+        ) from None
+
+
+# Story 5-25: Document Chunk Viewer Backend
+
+
+@router.get(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/chunks",
+    response_model=DocumentChunksResponse,
+    responses={
+        404: {"description": "Document or Knowledge Base not found"},
+        500: {"description": "Failed to retrieve chunks from Qdrant"},
+    },
+)
+async def get_document_chunks(
+    kb_id: UUID,
+    doc_id: UUID,
+    cursor: int = Query(
+        default=0, ge=0, description="Starting chunk_index for pagination"
+    ),
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum chunks to return (max 100)"
+    ),
+    search: str | None = Query(
+        default=None,
+        max_length=500,
+        description="Optional search query to filter and rank chunks by relevance",
+    ),
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+    redis_client: Redis = Depends(get_redis_client),
+) -> DocumentChunksResponse:
+    """Get paginated chunks for a document (Story 5-25).
+
+    Returns document chunks from Qdrant with cursor-based pagination.
+    Optionally filter and rank chunks by semantic search query.
+
+    **AC-5.25.1:** Returns chunk_id, chunk_index, text, char_start, char_end,
+                   page_number, section_header for each chunk.
+
+    **AC-5.25.2:** Cursor-based pagination using chunk_index.
+
+    **AC-5.25.3:** Search with query embedding and relevance score.
+
+    **Permissions:** Requires READ permission on the Knowledge Base.
+
+    **Query Parameters:**
+    - cursor: Starting chunk_index (0-indexed, default 0)
+    - limit: Max chunks per page (default 50, max 100)
+    - search: Optional search query for semantic filtering
+
+    **Response:**
+    - chunks: Array of chunk objects
+    - total: Total chunk count for document
+    - has_more: Whether more chunks exist
+    - next_cursor: Next chunk_index for pagination (null if no more)
+    """
+    kb_service = KBService(session)
+
+    try:
+        # First verify KB exists and user has permission
+        has_permission = await kb_service.check_permission(
+            kb_id, current_user, PermissionLevel.READ
+        )
+
+        if not has_permission:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Knowledge Base not found",
+            )
+
+        # Verify document exists in this KB
+        result = await session.execute(
+            select(Document.id).where(
+                Document.id == doc_id,
+                Document.kb_id == kb_id,
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+
+        # Get chunks from Qdrant
+        # Story 7-17: Pass session and redis for KB-aware embedding model resolution
+        chunk_service = ChunkService(kb_id, session=session, redis=redis_client)
+        chunks_response = await chunk_service.get_chunks(
+            document_id=doc_id,
+            cursor=cursor,
+            limit=limit,
+            search_query=search,
+        )
+
+        return chunks_response
+
+    except HTTPException:
+        raise
+    except ChunkServiceError as e:
+        logger.error(
+            "get_document_chunks_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error=e.message,
+            error_code=e.code,
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document chunks",
+        ) from None
+    except Exception as e:
+        logger.error(
+            "get_document_chunks_unexpected_error",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error=str(e),
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document chunks",
+        ) from None
+
+
+@router.get(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/full-content",
+    response_model=DocumentContentResponse,
+    responses={
+        404: {"description": "Document or Knowledge Base not found"},
+        400: {"description": "Document content not available"},
+    },
+)
+async def get_document_full_content(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> DocumentContentResponse:
+    """Get full document content with optional HTML rendering (Story 5-25).
+
+    Returns the complete document text content along with MIME type.
+    For DOCX documents, also returns an HTML rendering using mammoth.
+
+    **AC-5.25.4:** Returns text, mime_type, and html (for DOCX only).
+
+    **Permissions:** Requires READ permission on the Knowledge Base.
+
+    **Response:**
+    - text: Full document text content
+    - mime_type: Document MIME type (e.g., "application/pdf")
+    - html: HTML rendering for DOCX documents (null for other types)
+    """
+    kb_service = KBService(session)
+
+    try:
+        # Verify KB permission
+        has_permission = await kb_service.check_permission(
+            kb_id, current_user, PermissionLevel.READ
+        )
+
+        if not has_permission:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Knowledge Base not found",
+            )
+
+        # Get document to verify it exists and get mime_type
+        result = await session.execute(
+            select(Document.id, Document.mime_type, Document.file_path).where(
+                Document.id == doc_id,
+                Document.kb_id == kb_id,
+            )
+        )
+        row = result.one_or_none()
+
+        if not row:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+
+        _doc_id, mime_type, file_path = row
+
+        # Try to load parsed content from storage first
+        parsed = await load_parsed_content(kb_id, doc_id)
+        text_content = parsed.text if parsed else None
+
+        # If parsed content not available, try to reconstruct from chunks
+        if not text_content:
+            chunk_service = ChunkService(kb_id)
+            try:
+                chunks_response = await chunk_service.get_chunks(
+                    document_id=doc_id,
+                    cursor=0,
+                    limit=10000,  # Get all chunks
+                )
+                if chunks_response and chunks_response.chunks:
+                    # Concatenate chunk text to reconstruct document text
+                    text_content = "\n\n".join(
+                        chunk.text for chunk in chunks_response.chunks if chunk.text
+                    )
+                    logger.info(
+                        "document_content_reconstructed_from_chunks",
+                        kb_id=str(kb_id),
+                        doc_id=str(doc_id),
+                        chunk_count=len(chunks_response.chunks),
+                    )
+            except ChunkServiceError:
+                pass  # Chunks not available, continue
+
+        # For DOCX files, generate HTML using mammoth (works even if text_content is empty)
+        html_content = None
+        if (
+            mime_type
+            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ):
+            html_content = await _convert_docx_to_html(kb_id, doc_id, file_path)
+            # If we have HTML but no text, try to extract text from chunks as fallback
+            if html_content and not text_content:
+                # Use HTML content as fallback text (stripped of tags for basic viewing)
+                import re
+
+                text_content = (
+                    re.sub(r"<[^>]+>", "", html_content) if html_content else None
+                )
+
+        # If still no content available, return error
+        if not text_content and not html_content:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Document content not available",
+            )
+
+        return DocumentContentResponse(
+            text=text_content or "",
+            mime_type=mime_type,
+            html=html_content,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "get_document_full_content_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error=str(e),
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document content",
+        ) from None
+
+
+async def _convert_docx_to_html(
+    kb_id: UUID, doc_id: UUID, file_path: str | None
+) -> str | None:
+    """Convert DOCX document to HTML using mammoth.
+
+    Downloads the DOCX file from MinIO and converts it to HTML.
+
+    Args:
+        kb_id: Knowledge base UUID
+        doc_id: Document UUID
+        file_path: Path to file in MinIO
+
+    Returns:
+        HTML string or None if conversion fails
+    """
+    if not file_path:
+        return None
+
+    try:
+        import io
+
+        import mammoth
+
+        from app.integrations.minio_client import minio_service
+
+        # Extract object path from file_path (format: kb-{uuid}/{object_path})
+        # file_path is stored as "kb-{kb_id}/{doc_id}/{filename}"
+        path_parts = file_path.split("/", 1)
+        if len(path_parts) != 2:
+            logger.warning(
+                "docx_invalid_file_path",
+                kb_id=str(kb_id),
+                doc_id=str(doc_id),
+                file_path=file_path,
+            )
+            return None
+        object_path = path_parts[1]
+
+        # Download DOCX file from MinIO
+        file_bytes = await minio_service.download_file(kb_id, object_path)
+
+        if not file_bytes:
+            logger.warning(
+                "docx_download_failed",
+                kb_id=str(kb_id),
+                doc_id=str(doc_id),
+                file_path=file_path,
+            )
+            return None
+
+        # Convert to HTML using mammoth
+        file_stream = io.BytesIO(file_bytes)
+        result = mammoth.convert_to_html(file_stream)
+
+        if result.messages:
+            for msg in result.messages:
+                logger.debug(
+                    "mammoth_conversion_message",
+                    doc_id=str(doc_id),
+                    message=str(msg),
+                )
+
+        return result.value
+
+    except Exception as e:
+        logger.error(
+            "docx_to_html_conversion_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error=str(e),
+        )
+        return None
+
+
+@router.get(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/download",
+    responses={
+        404: {"description": "Document or Knowledge Base not found"},
+        400: {"description": "Document file not available"},
+    },
+)
+async def download_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> StreamingResponse:
+    """Download the original document file (Story 5-26).
+
+    Returns the original document file for rendering in viewers (e.g., PDF.js).
+    Supports PDF, DOCX, and other file types.
+
+    **AC-5.26.4:** Enables content pane to render documents based on type.
+
+    **Permissions:** Requires READ permission on the Knowledge Base.
+
+    **Response:**
+    - StreamingResponse with appropriate Content-Type and Content-Disposition headers
+    """
+    from app.integrations.minio_client import minio_service
+
+    kb_service = KBService(session)
+
+    try:
+        # Verify KB permission
+        has_permission = await kb_service.check_permission(
+            kb_id, current_user, PermissionLevel.READ
+        )
+
+        if not has_permission:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Knowledge Base not found",
+            )
+
+        # Get document to verify it exists and get file info
+        result = await session.execute(
+            select(
+                Document.id,
+                Document.file_path,
+                Document.mime_type,
+                Document.original_filename,
+            ).where(
+                Document.id == doc_id,
+                Document.kb_id == kb_id,
+            )
+        )
+        row = result.one_or_none()
+
+        if not row:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+
+        _doc_id, file_path, mime_type, original_filename = row
+
+        if not file_path:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Document file not available",
+            )
+
+        # Extract object path from file_path (format: kb-{uuid}/{object_path})
+        # file_path is stored as "kb-{kb_id}/{doc_id}/{filename}"
+        path_parts = file_path.split("/", 1)
+        if len(path_parts) != 2:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file path format",
+            )
+        object_path = path_parts[1]
+
+        # Download file from MinIO
+        file_bytes = await minio_service.download_file(kb_id, object_path)
+
+        if not file_bytes:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Document file not available",
+            )
+
+        # Create streaming response
+        file_stream = io.BytesIO(file_bytes)
+
+        # Determine content type
+        content_type = mime_type or "application/octet-stream"
+
+        # Set filename for Content-Disposition
+        filename = original_filename or f"document_{doc_id}"
+
+        return StreamingResponse(
+            file_stream,
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "Content-Length": str(len(file_bytes)),
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "download_document_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error=str(e),
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to download document",
+        ) from None
+
+
+@router.get(
+    "/knowledge-bases/{kb_id}/documents/{doc_id}/markdown-content",
+    response_model=MarkdownContentResponse,
+    responses={
+        400: {"description": "Document is still processing"},
+        403: {"description": "Forbidden - no read access"},
+        404: {"description": "Document or markdown not found"},
+    },
+)
+async def get_markdown_content(
+    kb_id: UUID,
+    doc_id: UUID,
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> MarkdownContentResponse:
+    """Get markdown content for a document (Story 7-29).
+
+    Used by chunk viewer for precise character-based highlighting.
+    Returns the generated markdown content from document parsing.
+
+    **AC-7.29.1:** Returns markdown_content and generated_at for valid documents.
+    **AC-7.29.2:** Returns 404 if markdown content not available (older documents).
+    **AC-7.29.3:** Returns 400 if document is still processing.
+    **AC-7.29.5:** Returns 403 if user lacks read permission on KB.
+
+    **Permissions:** Requires READ permission on the Knowledge Base.
+    """
+    kb_service = KBService(session)
+
+    try:
+        # AC-7.29.5: Verify KB permission
+        has_permission = await kb_service.check_permission(
+            kb_id, current_user, PermissionLevel.READ
+        )
+
+        if not has_permission:
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="No read access to this Knowledge Base",
+            )
+
+        # Get document to verify it exists and check status
+        result = await session.execute(
+            select(
+                Document.id,
+                Document.status,
+                Document.processing_completed_at,
+            ).where(
+                Document.id == doc_id,
+                Document.kb_id == kb_id,
+            )
+        )
+        row = result.one_or_none()
+
+        if not row:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+
+        _doc_id, doc_status, processing_completed_at = row
+
+        # AC-7.29.3: Check if document is still processing
+        if doc_status in ("PENDING", "PROCESSING"):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Document is still processing",
+            )
+
+        # Load parsed content from MinIO
+        parsed_content = await load_parsed_content(kb_id, doc_id)
+
+        # AC-7.29.2: Check markdown availability
+        if not parsed_content or not parsed_content.markdown_content:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Markdown content not available for this document",
+            )
+
+        # AC-7.29.4: Return response with markdown content
+        # Use processing_completed_at as the generation timestamp
+        generated_at = processing_completed_at
+
+        # Fallback to current time if no timestamp available
+        if not generated_at:
+            from datetime import UTC
+
+            generated_at = datetime.now(UTC)
+
+        return MarkdownContentResponse(
+            document_id=doc_id,
+            markdown_content=parsed_content.markdown_content,
+            generated_at=generated_at,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "get_markdown_content_failed",
+            kb_id=str(kb_id),
+            doc_id=str(doc_id),
+            error=str(e),
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve markdown content",
         ) from None

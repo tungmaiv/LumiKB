@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-id>9-10</story-id>
+    <story-name>Document Timeline UI</story-name>
+    <epic-id>9</epic-id>
+    <epic-name>Hybrid Observability Platform</epic-name>
+    <phase>Phase 3: API & UI</phase>
+    <story-type>frontend</story-type>
+    <priority>high</priority>
+    <estimated-complexity>medium</estimated-complexity>
+  </metadata>
+
+  <story-summary>
+    Create a React component showing the document processing timeline with step-by-step visualization
+    of upload, parse, chunk, embed, and index stages. This enables system administrators to quickly
+    identify which processing step failed or took longer than expected for troubleshooting document
+    ingestion issues.
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC1">Access via "View Processing" button in document detail modal</criterion>
+    <criterion id="AC2">Timeline visualization shows all processing steps in vertical layout</criterion>
+    <criterion id="AC3">Each step shows status icon (pending=gray, in-progress=blue spinner, completed=green check, failed=red X)</criterion>
+    <criterion id="AC4">Step duration displayed in human-readable format (e.g., "2.3s", "45ms")</criterion>
+    <criterion id="AC5">Click step to see detailed metrics (chunks created, vectors generated, etc.)</criterion>
+    <criterion id="AC6">Error steps show error type and full error message</criterion>
+    <criterion id="AC7">Retry count visible for failed steps that were retried</criterion>
+    <criterion id="AC8">Total processing time summarized at top of timeline</criterion>
+    <criterion id="AC9">Responsive design for modal display</criterion>
+    <criterion id="AC10">Unit tests for timeline rendering and interactions</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" status="pending">Create timeline container component (AC: #2, #8)</task>
+    <task id="2" status="pending">Create timeline step component (AC: #3, #4, #7)</task>
+    <task id="3" status="pending">Create step detail panel (AC: #5, #6)</task>
+    <task id="4" status="pending">Create status icon component (AC: #3)</task>
+    <task id="5" status="pending">Create modal integration (AC: #1)</task>
+    <task id="6" status="pending">Create custom hook for timeline data (AC: #9)</task>
+    <task id="7" status="pending">Implement loading and error states (AC: #9)</task>
+    <task id="8" status="pending">Write unit tests (AC: #10)</task>
+  </tasks>
+
+  <dependencies>
+    <dependency type="story" required="true">
+      <id>9-7</id>
+      <name>Observability Admin API</name>
+      <reason>Provides REST endpoint: GET /documents/{document_id}/timeline</reason>
+    </dependency>
+    <dependency type="story" required="true">
+      <id>9-4</id>
+      <name>Document Processing Instrumentation</name>
+      <reason>Records DocumentEvent for each processing step</reason>
+    </dependency>
+    <dependency type="library" required="true">
+      <name>@tanstack/react-query</name>
+      <version>^5.0.0</version>
+      <reason>Server state management with polling for in-progress documents</reason>
+    </dependency>
+    <dependency type="library" required="true">
+      <name>lucide-react</name>
+      <reason>Icon library for status indicators (Circle, Check, X, Loader2)</reason>
+    </dependency>
+    <dependency type="component" required="true">
+      <path>frontend/src/components/documents/document-detail-modal.tsx</path>
+      <reason>Integration point for "View Processing" button</reason>
+    </dependency>
+  </dependencies>
+
+  <technical-context>
+    <architecture-pattern>
+      <name>Component Composition</name>
+      <description>Timeline composed of step components for maintainability</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Collapsible Details</name>
+      <description>Click step to expand/collapse metrics panel</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Polling Pattern</name>
+      <description>Auto-refresh while processing is in-progress using refetchInterval</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Modal Integration</name>
+      <description>Embedded in existing document detail modal flow</description>
+    </architecture-pattern>
+
+    <key-decisions>
+      <decision>
+        <topic>Timeline Layout</topic>
+        <choice>Vertical layout with connector line</choice>
+        <rationale>Clear step sequence visualization, works well in modal</rationale>
+      </decision>
+      <decision>
+        <topic>Status Icons</topic>
+        <choice>Lucide icons with consistent sizing</choice>
+        <rationale>Consistency with rest of UI, good accessibility</rationale>
+      </decision>
+      <decision>
+        <topic>Duration Formatting</topic>
+        <choice>Human-readable format (45ms, 2.3s, 1m 30s)</choice>
+        <rationale>Easier to read than raw milliseconds</rationale>
+      </decision>
+      <decision>
+        <topic>Auto-Refresh</topic>
+        <choice>2-second polling interval while status != completed/failed</choice>
+        <rationale>Real-time updates without excessive API calls</rationale>
+      </decision>
+    </key-decisions>
+
+    <api-endpoints>
+      <endpoint method="GET" path="/api/v1/observability/documents/{document_id}/timeline">
+        <description>Get document processing events timeline</description>
+        <response>DocumentTimelineResponse with events[], total_duration_ms</response>
+      </endpoint>
+    </api-endpoints>
+
+    <data-types>
+      <type name="DocumentEventItem">
+        <field name="id" type="string">Event UUID</field>
+        <field name="trace_id" type="string">W3C Trace ID for correlation</field>
+        <field name="step_name" type="string">upload, parse, chunk, embed, index</field>
+        <field name="status" type="string">started, completed, failed</field>
+        <field name="started_at" type="datetime">Step start timestamp</field>
+        <field name="ended_at" type="datetime | null">Step end timestamp</field>
+        <field name="duration_ms" type="number | null">Step duration in ms</field>
+        <field name="retry_count" type="number">Number of retries</field>
+        <field name="metrics" type="object | null">Step-specific metrics</field>
+        <field name="error_message" type="string | null">Error details if failed</field>
+      </type>
+      <type name="StepMetrics">
+        <description>Type-specific metrics per processing step</description>
+        <field name="upload">file_size, mime_type</field>
+        <field name="parse">pages_extracted, text_length, parser_used</field>
+        <field name="chunk">chunks_created, avg_chunk_size</field>
+        <field name="embed">vectors_generated, embedding_model</field>
+        <field name="index">points_indexed, collection_name</field>
+      </type>
+    </data-types>
+  </technical-context>
+
+  <source-tree-components>
+    <new-files>
+      <file path="frontend/src/components/admin/documents/processing-timeline.tsx" purpose="Main timeline component" />
+      <file path="frontend/src/components/admin/documents/timeline-step.tsx" purpose="Individual step" />
+      <file path="frontend/src/components/admin/documents/step-detail.tsx" purpose="Step metrics" />
+      <file path="frontend/src/components/admin/documents/status-icon.tsx" purpose="Status icons" />
+      <file path="frontend/src/components/admin/documents/__tests__/processing-timeline.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/components/admin/documents/__tests__/timeline-step.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/components/admin/documents/__tests__/step-detail.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/hooks/useDocumentTimeline.ts" purpose="Data fetching hook with polling" />
+    </new-files>
+    <modified-files>
+      <file path="frontend/src/components/documents/document-detail-modal.tsx" change="Add 'View Processing' button" />
+    </modified-files>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="Timeline Container">
+      <description>Main timeline component with vertical connector line</description>
+      <example><![CDATA[
+import { TimelineStep } from "./timeline-step";
+import { useDocumentTimeline } from "@/hooks/useDocumentTimeline";
+import { formatDuration } from "@/lib/utils";
+
+interface ProcessingTimelineProps {
+  documentId: string;
+}
+
+export function ProcessingTimeline({ documentId }: ProcessingTimelineProps) {
+  const { data, isLoading, error } = useDocumentTimeline(documentId);
+
+  if (isLoading) return <TimelineSkeleton />;
+  if (error) return <TimelineError error={error} />;
+
+  const { events, total_duration_ms } = data;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary header */}
+      <div className="flex items-center justify-between border-b pb-2">
+        <h3 className="font-medium">Processing Timeline</h3>
+        <span className="text-sm text-muted-foreground">
+          Total: {formatDuration(total_duration_ms)}
+        </span>
+      </div>
+
+      {/* Timeline steps */}
+      <div className="relative pl-6">
+        {/* Vertical connector line */}
+        <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
+
+        <div className="space-y-4">
+          {events.map((event, index) => (
+            <TimelineStep
+              key={event.id}
+              event={event}
+              isLast={index === events.length - 1}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Timeline Step">
+      <description>Individual step with status icon and expandable details</description>
+      <example><![CDATA[
+import { useState } from "react";
+import { StatusIcon } from "./status-icon";
+import { StepDetail } from "./step-detail";
+import { formatDuration } from "@/lib/utils";
+import { ChevronDown, ChevronRight } from "lucide-react";
+
+interface TimelineStepProps {
+  event: DocumentEvent;
+  isLast: boolean;
+}
+
+export function TimelineStep({ event, isLast }: TimelineStepProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="relative">
+      {/* Status icon positioned on the connector line */}
+      <div className="absolute -left-6 mt-1">
+        <StatusIcon status={event.status} />
+      </div>
+
+      {/* Step content */}
+      <div
+        className="cursor-pointer rounded-lg border p-3 hover:bg-muted/50"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <span className="font-medium capitalize">{event.step_name}</span>
+            {event.retry_count > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-warning text-warning-foreground">
+                Retry {event.retry_count}
+              </span>
+            )}
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {event.duration_ms ? formatDuration(event.duration_ms) : "..."}
+          </span>
+        </div>
+
+        {/* Expanded detail */}
+        {isExpanded && <StepDetail event={event} />}
+      </div>
+    </div>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Status Icon">
+      <description>Color-coded status icons for each step state</description>
+      <example><![CDATA[
+import { Circle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface StatusIconProps {
+  status: string;
+}
+
+export function StatusIcon({ status }: StatusIconProps) {
+  switch (status) {
+    case "completed":
+      return <CheckCircle className="h-5 w-5 text-green-500" />;
+    case "failed":
+      return <XCircle className="h-5 w-5 text-red-500" />;
+    case "started":
+    case "in_progress":
+      return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
+    default:
+      return <Circle className="h-5 w-5 text-gray-400" />;
+  }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Step Detail with Type-Specific Metrics">
+      <description>Display different metrics based on step type</description>
+      <example><![CDATA[
+interface StepDetailProps {
+  event: DocumentEvent;
+}
+
+export function StepDetail({ event }: StepDetailProps) {
+  const { step_name, status, metrics, error_message } = event;
+
+  return (
+    <div className="mt-3 pt-3 border-t">
+      {/* Error message for failed steps */}
+      {status === "failed" && error_message && (
+        <div className="mb-3 p-2 rounded bg-destructive/10 text-destructive text-sm">
+          <span className="font-medium">Error: </span>
+          {error_message}
+        </div>
+      )}
+
+      {/* Step-specific metrics */}
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        {step_name === "upload" && (
+          <>
+            <MetricItem label="File Size" value={formatBytes(metrics?.file_size)} />
+            <MetricItem label="MIME Type" value={metrics?.mime_type} />
+          </>
+        )}
+        {step_name === "parse" && (
+          <>
+            <MetricItem label="Pages" value={metrics?.pages_extracted} />
+            <MetricItem label="Text Length" value={formatNumber(metrics?.text_length)} />
+            <MetricItem label="Parser" value={metrics?.parser_used} />
+          </>
+        )}
+        {step_name === "chunk" && (
+          <>
+            <MetricItem label="Chunks" value={metrics?.chunks_created} />
+            <MetricItem label="Avg Size" value={formatNumber(metrics?.avg_chunk_size)} />
+          </>
+        )}
+        {step_name === "embed" && (
+          <>
+            <MetricItem label="Vectors" value={metrics?.vectors_generated} />
+            <MetricItem label="Model" value={metrics?.embedding_model} />
+          </>
+        )}
+        {step_name === "index" && (
+          <>
+            <MetricItem label="Points" value={metrics?.points_indexed} />
+            <MetricItem label="Collection" value={metrics?.collection_name} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Polling Hook">
+      <source-file>frontend/src/hooks/useAdminStats.ts</source-file>
+      <description>TanStack Query with conditional refetchInterval for polling</description>
+      <example><![CDATA[
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+
+export function useDocumentTimeline(documentId: string) {
+  return useQuery({
+    queryKey: ["document-timeline", documentId],
+    queryFn: () => api.get(`/observability/documents/${documentId}/timeline`),
+    refetchInterval: (query) => {
+      // Poll every 2 seconds if still processing
+      const events = query.state.data?.events || [];
+      const lastEvent = events[events.length - 1];
+      const isProcessing = lastEvent?.status === "started" || lastEvent?.status === "in_progress";
+      return isProcessing ? 2000 : false;
+    },
+  });
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Duration Formatting">
+      <source-file>frontend/src/lib/utils.ts</source-file>
+      <description>Human-readable duration formatting</description>
+      <example><![CDATA[
+export function formatDuration(ms: number | null | undefined): string {
+  if (ms == null) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.round((ms % 60000) / 1000);
+  return `${mins}m ${secs}s`;
+}
+
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+      ]]></example>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <implementation-notes>
+    <note priority="high">
+      Polling interval should be 2 seconds while document is processing (status = started/in_progress)
+    </note>
+    <note priority="high">
+      Stop polling when all events are completed or failed
+    </note>
+    <note priority="medium">
+      Status icon for in-progress should use animate-spin for visual feedback
+    </note>
+    <note priority="medium">
+      Add formatDuration and formatBytes to utils.ts if not already present
+    </note>
+    <note priority="medium">
+      Error messages should be displayed in a red-tinted box for visibility
+    </note>
+    <note priority="low">
+      Consider adding auto-scroll to latest event when new events arrive
+    </note>
+    <note priority="low">
+      Add aria-labels to status icons for accessibility
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test>ProcessingTimeline renders all steps correctly</test>
+      <test>TimelineStep shows correct status icons for each status</test>
+      <test>StepDetail shows type-specific metrics for each step type</test>
+      <test>StatusIcon renders correct icon for each status</test>
+      <test>Click to expand step details works correctly</test>
+      <test>Retry count badge displayed when retry_count > 0</test>
+      <test>Error message displayed for failed steps</test>
+      <test>Total duration calculated and displayed correctly</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Timeline loads and renders for existing document</test>
+      <test>Polling updates timeline while processing</test>
+      <test>Modal integration from document detail works</test>
+    </integration-tests>
+    <mocking-strategy>
+      Mock API responses for all step statuses and step types
+    </mocking-strategy>
+  </testing-requirements>
+
+  <references>
+    <reference type="story-file">docs/sprint-artifacts/9-10-document-timeline-ui.md</reference>
+    <reference type="tech-spec">docs/sprint-artifacts/tech-spec-epic-9-observability.md</reference>
+    <reference type="epic">docs/epics/epic-9-observability.md</reference>
+    <reference type="dependency">docs/sprint-artifacts/9-7-observability-admin-api.md</reference>
+    <reference type="integration-point">frontend/src/components/documents/document-detail-modal.tsx</reference>
+    <reference type="pattern">frontend/src/components/documents/upload-dropzone.tsx</reference>
+    <reference type="pattern">frontend/src/hooks/useAdminStats.ts</reference>
+  </references>
+</story-context>

@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="5-15" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5.15</storyId>
+    <title>Epic 4 ATDD Transition to GREEN</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-15-epic-4-atdd-transition-to-green.md</sourceStoryPath>
+    <type>Technical Debt - Test Infrastructure + Security Validation</type>
+    <storyPoints>8</storyPoints>
+    <priority>HIGH</priority>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>to transition 47 ATDD tests from Epic 4 (Chat and Generation) from RED phase to GREEN</iWant>
+    <soThat>chat and generation features have comprehensive test coverage with validated risk mitigations</soThat>
+  </story>
+
+  <tasks>
+    <task id="1" ac="1,2" estimate="1h">
+      <title>Create Test Factories</title>
+      <subtasks>
+        <subtask>Create conversation_factory.py (create_conversation, create_multi_turn_conversation)</subtask>
+        <subtask>Create generation_factory.py (create_generation_request) - NOTE: create_draft already exists</subtask>
+        <subtask>Update factories/__init__.py with exports</subtask>
+        <subtask>Add unit tests for factories</subtask>
+      </subtasks>
+      <note>citation_factory.py already exists with create_citation, create_complex_citations</note>
+    </task>
+
+    <task id="2" ac="2" estimate="30m">
+      <title>Add Redis Fixture</title>
+      <subtasks>
+        <subtask>Install fakeredis if not present</subtask>
+        <subtask>Add redis_client fixture to conftest.py</subtask>
+        <subtask>Verify fixture works with conversation persistence tests</subtask>
+      </subtasks>
+      <note>redis_container and redis_url already exist - verify redis_client works</note>
+    </task>
+
+    <task id="3" ac="1" estimate="45m">
+      <title>Create Export Validation Helpers</title>
+      <subtasks>
+        <subtask>Verify python-docx, PyPDF2 dependencies present</subtask>
+        <subtask>Create export_validation.py (validate_docx_citations, validate_pdf_citations)</subtask>
+        <subtask>Update helpers/__init__.py with exports</subtask>
+        <subtask>Add unit tests for helpers</subtask>
+      </subtasks>
+    </task>
+
+    <task id="4" ac="1,3" estimate="2h">
+      <title>Transition Chat Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run test_chat_conversation.py - identify failures</subtask>
+        <subtask>Fix test fixtures/assertions as needed</subtask>
+        <subtask>Run test_chat_streaming.py - verify SSE handling</subtask>
+        <subtask>Verify progressive citation extraction tests</subtask>
+        <subtask>Verify AbortController cancellation tests</subtask>
+        <subtask>All chat tests pass: 8+ tests GREEN</subtask>
+      </subtasks>
+    </task>
+
+    <task id="5" ac="1" estimate="1h" priority="CRITICAL" security="true">
+      <title>Transition Citation Security Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run test_citation_security.py - CRITICAL</subtask>
+        <subtask>Verify citation injection protection tests</subtask>
+        <subtask>Verify adversarial prompt handling tests</subtask>
+        <subtask>Verify fake source rejection tests</subtask>
+        <subtask>All 5 security tests pass: 100% GREEN</subtask>
+      </subtasks>
+      <riskMitigation>R-002</riskMitigation>
+    </task>
+
+    <task id="6" ac="1,3" estimate="2h">
+      <title>Transition Generation Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run test_generation_streaming.py - verify SSE</subtask>
+        <subtask>Run test_confidence_scoring.py - verify scores</subtask>
+        <subtask>Fix LLM-dependent tests (graceful skip if unavailable)</subtask>
+        <subtask>Verify token streaming validation</subtask>
+        <subtask>All generation tests pass: 11+ tests GREEN</subtask>
+      </subtasks>
+    </task>
+
+    <task id="7" ac="1" estimate="1.5h">
+      <title>Transition Export Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run test_document_export.py</subtask>
+        <subtask>Use export validation helpers</subtask>
+        <subtask>Verify DOCX citation embedding</subtask>
+        <subtask>Verify PDF citation embedding</subtask>
+        <subtask>Verify Markdown export</subtask>
+        <subtask>All 7 export tests pass: GREEN</subtask>
+      </subtasks>
+    </task>
+
+    <task id="8" ac="1" estimate="1h">
+      <title>Transition Conversation Management Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run test_conversation_management.py</subtask>
+        <subtask>Verify localStorage persistence tests</subtask>
+        <subtask>Verify clear/undo functionality tests</subtask>
+        <subtask>All conversation management tests pass: GREEN</subtask>
+      </subtasks>
+    </task>
+
+    <task id="9" ac="4" estimate="2h">
+      <title>Transition Frontend E2E Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run npm run test:e2e -- e2e/tests/chat/</subtask>
+        <subtask>Fix missing data-testid attributes if needed</subtask>
+        <subtask>Verify chat conversation E2E (7 tests)</subtask>
+        <subtask>Verify document generation E2E (9 tests)</subtask>
+        <subtask>Verify draft editing E2E</subtask>
+        <subtask>Verify export E2E</subtask>
+        <subtask>All 16+ E2E tests pass: GREEN</subtask>
+      </subtasks>
+    </task>
+
+    <task id="10" ac="4" estimate="1h">
+      <title>Transition Component Tests to GREEN</title>
+      <subtasks>
+        <subtask>Run npm run test -- src/components/chat/__tests__/</subtask>
+        <subtask>Verify chat-message component tests (9 tests)</subtask>
+        <subtask>Fix any mocking issues</subtask>
+        <subtask>All component tests pass: GREEN</subtask>
+      </subtasks>
+    </task>
+
+    <task id="11" ac="1" estimate="30m">
+      <title>Validate Risk Mitigations</title>
+      <subtasks>
+        <subtask>R-001 (Token Limit): 3 tests GREEN</subtask>
+        <subtask>R-002 (Citation Injection): 5 tests GREEN - SECURITY</subtask>
+        <subtask>R-003 (Streaming Latency): 2 tests GREEN</subtask>
+        <subtask>R-004 (Export Citations): 5 tests GREEN</subtask>
+        <subtask>R-005 (Low Confidence): 6 tests GREEN</subtask>
+        <subtask>Document risk validation results</subtask>
+      </subtasks>
+    </task>
+
+    <task id="12" ac="5" estimate="30m">
+      <title>Verify CI Execution Time</title>
+      <subtasks>
+        <subtask>Run full Epic 4 test suite locally</subtask>
+        <subtask>Measure execution time (target: less than 10 minutes)</subtask>
+        <subtask>Identify slow tests if over target</subtask>
+        <subtask>Optimize if needed (parallel execution, fixture reuse)</subtask>
+      </subtasks>
+    </task>
+
+    <task id="13" estimate="20m">
+      <title>Update Documentation</title>
+      <subtasks>
+        <subtask>Update epic-4-tech-debt.md TD-4.0-1 → RESOLVED</subtask>
+        <subtask>Add test execution guide if missing</subtask>
+        <subtask>Update story status to done</subtask>
+      </subtasks>
+    </task>
+  </tasks>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.15.1" priority="P0">
+      <description>All Epic 4 Integration Tests Pass</description>
+      <given>47 Epic 4 integration tests exist (chat, generation, streaming)</given>
+      <when>I run the full test suite</when>
+      <then>
+        <condition>All 47 tests pass without skips or xfails</condition>
+        <condition>Tests cover all Epic 4 stories (4.1-4.10)</condition>
+        <condition>No regressions in existing tests</condition>
+      </then>
+      <verification>
+        <command>cd /home/tungmv/Projects/LumiKB/backend &amp;&amp; .venv/bin/pytest tests/integration/test_chat*.py tests/integration/test_generation*.py tests/integration/test_citation*.py tests/integration/test_confidence*.py tests/integration/test_document_export.py tests/integration/test_conversation*.py tests/integration/test_draft*.py -v</command>
+      </verification>
+    </criterion>
+
+    <criterion id="AC-5.15.2" priority="P0">
+      <description>Tests Use Real Services</description>
+      <given>Epic 4 tests require LLM, Qdrant, Redis, and PostgreSQL</given>
+      <when>tests execute</when>
+      <then>
+        <condition>Tests use real LiteLLM API for streaming tests (not mocks)</condition>
+        <condition>Tests use testcontainers for PostgreSQL, Redis, Qdrant</condition>
+        <condition>SSE streaming verified with actual LLM responses</condition>
+        <condition>If LLM unavailable, tests skip gracefully (like Story 5.12 pattern)</condition>
+      </then>
+    </criterion>
+
+    <criterion id="AC-5.15.3" priority="P0">
+      <description>SSE Streaming Tests Verified</description>
+      <given>chat and generation endpoints use SSE streaming</given>
+      <when>streaming tests execute</when>
+      <then>
+        <condition>Progressive citation extraction verified</condition>
+        <condition>AbortController cancellation tested</condition>
+        <condition>Token streaming validated</condition>
+        <condition>SSE event format (data: {...}\n\n) verified</condition>
+      </then>
+    </criterion>
+
+    <criterion id="AC-5.15.4" priority="P0">
+      <description>Frontend E2E Tests Pass</description>
+      <given>Epic 4 E2E tests exist in frontend/e2e/tests/</given>
+      <when>Playwright tests execute</when>
+      <then>
+        <condition>Chat UI tests pass (streaming, citations)</condition>
+        <condition>Generation modal tests pass (template selection, streaming)</condition>
+        <condition>Draft editor tests pass (editing, citation preservation)</condition>
+        <condition>Export dialog tests pass (format selection, download)</condition>
+      </then>
+      <verification>
+        <command>cd /home/tungmv/Projects/LumiKB/frontend &amp;&amp; npm run test:e2e -- e2e/tests/chat/</command>
+      </verification>
+    </criterion>
+
+    <criterion id="AC-5.15.5" priority="P1">
+      <description>Tests Execute Within CI Time Limit</description>
+      <given>Epic 4 tests are ready for CI integration</given>
+      <when>full test suite runs in CI/CD</when>
+      <then>
+        <condition>Total execution time less than 10 minutes</condition>
+        <condition>Tests are stable (less than 1% flakiness)</condition>
+        <condition>CI pipeline can run tests on every PR</condition>
+      </then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" relevance="high">AC-5.15.1 through AC-5.15.5 definitions</doc>
+      <doc path="docs/epics.md" lines="2411-2542" relevance="high">Story 5.15 definition</doc>
+      <doc path="docs/sprint-artifacts/epic-4-tech-debt.md" relevance="high">TD-4.0-1 technical debt origin</doc>
+      <doc path="docs/atdd-checklist-epic-4.md" relevance="medium">ATDD implementation checklist</doc>
+      <doc path="docs/test-design-epic-4.md" relevance="medium">Risk assessment and test design</doc>
+      <doc path="docs/sprint-artifacts/5-12-atdd-integration-tests-transition-to-green.md" relevance="high">Similar pattern from Epic 3 ATDD - use as reference</doc>
+      <doc path="docs/coding-standards.md" relevance="medium">Project coding conventions</doc>
+    </docs>
+
+    <code>
+      <!-- IMPORTANT: Existing Infrastructure Discovery -->
+      <existingInfrastructure>
+        <note severity="CRITICAL">Many factories and fixtures already exist - DO NOT recreate</note>
+
+        <!-- Existing Factories (from backend/tests/factories/__init__.py) -->
+        <factory path="backend/tests/factories/draft_factory.py" status="EXISTS">
+          <exports>
+            <export>create_draft</export>
+            <export>create_draft_with_citations</export>
+            <export>create_citation</export>
+            <export>create_draft_update_data</export>
+            <export>create_regenerate_request</export>
+          </exports>
+        </factory>
+
+        <factory path="backend/tests/factories/feedback_factory.py" status="EXISTS">
+          <exports>
+            <export>create_feedback_request</export>
+            <export>create_alternative</export>
+            <export>create_feedback_with_context</export>
+            <export>create_recovery_options</export>
+            <export>create_generation_error</export>
+          </exports>
+        </factory>
+
+        <factory path="backend/tests/factories/admin_factory.py" status="EXISTS">
+          <exports>
+            <export>create_admin_stats</export>
+            <export>create_audit_event</export>
+            <export>create_queue_status</export>
+            <export>create_kb_stats</export>
+          </exports>
+        </factory>
+
+        <!-- Existing Test Helpers (from backend/tests/helpers/__init__.py) -->
+        <helper path="backend/tests/helpers/qdrant_helpers.py" status="EXISTS">
+          <exports>
+            <export>create_test_chunk</export>
+            <export>create_test_embedding</export>
+            <export>insert_test_chunks</export>
+          </exports>
+        </helper>
+
+        <helper path="backend/tests/helpers/document_helpers.py" status="EXISTS">
+          <exports>
+            <export>wait_for_document_indexed</export>
+            <export>poll_document_status</export>
+          </exports>
+        </helper>
+
+        <!-- Existing Fixtures (from backend/tests/integration/conftest.py) -->
+        <fixture name="postgres_container" scope="session" status="EXISTS">Session-scoped PostgreSQL container using testcontainers</fixture>
+        <fixture name="redis_container" scope="session" status="EXISTS">Session-scoped Redis container using testcontainers</fixture>
+        <fixture name="redis_url" scope="session" status="EXISTS">Redis connection URL from container</fixture>
+        <fixture name="qdrant_container" scope="session" status="EXISTS">Session-scoped Qdrant container for vector search</fixture>
+        <fixture name="qdrant_url" scope="session" status="EXISTS">Qdrant connection info (host, port, grpc_port)</fixture>
+        <fixture name="test_qdrant_service" scope="function" status="EXISTS">Function-scoped Qdrant service configured to use test container</fixture>
+      </existingInfrastructure>
+
+      <!-- Test Files to Transition -->
+      <testFiles>
+        <category name="Backend Integration Tests - Chat">
+          <file path="backend/tests/integration/test_chat_api.py" status="RED">Chat API tests</file>
+          <file path="backend/tests/integration/test_chat_conversation.py" status="RED" tests="5+">Multi-turn conversation tests</file>
+          <file path="backend/tests/integration/test_chat_streaming.py" status="RED" tests="3+">SSE streaming tests</file>
+          <file path="backend/tests/integration/test_chat_clear_undo_workflow.py" status="RED">Clear/undo workflow tests</file>
+        </category>
+
+        <category name="Backend Integration Tests - Citation Security" priority="CRITICAL">
+          <file path="backend/tests/integration/test_citation_security.py" status="RED" tests="5" security="true">
+            <test>test_citation_injection_blocked_in_chat</test>
+            <test>test_citation_marker_validation_against_sources</test>
+            <test>test_llm_output_sanitization</test>
+            <test>test_adversarial_prompt_system_manipulation</test>
+            <test>test_citation_tampering_in_generation</test>
+            <riskMitigation>R-002 (SEC): Citation injection via adversarial prompts</riskMitigation>
+          </file>
+        </category>
+
+        <category name="Backend Integration Tests - Generation">
+          <file path="backend/tests/integration/test_generation_streaming.py" status="RED" tests="6+">Draft generation SSE streaming</file>
+          <file path="backend/tests/integration/test_generation_audit.py" status="RED">Generation audit logging</file>
+          <file path="backend/tests/integration/test_confidence_scoring.py" status="RED" tests="5">Confidence score calculation</file>
+        </category>
+
+        <category name="Backend Integration Tests - Export">
+          <file path="backend/tests/integration/test_document_export.py" status="RED" tests="7">DOCX/PDF/Markdown export</file>
+          <file path="backend/tests/integration/test_export_api.py" status="RED">Export API endpoints</file>
+        </category>
+
+        <category name="Backend Integration Tests - Conversation">
+          <file path="backend/tests/integration/test_conversation_management.py" status="RED" tests="7+">localStorage persistence, clear/undo</file>
+        </category>
+
+        <category name="Backend Integration Tests - Draft">
+          <file path="backend/tests/integration/test_draft_api.py" status="RED" tests="5+">Draft CRUD operations</file>
+        </category>
+
+        <category name="Frontend E2E Tests">
+          <file path="frontend/e2e/tests/chat/chat-conversation.spec.ts" status="RED" tests="7">Chat conversation flows</file>
+          <file path="frontend/e2e/tests/chat/document-generation.spec.ts" status="RED" tests="9">Document generation modal</file>
+          <file path="frontend/e2e/tests/chat/streaming-ui.spec.ts" status="RED">Streaming UI behavior</file>
+          <file path="frontend/e2e/tests/chat/error-recovery.spec.ts" status="RED">Error recovery flows</file>
+          <file path="frontend/e2e/tests/chat/draft-streaming.spec.ts" status="RED">Draft streaming behavior</file>
+          <file path="frontend/e2e/tests/draft-editing.spec.ts" status="RED">Draft editing</file>
+          <file path="frontend/e2e/tests/export/document-export.spec.ts" status="RED">Export functionality</file>
+          <file path="frontend/e2e/tests/generation/template-selection.spec.ts" status="RED">Template selection</file>
+        </category>
+
+        <category name="Frontend Component Tests">
+          <file path="frontend/src/components/chat/__tests__/chat-message.test.tsx" status="RED" tests="9">Chat message component</file>
+          <file path="frontend/src/components/chat/__tests__/chat-input.test.tsx" status="RED">Chat input component</file>
+          <file path="frontend/src/components/chat/__tests__/generate-button.test.tsx" status="RED">Generate button component</file>
+          <file path="frontend/src/components/generation/__tests__/*.test.tsx" status="RED">Generation components</file>
+        </category>
+      </testFiles>
+
+      <!-- Files to Create (Reduced scope based on discoveries) -->
+      <filesToCreate>
+        <file path="backend/tests/factories/conversation_factory.py" priority="high">
+          <description>Conversation data factory for multi-turn chat tests</description>
+          <functions>
+            <function>create_conversation(id, user_id, kb_id, title, messages, created_at) -> dict</function>
+            <function>create_multi_turn_conversation(turns=5) -> dict</function>
+          </functions>
+        </file>
+
+        <file path="backend/tests/factories/generation_factory.py" priority="high">
+          <description>Generation request factory (note: create_draft already exists in draft_factory)</description>
+          <functions>
+            <function>create_generation_request(kb_id, prompt, template_id, selected_sources) -> dict</function>
+          </functions>
+        </file>
+
+        <file path="backend/tests/helpers/export_validation.py" priority="high">
+          <description>Export document validation helpers using python-docx and PyPDF2</description>
+          <functions>
+            <function>validate_docx_citations(docx_bytes, expected_citations) -> bool</function>
+            <function>validate_pdf_citations(pdf_bytes, expected_citations) -> bool</function>
+          </functions>
+          <note>python-docx and reportlab already in pyproject.toml [all] optional deps</note>
+        </file>
+      </filesToCreate>
+
+      <!-- Files to Modify -->
+      <filesToModify>
+        <file path="backend/tests/factories/__init__.py" priority="high">
+          <change>Add conversation_factory and generation_factory exports</change>
+        </file>
+        <file path="backend/tests/helpers/__init__.py" priority="high">
+          <change>Add export_validation exports</change>
+        </file>
+        <file path="backend/tests/integration/conftest.py" priority="medium">
+          <change>Add redis_client fixture using fakeredis if not already functional</change>
+          <note>redis_container and redis_url already exist - verify redis_client fixture works</note>
+        </file>
+      </filesToModify>
+    </code>
+
+    <dependencies>
+      <backend>
+        <dependency name="python-docx" version=">=1.1.0" status="EXISTS" location="pyproject.toml [all]">DOCX validation</dependency>
+        <dependency name="reportlab" version=">=4.0.0" status="EXISTS" location="pyproject.toml [all]">PDF generation</dependency>
+        <dependency name="PyPDF2" version=">=3.0.0" status="CHECK" location="pyproject.toml">PDF reading for validation</dependency>
+        <dependency name="testcontainers" status="EXISTS" location="pyproject.toml [dev]">Container-based testing</dependency>
+        <dependency name="fakeredis" status="CHECK" location="pyproject.toml">May need to add for Redis mocking</dependency>
+        <dependency name="Faker" status="EXISTS" location="pyproject.toml [dev]">Test data generation</dependency>
+      </backend>
+      <frontend>
+        <dependency name="@playwright/test" status="EXISTS">E2E testing</dependency>
+        <dependency name="vitest" status="EXISTS">Component testing</dependency>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security" priority="CRITICAL">
+      <description>Citation Security Tests (R-002) MUST pass 100%</description>
+      <details>5 security tests in test_citation_security.py validate protection against citation injection attacks. These tests are non-negotiable for security compliance.</details>
+      <tests>
+        <test>test_citation_injection_blocked_in_chat</test>
+        <test>test_citation_marker_validation_against_sources</test>
+        <test>test_llm_output_sanitization</test>
+        <test>test_adversarial_prompt_system_manipulation</test>
+        <test>test_citation_tampering_in_generation</test>
+      </tests>
+    </constraint>
+
+    <constraint type="pattern" priority="high">
+      <description>Follow Story 5.12 Patterns</description>
+      <details>Story 5.12 successfully transitioned 33 Epic 3 tests to GREEN. Follow the same patterns for testcontainers, graceful LLM skip, and fixture reuse.</details>
+      <pattern name="graceful-skip">
+        <code><![CDATA[
+@pytest.mark.asyncio
+async def test_llm_dependent_feature(llm_available):
+    if not llm_available:
+        pytest.skip("LLM not available")
+    # Test implementation
+        ]]></code>
+      </pattern>
+    </constraint>
+
+    <constraint type="performance" priority="medium">
+      <description>CI Execution Time Limit</description>
+      <details>Full Epic 4 test suite must execute in less than 10 minutes for CI integration</details>
+    </constraint>
+
+    <constraint type="infrastructure" priority="high">
+      <description>DO NOT Recreate Existing Infrastructure</description>
+      <details>Many factories, fixtures, and helpers already exist. Check backend/tests/factories/__init__.py and backend/tests/helpers/__init__.py before creating new files.</details>
+    </constraint>
+
+    <constraint type="coding">
+      <description>Coding Standards Compliance</description>
+      <details>All code must pass ruff check and ruff format. Use type hints and async/await patterns.</details>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Chat API">
+      <endpoint method="POST" path="/api/v1/chat">Chat message with KB context</endpoint>
+      <endpoint method="GET" path="/api/v1/chat/stream">SSE streaming chat response</endpoint>
+      <fixture>demo_kb_with_indexed_docs</fixture>
+    </interface>
+
+    <interface name="Generation API">
+      <endpoint method="POST" path="/api/v1/generate">Document generation request</endpoint>
+      <endpoint method="GET" path="/api/v1/generate/stream">SSE streaming generation</endpoint>
+      <endpoint method="GET" path="/api/v1/drafts/{id}">Get draft by ID</endpoint>
+      <endpoint method="PUT" path="/api/v1/drafts/{id}">Update draft</endpoint>
+    </interface>
+
+    <interface name="Export API">
+      <endpoint method="POST" path="/api/v1/export/docx">Export to DOCX</endpoint>
+      <endpoint method="POST" path="/api/v1/export/pdf">Export to PDF</endpoint>
+      <endpoint method="POST" path="/api/v1/export/markdown">Export to Markdown</endpoint>
+    </interface>
+
+    <interface name="Conversation API">
+      <endpoint method="GET" path="/api/v1/conversations">List conversations</endpoint>
+      <endpoint method="DELETE" path="/api/v1/conversations/{id}">Delete conversation</endpoint>
+      <endpoint method="POST" path="/api/v1/conversations/{id}/undo">Undo last message</endpoint>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>pytest with async support (pytest-asyncio)</standard>
+      <standard>testcontainers for PostgreSQL, Redis, Qdrant isolation</standard>
+      <standard>Factory pattern for test data (create_* functions)</standard>
+      <standard>Graceful skip for LLM-dependent tests</standard>
+      <standard>Security tests marked with @pytest.mark.security</standard>
+      <standard>Integration tests marked with @pytest.mark.integration</standard>
+    </standards>
+
+    <locations>
+      <backend>
+        <path>backend/tests/integration/test_chat*.py</path>
+        <path>backend/tests/integration/test_generation*.py</path>
+        <path>backend/tests/integration/test_citation*.py</path>
+        <path>backend/tests/integration/test_confidence*.py</path>
+        <path>backend/tests/integration/test_document_export.py</path>
+        <path>backend/tests/integration/test_conversation*.py</path>
+        <path>backend/tests/integration/test_draft*.py</path>
+        <path>backend/tests/integration/test_export*.py</path>
+      </backend>
+      <frontend>
+        <path>frontend/e2e/tests/chat/*.spec.ts</path>
+        <path>frontend/e2e/tests/export/*.spec.ts</path>
+        <path>frontend/e2e/tests/generation/*.spec.ts</path>
+        <path>frontend/e2e/tests/draft-editing.spec.ts</path>
+        <path>frontend/src/components/chat/__tests__/*.test.tsx</path>
+        <path>frontend/src/components/generation/__tests__/*.test.tsx</path>
+      </frontend>
+    </locations>
+
+    <riskMitigationTests>
+      <risk id="R-001" name="Token Limit" tests="3">
+        <description>Token limit exceeded during generation</description>
+        <status>To be validated</status>
+      </risk>
+      <risk id="R-002" name="Citation Injection" tests="5" priority="CRITICAL">
+        <description>Citation injection via adversarial prompts</description>
+        <status>Must pass 100%</status>
+        <testFile>backend/tests/integration/test_citation_security.py</testFile>
+      </risk>
+      <risk id="R-003" name="Streaming Latency" tests="2">
+        <description>SSE streaming performance</description>
+        <status>To be validated</status>
+      </risk>
+      <risk id="R-004" name="Export Citations" tests="5">
+        <description>Citation preservation in exports</description>
+        <status>To be validated</status>
+      </risk>
+      <risk id="R-005" name="Low Confidence" tests="6">
+        <description>Low confidence score handling</description>
+        <status>To be validated</status>
+      </risk>
+    </riskMitigationTests>
+
+    <commands>
+      <command name="Backend Epic 4 Tests">
+        <![CDATA[cd /home/tungmv/Projects/LumiKB/backend && .venv/bin/pytest tests/integration/test_chat*.py tests/integration/test_generation*.py tests/integration/test_citation*.py tests/integration/test_confidence*.py tests/integration/test_document_export.py tests/integration/test_conversation*.py -v]]>
+      </command>
+      <command name="Security Tests Only">
+        <![CDATA[cd /home/tungmv/Projects/LumiKB/backend && .venv/bin/pytest tests/integration/test_citation_security.py -v]]>
+      </command>
+      <command name="With Coverage">
+        <![CDATA[cd /home/tungmv/Projects/LumiKB/backend && .venv/bin/pytest tests/integration/ -k "chat or generation or citation or export or confidence" --cov=app --cov-report=term-missing]]>
+      </command>
+      <command name="Frontend E2E Chat Tests">
+        <![CDATA[cd /home/tungmv/Projects/LumiKB/frontend && npm run test:e2e -- e2e/tests/chat/]]>
+      </command>
+      <command name="Frontend Component Tests">
+        <![CDATA[cd /home/tungmv/Projects/LumiKB/frontend && npm run test -- src/components/chat/__tests__/ --run]]>
+      </command>
+    </commands>
+  </tests>
+
+  <implementationNotes>
+    <note priority="CRITICAL">
+      <title>Existing Infrastructure Reuse</title>
+      <content>
+        IMPORTANT: Many factories and fixtures already exist from previous stories.
+        Before creating new files, verify what's available:
+
+        1. Factories (backend/tests/factories/__init__.py):
+           - create_draft, create_draft_with_citations, create_citation (draft_factory)
+           - create_feedback_request, create_alternative, create_recovery_options (feedback_factory)
+           - create_admin_stats, create_audit_event, create_queue_status (admin_factory)
+
+        2. Test Helpers (backend/tests/helpers/__init__.py):
+           - create_test_chunk, create_test_embedding, insert_test_chunks (qdrant_helpers)
+           - wait_for_document_indexed, poll_document_status (document_helpers)
+
+        3. Fixtures (backend/tests/integration/conftest.py):
+           - postgres_container, postgres_url (session-scoped)
+           - redis_container, redis_url (session-scoped)
+           - qdrant_container, qdrant_url (session-scoped)
+           - test_qdrant_service (function-scoped)
+
+        ONLY CREATE what's actually missing:
+        - conversation_factory.py (for multi-turn conversation data)
+        - generation_factory.py (for generation_request - note: create_draft exists)
+        - export_validation.py (for DOCX/PDF citation validation)
+      </content>
+    </note>
+
+    <note priority="high">
+      <title>Security Test Focus</title>
+      <content>
+        Citation security tests (R-002) in test_citation_security.py are CRITICAL.
+        These 5 tests validate protection against:
+        - Citation injection attacks
+        - Adversarial prompt manipulation
+        - XSS in citation output
+        - System prompt leakage
+        - Citation tampering in generation
+
+        These tests MUST pass 100% before story completion.
+      </content>
+    </note>
+
+    <note priority="medium">
+      <title>LLM Graceful Skip Pattern</title>
+      <content>
+        For tests that require real LLM API calls, follow Story 5.12's pattern:
+
+        @pytest.fixture
+        def llm_available():
+            # Check if LLM API is configured and available
+            return os.getenv("LITELLM_API_KEY") is not None
+
+        @pytest.mark.asyncio
+        async def test_streaming_response(llm_available):
+            if not llm_available:
+                pytest.skip("LLM not available")
+            # Test implementation
+
+        This ensures tests pass in CI even without LLM access.
+      </content>
+    </note>
+
+    <note priority="medium">
+      <title>Export Validation Dependencies</title>
+      <content>
+        For export validation helpers:
+        - python-docx (>=1.1.0) - Already in pyproject.toml [all]
+        - reportlab (>=4.0.0) - Already in pyproject.toml [all]
+        - PyPDF2 - Need to verify in pyproject.toml
+
+        Install with: pip install ".[all,dev]"
+      </content>
+    </note>
+  </implementationNotes>
+
+  <previousStoryLearnings>
+    <source>docs/sprint-artifacts/5-14-search-audit-logging.md</source>
+    <status>done</status>
+    <learnings>
+      <learning type="pattern">Audit service follows established patterns - can reuse for generation audit</learning>
+      <learning type="infrastructure">Test infrastructure is stable - testcontainers work reliably</learning>
+      <learning type="approach">ATDD tests transition smoothly when proper fixtures exist</learning>
+    </learnings>
+  </previousStoryLearnings>
+</story-context>

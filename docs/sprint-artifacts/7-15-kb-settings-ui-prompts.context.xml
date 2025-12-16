@@ -1,0 +1,156 @@
+<story-context id="7-15-kb-settings-ui-prompts" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7.15</storyId>
+    <title>KB Settings UI - Prompts Panel</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-15-kb-settings-ui-prompts.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>KB owner</asA>
+    <iWant>configure custom system prompts and citation styles for my Knowledge Base</iWant>
+    <soThat>I can control how the AI responds and formats its citations</soThat>
+    <tasks>
+      <task id="1">Create prompts panel component (prompts-panel.tsx)</task>
+      <task id="2">Create prompt variables help section with {context}, {query}, {kb_name}</task>
+      <task id="3">Create citation style selector (inline, footnote, none)</task>
+      <task id="4">Create uncertainty handling selector (acknowledge, refuse, best_effort)</task>
+      <task id="5">Create response language input with auto-detect placeholder</task>
+      <task id="6">Create prompt preview functionality with sample variable substitution</task>
+      <task id="7">Create prompt templates (Default RAG, Strict Citations, Conversational, Technical Documentation)</task>
+      <task id="8">Integrate prompts panel with KB settings form state</task>
+      <task id="9">Unit tests for prompts panel components</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="7.15.1">Prompts tab visible in KB settings modal</ac>
+    <ac id="7.15.2">System prompt textarea with max 4000 chars and character count indicator</ac>
+    <ac id="7.15.3">Prompt variables help explaining {context}, {query}, {kb_name}</ac>
+    <ac id="7.15.4">Citation style dropdown with inline (default), footnote, none options</ac>
+    <ac id="7.15.5">Uncertainty handling dropdown with acknowledge (default), refuse, best_effort</ac>
+    <ac id="7.15.6">Response language input with "Leave empty for auto-detect" placeholder</ac>
+    <ac id="7.15.7">Preview button showing rendered prompt with sample values</ac>
+    <ac id="7.15.8">Load Template dropdown with preset prompt options</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/7-15-kb-settings-ui-prompts.md">Story definition with tasks and dev notes</doc>
+      <doc path="docs/sprint-artifacts/7-14-kb-settings-ui-general.md">Previous story establishing tab structure</doc>
+      <doc path="docs/sprint-artifacts/7-12-kb-settings-schema.md">Backend schema definitions</doc>
+      <doc path="docs/testing-guideline.md">Testing standards</doc>
+    </docs>
+    <code>
+      <file path="backend/app/schemas/kb_settings.py" lines="144-156">
+        <description>KBPromptConfig Pydantic schema - source of truth for prompts configuration</description>
+        <content><![CDATA[
+class KBPromptConfig(BaseModel):
+    """Configuration for KB-specific prompts (AC-7.12.7)."""
+
+    system_prompt: str = Field(default="", max_length=4000)
+    context_template: str = Field(default="")
+    citation_style: CitationStyle = Field(default=CitationStyle.INLINE)
+    uncertainty_handling: UncertaintyHandling = Field(
+        default=UncertaintyHandling.ACKNOWLEDGE
+    )
+    response_language: str = Field(default="en")
+
+    model_config = {"extra": "forbid"}
+]]></content>
+      </file>
+      <file path="backend/app/schemas/kb_settings.py" lines="34-48">
+        <description>Enum types for citation style and uncertainty handling</description>
+        <content><![CDATA[
+class CitationStyle(str, Enum):
+    """Style for citation formatting."""
+    INLINE = "inline"
+    FOOTNOTE = "footnote"
+    NONE = "none"
+
+class UncertaintyHandling(str, Enum):
+    """How to handle uncertain/low-confidence responses."""
+    ACKNOWLEDGE = "acknowledge"
+    REFUSE = "refuse"
+    BEST_EFFORT = "best_effort"
+]]></content>
+      </file>
+      <file path="frontend/src/components/kb/kb-settings-modal.tsx" lines="1-251">
+        <description>Existing KB settings modal with model selection - extend with Prompts tab</description>
+        <patterns>
+          <pattern>react-hook-form with zodResolver for form validation</pattern>
+          <pattern>Dialog component from shadcn/ui</pattern>
+          <pattern>Select component for dropdown selections</pattern>
+          <pattern>Form components with FormField, FormControl, FormDescription</pattern>
+        </patterns>
+      </file>
+      <file path="frontend/src/components/kb/settings/" lines="">
+        <description>Settings components folder - add prompts-panel.tsx here</description>
+      </file>
+    </code>
+    <dependencies>
+      <dependency type="npm">react-hook-form - Form state management</dependency>
+      <dependency type="npm">zod - Schema validation</dependency>
+      <dependency type="npm">@hookform/resolvers - Zod resolver for react-hook-form</dependency>
+      <dependency type="shadcn">Textarea - System prompt input</dependency>
+      <dependency type="shadcn">Select - Citation style, uncertainty handling dropdowns</dependency>
+      <dependency type="shadcn">Input - Response language</dependency>
+      <dependency type="shadcn">Dialog - Preview modal</dependency>
+      <dependency type="shadcn">Collapsible or Popover - Variables help section</dependency>
+      <dependency type="shadcn">AlertDialog - Template loading confirmation</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>System prompt max 4000 characters (must match backend schema)</constraint>
+    <constraint>Citation style enum values must match backend: inline, footnote, none</constraint>
+    <constraint>Uncertainty handling enum values must match backend: acknowledge, refuse, best_effort</constraint>
+    <constraint>Must use existing react-hook-form patterns from kb-settings-modal.tsx</constraint>
+    <constraint>Settings saved via PUT /api/v1/knowledge-bases/{id}/settings</constraint>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint>PUT /api/v1/knowledge-bases/{id}/settings</endpoint>
+      <payload><![CDATA[
+{
+  "prompts": {
+    "system_prompt": "Your custom prompt...",
+    "context_template": "",
+    "citation_style": "inline",
+    "uncertainty_handling": "acknowledge",
+    "response_language": "en"
+  }
+}
+]]></payload>
+    </api>
+    <components>
+      <component name="PromptsPanel" props="form: UseFormReturn, disabled: boolean" />
+      <component name="PromptPreviewModal" props="prompt: string, kbName: string, onClose: () => void" />
+    </components>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Use Vitest for unit tests</standard>
+      <standard>Use React Testing Library for component tests</standard>
+      <standard>Mock API calls with msw or manual mocks</standard>
+      <standard>Test user interactions with fireEvent/userEvent</standard>
+    </standards>
+    <locations>
+      <location>frontend/src/components/kb/settings/__tests__/prompts-panel.test.tsx</location>
+    </locations>
+    <ideas>
+      <test>Character count updates on input and enforces 4000 char limit</test>
+      <test>Citation style selection updates form state correctly</test>
+      <test>Uncertainty handling selection updates form state correctly</test>
+      <test>Preview modal renders with substituted variables</test>
+      <test>Template loading prompts confirmation dialog when content exists</test>
+      <test>Form validation errors display for invalid inputs</test>
+      <test>Response language input accepts ISO 639-1 codes</test>
+    </ideas>
+  </tests>
+</story-context>

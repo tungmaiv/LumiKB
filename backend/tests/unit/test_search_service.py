@@ -1,7 +1,8 @@
-"""Unit tests for SearchService (Story 3.1 - Task 4)."""
+"""Unit tests for SearchService (Story 3.1 - Task 4, Story 7-7)."""
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -10,12 +11,17 @@ from app.services.search_service import SearchService
 
 pytestmark = pytest.mark.unit
 
+# Test UUIDs for consistent mocking
+TEST_KB_ID_1 = str(uuid4())
+TEST_KB_ID_2 = str(uuid4())
+TEST_KB_ID_3 = str(uuid4())
+
 
 @pytest.fixture
 def mock_permission_service():
     """Mock KBPermissionService."""
     service = AsyncMock()
-    service.get_permitted_kb_ids.return_value = ["kb-123", "kb-456"]
+    service.get_permitted_kb_ids.return_value = [TEST_KB_ID_1, TEST_KB_ID_2]
     service.check_permission.return_value = True
     return service
 
@@ -138,13 +144,13 @@ async def test_embed_query_cache_miss_stores_result(search_service):
 async def test_search_collections_returns_chunks(search_service):
     """Test _search_collections returns chunks from Qdrant."""
     embedding = [0.1, 0.2, 0.3]
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     limit = 10
 
-    # Mock Qdrant search result
-    mock_result = MagicMock()
-    mock_result.score = 0.95
-    mock_result.payload = {
+    # Mock Qdrant query_points result (new API returns QueryResponse with .points)
+    mock_point = MagicMock()
+    mock_point.score = 0.95
+    mock_point.payload = {
         "document_id": "doc-1",
         "document_name": "test.pdf",
         "chunk_text": "Test content",
@@ -154,13 +160,20 @@ async def test_search_collections_returns_chunks(search_service):
         "char_end": 100,
     }
 
-    search_service.qdrant_client = MagicMock()
-    search_service.qdrant_client.search.return_value = [mock_result]
+    mock_query_response = MagicMock()
+    mock_query_response.points = [mock_point]
+
+    # Story 7-7: Mock async qdrant_service methods
+    search_service.qdrant_service = MagicMock()
+    search_service.qdrant_service.ensure_connection = AsyncMock()
+    search_service.qdrant_service.query_points = AsyncMock(
+        return_value=mock_query_response
+    )
 
     chunks = await search_service._search_collections(embedding, kb_ids, limit)
 
     assert len(chunks) == 1
-    assert chunks[0]["kb_id"] == "kb-123"
+    assert chunks[0]["kb_id"] == TEST_KB_ID_1
     assert chunks[0]["score"] == 0.95
     assert chunks[0]["document_id"] == "doc-1"
     assert chunks[0]["char_start"] == 0
@@ -171,13 +184,13 @@ async def test_search_collections_returns_chunks(search_service):
 async def test_search_collections_sorts_by_relevance(search_service):
     """Test _search_collections sorts results by relevance score."""
     embedding = [0.1, 0.2, 0.3]
-    kb_ids = ["kb-123", "kb-456"]
+    kb_ids = [TEST_KB_ID_1, TEST_KB_ID_2]
     limit = 10
 
     # Mock results from two KBs with different scores
-    mock_result1 = MagicMock()
-    mock_result1.score = 0.7
-    mock_result1.payload = {
+    mock_point1 = MagicMock()
+    mock_point1.score = 0.7
+    mock_point1.payload = {
         "document_id": "doc-1",
         "document_name": "test1.pdf",
         "chunk_text": "Content 1",
@@ -185,9 +198,9 @@ async def test_search_collections_sorts_by_relevance(search_service):
         "char_end": 50,
     }
 
-    mock_result2 = MagicMock()
-    mock_result2.score = 0.9
-    mock_result2.payload = {
+    mock_point2 = MagicMock()
+    mock_point2.score = 0.9
+    mock_point2.payload = {
         "document_id": "doc-2",
         "document_name": "test2.pdf",
         "chunk_text": "Content 2",
@@ -195,11 +208,22 @@ async def test_search_collections_sorts_by_relevance(search_service):
         "char_end": 50,
     }
 
-    search_service.qdrant_client = MagicMock()
-    search_service.qdrant_client.search.side_effect = [
-        [mock_result1],  # First KB
-        [mock_result2],  # Second KB
-    ]
+    # Create mock query responses for each KB
+    mock_response1 = MagicMock()
+    mock_response1.points = [mock_point1]
+
+    mock_response2 = MagicMock()
+    mock_response2.points = [mock_point2]
+
+    # Story 7-7: Mock async qdrant_service methods
+    search_service.qdrant_service = MagicMock()
+    search_service.qdrant_service.ensure_connection = AsyncMock()
+    search_service.qdrant_service.query_points = AsyncMock(
+        side_effect=[
+            mock_response1,  # First KB
+            mock_response2,  # Second KB
+        ]
+    )
 
     chunks = await search_service._search_collections(embedding, kb_ids, limit)
 
@@ -219,11 +243,15 @@ async def test_search_collections_raises_connection_error_on_qdrant_failure(
 ):
     """Test _search_collections raises ConnectionError when Qdrant fails."""
     embedding = [0.1, 0.2, 0.3]
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     limit = 10
 
-    search_service.qdrant_client = MagicMock()
-    search_service.qdrant_client.search.side_effect = Exception("Qdrant error")
+    # Story 7-7: Mock async qdrant_service methods
+    search_service.qdrant_service = MagicMock()
+    search_service.qdrant_service.ensure_connection = AsyncMock()
+    search_service.qdrant_service.query_points = AsyncMock(
+        side_effect=Exception("Qdrant error")
+    )
 
     with pytest.raises(ConnectionError, match="Vector search unavailable"):
         await search_service._search_collections(embedding, kb_ids, limit)
@@ -238,7 +266,7 @@ async def test_search_collections_raises_connection_error_on_qdrant_failure(
 async def test_search_returns_empty_results_with_message(search_service):
     """Test search returns empty array and helpful message when no results."""
     query = "no matches query"
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     user_id = "user-1"
 
     with patch("app.services.search_service.embedding_client") as mock_client:
@@ -250,8 +278,16 @@ async def test_search_returns_empty_results_with_message(search_service):
             mock_redis_instance.setex = AsyncMock()
             mock_redis.return_value = mock_redis_instance
 
-            search_service.qdrant_client = MagicMock()
-            search_service.qdrant_client.search.return_value = []  # No results
+            # Mock empty query_points response
+            mock_query_response = MagicMock()
+            mock_query_response.points = []
+
+            # Story 7-7: Mock async qdrant_service methods
+            search_service.qdrant_service = MagicMock()
+            search_service.qdrant_service.ensure_connection = AsyncMock()
+            search_service.qdrant_service.query_points = AsyncMock(
+                return_value=mock_query_response
+            )
 
             response = await search_service.search(query, kb_ids, user_id, limit=10)
 
@@ -272,7 +308,7 @@ async def test_search_checks_permissions_before_search(
 ):
     """Test search checks permissions before executing query."""
     query = "test"
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     user_id = "user-1"
 
     mock_permission_service.check_permission.return_value = False
@@ -281,7 +317,7 @@ async def test_search_checks_permissions_before_search(
         await search_service.search(query, kb_ids, user_id)
 
     mock_permission_service.check_permission.assert_called_once_with(
-        user_id, "kb-123", "READ"
+        user_id, TEST_KB_ID_1, "READ"
     )
 
 
@@ -289,7 +325,7 @@ async def test_search_checks_permissions_before_search(
 async def test_search_logs_audit_event(search_service, mock_audit_service):
     """Test search logs audit event after completion."""
     query = "audit test"
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     user_id = "user-1"
 
     with patch("app.services.search_service.embedding_client") as mock_client:
@@ -301,8 +337,16 @@ async def test_search_logs_audit_event(search_service, mock_audit_service):
             mock_redis_instance.setex = AsyncMock()
             mock_redis.return_value = mock_redis_instance
 
-            search_service.qdrant_client = MagicMock()
-            search_service.qdrant_client.search.return_value = []
+            # Mock empty query_points response
+            mock_query_response = MagicMock()
+            mock_query_response.points = []
+
+            # Story 7-7: Mock async qdrant_service methods
+            search_service.qdrant_service = MagicMock()
+            search_service.qdrant_service.ensure_connection = AsyncMock()
+            search_service.qdrant_service.query_points = AsyncMock(
+                return_value=mock_query_response
+            )
 
             await search_service.search(query, kb_ids, user_id)
 
@@ -436,7 +480,7 @@ async def test_search_with_answer_synthesis_success(search_service):
     """AC5: Full search with answer synthesis and citations."""
 
     query = "What is OAuth 2.0?"
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     user_id = "user-1"
 
     with patch("app.services.search_service.embedding_client") as mock_embed_client:
@@ -456,38 +500,51 @@ async def test_search_with_answer_synthesis_success(search_service):
             mock_redis_instance.setex = AsyncMock()
             mock_redis.return_value = mock_redis_instance
 
-            # Mock Qdrant results
-            search_service.qdrant_client = MagicMock()
-            mock_result = MagicMock()
-            mock_result.score = 0.92
-            mock_result.payload = {
-                "document_id": "doc-1",
-                "document_name": "OAuth Guide.pdf",
-                "chunk_text": "OAuth 2.0 is an authorization framework.",
-                "page_number": 3,
-                "section_header": "Introduction",
-                "char_start": 100,
-                "char_end": 200,
-                "kb_name": "Tech KB",
-            }
-            search_service.qdrant_client.search.return_value = [mock_result]
+            # Mock _get_kb_names to prevent DB calls
+            with patch.object(
+                search_service, "_get_kb_names", new_callable=AsyncMock
+            ) as mock_get_kb_names:
+                mock_get_kb_names.return_value = {TEST_KB_ID_1: "Tech KB"}
 
-            response = await search_service.search(query, kb_ids, user_id, limit=10)
+                # Mock Qdrant query_points results
+                mock_point = MagicMock()
+                mock_point.score = 0.92
+                mock_point.payload = {
+                    "document_id": "doc-1",
+                    "document_name": "OAuth Guide.pdf",
+                    "chunk_text": "OAuth 2.0 is an authorization framework.",
+                    "page_number": 3,
+                    "section_header": "Introduction",
+                    "char_start": 100,
+                    "char_end": 200,
+                }
 
-            assert isinstance(response, SearchResponse)
-            assert response.answer == "OAuth 2.0 [1] is an authorization framework."
-            assert len(response.citations) == 1
-            assert response.citations[0].number == 1
-            assert response.citations[0].document_name == "OAuth Guide.pdf"
-            assert response.confidence > 0
-            assert response.result_count == 1
+                mock_query_response = MagicMock()
+                mock_query_response.points = [mock_point]
+
+                # Story 7-7: Mock async qdrant_service methods
+                search_service.qdrant_service = MagicMock()
+                search_service.qdrant_service.ensure_connection = AsyncMock()
+                search_service.qdrant_service.query_points = AsyncMock(
+                    return_value=mock_query_response
+                )
+
+                response = await search_service.search(query, kb_ids, user_id, limit=10)
+
+                assert isinstance(response, SearchResponse)
+                assert response.answer == "OAuth 2.0 [1] is an authorization framework."
+                assert len(response.citations) == 1
+                assert response.citations[0].number == 1
+                assert response.citations[0].document_name == "OAuth Guide.pdf"
+                assert response.confidence > 0
+                assert response.result_count == 1
 
 
 @pytest.mark.asyncio
 async def test_search_synthesis_failure_graceful_degradation(search_service):
     """AC7, AC8: If synthesis fails, return raw results without answer."""
     query = "test"
-    kb_ids = ["kb-123"]
+    kb_ids = [TEST_KB_ID_1]
     user_id = "user-1"
 
     with patch("app.services.search_service.embedding_client") as mock_client:
@@ -500,30 +557,43 @@ async def test_search_synthesis_failure_graceful_degradation(search_service):
             mock_redis_instance.setex = AsyncMock()
             mock_redis.return_value = mock_redis_instance
 
-            # Mock Qdrant results
-            search_service.qdrant_client = MagicMock()
-            mock_result = MagicMock()
-            mock_result.score = 0.92
-            mock_result.payload = {
-                "document_id": "doc-1",
-                "document_name": "Test.pdf",
-                "chunk_text": "test",
-                "page_number": 1,
-                "section_header": "Test",
-                "char_start": 0,
-                "char_end": 4,
-                "kb_name": "KB",
-            }
-            search_service.qdrant_client.search.return_value = [mock_result]
+            # Mock _get_kb_names to prevent DB calls
+            with patch.object(
+                search_service, "_get_kb_names", new_callable=AsyncMock
+            ) as mock_get_kb_names:
+                mock_get_kb_names.return_value = {TEST_KB_ID_1: "KB"}
 
-            response = await search_service.search(query, kb_ids, user_id)
+                # Mock Qdrant query_points results
+                mock_point = MagicMock()
+                mock_point.score = 0.92
+                mock_point.payload = {
+                    "document_id": "doc-1",
+                    "document_name": "Test.pdf",
+                    "chunk_text": "test",
+                    "page_number": 1,
+                    "section_header": "Test",
+                    "char_start": 0,
+                    "char_end": 4,
+                }
 
-            # Should succeed with raw results, no answer/citations
-            assert isinstance(response, SearchResponse)
-            assert response.answer == ""  # Empty answer on failure
-            assert response.citations == []  # Empty citations
-            assert response.confidence == 0.0
-            assert response.result_count == 1  # Raw results still returned
+                mock_query_response = MagicMock()
+                mock_query_response.points = [mock_point]
+
+                # Story 7-7: Mock async qdrant_service methods
+                search_service.qdrant_service = MagicMock()
+                search_service.qdrant_service.ensure_connection = AsyncMock()
+                search_service.qdrant_service.query_points = AsyncMock(
+                    return_value=mock_query_response
+                )
+
+                response = await search_service.search(query, kb_ids, user_id)
+
+                # Should succeed with raw results, no answer/citations
+                assert isinstance(response, SearchResponse)
+                assert response.answer == ""  # Empty answer on failure
+                assert response.citations == []  # Empty citations
+                assert response.confidence == 0.0
+                assert response.result_count == 1  # Raw results still returned
 
 
 # =============================================================================
@@ -541,7 +611,7 @@ async def test_quick_search_returns_top_5_results(
     user_id = "user-1"
 
     # Mock permission check
-    mock_permission_service.get_permitted_kb_ids.return_value = ["kb-123"]
+    mock_permission_service.get_permitted_kb_ids.return_value = [TEST_KB_ID_1]
 
     with (
         patch("app.services.search_service.embedding_client") as mock_client,
@@ -556,43 +626,55 @@ async def test_quick_search_returns_top_5_results(
         mock_redis_instance.setex = AsyncMock()
         mock_redis.return_value = mock_redis_instance
 
-        # Mock Qdrant results (5 results)
-        search_service.qdrant_client = MagicMock()
-        mock_results = []
-        for i in range(5):
-            mock_result = MagicMock()
-            mock_result.score = 0.9 - (i * 0.1)
-            mock_result.payload = {
-                "document_id": f"doc-{i}",
-                "document_name": f"Test{i}.pdf",
-                "chunk_text": f"This is test chunk {i} with some content here.",
-                "page_number": i + 1,
-                "section_header": f"Section {i}",
-                "char_start": 0,
-                "char_end": 50,
-                "kb_name": "Test KB",
-                "kb_id": "kb-123",
-            }
-            mock_results.append(mock_result)
-        search_service.qdrant_client.search.return_value = mock_results
+        # Mock _get_kb_names to prevent DB calls
+        with patch.object(
+            search_service, "_get_kb_names", new_callable=AsyncMock
+        ) as mock_get_kb_names:
+            mock_get_kb_names.return_value = {TEST_KB_ID_1: "Test KB"}
 
-        response = await search_service.quick_search(query, kb_ids, user_id)
+            # Mock Qdrant query_points results (5 results)
+            mock_points = []
+            for i in range(5):
+                mock_point = MagicMock()
+                mock_point.score = 0.9 - (i * 0.1)
+                mock_point.payload = {
+                    "document_id": f"doc-{i}",
+                    "document_name": f"Test{i}.pdf",
+                    "chunk_text": f"This is test chunk {i} with some content here.",
+                    "page_number": i + 1,
+                    "section_header": f"Section {i}",
+                    "char_start": 0,
+                    "char_end": 50,
+                }
+                mock_points.append(mock_point)
 
-        # Assertions
-        assert isinstance(response, QuickSearchResponse)
-        assert response.query == query
-        assert len(response.results) == 5  # Top 5 only
-        assert response.kb_count == 1
-        assert response.response_time_ms > 0
+            mock_query_response = MagicMock()
+            mock_query_response.points = mock_points
 
-        # Verify result structure
-        first_result = response.results[0]
-        assert first_result.document_id == "doc-0"
-        assert first_result.document_name == "Test0.pdf"
-        assert first_result.kb_id == "kb-123"
-        assert first_result.kb_name == "Test KB"
-        assert first_result.relevance_score == 0.9
-        assert len(first_result.excerpt) <= 103  # 100 chars + "..."
+            # Story 7-7: Mock async qdrant_service methods
+            search_service.qdrant_service = MagicMock()
+            search_service.qdrant_service.ensure_connection = AsyncMock()
+            search_service.qdrant_service.query_points = AsyncMock(
+                return_value=mock_query_response
+            )
+
+            response = await search_service.quick_search(query, kb_ids, user_id)
+
+            # Assertions
+            assert isinstance(response, QuickSearchResponse)
+            assert response.query == query
+            assert len(response.results) == 5  # Top 5 only
+            assert response.kb_count == 1
+            assert response.response_time_ms >= 0  # Can be 0 in fast tests
+
+            # Verify result structure
+            first_result = response.results[0]
+            assert first_result.document_id == "doc-0"
+            assert first_result.document_name == "Test0.pdf"
+            assert first_result.kb_id == TEST_KB_ID_1
+            assert first_result.kb_name == "Test KB"
+            assert first_result.relevance_score == 0.9
+            assert len(first_result.excerpt) <= 103  # 100 chars + "..."
 
 
 @pytest.mark.asyncio
@@ -601,7 +683,7 @@ async def test_quick_search_truncates_excerpt(search_service, mock_permission_se
     query = "test"
     user_id = "user-1"
 
-    mock_permission_service.get_permitted_kb_ids.return_value = ["kb-123"]
+    mock_permission_service.get_permitted_kb_ids.return_value = [TEST_KB_ID_1]
 
     with (
         patch("app.services.search_service.embedding_client") as mock_client,
@@ -610,27 +692,42 @@ async def test_quick_search_truncates_excerpt(search_service, mock_permission_se
         mock_client.get_embeddings = AsyncMock(return_value=[[0.1] * 1536])
         mock_redis_instance = AsyncMock()
         mock_redis_instance.get.return_value = None
+        mock_redis_instance.setex = AsyncMock()
         mock_redis.return_value = mock_redis_instance
 
-        # Mock result with long chunk_text
-        search_service.qdrant_client = MagicMock()
-        mock_result = MagicMock()
-        mock_result.score = 0.95
-        long_text = "a" * 200  # 200 characters
-        mock_result.payload = {
-            "document_id": "doc-1",
-            "document_name": "Test.pdf",
-            "chunk_text": long_text,
-            "kb_id": "kb-123",
-            "kb_name": "KB",
-        }
-        search_service.qdrant_client.search.return_value = [mock_result]
+        # Mock _get_kb_names to prevent DB calls
+        with patch.object(
+            search_service, "_get_kb_names", new_callable=AsyncMock
+        ) as mock_get_kb_names:
+            mock_get_kb_names.return_value = {TEST_KB_ID_1: "KB"}
 
-        response = await search_service.quick_search(query, None, user_id)
+            # Mock result with long chunk_text
+            long_text = "a" * 200  # 200 characters
+            mock_point = MagicMock()
+            mock_point.score = 0.95
+            mock_point.payload = {
+                "document_id": "doc-1",
+                "document_name": "Test.pdf",
+                "chunk_text": long_text,
+                "char_start": 0,
+                "char_end": 200,
+            }
 
-        # Excerpt should be truncated
-        assert len(response.results[0].excerpt) == 103  # 100 chars + "..."
-        assert response.results[0].excerpt.endswith("...")
+            mock_query_response = MagicMock()
+            mock_query_response.points = [mock_point]
+
+            # Story 7-7: Mock async qdrant_service methods
+            search_service.qdrant_service = MagicMock()
+            search_service.qdrant_service.ensure_connection = AsyncMock()
+            search_service.qdrant_service.query_points = AsyncMock(
+                return_value=mock_query_response
+            )
+
+            response = await search_service.quick_search(query, None, user_id)
+
+            # Excerpt should be truncated
+            assert len(response.results[0].excerpt) == 103  # 100 chars + "..."
+            assert response.results[0].excerpt.endswith("...")
 
 
 @pytest.mark.asyncio
@@ -660,7 +757,11 @@ async def test_quick_search_cross_kb_default(search_service, mock_permission_ser
     user_id = "user-1"
 
     # User has access to multiple KBs
-    mock_permission_service.get_permitted_kb_ids.return_value = ["kb-1", "kb-2", "kb-3"]
+    mock_permission_service.get_permitted_kb_ids.return_value = [
+        TEST_KB_ID_1,
+        TEST_KB_ID_2,
+        TEST_KB_ID_3,
+    ]
 
     with (
         patch("app.services.search_service.embedding_client") as mock_client,
@@ -669,14 +770,207 @@ async def test_quick_search_cross_kb_default(search_service, mock_permission_ser
         mock_client.get_embeddings = AsyncMock(return_value=[[0.1] * 1536])
         mock_redis_instance = AsyncMock()
         mock_redis_instance.get.return_value = None
+        mock_redis_instance.setex = AsyncMock()
         mock_redis.return_value = mock_redis_instance
 
-        search_service.qdrant_client = MagicMock()
-        search_service.qdrant_client.search.return_value = []  # No results
+        # Mock _get_kb_names to prevent DB calls
+        with patch.object(
+            search_service, "_get_kb_names", new_callable=AsyncMock
+        ) as mock_get_kb_names:
+            mock_get_kb_names.return_value = {
+                TEST_KB_ID_1: "KB 1",
+                TEST_KB_ID_2: "KB 2",
+                TEST_KB_ID_3: "KB 3",
+            }
 
-        response = await search_service.quick_search(
-            query, None, user_id
-        )  # kb_ids=None
+            # Mock empty query_points response
+            mock_query_response = MagicMock()
+            mock_query_response.points = []
 
-        # Should search all 3 KBs
-        assert response.kb_count == 3
+            # Story 7-7: Mock async qdrant_service methods
+            search_service.qdrant_service = MagicMock()
+            search_service.qdrant_service.ensure_connection = AsyncMock()
+            search_service.qdrant_service.query_points = AsyncMock(
+                return_value=mock_query_response
+            )
+
+            response = await search_service.quick_search(
+                query, None, user_id
+            )  # kb_ids=None
+
+            # Should search all 3 KBs
+            assert response.kb_count == 3
+
+
+# =============================================================================
+# Story 5.11: Similar Search Unit Tests (TD-3.8-1)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_similar_search_uses_chunk_embedding(
+    search_service, mock_permission_service
+):
+    """Verify similar_search retrieves chunk embedding from Qdrant.
+
+    AC1: Verifies chunk embedding retrieval from Qdrant using qdrant_client.retrieve.
+    """
+    chunk_id = "chunk-123"
+    kb_ids = [TEST_KB_ID_1]
+    user_id = "user-1"
+
+    # Mock permission check
+    mock_permission_service.get_permitted_kb_ids.return_value = [TEST_KB_ID_1]
+    mock_permission_service.check_permission.return_value = True
+
+    # Mock Qdrant retrieve to return chunk with vector (embedding)
+    mock_point = MagicMock()
+    mock_point.vector = [0.1, 0.2, 0.3]  # Chunk's pre-computed embedding
+    mock_point.payload = {
+        "document_id": "doc-1",
+        "document_name": "Test.pdf",
+        "chunk_text": "Original chunk text content.",
+        "page_number": 1,
+        "section_header": "Introduction",
+        "char_start": 0,
+        "char_end": 28,
+        "chunk_id": chunk_id,
+    }
+
+    # Mock empty query_points response
+    mock_query_response = MagicMock()
+    mock_query_response.points = []
+
+    # Story 7-7: Mock async qdrant_service methods
+    search_service.qdrant_service = MagicMock()
+    search_service.qdrant_service.ensure_connection = AsyncMock()
+    search_service.qdrant_service.retrieve = AsyncMock(return_value=[mock_point])
+    search_service.qdrant_service.query_points = AsyncMock(
+        return_value=mock_query_response
+    )
+
+    with patch("app.services.search_service.embedding_client") as mock_embed_client:
+        # Mock chat_completion for answer synthesis (graceful fallback)
+        mock_embed_client.chat_completion = AsyncMock(side_effect=Exception("skip"))
+
+        # Mock _get_kb_names to prevent DB calls
+        with patch.object(
+            search_service, "_get_kb_names", new_callable=AsyncMock
+        ) as mock_get_kb_names:
+            mock_get_kb_names.return_value = {TEST_KB_ID_1: "Test KB"}
+
+            response = await search_service.similar_search(chunk_id, kb_ids, user_id)
+
+            # Verify retrieve was called to get chunk embedding
+            search_service.qdrant_service.retrieve.assert_called()
+            retrieve_call = search_service.qdrant_service.retrieve.call_args
+            assert retrieve_call[1]["ids"] == [chunk_id]
+            assert retrieve_call[1]["with_vectors"] is True
+
+            # Response should be valid SearchResponse
+            assert isinstance(response, SearchResponse)
+
+
+@pytest.mark.asyncio
+async def test_similar_search_excludes_original(
+    search_service, mock_permission_service
+):
+    """Verify original chunk is excluded from similar search results.
+
+    AC1: Verifies original chunk filtered from results (same chunk_id excluded).
+    """
+    chunk_id = "chunk-123"
+    kb_ids = [TEST_KB_ID_1]
+    user_id = "user-1"
+
+    mock_permission_service.get_permitted_kb_ids.return_value = [TEST_KB_ID_1]
+    mock_permission_service.check_permission.return_value = True
+
+    # Mock Qdrant retrieve to return original chunk
+    mock_original = MagicMock()
+    mock_original.vector = [0.1, 0.2, 0.3]
+    mock_original.payload = {
+        "document_id": "doc-1",
+        "document_name": "Original.pdf",
+        "chunk_text": "Original chunk text.",
+        "char_start": 0,
+        "char_end": 20,
+        "chunk_id": chunk_id,
+    }
+
+    # Mock Qdrant query_points to return original + similar chunks
+    mock_original_point = MagicMock()
+    mock_original_point.score = 1.0  # Perfect match (same chunk)
+    mock_original_point.payload = {
+        "document_id": "doc-1",
+        "document_name": "Original.pdf",
+        "chunk_text": "Original chunk text.",
+        "char_start": 0,
+        "char_end": 20,
+        "chunk_id": chunk_id,  # Same chunk_id - should be excluded
+    }
+
+    mock_similar_point = MagicMock()
+    mock_similar_point.score = 0.85
+    mock_similar_point.payload = {
+        "document_id": "doc-2",
+        "document_name": "Similar.pdf",
+        "chunk_text": "Similar chunk text.",
+        "char_start": 0,
+        "char_end": 19,
+        "chunk_id": "chunk-456",  # Different chunk_id - should be included
+    }
+
+    mock_query_response = MagicMock()
+    mock_query_response.points = [mock_original_point, mock_similar_point]
+
+    # Story 7-7: Mock async qdrant_service methods
+    search_service.qdrant_service = MagicMock()
+    search_service.qdrant_service.ensure_connection = AsyncMock()
+    search_service.qdrant_service.retrieve = AsyncMock(return_value=[mock_original])
+    search_service.qdrant_service.query_points = AsyncMock(
+        return_value=mock_query_response
+    )
+
+    with patch("app.services.search_service.embedding_client") as mock_embed_client:
+        mock_embed_client.chat_completion = AsyncMock(side_effect=Exception("skip"))
+
+        # Mock _get_kb_names to prevent DB calls
+        with patch.object(
+            search_service, "_get_kb_names", new_callable=AsyncMock
+        ) as mock_get_kb_names:
+            mock_get_kb_names.return_value = {TEST_KB_ID_1: "Test KB"}
+
+            response = await search_service.similar_search(chunk_id, kb_ids, user_id)
+
+            # Original chunk should be excluded from results
+            assert response.result_count == 1
+            assert len(response.results) == 1
+            # The result should be the similar chunk, not the original
+            assert response.results[0].document_name == "Similar.pdf"
+
+
+@pytest.mark.asyncio
+async def test_similar_search_checks_permissions(
+    search_service, mock_permission_service
+):
+    """Verify KB permission is checked before similar search.
+
+    AC1: Verifies KB permission enforcement - PermissionError raised when no access.
+    """
+    chunk_id = "chunk-123"
+    kb_ids = ["kb-restricted"]  # KB user doesn't have access to
+    user_id = "user-1"
+
+    # User does NOT have permission to this KB
+    mock_permission_service.get_permitted_kb_ids.return_value = ["kb-123"]
+    mock_permission_service.check_permission.return_value = False
+
+    # Should raise PermissionError before even trying to retrieve chunk
+    with pytest.raises(PermissionError, match="Knowledge Base not found"):
+        await search_service.similar_search(chunk_id, kb_ids, user_id)
+
+    # Verify permission was checked
+    mock_permission_service.check_permission.assert_called_once_with(
+        user_id, "kb-restricted", "READ"
+    )

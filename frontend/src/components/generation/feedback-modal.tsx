@@ -32,8 +32,8 @@ interface FeedbackOption {
 const FEEDBACK_OPTIONS: FeedbackOption[] = [
   {
     value: "not_relevant",
-    label: "Results aren't relevant",
-    description: "Draft doesn't address my context",
+    label: "Results aren&apos;t relevant",
+    description: "Draft doesn&apos;t address my context",
   },
   {
     value: "wrong_format",
@@ -99,7 +99,7 @@ export function FeedbackModal({
             What went wrong?
           </DialogTitle>
           <DialogDescription>
-            Help us improve by telling us what didn't work with this draft.
+            Help us improve by telling us what didn&apos;t work with this draft.
           </DialogDescription>
         </DialogHeader>
 

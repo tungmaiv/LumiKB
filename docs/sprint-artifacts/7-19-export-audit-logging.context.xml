@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-19" title="Export Audit Logging">
+  <summary>
+    Integrate audit logging into export operations in ExportService, ensuring all
+    document exports are tracked for compliance and analytics purposes.
+  </summary>
+
+  <key-files>
+    <file path="backend/app/services/export_service.py" purpose="Export service for DOCX/PDF/Markdown">
+      <note>Lines 51-110: export_to_docx() - no audit logging currently</note>
+      <note>Lines 112-200: export_to_pdf() - no audit logging currently</note>
+      <note>Lines 202-270: export_to_markdown() - no audit logging currently</note>
+      <note>Service is stateless, instantiated in drafts.py endpoint</note>
+    </file>
+    <file path="backend/app/services/audit_service.py" purpose="Audit logging service">
+      <note>Lines 292-322: log_export() method ALREADY EXISTS</note>
+      <note>Parameters: user_id, draft_id, export_format, citation_count, file_size_bytes</note>
+      <note>Uses fire-and-forget pattern (background task, doesn't await)</note>
+    </file>
+    <file path="backend/app/api/v1/drafts.py" purpose="Draft API endpoints">
+      <note>Lines 364-461: export_draft() endpoint</note>
+      <note>Lines 447-454: ALREADY calls audit_service.log_export()</note>
+      <note>DISCOVERY: Export audit logging is already implemented at API layer</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="Audit Log Export (Already Implemented)">
+      <description>From drafts.py lines 447-454 - audit logging already in place</description>
+      <code><![CDATA[
+# Log export to audit service
+await audit_service.log_export(
+    user_id=current_user.id,
+    draft_id=draft_id,
+    export_format=request.format,
+    citation_count=len(draft.citations) if draft.citations else 0,
+    file_size_bytes=len(file_bytes),
+    related_request_id=None,  # TODO: Link to generation request_id when Draft model includes it
+)
+]]></code>
+    </pattern>
+    <pattern name="Audit Service log_export">
+      <description>From audit_service.py lines 292-322</description>
+      <code><![CDATA[
+async def log_export(
+    self,
+    user_id: UUID,
+    draft_id: UUID | None,
+    export_format: str,
+    citation_count: int,
+    file_size_bytes: int,
+    related_request_id: str | None = None,
+) -> None:
+    """Log export event for compliance tracking."""
+    await self._log_event(
+        event_type=AuditEventType.EXPORT,
+        action="export_draft",
+        user_id=user_id,
+        resource_type="draft",
+        resource_id=str(draft_id) if draft_id else None,
+        details={
+            "format": export_format,
+            "citation_count": citation_count,
+            "file_size_bytes": file_size_bytes,
+        },
+        related_request_id=related_request_id,
+    )
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="discovery">
+      IMPORTANT: Export audit logging is ALREADY IMPLEMENTED in drafts.py export_draft() endpoint.
+      The audit_service.log_export() method exists and is called correctly.
+      Story 7-19 may need to be RE-EVALUATED or marked as already done.
+    </note>
+    <note type="gap-analysis">
+      Potential gaps to verify:
+      1. Does log_export include all required metadata (title, export timestamp)?
+      2. Are errors during export logged?
+      3. Is there a test verifying audit log creation on export?
+    </note>
+    <note type="testing">
+      Need integration test: export draft → verify audit log entry created with correct metadata
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.19.1" status="implemented">
+      <description>Audit log created on export</description>
+      <implementation>drafts.py line 448 calls audit_service.log_export()</implementation>
+    </criterion>
+    <criterion id="AC-7.19.2" status="implemented">
+      <description>Log includes format, citation count, file size</description>
+      <implementation>All three parameters passed to log_export()</implementation>
+    </criterion>
+    <criterion id="AC-7.19.3" status="needs-verification">
+      <description>Export errors logged</description>
+      <implementation>Need to verify error paths have audit logging</implementation>
+    </criterion>
+    <criterion id="AC-7.19.4" status="not-implemented">
+      <description>Unit test coverage</description>
+      <implementation>Need tests verifying audit log creation</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <dependency story="4-7" status="completed">Document export implementation</dependency>
+    <dependency story="1-7" status="completed">Audit logging infrastructure</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>Mock audit_service.log_export and verify it's called with correct params during export</test>
+      <test>Test export error path creates appropriate audit entry</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Export draft to DOCX, query audit log, verify entry exists with format="docx"</test>
+      <test>Export to PDF, verify file_size_bytes in audit log matches response size</test>
+    </integration-tests>
+  </test-strategy>
+</story-context>

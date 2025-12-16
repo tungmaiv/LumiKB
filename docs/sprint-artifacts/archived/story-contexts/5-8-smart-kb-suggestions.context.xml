@@ -1,0 +1,481 @@
+<story-context id="docs/sprint-artifacts/5-8-smart-kb-suggestions.context.xml" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>8</storyId>
+    <title>Smart KB Suggestions</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-8-smart-kb-suggestions.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>the system to suggest relevant KBs based on my content</iWant>
+    <soThat>I can quickly find where to search</soThat>
+    <tasks>
+      <task id="1" acs="AC-5.8.1, AC-5.8.2">
+        <name>Create KB Recommendation Backend Service</name>
+        <subtasks>
+          <subtask>1.1 Create backend/app/services/kb_recommendation_service.py</subtask>
+          <subtask>1.1.1 Implement KBRecommendationService class with dependency injection (AsyncSession, Redis)</subtask>
+          <subtask>1.1.2 Method: get_recommendations(user_id: UUID, limit: int = 5) -> list[KBRecommendation]</subtask>
+          <subtask>1.1.3 Method: _calculate_scores(user_id: UUID, kbs: list[KB]) -> dict[UUID, float]</subtask>
+          <subtask>1.1.4 Method: _get_recent_access_score(user_id: UUID, kb_id: UUID) -> float (30-day window)</subtask>
+          <subtask>1.1.5 Method: _get_search_relevance_score(user_id: UUID, kb_id: UUID) -> float</subtask>
+          <subtask>1.1.6 Method: _get_shared_access_score(kb_id: UUID) -> float</subtask>
+          <subtask>1.2.1 Weight: recent_access (0.40), search_relevance (0.35), shared_access (0.25)</subtask>
+          <subtask>1.2.2 Normalize scores to 0-100 range</subtask>
+          <subtask>1.2.3 Handle edge cases (division by zero, missing data)</subtask>
+          <subtask>1.3.1 Detect new users (created_at < 7 days AND search_count = 0)</subtask>
+          <subtask>1.3.2 Fallback query: public KBs sorted by global popularity</subtask>
+          <subtask>1.3.3 Add is_cold_start flag to response</subtask>
+        </subtasks>
+      </task>
+      <task id="2" acs="AC-5.8.3">
+        <name>Add Redis Caching Layer</name>
+        <subtasks>
+          <subtask>2.1.1 Cache key format: kb_recommendations:user:{user_id}</subtask>
+          <subtask>2.1.2 TTL: 3600 seconds (1 hour)</subtask>
+          <subtask>2.1.3 Serialize recommendations as JSON</subtask>
+          <subtask>2.2.1 Clear cache on new KB created by user</subtask>
+          <subtask>2.2.2 Clear cache on new search performed by user</subtask>
+          <subtask>2.2.3 Add invalidate_user_recommendations(user_id) method</subtask>
+          <subtask>2.3.1 Log cache hit rate for monitoring</subtask>
+          <subtask>2.3.2 Add cache hit/miss to structured logging</subtask>
+        </subtasks>
+      </task>
+      <task id="3" acs="AC-5.8.4">
+        <name>Create API Endpoint</name>
+        <subtasks>
+          <subtask>3.1 Create GET /api/v1/users/me/kb-recommendations endpoint in backend/app/api/v1/users.py</subtask>
+          <subtask>3.2.1 Add Pydantic schema: KBRecommendation in backend/app/schemas/user.py</subtask>
+          <subtask>3.2.1.1 Fields: kb_id (UUID), kb_name (str), description (str), score (float), reason (str), last_accessed (datetime | None), is_cold_start (bool)</subtask>
+          <subtask>3.3 Wire up endpoint to KBRecommendationService</subtask>
+          <subtask>3.4 Require authentication (current_active_user dependency)</subtask>
+          <subtask>3.5 Add OpenAPI documentation</subtask>
+          <subtask>3.6 Return max 5 recommendations</subtask>
+        </subtasks>
+      </task>
+      <task id="4" acs="AC-5.8.1, AC-5.8.2">
+        <name>Add Database Tracking for Access Patterns</name>
+        <subtasks>
+          <subtask>4.1.1 Create Alembic migration: add_kb_access_tracking.py</subtask>
+          <subtask>4.1.2 Create table: kb_access_log (id, user_id, kb_id, accessed_at, access_type)</subtask>
+          <subtask>4.1.3 Add index: idx_kb_access_user_kb_date (user_id, kb_id, accessed_at)</subtask>
+          <subtask>4.2.1 Log access when search performed: access_type='search'</subtask>
+          <subtask>4.2.2 Fire-and-forget pattern (no impact on search latency)</subtask>
+          <subtask>4.3.1 Log access when KB selected in UI: access_type='view'</subtask>
+        </subtasks>
+      </task>
+      <task id="5" acs="Deferred to Story 5.9">
+        <name>Implement Frontend Integration</name>
+        <subtasks>
+          <subtask>5.1 Deferred: Create frontend/src/hooks/useKBRecommendations.ts</subtask>
+          <subtask>5.2 Deferred: Integrate recommendations into KB selector component</subtask>
+          <subtask>5.3 Deferred: Display recommendation reasons in UI</subtask>
+        </subtasks>
+      </task>
+      <task id="6" acs="All">
+        <name>Write Backend Unit Tests</name>
+        <subtasks>
+          <subtask>6.1 Create backend/tests/unit/test_kb_recommendation_service.py</subtask>
+          <subtask>6.2.1 test_calculate_scores_with_recent_access() - verify weight 0.40</subtask>
+          <subtask>6.2.2 test_calculate_scores_with_search_relevance() - verify weight 0.35</subtask>
+          <subtask>6.2.3 test_calculate_scores_with_shared_access() - verify weight 0.25</subtask>
+          <subtask>6.2.4 test_scores_normalized_to_100() - verify 0-100 range</subtask>
+          <subtask>6.3.1 test_cold_start_new_user() - new user gets public KBs</subtask>
+          <subtask>6.3.2 test_cold_start_flag_set() - verify is_cold_start=true</subtask>
+          <subtask>6.4.1 test_no_kbs_available() - returns empty list</subtask>
+        </subtasks>
+      </task>
+      <task id="7" acs="All">
+        <name>Write Backend Integration Tests</name>
+        <subtasks>
+          <subtask>7.1 Create backend/tests/integration/test_kb_recommendations_api.py</subtask>
+          <subtask>7.2.1 test_get_recommendations_authenticated() - 200 OK with recommendations</subtask>
+          <subtask>7.2.2 test_get_recommendations_unauthenticated() - 401 Unauthorized</subtask>
+          <subtask>7.2.3 test_recommendations_max_5() - verify limit enforced</subtask>
+          <subtask>7.2.4 test_response_schema_valid() - validate KBRecommendation schema</subtask>
+          <subtask>7.3.1 test_cache_hit_reduces_latency() - second call faster</subtask>
+          <subtask>7.3.2 test_cache_invalidation_on_new_search() - cache cleared</subtask>
+          <subtask>7.3.3 test_cache_ttl_expires() - cache cleared after 1 hour</subtask>
+        </subtasks>
+      </task>
+      <task id="8" acs="Deferred to Story 5.16">
+        <name>E2E Tests</name>
+        <subtasks>
+          <subtask>8.1 Create frontend/e2e/tests/kb-recommendations.spec.ts</subtask>
+          <subtask>8.2.1 Login -> Perform searches -> Verify recommendations update</subtask>
+          <subtask>8.2.2 Create new KB -> Verify appears in recommendations</subtask>
+          <subtask>8.2.3 New user -> Verify cold start recommendations (public KBs)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.8.1">
+      <name>Personalized KB Recommendations</name>
+      <given>I am a logged-in user</given>
+      <when>I access the KB recommendations endpoint</when>
+      <then>the system returns personalized KB recommendations based on my search history and access patterns</then>
+      <and>recommendations are ranked by recent_access_count (30d), search_relevance, and shared_access</and>
+      <validation>
+        <item>GET /api/v1/users/me/kb-recommendations returns list of recommendations</item>
+        <item>Each recommendation includes: kb_id, kb_name, score, reason</item>
+        <item>Recommendations sorted by score (highest first)</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.8.2">
+      <name>Smart Scoring Algorithm</name>
+      <given>the system calculates KB recommendations</given>
+      <when>the scoring algorithm runs</when>
+      <then>it considers multiple factors: Recent access count (last 30 days) - weight: 40%, Search relevance (KB content match to user queries) - weight: 35%, Shared access (collaborative KB access patterns) - weight: 25%</then>
+      <validation>
+        <item>Scoring algorithm implemented in backend service</item>
+        <item>Scores normalized to 0-100 range</item>
+        <item>Algorithm handles edge cases (new users, no history)</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.8.3">
+      <name>Redis Caching for Performance</name>
+      <given>recommendations are computationally expensive</given>
+      <when>a user requests recommendations</when>
+      <then>results are cached in Redis for 1 hour per user</then>
+      <and>cache invalidation occurs on significant user activity (new KB created, search performed)</and>
+      <validation>
+        <item>Redis cache key format: kb_recommendations:user:{user_id}</item>
+        <item>TTL set to 3600 seconds (1 hour)</item>
+        <item>Cache hit reduces response time from ~200ms to &lt;10ms</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.8.4">
+      <name>API Endpoint Returns Max 5 Recommendations</name>
+      <given>a user requests KB recommendations</given>
+      <when>GET /api/v1/users/me/kb-recommendations is called</when>
+      <then>the response includes maximum 5 recommendations with scores</then>
+      <and>response schema matches KBRecommendation model</and>
+      <validation>
+        <item>Response: list[KBRecommendation] with max 5 items</item>
+        <item>KBRecommendation schema: { kb_id, kb_name, description, score, reason, last_accessed }</item>
+        <item>Empty list returned if no recommendations available</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.8.5">
+      <name>Cold Start - Default to Popular KBs</name>
+      <given>a new user has no search history or KB access patterns</given>
+      <when>recommendations are requested</when>
+      <then>the system defaults to most popular public KBs</then>
+      <and>popularity determined by global search count and user count</and>
+      <validation>
+        <item>New users (< 7 days old or 0 searches) receive public KB recommendations</item>
+        <item>Fallback query: SELECT top 5 KBs by search_count DESC WHERE visibility='public'</item>
+        <item>Cold start indicator in response: is_cold_start: true</item>
+      </validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 5: Administration & Polish</title>
+        <section>Story 5.8: Smart KB Suggestions</section>
+        <snippet>User story defines the requirement: As a user, I want the system to suggest relevant KBs based on my content, so that I can quickly find where to search. Technical notes specify: Analyze pasted content against KB descriptions + sample docs using lightweight embedding comparison.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Technical Specification - Epic 5</title>
+        <section>Story 5.8 Acceptance Criteria</section>
+        <snippet>Defines 5 detailed acceptance criteria: AC-5.8.1 (personalized recommendations), AC-5.8.2 (scoring algorithm with 40/35/25 weights), AC-5.8.3 (Redis caching 1hr TTL), AC-5.8.4 (API endpoint max 5 results), AC-5.8.5 (cold start fallback to public KBs).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Caching Strategy</section>
+        <snippet>Redis used for caching with 5-minute TTL for admin stats, session data, and frequent queries. Redis version >=7.0.0 required, shared instance for Celery queue and cache. Fire-and-forget pattern for non-critical operations to avoid latency impact.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Service Layer Pattern</section>
+        <snippet>Service layer implements business logic with dependency injection (AsyncSession for database). Services follow single responsibility principle with clear method signatures. Authentication via current_active_user dependency for all user-scoped endpoints.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/5-7-onboarding-wizard.md</path>
+        <title>Story 5.7: Onboarding Wizard (Completed)</title>
+        <section>Implementation Patterns</section>
+        <snippet>Story 5.7 achieved 95/100 quality score with: User model extension pattern using SQLAlchemy 2.0 mapped_column, PUT /api/v1/users/me/onboarding endpoint with current_active_user auth, React Query hook pattern for API calls, idempotent design, zero linting errors, 38/38 tests passing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/5-1-admin-dashboard-overview.md</path>
+        <title>Story 5.1: Admin Dashboard Overview (Completed)</title>
+        <section>Redis Caching Pattern</section>
+        <snippet>AdminStatsService demonstrates Redis caching pattern: CACHE_KEY constant, CACHE_TTL = 300 (5 min), graceful degradation if Redis unavailable, cache hit logging for monitoring, model_dump_json() for serialization with Pydantic v2.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/5-6-kb-statistics-admin-view.md</path>
+        <title>Story 5.6: KB Statistics Admin View (Completed)</title>
+        <section>Quality Standards</section>
+        <snippet>Quality benchmark: Backend 8 unit + 4 integration tests passing, frontend 6 tests passing, Redis caching (10min TTL), cross-service aggregation (PostgreSQL, MinIO, Qdrant), graceful degradation, zero linting errors. Production-ready with comprehensive test coverage.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/admin_stats_service.py</path>
+        <kind>service</kind>
+        <symbol>AdminStatsService</symbol>
+        <lines>31-75</lines>
+        <reason>Reference implementation for Redis caching pattern: CACHE_KEY, CACHE_TTL, get_redis_client(), cache hit/miss logic, graceful fallback, model_dump_json() serialization. Lines 31-75 show __init__, get_dashboard_stats with try-except Redis handling.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/users.py</path>
+        <kind>api_router</kind>
+        <symbol>router</symbol>
+        <lines>1-50</lines>
+        <reason>API endpoint pattern reference for adding GET /api/v1/users/me/kb-recommendations. Shows router setup, current_active_user dependency pattern, response_model usage, OpenAPI responses dict, docstring format. Lines 1-50 cover imports and GET /me endpoint.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/models/user.py</path>
+        <kind>model</kind>
+        <symbol>User</symbol>
+        <lines>1-100</lines>
+        <reason>User model to query for cold start detection (created_at field) and permission checks. SQLAlchemy 2.0 async model pattern with mapped_column. Reference for user state queries in recommendation service.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/models/knowledge_base.py</path>
+        <kind>model</kind>
+        <symbol>KnowledgeBase</symbol>
+        <lines>1-100</lines>
+        <reason>KB model for recommendation queries. Need to query KBs by visibility (public/private), access permissions, and metadata. Reference for KB table structure and relationships for recommendation algorithm.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/search_service.py</path>
+        <kind>service</kind>
+        <symbol>SearchService</symbol>
+        <lines>1-100</lines>
+        <reason>Modify search service to add KB access logging (Task 4.2). Need to instrument search operations with fire-and-forget kb_access_log INSERT for access_type='search'. Reference for existing search patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/core/redis.py</path>
+        <kind>utility</kind>
+        <symbol>get_redis_client</symbol>
+        <lines>1-50</lines>
+        <reason>Redis client factory for caching recommendations. Use get_redis_client() for cache operations (setex, get, delete). Reference for Redis connection pattern and error handling.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/hooks/useAdminStats.ts</path>
+        <kind>hook</kind>
+        <symbol>useAdminStats</symbol>
+        <lines>1-50</lines>
+        <reason>React Query hook pattern reference for useKBRecommendations (Task 5.1, deferred to Story 5.9). Shows useQuery setup, caching config, error handling, TypeScript types. Deferred frontend work will follow this pattern.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend>
+        <dependency name="fastapi" version=">=0.115.0,<1.0.0" purpose="Web framework for API endpoints and routing"/>
+        <dependency name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" purpose="ORM for PostgreSQL queries (kb_access_log table, User/KB models)"/>
+        <dependency name="asyncpg" version=">=0.30.0,<1.0.0" purpose="Async PostgreSQL driver for SQLAlchemy"/>
+        <dependency name="redis" version=">=7.1.0,<8.0.0" purpose="Redis client for caching recommendations (1-hour TTL)"/>
+        <dependency name="pydantic" version=">=2.7.0,<3.0.0" purpose="Schema validation for KBRecommendation response model"/>
+        <dependency name="structlog" version=">=25.5.0,<26.0.0" purpose="Structured logging for cache hit/miss metrics"/>
+        <dependency name="alembic" version=">=1.14.0,<2.0.0" purpose="Database migration tool for kb_access_log table"/>
+        <dependency name="pytest" version=">=8.0.0" purpose="Testing framework for unit and integration tests"/>
+        <dependency name="pytest-asyncio" version=">=0.24.0" purpose="Async test support for service and API tests"/>
+        <dependency name="httpx" version=">=0.27.0" purpose="HTTP client for integration test API calls"/>
+      </backend>
+      <frontend>
+        <dependency name="@tanstack/react-query" version="^5.90.11" purpose="Data fetching and caching for useKBRecommendations hook (deferred to Story 5.9)"/>
+        <dependency name="zod" version="^4.1.12" purpose="Runtime schema validation for API responses"/>
+        <dependency name="zustand" version="^5.0.8" purpose="State management (existing pattern)"/>
+        <dependency name="next" version="16.0.3" purpose="Next.js 15 App Router framework"/>
+        <dependency name="react" version="19.2.0" purpose="React 19 for UI components"/>
+        <dependency name="lucide-react" version="^0.554.0" purpose="Icons for recommendation UI (deferred to Story 5.9)"/>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <development>
+      <pattern>Backend: SQLAlchemy 2.0 async with mapped_column, AsyncSession dependency injection</pattern>
+      <pattern>Backend: FastAPI router with current_active_user auth dependency for user-scoped endpoints</pattern>
+      <pattern>Backend: Pydantic v2 schemas with model_dump_json() serialization (not .json())</pattern>
+      <pattern>Backend: Alembic migrations with reversible upgrade/downgrade</pattern>
+      <pattern>Backend: Redis caching via app.core.redis.get_redis_client(), graceful fallback if unavailable</pattern>
+      <pattern>Backend: Structured logging with structlog for cache metrics and correlation</pattern>
+      <pattern>Frontend: Next.js 15 App Router, React 19, TypeScript strict mode (deferred to Story 5.9)</pattern>
+      <pattern>Frontend: React Query (TanStack Query) for API calls and client-side caching (deferred to Story 5.9)</pattern>
+    </development>
+    <security>
+      <item>Authentication required for recommendations endpoint via current_active_user dependency</item>
+      <item>Permission checks: Users only see recommendations for KBs they have access to</item>
+      <item>No PII tracking in kb_access_log beyond user_id + kb_id + access_type</item>
+      <item>Redis cache keys scoped per user (kb_recommendations:user:{user_id})</item>
+    </security>
+    <quality>
+      <item>Code quality target: 95/100 minimum (matching Story 5.7 benchmark)</item>
+      <item>Test coverage: Backend unit tests (7 scenarios) + integration tests (7 scenarios) = 14+ tests</item>
+      <item>Type hints required: Python type hints, TypeScript strict mode</item>
+      <item>Logging: Structured logging with correlation IDs for cache operations</item>
+      <item>Error handling: Graceful degradation if Redis unavailable (fallback to DB queries)</item>
+      <item>Principles: KISS (simple scoring algorithm), DRY (reuse Redis patterns), YAGNI (no ML until needed)</item>
+    </quality>
+    <deferred>
+      <item>Frontend integration: useKBRecommendations hook, KB selector UI → Story 5.9</item>
+      <item>E2E tests: Playwright tests for recommendation workflow → Story 5.16 (Docker E2E Infrastructure)</item>
+      <item>Content-based filtering: Analyze query text similarity → Future enhancement (ML-based)</item>
+      <item>Collaborative filtering: Recommend based on similar users → Future enhancement</item>
+    </deferred>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint>
+        <method>GET</method>
+        <path>/api/v1/users/me/kb-recommendations</path>
+        <auth>Required (current_active_user)</auth>
+        <request>None (query params optional for limit, defaults to 5)</request>
+        <response>
+          <status>200 OK</status>
+          <schema>list[KBRecommendation]</schema>
+          <example>[
+  {
+    "kb_id": "uuid",
+    "kb_name": "Engineering Docs",
+    "description": "Technical documentation",
+    "score": 87.5,
+    "reason": "Accessed 12 times in last 30 days",
+    "last_accessed": "2025-12-01T10:30:00Z",
+    "is_cold_start": false
+  }
+]</example>
+        </response>
+        <response>
+          <status>401 Unauthorized</status>
+          <description>Not authenticated</description>
+        </response>
+      </endpoint>
+    </api>
+    <schema>
+      <name>KBRecommendation</name>
+      <type>Pydantic BaseModel</type>
+      <fields>
+        <field name="kb_id" type="UUID" required="true"/>
+        <field name="kb_name" type="str" required="true"/>
+        <field name="description" type="str" required="true"/>
+        <field name="score" type="float" required="true" description="0-100 normalized score"/>
+        <field name="reason" type="str" required="true" description="Human-readable explanation"/>
+        <field name="last_accessed" type="datetime | None" required="false"/>
+        <field name="is_cold_start" type="bool" required="true" default="false"/>
+      </fields>
+    </schema>
+    <database>
+      <migration name="add_kb_access_tracking">
+        <table name="kb_access_log">
+          <column name="id" type="UUID" primary_key="true" default="gen_random_uuid()"/>
+          <column name="user_id" type="UUID" nullable="false" foreign_key="users(id)" on_delete="CASCADE"/>
+          <column name="kb_id" type="UUID" nullable="false" foreign_key="knowledge_bases(id)" on_delete="CASCADE"/>
+          <column name="accessed_at" type="TIMESTAMPTZ" nullable="false" default="NOW()"/>
+          <column name="access_type" type="VARCHAR(20)" nullable="false" check="access_type IN ('search', 'view', 'edit')"/>
+        </table>
+        <index name="idx_kb_access_user_kb_date" columns="user_id, kb_id, accessed_at DESC"/>
+      </migration>
+    </database>
+    <algorithm>
+      <name>KB Recommendation Scoring</name>
+      <formula>
+        weighted_score = (recent_access_score * 0.40) + (search_relevance_score * 0.35) + (shared_access_score * 0.25)
+        normalized_score = min(100, max(0, weighted_score * 100))
+      </formula>
+      <components>
+        <component name="recent_access_score">
+          <description>Count of user's KB accesses in last 30 days, normalized by max access count</description>
+          <query>SELECT COUNT(*) FROM kb_access_log WHERE user_id = ? AND kb_id = ? AND accessed_at >= NOW() - INTERVAL '30 days'</query>
+        </component>
+        <component name="search_relevance_score">
+          <description>Ratio of searches in this KB vs all searches by user (query similarity)</description>
+          <query>SELECT COUNT(*) FROM kb_access_log WHERE user_id = ? AND kb_id = ? AND access_type = 'search' / (SELECT COUNT(*) FROM kb_access_log WHERE user_id = ? AND access_type = 'search')</query>
+        </component>
+        <component name="shared_access_score">
+          <description>Global popularity: KB's total access count normalized by max KB access count</description>
+          <query>SELECT COUNT(*) FROM kb_access_log WHERE kb_id = ?</query>
+        </component>
+      </components>
+      <edge_cases>
+        <case>New user (< 7 days, 0 searches): Use cold start fallback (public KBs sorted by search_count DESC)</case>
+        <case>Division by zero: If max access count = 0, return score = 0</case>
+        <case>No accessible KBs: Return empty list []</case>
+      </edge_cases>
+    </algorithm>
+  </interfaces>
+
+  <tests>
+    <standards>
+Backend testing uses pytest + pytest-asyncio + httpx for async support. Unit tests focus on service methods (scoring algorithm, cold start logic, normalization). Integration tests verify API endpoint authentication, schema validation, Redis caching (cache hit/miss, TTL expiration), and permission checks. All tests use testcontainers for PostgreSQL and Redis. Quality benchmark from Story 5.7: 38/38 tests passing (9 backend + 29 frontend), zero linting errors, 95/100 code quality. Story 5.8 targets: 14+ backend tests (7 unit + 7 integration), deferred frontend tests to Story 5.9.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_kb_recommendation_service.py</location>
+      <location>backend/tests/integration/test_kb_recommendations_api.py</location>
+      <location>frontend/e2e/tests/kb-recommendations.spec.ts (deferred to Story 5.16)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-5.8.1, AC-5.8.2">
+        <test>test_calculate_scores_with_recent_access()</test>
+        <description>Unit test: Verify recent access score calculation with 0.40 weight. Mock kb_access_log with 10 accesses in last 30 days, verify score contribution.</description>
+      </idea>
+      <idea ac="AC-5.8.2">
+        <test>test_calculate_scores_with_search_relevance()</test>
+        <description>Unit test: Verify search relevance score with 0.35 weight. Mock 5 searches in KB A, 10 total searches, verify (5/10) * 0.35 contribution.</description>
+      </idea>
+      <idea ac="AC-5.8.2">
+        <test>test_calculate_scores_with_shared_access()</test>
+        <description>Unit test: Verify shared access score with 0.25 weight. Mock global access count for KB, verify normalization and weight.</description>
+      </idea>
+      <idea ac="AC-5.8.2">
+        <test>test_scores_normalized_to_100()</test>
+        <description>Unit test: Verify final scores are in 0-100 range. Test edge cases: score > 100 clamped to 100, score < 0 clamped to 0.</description>
+      </idea>
+      <idea ac="AC-5.8.5">
+        <test>test_cold_start_new_user()</test>
+        <description>Unit test: New user (created_at < 7 days, search_count = 0) receives public KBs sorted by search_count DESC. Verify fallback query executed.</description>
+      </idea>
+      <idea ac="AC-5.8.5">
+        <test>test_cold_start_flag_set()</test>
+        <description>Unit test: Cold start recommendations have is_cold_start=true in response. Verify flag correctly set for new users.</description>
+      </idea>
+      <idea ac="AC-5.8.2">
+        <test>test_no_kbs_available()</test>
+        <description>Unit test: User with no accessible KBs receives empty list []. Verify graceful handling of zero results.</description>
+      </idea>
+      <idea ac="AC-5.8.4">
+        <test>test_get_recommendations_authenticated()</test>
+        <description>Integration test: Authenticated GET /api/v1/users/me/kb-recommendations returns 200 OK with list of recommendations. Verify auth cookie works.</description>
+      </idea>
+      <idea ac="AC-5.8.4">
+        <test>test_get_recommendations_unauthenticated()</test>
+        <description>Integration test: Unauthenticated request returns 401 Unauthorized. Verify current_active_user dependency enforced.</description>
+      </idea>
+      <idea ac="AC-5.8.4">
+        <test>test_recommendations_max_5()</test>
+        <description>Integration test: Response contains max 5 recommendations even if 10+ KBs available. Verify limit enforced.</description>
+      </idea>
+      <idea ac="AC-5.8.4">
+        <test>test_response_schema_valid()</test>
+        <description>Integration test: Response matches KBRecommendation schema with all required fields (kb_id, kb_name, description, score, reason, last_accessed, is_cold_start).</description>
+      </idea>
+      <idea ac="AC-5.8.3">
+        <test>test_cache_hit_reduces_latency()</test>
+        <description>Integration test: First call misses cache (~200ms), second call hits cache (<10ms). Measure response time difference.</description>
+      </idea>
+      <idea ac="AC-5.8.3">
+        <test>test_cache_invalidation_on_new_search()</test>
+        <description>Integration test: Perform search, verify cache cleared for user. Next recommendation call should miss cache and recalculate.</description>
+      </idea>
+      <idea ac="AC-5.8.3">
+        <test>test_cache_ttl_expires()</test>
+        <description>Integration test: Mock Redis TTL to expire immediately. Verify cache miss after expiration, fresh data fetched from DB.</description>
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

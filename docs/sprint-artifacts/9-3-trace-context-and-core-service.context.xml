@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-3" generated="2025-12-14" status="ready-for-dev">
+
+  <story-summary>
+    <title>TraceContext and Core Service</title>
+    <goal>Implement TraceContext class for distributed trace propagation and ObservabilityService facade for unified observability operations with provider fan-out</goal>
+    <scope>
+      - TraceContext class with W3C-compliant ID generation
+      - ObservabilityService singleton with provider registry
+      - Span async context manager with automatic timing
+      - Provider fan-out with fail-safe error handling
+      - Unit and integration tests for trace flow
+    </scope>
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC-1">`TraceContext` holds W3C-compliant trace_id (32 hex chars) and span_id (16 hex chars) with proper generation utilities</criterion>
+    <criterion id="AC-2">`TraceContext.child_context()` creates nested context for child spans with parent reference</criterion>
+    <criterion id="AC-3">`ObservabilityService` follows singleton pattern via `get_instance()` class method</criterion>
+    <criterion id="AC-4">Service automatically registers PostgreSQL provider (always) and LangFuse provider (if configured)</criterion>
+    <criterion id="AC-5">`start_trace()` creates TraceContext and fans out to all enabled providers</criterion>
+    <criterion id="AC-6">`end_trace()` fans out completion with status, error info, and aggregated metrics to all providers</criterion>
+    <criterion id="AC-7">`span()` async context manager handles automatic timing, error capture, and cleanup</criterion>
+    <criterion id="AC-8">All provider failures are logged via structlog but never propagate to callers (fail-safe)</criterion>
+    <criterion id="AC-9">Unit tests verify trace context hierarchy and ID generation</criterion>
+    <criterion id="AC-10">Integration test demonstrates end-to-end trace flow with PostgreSQL provider</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" name="Implement TraceContext class" acceptance-criteria="1,2">
+      <subtask id="1.1">Create `generate_trace_id()` function (32 hex via secrets.token_hex(16))</subtask>
+      <subtask id="1.2">Create `generate_span_id()` function (16 hex via secrets.token_hex(8))</subtask>
+      <subtask id="1.3">Implement TraceContext with trace_id, span_id, parent_span_id, user_id, session_id, kb_id</subtask>
+      <subtask id="1.4">Add `db_trace_id` field for database ID tracking</subtask>
+      <subtask id="1.5">Implement `child_context()` method for nested span creation</subtask>
+    </task>
+    <task id="2" name="Implement ObservabilityService core" acceptance-criteria="3,4,5,6,8">
+      <subtask id="2.1">Create singleton pattern with `_instance` class variable</subtask>
+      <subtask id="2.2">Implement `get_instance()` class method with lazy initialization</subtask>
+      <subtask id="2.3">Register PostgreSQLProvider in constructor</subtask>
+      <subtask id="2.4">Conditionally register LangFuseProvider based on configuration</subtask>
+      <subtask id="2.5">Implement `start_trace()` - create context, fan out to providers</subtask>
+      <subtask id="2.6">Implement `end_trace()` - fan out with metrics to all providers</subtask>
+      <subtask id="2.7">Wrap all provider calls in try/except with structlog warning</subtask>
+    </task>
+    <task id="3" name="Implement span context manager" acceptance-criteria="7,8">
+      <subtask id="3.1">Create `span()` async context manager method</subtask>
+      <subtask id="3.2">Start span in all providers, collect span IDs</subtask>
+      <subtask id="3.3">Track start time with `time.monotonic()`</subtask>
+      <subtask id="3.4">Capture exceptions for error status</subtask>
+      <subtask id="3.5">Calculate duration_ms on exit</subtask>
+      <subtask id="3.6">End span in all providers with status and duration</subtask>
+      <subtask id="3.7">Return PostgreSQL span_id as primary reference</subtask>
+    </task>
+    <task id="4" name="Implement additional service methods" acceptance-criteria="8">
+      <subtask id="4.1">Implement `log_llm_call()` - fan out to all providers</subtask>
+      <subtask id="4.2">Implement `log_chat_message()` - fan out to all providers</subtask>
+      <subtask id="4.3">Implement `log_document_event()` - fan out to all providers</subtask>
+    </task>
+    <task id="5" name="Write unit tests" acceptance-criteria="9">
+      <subtask id="5.1">Test trace_id generation produces 32 hex chars</subtask>
+      <subtask id="5.2">Test span_id generation produces 16 hex chars</subtask>
+      <subtask id="5.3">Test TraceContext initialization and field access</subtask>
+      <subtask id="5.4">Test child_context preserves trace_id, sets new span_id, links parent</subtask>
+      <subtask id="5.5">Test get_instance returns same instance on multiple calls</subtask>
+    </task>
+    <task id="6" name="Write integration tests" acceptance-criteria="10">
+      <subtask id="6.1">Test complete trace flow: start_trace -> span -> end_trace</subtask>
+      <subtask id="6.2">Verify trace record in database after start_trace</subtask>
+      <subtask id="6.3">Verify span record with timing after span context manager</subtask>
+      <subtask id="6.4">Verify trace status and metrics after end_trace</subtask>
+      <subtask id="6.5">Test nested spans with parent references</subtask>
+      <subtask id="6.6">Test error capture in span context manager</subtask>
+    </task>
+  </tasks>
+
+  <technical-context>
+    <architecture-patterns>
+      <pattern name="Singleton Service">
+        <description>ObservabilityService.get_instance() for global access across the application</description>
+        <code-example language="python">
+class ObservabilityService:
+    _instance: "ObservabilityService | None" = None
+
+    @classmethod
+    def get_instance(cls) -> "ObservabilityService":
+        if cls._instance is None:
+            from app.core.database import async_session_factory
+            providers = [
+                PostgreSQLProvider(async_session_factory),
+                LangFuseProvider(),
+            ]
+            cls._instance = cls(providers)
+        return cls._instance
+        </code-example>
+      </pattern>
+      <pattern name="Provider Registry">
+        <description>List of enabled providers for fan-out operations</description>
+        <code-example language="python">
+def __init__(self, providers: list[ObservabilityProvider]):
+    self.providers = [p for p in providers if p.enabled]
+        </code-example>
+      </pattern>
+      <pattern name="Async Context Manager">
+        <description>Automatic timing, error capture, and cleanup for spans</description>
+        <code-example language="python">
+@asynccontextmanager
+async def span(
+    self,
+    ctx: TraceContext,
+    name: str,
+    span_type: str,
+    metadata: dict[str, Any] | None = None,
+) -> AsyncIterator[UUID]:
+    span_ids: dict[str, UUID] = {}
+    start_time = time.monotonic()
+    error_info: tuple[str | None, str | None] = (None, None)
+
+    for provider in self.providers:
+        try:
+            span_id = await provider.start_span(ctx, name, span_type, metadata)
+            span_ids[provider.name] = span_id
+        except Exception as e:
+            logger.warning("provider_start_span_failed", provider=provider.name, error=str(e))
+
+    primary_span_id = span_ids.get("postgresql", uuid4())
+
+    try:
+        yield primary_span_id
+    except Exception as e:
+        error_info = (type(e).__name__, str(e))
+        raise
+    finally:
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+        status = "error" if error_info[0] else "success"
+        # End span in all providers...
+        </code-example>
+      </pattern>
+      <pattern name="Fail-Safe Design">
+        <description>Provider errors never impact application flow - logged but not propagated</description>
+        <code-example language="python">
+for provider in self.providers:
+    try:
+        await provider.start_trace(ctx, name, operation_type, metadata)
+    except Exception as e:
+        logger.warning(
+            "provider_start_trace_failed",
+            provider=provider.name,
+            error=str(e),
+        )
+        </code-example>
+      </pattern>
+    </architecture-patterns>
+
+    <key-technical-decisions>
+      <decision id="1">
+        <topic>W3C Trace Context Compliance</topic>
+        <choice>32-hex trace_id (16 bytes), 16-hex span_id (8 bytes) per OpenTelemetry spec</choice>
+        <implementation>Use secrets.token_hex(16) for trace_id, secrets.token_hex(8) for span_id</implementation>
+      </decision>
+      <decision id="2">
+        <topic>Monotonic Timing</topic>
+        <choice>Use time.monotonic() for accurate duration measurement unaffected by system clock changes</choice>
+      </decision>
+      <decision id="3">
+        <topic>Primary Span ID</topic>
+        <choice>Return PostgreSQL span ID from context manager for database references</choice>
+      </decision>
+      <decision id="4">
+        <topic>Lazy Provider Init</topic>
+        <choice>LangFuse provider only initialized if credentials configured</choice>
+      </decision>
+      <decision id="5">
+        <topic>db_trace_id Field</topic>
+        <choice>TraceContext stores database UUID after trace is persisted for later reference</choice>
+      </decision>
+    </key-technical-decisions>
+  </technical-context>
+
+  <source-tree-components>
+    <component type="modify" path="backend/app/services/observability_service.py">
+      <description>Add TraceContext class and ObservabilityService to existing provider file</description>
+      <responsibilities>
+        - Add generate_trace_id() and generate_span_id() functions
+        - Implement TraceContext class with W3C-compliant IDs
+        - Implement child_context() method for nested spans
+        - Implement ObservabilityService singleton with get_instance()
+        - Implement provider registration and filtering
+        - Implement start_trace(), end_trace() with provider fan-out
+        - Implement span() async context manager
+        - Implement log_llm_call(), log_chat_message(), log_document_event() with fan-out
+      </responsibilities>
+    </component>
+    <component type="create" path="backend/tests/unit/test_trace_context.py">
+      <description>Unit tests for TraceContext and ID generation</description>
+      <responsibilities>
+        - Test generate_trace_id() produces 32 hex chars
+        - Test generate_span_id() produces 16 hex chars
+        - Test TraceContext initialization and field access
+        - Test child_context() preserves trace_id, sets new span_id, links parent
+        - Test get_instance() returns same instance on multiple calls
+      </responsibilities>
+    </component>
+    <component type="create" path="backend/tests/integration/test_observability_flow.py">
+      <description>End-to-end integration tests for trace flow</description>
+      <responsibilities>
+        - Test complete trace flow: start_trace -> span -> end_trace
+        - Verify trace record in database after start_trace
+        - Verify span record with timing after span context manager
+        - Verify trace status and metrics after end_trace
+        - Test nested spans with parent references
+        - Test error capture in span context manager
+      </responsibilities>
+    </component>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="Secrets for ID Generation" file="Python standard library">
+      <description>Use secrets module for cryptographically secure random IDs</description>
+      <code-snippet language="python">
+import secrets
+
+def generate_trace_id() -> str:
+    """Generate W3C-compliant 16-byte trace ID as hex string."""
+    return secrets.token_hex(16)  # 32 hex chars
+
+def generate_span_id() -> str:
+    """Generate W3C-compliant 8-byte span ID as hex string."""
+    return secrets.token_hex(8)  # 16 hex chars
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Async Context Manager" file="contextlib">
+      <description>Use asynccontextmanager decorator for span lifecycle</description>
+      <code-snippet language="python">
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
+@asynccontextmanager
+async def span(...) -> AsyncIterator[UUID]:
+    # Setup
+    try:
+        yield value
+    except Exception as e:
+        # Handle error
+        raise
+    finally:
+        # Cleanup
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Structlog Logging" file="backend/app/services/audit_service.py">
+      <description>Use structlog for consistent logging</description>
+      <code-snippet language="python">
+import structlog
+logger = structlog.get_logger(__name__)
+
+# Warning pattern for non-critical errors
+logger.warning("operation_failed", error=str(e), provider=provider.name)
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Session Factory Import" file="backend/app/core/database.py">
+      <description>Import session factory for provider initialization</description>
+      <code-snippet language="python">
+# In ObservabilityService.get_instance()
+from app.core.database import async_session_factory
+
+providers = [
+    PostgreSQLProvider(async_session_factory),
+    LangFuseProvider(),
+]
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Monotonic Time" file="Python time module">
+      <description>Use monotonic clock for accurate duration measurement</description>
+      <code-snippet language="python">
+import time
+
+start_time = time.monotonic()
+# ... operation ...
+duration_ms = int((time.monotonic() - start_time) * 1000)
+      </code-snippet>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <interface-reference>
+    <class name="TraceContext">
+      <purpose>Container for distributed trace context with W3C-compliant IDs</purpose>
+      <fields>
+        <field name="trace_id" type="str">W3C 32-hex trace identifier</field>
+        <field name="span_id" type="str">W3C 16-hex span identifier</field>
+        <field name="parent_span_id" type="UUID | None">Database UUID of parent span</field>
+        <field name="user_id" type="UUID | None">Current user ID</field>
+        <field name="session_id" type="str | None">Chat session ID</field>
+        <field name="kb_id" type="UUID | None">Knowledge base ID</field>
+        <field name="db_trace_id" type="UUID | None">Database ID set after trace persisted</field>
+      </fields>
+      <methods>
+        <method name="__init__">Initialize with trace_id (required), other fields optional</method>
+        <method name="child_context">Create child context preserving trace_id, new span_id, linking parent</method>
+      </methods>
+    </class>
+
+    <class name="ObservabilityService">
+      <purpose>Central observability service with provider registry and fan-out</purpose>
+      <singleton>ObservabilityService.get_instance() returns singleton instance</singleton>
+      <methods>
+        <method name="get_instance" type="classmethod">Get or create singleton instance</method>
+        <method name="start_trace">Create TraceContext, fan out to all enabled providers</method>
+        <method name="end_trace">Fan out completion with status and metrics to all providers</method>
+        <method name="span" type="asynccontextmanager">Context manager for automatic span timing and error capture</method>
+        <method name="log_llm_call">Fan out LLM call logging to all providers</method>
+        <method name="log_chat_message">Fan out chat message logging to all providers</method>
+        <method name="log_document_event">Fan out document event logging to all providers</method>
+      </methods>
+      <key-behaviors>
+        - Filters providers by enabled status in constructor
+        - Uses time.monotonic() for accurate span duration
+        - Returns PostgreSQL span_id as primary reference from span()
+        - Never propagates provider exceptions to callers
+        - Logs warnings via structlog on provider failures
+      </key-behaviors>
+    </class>
+
+    <function name="generate_trace_id">
+      <purpose>Generate W3C-compliant 16-byte trace ID as 32 hex chars</purpose>
+      <implementation>return secrets.token_hex(16)</implementation>
+    </function>
+
+    <function name="generate_span_id">
+      <purpose>Generate W3C-compliant 8-byte span ID as 16 hex chars</purpose>
+      <implementation>return secrets.token_hex(8)</implementation>
+    </function>
+  </interface-reference>
+
+  <implementation-reference file="docs/sprint-artifacts/tech-spec-epic-9-observability.md" lines="754-1610">
+    <code-snippet language="python">
+def generate_trace_id() -> str:
+    """Generate W3C-compliant 16-byte trace ID as hex string."""
+    return secrets.token_hex(16)
+
+def generate_span_id() -> str:
+    """Generate W3C-compliant 8-byte span ID as hex string."""
+    return secrets.token_hex(8)
+
+class TraceContext:
+    """Container for distributed trace context."""
+
+    def __init__(
+        self,
+        trace_id: str,
+        span_id: str | None = None,
+        parent_span_id: UUID | None = None,
+        user_id: UUID | None = None,
+        session_id: str | None = None,
+        kb_id: UUID | None = None,
+    ):
+        self.trace_id = trace_id
+        self.span_id = span_id or generate_span_id()
+        self.parent_span_id = parent_span_id
+        self.user_id = user_id
+        self.session_id = session_id
+        self.kb_id = kb_id
+        self.db_trace_id: UUID | None = None
+
+    def child_context(self, span_id: UUID) -> "TraceContext":
+        """Create child context for nested spans."""
+        return TraceContext(
+            trace_id=self.trace_id,
+            span_id=generate_span_id(),
+            parent_span_id=span_id,
+            user_id=self.user_id,
+            session_id=self.session_id,
+            kb_id=self.kb_id,
+        )
+    </code-snippet>
+  </implementation-reference>
+
+  <implementation-notes>
+    <note id="1" priority="high">
+      <topic>ID Generation Security</topic>
+      <content>
+        Use secrets.token_hex() not random.randint() for cryptographically secure IDs.
+        This ensures trace IDs cannot be guessed or predicted.
+      </content>
+    </note>
+    <note id="2" priority="high">
+      <topic>Singleton Thread Safety</topic>
+      <content>
+        The singleton pattern used is not thread-safe but this is acceptable
+        because FastAPI uses async/await (single-threaded event loop).
+        If threading becomes a concern, add a lock.
+      </content>
+    </note>
+    <note id="3" priority="high">
+      <topic>Provider Registration Order</topic>
+      <content>
+        PostgreSQLProvider must be registered first to ensure span_ids["postgresql"]
+        is available for returning as the primary reference from span().
+      </content>
+    </note>
+    <note id="4" priority="medium">
+      <topic>Error Re-raising in span()</topic>
+      <content>
+        The span() context manager catches exceptions only to record error info,
+        then re-raises them. This ensures application code behaves normally
+        while errors are still tracked.
+      </content>
+    </note>
+    <note id="5" priority="medium">
+      <topic>UUID Fallback</topic>
+      <content>
+        If PostgreSQL provider fails to start span, return uuid4() as fallback:
+        primary_span_id = span_ids.get("postgresql", uuid4())
+        This ensures the context manager always yields a valid UUID.
+      </content>
+    </note>
+    <note id="6" priority="medium">
+      <topic>LangFuse Conditional Init</topic>
+      <content>
+        LangFuseProvider checks configuration in its enabled property.
+        If langfuse_enabled=False or credentials missing, it returns False
+        and is filtered out of the provider list.
+      </content>
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test name="test_generate_trace_id_length">Verify trace_id is 32 hex chars</test>
+      <test name="test_generate_trace_id_hex_format">Verify trace_id is valid hex string</test>
+      <test name="test_generate_span_id_length">Verify span_id is 16 hex chars</test>
+      <test name="test_generate_span_id_hex_format">Verify span_id is valid hex string</test>
+      <test name="test_trace_context_initialization">Verify all fields set correctly</test>
+      <test name="test_trace_context_auto_span_id">Verify span_id auto-generated if not provided</test>
+      <test name="test_child_context_preserves_trace_id">Verify child has same trace_id</test>
+      <test name="test_child_context_new_span_id">Verify child has different span_id</test>
+      <test name="test_child_context_links_parent">Verify child.parent_span_id is set to parent span</test>
+      <test name="test_singleton_same_instance">Verify get_instance() returns same object</test>
+      <test name="test_provider_filtering">Verify disabled providers excluded</test>
+    </unit-tests>
+    <integration-tests>
+      <test name="test_start_trace_creates_db_record">Start trace and verify record in DB</test>
+      <test name="test_end_trace_updates_status">End trace and verify status updated</test>
+      <test name="test_span_creates_db_record">Use span() and verify span record created</test>
+      <test name="test_span_calculates_duration">Verify duration_ms is accurate</test>
+      <test name="test_span_captures_error">Raise exception in span and verify error recorded</test>
+      <test name="test_nested_spans_have_parent_refs">Create nested spans and verify parent_span_id chain</test>
+      <test name="test_provider_failure_does_not_propagate">Mock provider to raise, verify no exception propagated</test>
+    </integration-tests>
+    <patterns>
+      - Use pytest.mark.asyncio for async tests
+      - Use mock providers for unit tests to verify fan-out behavior
+      - Use real PostgreSQLProvider for integration tests
+      - Test timing accuracy with time.sleep() and tolerance
+      - Verify structlog warnings via caplog or mock
+    </patterns>
+  </testing-requirements>
+
+  <usage-examples>
+    <example name="Basic Trace Flow">
+      <code language="python">
+# Get singleton instance
+obs = ObservabilityService.get_instance()
+
+# Start trace
+ctx = await obs.start_trace(
+    name="chat.conversation",
+    operation_type="chat",
+    user_id=current_user.id,
+    session_id=session_id,
+    kb_id=kb_id,
+)
+
+# Use context manager for spans with automatic timing
+async with obs.span(ctx, "retrieval", "retrieval") as span_id:
+    results = await search_service.search(query)
+    # span automatically timed and closed
+
+# Log LLM call
+await obs.log_llm_call(
+    ctx=ctx,
+    model="gpt-4",
+    prompt_tokens=1000,
+    completion_tokens=500,
+    latency_ms=1500,
+    cost_usd=Decimal("0.045"),
+)
+
+# End trace with aggregated metrics
+await obs.end_trace(
+    ctx,
+    status="success",
+    total_tokens=1500,
+    total_cost_usd=Decimal("0.045"),
+)
+      </code>
+    </example>
+    <example name="Nested Spans">
+      <code language="python">
+async with obs.span(ctx, "synthesis", "llm") as outer_span_id:
+    # Create child context for nested span
+    child_ctx = ctx.child_context(outer_span_id)
+
+    async with obs.span(child_ctx, "format_response", "llm") as inner_span_id:
+        # Inner operation with parent reference
+        pass
+      </code>
+    </example>
+    <example name="Error Handling">
+      <code language="python">
+try:
+    async with obs.span(ctx, "risky_operation", "custom") as span_id:
+        await do_something_risky()  # May raise
+except SomeError as e:
+    # Error was captured and logged to observability
+    # Span shows status="error", error_type="SomeError"
+    raise
+      </code>
+    </example>
+  </usage-examples>
+
+  <dependencies>
+    <dependency type="story">
+      <id>9-1</id>
+      <description>Observability Schema and Models must be complete (Trace, Span models for persistence)</description>
+    </dependency>
+    <dependency type="story">
+      <id>9-2</id>
+      <description>PostgreSQLProvider implementation must be complete (for database persistence)</description>
+    </dependency>
+  </dependencies>
+
+  <configuration-settings>
+    <setting name="observability_enabled" type="bool" default="true">
+      Always enabled for internal observability
+    </setting>
+    <setting name="langfuse_enabled" type="bool" default="false">
+      Enable LangFuse external provider
+    </setting>
+    <setting name="langfuse_public_key" type="str | None" default="None">
+      LangFuse public API key
+    </setting>
+    <setting name="langfuse_secret_key" type="str | None" default="None">
+      LangFuse secret API key
+    </setting>
+    <setting name="langfuse_host" type="str | None" default="None">
+      LangFuse host URL (default: https://cloud.langfuse.com)
+    </setting>
+  </configuration-settings>
+
+  <references>
+    <document path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" section="5.1 ObservabilityService Interface">
+      Complete ObservabilityService implementation reference
+    </document>
+    <document path="docs/sprint-artifacts/9-3-trace-context-and-core-service.md">
+      Story definition with tasks and subtasks
+    </document>
+    <document path="docs/epics/epic-9-observability.md" section="Architecture">
+      Provider registry and fan-out architecture
+    </document>
+    <document path="backend/app/core/database.py">
+      Session factory for provider initialization
+    </document>
+    <document path="backend/app/services/audit_service.py">
+      Structlog logging patterns
+    </document>
+  </references>
+
+</story-context>

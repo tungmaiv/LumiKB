@@ -14,7 +14,7 @@ Usage:
     filter_data = create_audit_filter(start_date="2025-01-01", user_email="test@example.com")
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -107,7 +107,7 @@ def create_audit_event(**overrides: Any) -> dict[str, Any]:
     Example:
         event = create_audit_event(action_type="search", user_email="test@example.com")
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     defaults = {
         "id": str(uuid4()),
@@ -205,7 +205,7 @@ def create_config_value(**overrides: Any) -> dict[str, Any]:
         "description": "Session timeout in seconds",
         "data_type": "integer",
         "is_sensitive": False,
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "last_updated": datetime.now(UTC).isoformat(),
         "updated_by": "admin@example.com",
     }
 
@@ -241,19 +241,19 @@ def create_kb_stats(**overrides: Any) -> dict[str, Any]:
                 "document_id": str(uuid4()),
                 "title": "Annual Report 2024.pdf",
                 "access_count": 45,
-                "last_accessed": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+                "last_accessed": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
             },
             {
                 "document_id": str(uuid4()),
                 "title": "Product Roadmap Q1.docx",
                 "access_count": 38,
-                "last_accessed": (datetime.now(timezone.utc) - timedelta(hours=5)).isoformat(),
+                "last_accessed": (datetime.now(UTC) - timedelta(hours=5)).isoformat(),
             },
             {
                 "document_id": str(uuid4()),
                 "title": "Engineering Guidelines.md",
                 "access_count": 32,
-                "last_accessed": (datetime.now(timezone.utc) - timedelta(hours=8)).isoformat(),
+                "last_accessed": (datetime.now(UTC) - timedelta(hours=8)).isoformat(),
             },
         ],
     }
@@ -303,7 +303,7 @@ def create_kb_recommendation(**overrides: Any) -> dict[str, Any]:
         "description": "Internal engineering guides and best practices",
         "score": 0.75,
         "reason": "Based on recent search patterns",
-        "last_accessed": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+        "last_accessed": (datetime.now(UTC) - timedelta(days=2)).isoformat(),
     }
 
     return {**defaults, **overrides}
@@ -325,7 +325,7 @@ def create_recent_kb(**overrides: Any) -> dict[str, Any]:
         "kb_id": str(uuid4()),
         "kb_name": "Product Documentation",
         "description": "Product specs and user guides",
-        "last_accessed": datetime.now(timezone.utc).isoformat(),
+        "last_accessed": datetime.now(UTC).isoformat(),
     }
 
     return {**defaults, **overrides}
@@ -347,7 +347,7 @@ def create_task_info(**overrides: Any) -> dict[str, Any]:
         "task_id": str(uuid4()),
         "task_name": "process_document",
         "status": "pending",  # pending, running, success, failed
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "estimated_duration": 120,  # seconds
         "progress": 0.0,  # 0.0 to 1.0
     }

@@ -13,6 +13,23 @@ from app.schemas.document import (
     DocumentUploadResponse,
     DocumentValidationError,
 )
+from app.schemas.kb_settings import (
+    ChunkingConfig,
+    ChunkingStrategy,
+    CitationStyle,
+    DocumentProcessingConfig,
+    EmbeddingConfig,
+    GenerationConfig,
+    KBPromptConfig,
+    KBSettings,
+    NERConfig,
+    PoolingStrategy,
+    RerankingConfig,
+    RetrievalConfig,
+    RetrievalMethod,
+    TruncationStrategy,
+    UncertaintyHandling,
+)
 from app.schemas.search import (
     ExplainRequest,
     ExplanationResponse,
@@ -57,4 +74,20 @@ __all__ = [
     # Citation
     "Citation",
     "CitationMappingError",
+    # KB Settings (Story 7.12)
+    "ChunkingConfig",
+    "ChunkingStrategy",
+    "CitationStyle",
+    "DocumentProcessingConfig",
+    "EmbeddingConfig",
+    "GenerationConfig",
+    "KBPromptConfig",
+    "KBSettings",
+    "NERConfig",
+    "PoolingStrategy",
+    "RerankingConfig",
+    "RetrievalConfig",
+    "RetrievalMethod",
+    "TruncationStrategy",
+    "UncertaintyHandling",
 ]

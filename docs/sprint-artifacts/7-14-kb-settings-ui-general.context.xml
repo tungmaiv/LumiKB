@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context XML - Story 7-14: KB Settings UI - General Panel
+  Generated: 2025-12-09
+  Purpose: Aggregate all relevant documentation and code interfaces for development
+-->
+<story-context>
+  <metadata>
+    <epic>7</epic>
+    <story>14</story>
+    <title>KB Settings UI - General Panel</title>
+    <status>ready-for-dev</status>
+    <generated>2025-12-09</generated>
+  </metadata>
+
+  <story-summary>
+    As a KB owner, I want a settings UI to configure chunking, retrieval, and generation parameters,
+    so that I can optimize my Knowledge Base behavior for specific use cases.
+  </story-summary>
+
+  <acceptance-criteria>
+    <ac id="7.14.1" title="Settings tab structure in KB modal">
+      <given>I open KB settings modal</given>
+      <then>I see tabs: General, Models, Advanced, Prompts</then>
+    </ac>
+
+    <ac id="7.14.2" title="Chunking section">
+      <given>I view General tab</given>
+      <then>I see Chunking section with:
+        - Strategy dropdown (Fixed, Recursive, Semantic)
+        - Chunk size slider (100-2000, default 512)
+        - Chunk overlap slider (0-500, default 50)
+      </then>
+    </ac>
+
+    <ac id="7.14.3" title="Retrieval section">
+      <given>I view General tab</given>
+      <then>I see Retrieval section with:
+        - Top K slider (1-100, default 10)
+        - Similarity threshold slider (0.0-1.0, default 0.7)
+        - Method dropdown (Vector, Hybrid, HyDE)
+        - MMR toggle with lambda slider
+      </then>
+    </ac>
+
+    <ac id="7.14.4" title="Generation section">
+      <given>I view General tab</given>
+      <then>I see Generation section with:
+        - Temperature slider (0.0-2.0, default 0.7)
+        - Top P slider (0.0-1.0, default 1.0)
+        - Max tokens input (100-16000)
+      </then>
+    </ac>
+
+    <ac id="7.14.5" title="Reset to defaults button">
+      <given>I have modified settings</given>
+      <when>I click "Reset to Defaults"</when>
+      <then>All General settings revert to system defaults</then>
+      <and>Confirmation dialog shown first</and>
+    </ac>
+
+    <ac id="7.14.6" title="Save settings">
+      <given>I modify settings</given>
+      <when>I click Save</when>
+      <then>Settings are saved to KB.settings JSONB</then>
+      <and>Success toast shown</and>
+    </ac>
+
+    <ac id="7.14.7" title="Validation feedback">
+      <given>I enter invalid value (e.g., temperature > 2.0)</given>
+      <then>Field shows error styling</then>
+      <and>Save is disabled</and>
+    </ac>
+
+    <ac id="7.14.8" title="Settings API endpoint">
+      <given>I call PUT /api/v1/knowledge-bases/{id}/settings</given>
+      <then>Settings JSONB is updated</then>
+      <and>Audit log entry created</and>
+    </ac>
+  </acceptance-criteria>
+
+  <documentation-artifacts>
+    <artifact type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-7.md">
+      <summary>
+        Epic 7 technical specification covering LLM model configuration,
+        KB-level settings, and configuration resolution architecture.
+        Key sections: Configuration Resolution Service, KB Settings Schema.
+      </summary>
+    </artifact>
+
+    <artifact type="architecture" path="docs/architecture/index.md">
+      <summary>
+        System architecture documentation with component diagrams.
+        Relevant: Backend service layer, API patterns, database schema.
+      </summary>
+    </artifact>
+
+    <artifact type="previous-story" path="docs/sprint-artifacts/7-12-kb-settings-schema.md">
+      <summary>
+        Story 7-12 (DONE): Created backend schemas for KB settings.
+        Files created: backend/app/schemas/kb_settings.py (267 lines)
+        Schemas: ChunkingConfig, RetrievalConfig, GenerationConfig, KBSettings
+        Enums: ChunkingStrategy, RetrievalMethod, CitationStyle
+      </summary>
+    </artifact>
+
+    <artifact type="previous-story" path="docs/sprint-artifacts/7-13-kb-config-resolver-service.md">
+      <summary>
+        Story 7-13 (DONE): Created KBConfigResolver service.
+        Files created: backend/app/services/kb_config_resolver.py (382 lines)
+        Key methods:
+        - resolve_generation_config(kb_id, request_overrides)
+        - resolve_retrieval_config(kb_id, request_overrides)
+        - resolve_chunking_config(kb_id)
+        - invalidate_kb_settings_cache(kb_id) - MUST call after PUT /settings
+        Factory: get_kb_config_resolver(session, redis)
+      </summary>
+    </artifact>
+
+    <artifact type="testing-guide" path="docs/testing-guideline.md">
+      <summary>
+        Testing standards for the project:
+        - Backend: pytest with @pytest.mark.unit/@pytest.mark.integration
+        - Frontend: Vitest + Testing Library, MSW for mocking
+        - E2E: Playwright with Page Object Model
+      </summary>
+    </artifact>
+  </documentation-artifacts>
+
+  <code-artifacts>
+    <artifact type="frontend-component" path="frontend/src/components/kb/kb-settings-modal.tsx">
+      <summary>
+        Existing KB settings modal (251 lines) for model selection.
+        Must be extended with tabbed interface.
+        Current features to preserve:
+        - Embedding model selection with dimension mismatch warning
+        - Generation model selection
+        - Form state management with react-hook-form + zod
+      </summary>
+      <key-interfaces>
+        <![CDATA[
+interface KbSettingsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  kb: KnowledgeBase;
+}
+
+// Existing form schema
+const kbSettingsSchema = z.object({
+  embedding_model_id: z.string().optional(),
+  generation_model_id: z.string().optional(),
+});
+        ]]>
+      </key-interfaces>
+    </artifact>
+
+    <artifact type="backend-schema" path="backend/app/schemas/kb_settings.py">
+      <summary>
+        Backend Pydantic schemas for KB settings (267 lines).
+        Import these schemas for TypeScript type mirroring.
+      </summary>
+      <key-interfaces>
+        <![CDATA[
+class ChunkingStrategy(str, Enum):
+    FIXED = "fixed"
+    RECURSIVE = "recursive"
+    SEMANTIC = "semantic"
+
+class RetrievalMethod(str, Enum):
+    VECTOR = "vector"
+    HYBRID = "hybrid"
+    HYDE = "hyde"
+
+class ChunkingConfig(BaseModel):
+    strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE
+    chunk_size: int = Field(default=512, ge=100, le=2000)
+    chunk_overlap: int = Field(default=50, ge=0, le=500)
+
+class RetrievalConfig(BaseModel):
+    top_k: int = Field(default=10, ge=1, le=100)
+    similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    method: RetrievalMethod = RetrievalMethod.VECTOR
+    mmr_enabled: bool = False
+    mmr_lambda: float = Field(default=0.5, ge=0.0, le=1.0)
+
+class GenerationConfig(BaseModel):
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    top_p: float = Field(default=1.0, ge=0.0, le=1.0)
+    max_tokens: int = Field(default=4096, ge=100, le=16000)
+
+class KBSettings(BaseModel):
+    chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    generation: GenerationConfig = Field(default_factory=GenerationConfig)
+        ]]>
+      </key-interfaces>
+    </artifact>
+
+    <artifact type="backend-service" path="backend/app/services/kb_config_resolver.py">
+      <summary>
+        Configuration resolver service with caching (382 lines).
+        Key integration point for cache invalidation.
+      </summary>
+      <key-interfaces>
+        <![CDATA[
+class KBConfigResolver:
+    async def invalidate_kb_settings_cache(self, kb_id: UUID) -> None:
+        """Call this after PUT /settings to clear Redis cache."""
+        cache_key = f"kb_settings:{kb_id}"
+        try:
+            await self._redis.delete(cache_key)
+        except Exception:
+            pass  # Graceful degradation
+
+# Factory function for dependency injection
+def get_kb_config_resolver(
+    session: AsyncSession,
+    redis: Redis,
+) -> KBConfigResolver:
+    return KBConfigResolver(
+        kb_service=KBService(session),
+        config_service=ConfigService(session),
+        redis=redis,
+    )
+        ]]>
+      </key-interfaces>
+    </artifact>
+
+    <artifact type="backend-api" path="backend/app/api/v1/knowledge_bases.py">
+      <summary>
+        Current KB API endpoints (1350 lines).
+        Does NOT have /settings endpoints - must add:
+        - GET /api/v1/knowledge-bases/{id}/settings
+        - PUT /api/v1/knowledge-bases/{id}/settings
+      </summary>
+      <existing-patterns>
+        <![CDATA[
+# Example endpoint pattern from existing code
+@router.get("/{kb_id}", response_model=KnowledgeBaseResponse)
+async def get_knowledge_base(
+    kb_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> KnowledgeBaseResponse:
+    ...
+
+# Audit logging pattern
+await audit_service.log(
+    session=session,
+    user_id=current_user.id,
+    action=AuditAction.KB_UPDATE,
+    resource_type="knowledge_base",
+    resource_id=str(kb_id),
+    details={"settings_updated": True},
+)
+        ]]>
+      </existing-patterns>
+    </artifact>
+  </code-artifacts>
+
+  <dependencies>
+    <frontend>
+      <dependency name="react-hook-form" version="^7.66.1" usage="Form state management"/>
+      <dependency name="@hookform/resolvers" version="^5.2.2" usage="Zod resolver for validation"/>
+      <dependency name="zod" version="^4.1.12" usage="Schema validation"/>
+      <dependency name="@radix-ui/react-tabs" version="^1.1.13" usage="Tab navigation"/>
+      <dependency name="@radix-ui/react-slider" version="^1.3.6" usage="Range inputs"/>
+      <dependency name="@radix-ui/react-select" version="^2.2.6" usage="Dropdown menus"/>
+      <dependency name="@radix-ui/react-switch" version="^1.2.6" usage="Toggle controls"/>
+      <dependency name="@radix-ui/react-alert-dialog" version="^1.1.15" usage="Confirmation dialogs"/>
+      <dependency name="@tanstack/react-query" version="^5.90.11" usage="Data fetching and caching"/>
+      <dependency name="sonner" version="^2.0.7" usage="Toast notifications"/>
+    </frontend>
+
+    <backend>
+      <dependency name="fastapi" version=">=0.115.0,<1.0.0" usage="API framework"/>
+      <dependency name="pydantic" version=">=2.7.0,<3.0.0" usage="Schema validation"/>
+      <dependency name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0" usage="Database ORM"/>
+      <dependency name="redis" version=">=7.1.0,<8.0.0" usage="Cache invalidation"/>
+    </backend>
+
+    <testing>
+      <dependency name="vitest" version="^4.0.13" usage="Frontend unit tests"/>
+      <dependency name="@testing-library/react" version="^16.3.0" usage="Component testing"/>
+      <dependency name="msw" version="^2.12.3" usage="API mocking"/>
+      <dependency name="pytest" version=">=8.0.0" usage="Backend tests"/>
+      <dependency name="pytest-asyncio" version=">=0.24.0" usage="Async test support"/>
+      <dependency name="testcontainers" version=">=4.0.0" usage="Integration test infrastructure"/>
+    </testing>
+  </dependencies>
+
+  <constraints>
+    <constraint type="ui">
+      Use shadcn/ui components (Tabs, Slider, Select, Switch, AlertDialog).
+      Follow existing modal patterns from kb-settings-modal.tsx.
+    </constraint>
+
+    <constraint type="validation">
+      Frontend validation must match backend Pydantic schema constraints.
+      Use Zod schemas that mirror backend validation rules.
+    </constraint>
+
+    <constraint type="api">
+      Backend endpoints must call KBConfigResolver.invalidate_kb_settings_cache() on update.
+      Must create audit log entry for settings changes.
+    </constraint>
+
+    <constraint type="architecture">
+      Settings stored in KB.settings JSONB column.
+      Three-layer resolution: Request -> KB -> System defaults.
+    </constraint>
+
+    <constraint type="testing">
+      Frontend: Vitest + Testing Library, test user interactions and validation.
+      Backend: pytest with @pytest.mark.unit and @pytest.mark.integration.
+      Follow patterns from docs/testing-guideline.md.
+    </constraint>
+  </constraints>
+
+  <file-structure>
+    <new-files>
+      <file path="frontend/src/types/kb-settings.ts" purpose="TypeScript interfaces mirroring backend schemas"/>
+      <file path="frontend/src/components/kb/settings/chunking-section.tsx" purpose="Chunking config form section"/>
+      <file path="frontend/src/components/kb/settings/retrieval-section.tsx" purpose="Retrieval config form section"/>
+      <file path="frontend/src/components/kb/settings/generation-section.tsx" purpose="Generation config form section"/>
+      <file path="frontend/src/components/kb/settings/general-panel.tsx" purpose="General tab combining all sections"/>
+      <file path="frontend/src/hooks/useKBSettings.ts" purpose="React Query hook for GET/PUT settings"/>
+      <file path="frontend/src/components/kb/settings/__tests__/chunking-section.test.tsx" purpose="Chunking section tests"/>
+      <file path="frontend/src/components/kb/settings/__tests__/retrieval-section.test.tsx" purpose="Retrieval section tests"/>
+      <file path="frontend/src/components/kb/settings/__tests__/generation-section.test.tsx" purpose="Generation section tests"/>
+      <file path="frontend/src/components/kb/settings/__tests__/general-panel.test.tsx" purpose="General panel tests"/>
+      <file path="frontend/src/hooks/__tests__/useKBSettings.test.ts" purpose="useKBSettings hook tests"/>
+      <file path="backend/tests/integration/test_kb_settings_api.py" purpose="Backend API integration tests"/>
+    </new-files>
+
+    <modified-files>
+      <file path="frontend/src/components/kb/kb-settings-modal.tsx" purpose="Add tabbed interface"/>
+      <file path="backend/app/api/v1/knowledge_bases.py" purpose="Add GET/PUT /settings endpoints"/>
+    </modified-files>
+  </file-structure>
+
+  <test-ideas>
+    <frontend-tests>
+      <test ac="7.14.1">Tabs render correctly with General as default</test>
+      <test ac="7.14.1">Tab switching changes visible content</test>
+      <test ac="7.14.2">Chunking strategy dropdown shows all options</test>
+      <test ac="7.14.2">Chunk size slider respects 100-2000 range</test>
+      <test ac="7.14.2">Chunk overlap slider respects 0-500 range</test>
+      <test ac="7.14.3">Top K slider respects 1-100 range</test>
+      <test ac="7.14.3">Similarity threshold slider respects 0.0-1.0 range</test>
+      <test ac="7.14.3">MMR lambda slider visible only when MMR enabled</test>
+      <test ac="7.14.4">Temperature slider respects 0.0-2.0 range</test>
+      <test ac="7.14.4">Max tokens input validates 100-16000 range</test>
+      <test ac="7.14.5">Reset to Defaults shows confirmation dialog</test>
+      <test ac="7.14.5">Confirming reset reverts all values to defaults</test>
+      <test ac="7.14.6">Save button calls PUT API with form values</test>
+      <test ac="7.14.6">Success toast shown after save</test>
+      <test ac="7.14.7">Invalid values show error styling</test>
+      <test ac="7.14.7">Save button disabled with validation errors</test>
+    </frontend-tests>
+
+    <backend-tests>
+      <test ac="7.14.8">GET /settings returns current KB settings</test>
+      <test ac="7.14.8">GET /settings returns defaults for empty settings</test>
+      <test ac="7.14.8">PUT /settings updates KB.settings JSONB</test>
+      <test ac="7.14.8">PUT /settings validates against schema</test>
+      <test ac="7.14.8">PUT /settings creates audit log entry</test>
+      <test ac="7.14.8">PUT /settings invalidates Redis cache</test>
+      <test ac="7.14.8">PUT /settings requires KB owner permission</test>
+    </backend-tests>
+
+    <hook-tests>
+      <test>useKBSettings fetches settings on mount</test>
+      <test>useKBSettings caches data for 5 minutes</test>
+      <test>useKBSettings.updateSettings calls PUT API</test>
+      <test>useKBSettings.updateSettings invalidates cache on success</test>
+      <test>useKBSettings handles API errors gracefully</test>
+    </hook-tests>
+  </test-ideas>
+
+  <implementation-notes>
+    <note priority="high">
+      Models tab content already exists in kb-settings-modal.tsx - move it to a separate
+      component and integrate with the new tab structure.
+    </note>
+
+    <note priority="high">
+      Backend endpoints must call invalidate_kb_settings_cache() from KBConfigResolver
+      after successful PUT to ensure config resolution uses fresh data.
+    </note>
+
+    <note priority="medium">
+      Frontend TypeScript types in kb-settings.ts must exactly mirror backend Pydantic
+      schemas to ensure type safety across the stack.
+    </note>
+
+    <note priority="medium">
+      Use React Query's staleTime of 5 minutes to match Redis cache TTL for consistency.
+    </note>
+
+    <note priority="low">
+      Advanced and Prompts tabs are placeholders in this story - implement as empty
+      panels with "Coming soon" message for future stories.
+    </note>
+  </implementation-notes>
+</story-context>

@@ -6,7 +6,7 @@
 
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
 import { ReactNode } from 'react';
 import { useAdminStats } from '../useAdminStats';
 
@@ -50,8 +50,7 @@ describe('useAdminStats', () => {
       trends: { searches: Array(30).fill(10), generations: Array(30).fill(5) },
     };
 
-    localStorage.setItem('token', 'test-token');
-    (global.fetch as vi.Mock).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => mockStats,
     });
@@ -67,9 +66,7 @@ describe('useAdminStats', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/admin/stats'),
       expect.objectContaining({
-        headers: {
-          Authorization: 'Bearer test-token',
-        },
+        credentials: 'include',
       })
     );
   });
@@ -77,62 +74,83 @@ describe('useAdminStats', () => {
   it('should handle 403 Forbidden error', async () => {
     // Arrange
     localStorage.setItem('token', 'test-token');
-    (global.fetch as vi.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 403,
-      json: async () => ({ detail: 'Not authorized' }),
-    });
+    // Mock both initial fetch and retry (hook has retry: 1)
+    (global.fetch as Mock)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ detail: 'Not authorized' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ detail: 'Not authorized' }),
+      });
 
     // Act
     const { result } = renderHook(() => useAdminStats(), {
       wrapper: createWrapper(),
     });
 
-    // Assert
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    // Assert - wait for error after retry completes
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 3000,
+    });
     expect(result.current.error).toBeDefined();
   });
 
   it('should handle 401 Unauthorized error', async () => {
     // Arrange
     localStorage.setItem('token', 'test-token');
-    (global.fetch as vi.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({ detail: 'Not authenticated' }),
-    });
+    // Mock both initial fetch and retry (hook has retry: 1)
+    (global.fetch as Mock)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Not authenticated' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Not authenticated' }),
+      });
 
     // Act
     const { result } = renderHook(() => useAdminStats(), {
       wrapper: createWrapper(),
     });
 
-    // Assert
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    // Assert - wait for error after retry completes
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 3000,
+    });
     expect(result.current.error).toBeDefined();
   });
 
   it('should handle network errors', async () => {
     // Arrange
     localStorage.setItem('token', 'test-token');
-    (global.fetch as vi.Mock).mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    // Mock both initial fetch and retry (hook has retry: 1)
+    (global.fetch as Mock)
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockRejectedValueOnce(new Error('Network error'));
 
     // Act
     const { result } = renderHook(() => useAdminStats(), {
       wrapper: createWrapper(),
     });
 
-    // Assert
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    // Assert - wait for error after retry completes
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 3000,
+    });
     expect(result.current.error).toBeDefined();
   });
 
   it('should use staleTime of 5 minutes', () => {
     // Arrange
     localStorage.setItem('token', 'test-token');
-    (global.fetch as vi.Mock).mockResolvedValueOnce({
+    (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => ({}),
     });
@@ -162,7 +180,7 @@ describe('useAdminStats', () => {
     };
 
     localStorage.setItem('token', 'test-token');
-    (global.fetch as vi.Mock).mockResolvedValue({
+    (global.fetch as Mock).mockResolvedValue({
       ok: true,
       json: async () => mockStats,
     });

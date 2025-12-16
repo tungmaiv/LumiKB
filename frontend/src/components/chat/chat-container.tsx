@@ -252,6 +252,7 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
             timestamp={message.timestamp}
             citations={message.citations}
             confidence={message.confidence}
+            debugInfo={message.debugInfo}
           />
         ))}
 

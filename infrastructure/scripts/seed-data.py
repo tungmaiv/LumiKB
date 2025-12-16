@@ -41,8 +41,12 @@ from app.models.user import User  # noqa: E402
 # Constants
 DEMO_KB_NAME = "Sample Knowledge Base"
 DEMO_KB_DESCRIPTION = "Explore LumiKB with these demo documents about the platform's features"
-DEMO_USER_EMAIL = "demo@lumikb.local"
+DEMO_USER_EMAIL = "demo@lumikb.example"
 DEFAULT_DEMO_PASSWORD = "demo123"
+
+# Admin user constants
+ADMIN_USER_EMAIL = "admin@lumikb.example"
+DEFAULT_ADMIN_PASSWORD = "BilHam30"
 
 SEED_DIR = Path(__file__).parent.parent / "seed"
 DEMO_DOCS_DIR = SEED_DIR / "demo-docs"
@@ -111,6 +115,45 @@ async def get_or_create_demo_user(session: AsyncSession) -> User:
     await session.flush()
 
     print(f"  Created demo user: {DEMO_USER_EMAIL}")
+    return user
+
+
+async def get_or_create_admin_user(session: AsyncSession) -> User:
+    """Get existing admin user or create a new one.
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The admin user.
+    """
+    # Check if admin user exists
+    result = await session.execute(
+        select(User).where(User.email == ADMIN_USER_EMAIL)
+    )
+    user = result.scalar_one_or_none()
+
+    if user:
+        print(f"  Admin user already exists: {ADMIN_USER_EMAIL}")
+        return user
+
+    # Create new admin user
+    password = os.environ.get("ADMIN_USER_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+    ph = PasswordHasher()
+    hashed_password = ph.hash(password)
+
+    user = User(
+        id=uuid.uuid4(),
+        email=ADMIN_USER_EMAIL,
+        hashed_password=hashed_password,
+        is_active=True,
+        is_superuser=True,  # Admin user!
+        is_verified=True,
+    )
+    session.add(user)
+    await session.flush()
+
+    print(f"  Created admin user: {ADMIN_USER_EMAIL}")
     return user
 
 
@@ -437,6 +480,9 @@ async def seed_database(skip_embeddings: bool = False, skip_minio: bool = False)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
 
     async with async_session() as session:
+        print("\nCreating admin user...")
+        await get_or_create_admin_user(session)
+
         print("\nCreating demo user...")
         user = await get_or_create_demo_user(session)
 
@@ -478,7 +524,9 @@ async def seed_database(skip_embeddings: bool = False, skip_minio: bool = False)
     print("Seeding complete!")
     print("=" * 50)
     print(f"\nDemo KB ID: {kb.id}")
-    print(f"Demo User: {DEMO_USER_EMAIL}")
+    print(f"\nAdmin User: {ADMIN_USER_EMAIL}")
+    print(f"Admin Password: {os.environ.get('ADMIN_USER_PASSWORD', DEFAULT_ADMIN_PASSWORD)}")
+    print(f"\nDemo User: {DEMO_USER_EMAIL}")
     print(f"Demo Password: {os.environ.get('DEMO_USER_PASSWORD', DEFAULT_DEMO_PASSWORD)}")
 
 

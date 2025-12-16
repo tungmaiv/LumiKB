@@ -1,0 +1,283 @@
+<story-context id="7-5-monitoring-and-observability" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7-5</storyId>
+    <title>Monitoring and Observability</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-5-monitoring-and-observability.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer</asA>
+    <iWant>Prometheus metrics, Grafana dashboards, and structured logging configured</iWant>
+    <soThat>I can monitor application health, detect issues proactively, and troubleshoot problems efficiently</soThat>
+    <tasks>
+      <task id="1" ac="7.5.1">
+        <name>Implement Prometheus Metrics Endpoint</name>
+        <subtasks>
+          <subtask id="1.1">Add prometheus-fastapi-instrumentator dependency</subtask>
+          <subtask id="1.2">Create `/metrics` endpoint exposing Prometheus format</subtask>
+          <subtask id="1.3">Add custom metrics: request_latency_seconds, request_errors_total, queue_depth</subtask>
+          <subtask id="1.4">Add document processing metrics (processing_time, success_rate)</subtask>
+          <subtask id="1.5">Write integration tests for /metrics endpoint</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="7.5.2">
+        <name>Create Grafana Dashboards</name>
+        <subtasks>
+          <subtask id="2.1">Create infrastructure/grafana/ directory structure</subtask>
+          <subtask id="2.2">Create API latency dashboard (p50, p95, p99 percentiles)</subtask>
+          <subtask id="2.3">Create error rates dashboard by endpoint</subtask>
+          <subtask id="2.4">Create document processing queue depth panel</subtask>
+          <subtask id="2.5">Create infrastructure overview dashboard (CPU, memory, connections)</subtask>
+          <subtask id="2.6">Add dashboard provisioning to docker-compose</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="7.5.3">
+        <name>Configure AlertManager</name>
+        <subtasks>
+          <subtask id="3.1">Create AlertManager configuration file</subtask>
+          <subtask id="3.2">Define 5% error rate threshold alert rule (5 minute window)</subtask>
+          <subtask id="3.3">Configure notification channel (email/webhook template)</subtask>
+          <subtask id="3.4">Add AlertManager to docker-compose.prod.yml</subtask>
+          <subtask id="3.5">Document alert runbook with response procedures</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="7.5.4">
+        <name>Implement Structured JSON Logging</name>
+        <subtasks>
+          <subtask id="4.1">Configure structlog or python-json-logger</subtask>
+          <subtask id="4.2">Add correlation ID middleware (X-Request-ID header)</subtask>
+          <subtask id="4.3">Update all log statements to use structured format</subtask>
+          <subtask id="4.4">Configure log aggregation in docker-compose (json-file driver)</subtask>
+          <subtask id="4.5">Write tests verifying JSON log output format</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="7.5.1,7.5.2,7.5.3,7.5.4">
+        <name>Monitoring Documentation</name>
+        <subtasks>
+          <subtask id="5.1">Document metrics endpoint and available metrics</subtask>
+          <subtask id="5.2">Create Grafana dashboard user guide</subtask>
+          <subtask id="5.3">Document alert runbooks and escalation procedures</subtask>
+          <subtask id="5.4">Add log search/filter examples for troubleshooting</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.5.1" priority="P0">
+      <description>/metrics endpoint exposes Prometheus metrics (request latency, error rates, queue depth)</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: GET /metrics returns valid Prometheus text format with http_request_duration_seconds, http_requests_total, document_processing_queue_depth metrics</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.5.2" priority="P1">
+      <description>Grafana dashboards display latency percentiles, error rates, and document processing queue depth</description>
+      <testable>true</testable>
+      <verificationMethod>Manual verification: Grafana shows API Performance, Error Rate, and Queue dashboards with real metrics</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.5.3" priority="P1">
+      <description>AlertManager triggers alerts when error rate exceeds 5% threshold for 5 minutes</description>
+      <testable>true</testable>
+      <verificationMethod>Manual test: Simulate error conditions, verify alert fires after 5-minute sustained 5% error rate</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.5.4" priority="P0">
+      <description>Application logs output in structured JSON format with correlation IDs</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Verify logs contain JSON with request_id, timestamp, level, message fields</verificationMethod>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md">
+        <relevance>Architecture reference - Observability section describes monitoring strategy</relevance>
+        <keyInfo>
+          - Uses structlog for structured JSON logging
+          - Prometheus metrics endpoint pattern
+          - KISS/DRY principles apply to monitoring
+        </keyInfo>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md">
+        <relevance>Tech spec with detailed NFR Observability requirements</relevance>
+        <keyInfo>
+          - Prometheus metrics: lumikb_api_request_latency_seconds, lumikb_api_error_total, lumikb_queue_depth
+          - Grafana dashboards: API Performance, LLM Usage, Queue, Error Rate
+          - Alerting rules: Error rate > 5% Critical, latency p99 > 2s Warning
+        </keyInfo>
+      </doc>
+      <doc path="docs/testing-guideline.md">
+        <relevance>Testing patterns for integration tests</relevance>
+        <keyInfo>
+          - pytest-asyncio for async endpoint tests
+          - Testcontainers for infrastructure dependencies
+        </keyInfo>
+      </doc>
+    </docs>
+    <code>
+      <existing>
+        <file path="backend/app/core/logging.py">
+          <purpose>Structured logging already configured with structlog</purpose>
+          <status>EXISTS - Already implements JSON logging and request context binding</status>
+          <keyElements>
+            - configure_logging(json_logs, log_level) function
+            - request_context ContextVar for correlation IDs
+            - get_logger() returns BoundLogger with context
+            - Third-party logger noise reduction
+          </keyElements>
+        </file>
+        <file path="backend/app/middleware/request_context.py">
+          <purpose>Request correlation ID middleware</purpose>
+          <status>EXISTS - Implements X-Request-ID header handling</status>
+          <keyElements>
+            - RequestContextMiddleware class
+            - Generates/extracts X-Request-ID
+            - Binds to structlog contextvars
+            - Adds X-Request-ID to response headers
+          </keyElements>
+        </file>
+        <file path="backend/app/main.py">
+          <purpose>FastAPI application entry point</purpose>
+          <status>EXISTS - Already uses RequestContextMiddleware</status>
+          <keyElements>
+            - configure_logging called at startup
+            - RequestContextMiddleware registered
+            - Health check endpoints exist
+          </keyElements>
+        </file>
+        <file path="infrastructure/docker/docker-compose.yml">
+          <purpose>Docker service orchestration</purpose>
+          <status>EXISTS - Needs Prometheus/Grafana/AlertManager services added</status>
+        </file>
+      </existing>
+      <toCreate>
+        <file path="backend/app/api/v1/metrics.py">
+          <purpose>Prometheus metrics endpoint</purpose>
+          <pattern>FastAPI router exposing /metrics with prometheus-fastapi-instrumentator</pattern>
+        </file>
+        <file path="infrastructure/grafana/provisioning/dashboards/api-latency.json">
+          <purpose>Grafana dashboard for API latency percentiles</purpose>
+        </file>
+        <file path="infrastructure/grafana/provisioning/dashboards/error-rates.json">
+          <purpose>Grafana dashboard for error rates by endpoint</purpose>
+        </file>
+        <file path="infrastructure/grafana/provisioning/dashboards/queue-depth.json">
+          <purpose>Grafana dashboard for document processing queue</purpose>
+        </file>
+        <file path="infrastructure/prometheus/prometheus.yml">
+          <purpose>Prometheus scrape configuration</purpose>
+        </file>
+        <file path="infrastructure/alertmanager/alertmanager.yml">
+          <purpose>AlertManager routing and notification config</purpose>
+        </file>
+      </toCreate>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="prometheus-fastapi-instrumentator" version="^6.1.0" status="TO_ADD">
+          <purpose>FastAPI metrics instrumentation - auto-generates request metrics</purpose>
+        </package>
+        <package name="structlog" version=">=25.5.0" status="EXISTS">
+          <purpose>Already in pyproject.toml for structured logging</purpose>
+        </package>
+        <package name="prometheus-client" version=">=0.21.0" status="EXISTS">
+          <purpose>In [api] optional dependencies - prometheus metric types</purpose>
+        </package>
+      </backend>
+      <infrastructure>
+        <service name="prometheus" version="2.47+">
+          <purpose>Metrics collection and storage</purpose>
+          <port>9090</port>
+        </service>
+        <service name="grafana" version="10.0+">
+          <purpose>Metrics visualization dashboards</purpose>
+          <port>3001</port>
+        </service>
+        <service name="alertmanager" version="0.26+">
+          <purpose>Alert routing and notifications</purpose>
+          <port>9093</port>
+        </service>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      Prometheus Pull Model: /metrics endpoint scraped at configured interval, not push-based
+    </constraint>
+    <constraint type="architecture">
+      RED Method: Focus on Rate, Errors, Duration metrics
+    </constraint>
+    <constraint type="architecture">
+      Correlation IDs: X-Request-ID header traces requests across services
+    </constraint>
+    <constraint type="performance">
+      /metrics endpoint must respond in less than 100ms under normal load
+    </constraint>
+    <constraint type="security">
+      /metrics endpoint should be internal-only or protected in production
+    </constraint>
+    <constraint type="compatibility">
+      Logging already uses structlog - enhance, don't replace
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="http">
+      <name>/metrics</name>
+      <method>GET</method>
+      <description>Prometheus metrics endpoint</description>
+      <responseFormat>text/plain; prometheus format</responseFormat>
+      <metrics>
+        <metric name="http_request_duration_seconds" type="histogram" labels="method, path, status"/>
+        <metric name="http_requests_total" type="counter" labels="method, path, status"/>
+        <metric name="document_processing_queue_depth" type="gauge"/>
+        <metric name="document_processing_duration_seconds" type="histogram" labels="doc_type"/>
+      </metrics>
+    </interface>
+    <interface type="http">
+      <name>/health</name>
+      <method>GET</method>
+      <description>Health check (exists)</description>
+    </interface>
+    <interface type="header">
+      <name>X-Request-ID</name>
+      <description>Correlation ID header - already implemented</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Unit tests: No network calls, all dependencies mocked</standard>
+      <standard>Integration tests: Use testcontainers for infrastructure</standard>
+      <standard>Coverage target: 80% for new code</standard>
+      <standard>pytest markers: @pytest.mark.unit, @pytest.mark.integration</standard>
+    </standards>
+    <locations>
+      <location path="backend/tests/integration/test_metrics_api.py">Integration tests for /metrics endpoint</location>
+      <location path="backend/tests/unit/test_logging.py">Unit tests for JSON log format validation</location>
+    </locations>
+    <ideas>
+      <idea ac="7.5.1">
+        Test GET /metrics returns 200 with valid Prometheus text format
+      </idea>
+      <idea ac="7.5.1">
+        Test metrics include http_request_duration_seconds histogram
+      </idea>
+      <idea ac="7.5.1">
+        Test custom queue_depth metric reflects Celery queue
+      </idea>
+      <idea ac="7.5.4">
+        Test logs contain JSON with request_id field when X-Request-ID sent
+      </idea>
+      <idea ac="7.5.4">
+        Test logs include timestamp, level, logger_name in JSON
+      </idea>
+      <idea ac="7.5.4">
+        Test correlation ID propagates through request lifecycle
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

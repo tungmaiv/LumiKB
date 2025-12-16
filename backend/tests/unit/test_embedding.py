@@ -91,15 +91,20 @@ class TestGenerateEmbeddings:
 
     @pytest.mark.asyncio
     async def test_point_id_generation(self, mock_embedding_client, sample_chunks):
-        """Test that point IDs are generated correctly."""
+        """Test that point IDs are generated as deterministic UUIDs."""
+        from uuid import UUID
+
         from app.workers.embedding import generate_embeddings
 
         mock_embedding_client.get_embeddings.return_value = [[0.1] * 1536, [0.2] * 1536]
 
         result = await generate_embeddings(sample_chunks)
 
-        assert result[0].point_id == "doc-123_0"
-        assert result[1].point_id == "doc-123_1"
+        # Point IDs should be valid UUIDs (deterministic from doc_id + chunk_index)
+        UUID(result[0].point_id)  # Raises ValueError if not valid UUID
+        UUID(result[1].point_id)
+        # Different chunks should have different point IDs
+        assert result[0].point_id != result[1].point_id
 
     @pytest.mark.asyncio
     async def test_rate_limit_error_propagates(
@@ -123,7 +128,9 @@ class TestChunkEmbedding:
     """Tests for ChunkEmbedding dataclass."""
 
     def test_chunk_embedding_point_id(self):
-        """Test ChunkEmbedding point_id property."""
+        """Test ChunkEmbedding point_id property generates valid UUID."""
+        from uuid import UUID
+
         from app.workers.chunking import DocumentChunk
         from app.workers.embedding import ChunkEmbedding
 
@@ -136,7 +143,8 @@ class TestChunkEmbedding:
 
         embedding = ChunkEmbedding(chunk=chunk, embedding=[0.1] * 1536)
 
-        assert embedding.point_id == "abc-123_5"
+        # Point ID should be a valid UUID (deterministic from doc_id + chunk_index)
+        UUID(embedding.point_id)  # Raises ValueError if not valid UUID
 
     def test_chunk_embedding_attributes(self):
         """Test ChunkEmbedding stores chunk and embedding correctly."""
@@ -310,3 +318,135 @@ class TestRetryLogic:
                 await client.get_embeddings(["test"])
 
             assert "2 retries" in str(exc_info.value)
+
+
+class TestEmbeddingConfig:
+    """Tests for EmbeddingConfig NamedTuple (Story 7-10)."""
+
+    def test_embedding_config_defaults(self):
+        """Test EmbeddingConfig with default values."""
+        from app.workers.embedding import (
+            DEFAULT_EMBEDDING_DIMENSIONS,
+            EmbeddingConfig,
+        )
+
+        config = EmbeddingConfig()
+
+        assert config.model_id is None
+        assert config.dimensions == DEFAULT_EMBEDDING_DIMENSIONS
+        assert config.api_endpoint is None
+
+    def test_embedding_config_custom_values(self):
+        """Test EmbeddingConfig with custom values."""
+        from app.workers.embedding import EmbeddingConfig
+
+        config = EmbeddingConfig(
+            model_id="openai/text-embedding-3-small",
+            dimensions=1536,
+            api_endpoint="https://api.openai.com",
+        )
+
+        assert config.model_id == "openai/text-embedding-3-small"
+        assert config.dimensions == 1536
+        assert config.api_endpoint == "https://api.openai.com"
+
+
+class TestKBSpecificEmbedding:
+    """Tests for KB-specific embedding model support (Story 7-10)."""
+
+    @pytest.mark.asyncio
+    async def test_generate_embeddings_with_kb_config(
+        self, mock_embedding_client, sample_chunks
+    ):
+        """Test embedding generation with KB-specific config (AC-7.10.8)."""
+        from unittest.mock import AsyncMock, patch
+
+        from app.workers.embedding import EmbeddingConfig, generate_embeddings
+
+        # Create KB-specific embedding config
+        kb_config = EmbeddingConfig(
+            model_id="openai/text-embedding-3-small",
+            dimensions=1536,
+            api_endpoint=None,
+            provider="openai",
+        )
+
+        # Mock the KB-specific client
+        mock_kb_client = AsyncMock()
+        mock_kb_client.get_embeddings.return_value = [[0.1] * 1536, [0.2] * 1536]
+
+        with patch(
+            "app.workers.embedding.LiteLLMEmbeddingClient",
+            return_value=mock_kb_client,
+        ) as mock_client_class:
+            result = await generate_embeddings(sample_chunks, kb_config)
+
+            # Verify KB-specific client was created with provider
+            mock_client_class.assert_called_once_with(
+                model="openai/text-embedding-3-small",
+                api_base=None,
+                provider="openai",
+            )
+
+            # Verify embeddings were generated
+            assert len(result) == 2
+            assert len(result[0].embedding) == 1536
+
+    @pytest.mark.asyncio
+    async def test_generate_embeddings_without_config_uses_default(
+        self, mock_embedding_client, sample_chunks
+    ):
+        """Test embedding generation falls back to default without config."""
+        from app.workers.embedding import generate_embeddings
+
+        mock_embedding_client.get_embeddings.return_value = [
+            [0.1] * 768,
+            [0.2] * 768,
+        ]
+
+        result = await generate_embeddings(sample_chunks)
+
+        # Should use default embedding client
+        mock_embedding_client.get_embeddings.assert_called_once()
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_dimension_validation_with_kb_config(
+        self, mock_embedding_client, sample_chunks
+    ):
+        """Test dimension validation uses KB config dimensions (AC-7.10.9)."""
+        from unittest.mock import AsyncMock, patch
+
+        from app.workers.embedding import EmbeddingConfig, generate_embeddings
+
+        # KB config expects 1536 dimensions
+        kb_config = EmbeddingConfig(
+            model_id="openai/text-embedding-3-small",
+            dimensions=1536,
+            api_endpoint=None,
+            provider="openai",
+        )
+
+        mock_kb_client = AsyncMock()
+        # Return embeddings with wrong dimensions (512 instead of 1536)
+        mock_kb_client.get_embeddings.return_value = [[0.1] * 512, [0.2] * 512]
+
+        with (
+            patch(
+                "app.workers.embedding.LiteLLMEmbeddingClient",
+                return_value=mock_kb_client,
+            ),
+            patch("app.workers.embedding.logger") as mock_logger,
+        ):
+            result = await generate_embeddings(sample_chunks, kb_config)
+
+            # Should log warning about dimension mismatch
+            warning_calls = [
+                c
+                for c in mock_logger.warning.call_args_list
+                if "unexpected_embedding_dimensions" in str(c)
+            ]
+            assert len(warning_calls) == 2  # One for each chunk
+
+            # Results should still be returned
+            assert len(result) == 2

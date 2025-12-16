@@ -186,6 +186,69 @@ async def stream_chat_response(query: str, kb_id: str):
 
 ---
 
+### TD-002a: LiteLLM Streaming Configuration (Duplicate Token Fix)
+
+**Decision:** Disable LiteLLM retry mechanism for streaming requests
+
+**Problem Identified:**
+During chat streaming, tokens were being duplicated (e.g., "HereHere's's a a structured structured"). This occurred because LiteLLM's internal retry mechanism was sending duplicate streaming requests even on success.
+
+**Root Cause:**
+LiteLLM's `num_retries` setting in both the proxy configuration and the Python client's `acompletion()` call triggered automatic retries. For streaming responses, this caused the same tokens to be sent multiple times.
+
+**Solution:**
+Set `num_retries: 0` in two locations:
+
+1. **LiteLLM Proxy Configuration** (`infrastructure/docker/litellm_config.yaml`):
+```yaml
+router_settings:
+  routing_strategy: simple-shuffle
+  # CRITICAL: num_retries must be 0 to prevent duplicate streaming requests
+  # LiteLLM's retry mechanism sends the request again even on streaming success,
+  # causing tokens to be duplicated (e.g., "Here'sHere's a a structured structured")
+  num_retries: 0
+  timeout: 120
+  retry_after: 5
+  # NOTE: Fallbacks disabled to prevent duplicate streaming issue
+```
+
+2. **Python Client** (`backend/app/integrations/litellm_client.py`):
+```python
+response = await acompletion(
+    model=model_name,
+    messages=messages,
+    # ... other params
+    stream=stream,
+    num_retries=0,  # Disable retries to prevent duplicate streaming requests
+)
+```
+
+**Additional Configuration:**
+- Use `litellm_proxy/` model prefix for proxy calls to ensure correct routing
+- Disable fallbacks in proxy configuration to prevent alternate paths triggering duplicates
+- Disable LiteLLM streaming logging to prevent event loop issues in workers:
+  ```python
+  litellm.disable_streaming_logging = True
+  litellm.turn_off_message_logging = True
+  ```
+
+**Trade-offs:**
+- ❌ No automatic retries on transient failures (acceptable - error handling at application level)
+- ✅ Clean token-by-token streaming without duplicates
+- ✅ Consistent user experience with real-time responses
+
+**Verification:**
+Streaming response shows clean sequential tokens:
+```
+data: {"type": "token", "content": "Phase"}
+data: {"type": "token", "content": " A"}
+data: {"type": "token", "content": " in"}
+data: {"type": "token", "content": " the"}
+...
+```
+
+---
+
 ### TD-003: Citation Preservation During Generation
 
 **Decision:** Inline citation markers with post-processing parser
@@ -1644,6 +1707,44 @@ Response: Binary file download
 - **Redis**: Conversation history, draft state
 - **MinIO**: Source document retrieval (for citation context)
 
+### Epic 7 Integration: KB-Level Model Configuration
+
+**Note (Added 2025-12-16):** Story 7-10 adds KB-level model configuration that affects chat and generation operations:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    KB MODEL CONFIGURATION FLOW                           │
+│                                                                          │
+│  Chat/Generation Request                                                 │
+│         │                                                                │
+│         ▼                                                                │
+│  ConversationService._get_kb_generation_model(kb_id)                    │
+│         │                                                                │
+│         ├──→ Query KB with joinedload(generation_model)                 │
+│         │                                                                │
+│         ▼                                                                │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │ If KB.generation_model is set:                                    │   │
+│  │   → Use KB-specific model (e.g., "gpt-4o-mini", "gemma3:4b")     │   │
+│  │ Else:                                                             │   │
+│  │   → Fall back to system default (settings.llm_model)              │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│         │                                                                │
+│         ▼                                                                │
+│  LiteLLMEmbeddingClient.chat_completion(model=kb_model)                 │
+│         │                                                                │
+│         └──→ Route via LiteLLM proxy: "litellm_proxy/{model_id}"        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation:**
+- `ConversationService` accepts optional `session: AsyncSession` for DB access
+- Chat API endpoints inject session via FastAPI dependency injection
+- KB's `generation_model_id` FK links to `llm_models` table
+- `generation_model` relationship uses `lazy="joined"` for eager loading
+
+This allows different KBs to use different LLM models (e.g., TOGAF KB uses gpt-4o-mini while IT Operations uses gemma3:4b) without code changes.
+
 ---
 
 ## Security Considerations
@@ -2026,7 +2127,7 @@ async def test_citation_injection_blocked():
 
 **Mitigation:**
 1. Optimize prompt length (trim unnecessary context)
-2. Use faster LLM for drafts (gpt-3.5-turbo vs gpt-4)
+2. Use faster LLM for drafts (local Ollama gemma3:4b, or cloud options like gpt-4o-mini)
 3. Show "thinking" animation immediately
 
 **Test Coverage:**

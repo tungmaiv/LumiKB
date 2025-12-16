@@ -176,7 +176,7 @@ class TestParsePdf:
         assert len(result.elements) == 2
         assert result.metadata["source_format"] == "pdf"
         mock_partition.assert_called_once_with(
-            filename="/tmp/test.pdf", strategy="auto"
+            filename="/tmp/test.pdf", strategy="fast"
         )
 
     def test_parse_pdf_extracts_page_numbers(self, mock_unstructured) -> None:
@@ -209,8 +209,8 @@ class TestParsePdf:
         with pytest.raises(ScannedDocumentError) as exc_info:
             parse_pdf("/tmp/scanned.pdf")
 
-        assert "scanned" in str(exc_info.value).lower()
-        assert "OCR required" in str(exc_info.value)
+        assert "no text could be extracted" in str(exc_info.value).lower()
+        assert "OCR failed" in str(exc_info.value)
 
     def test_parse_pdf_password_protected(self, mock_unstructured) -> None:
         """Test handling of password-protected PDF."""
@@ -471,3 +471,320 @@ class TestParseMarkdownIntegration:
         assert len(result.elements) > 0
         # Sample has multiple headings
         assert result.metadata["section_count"] > 0
+
+
+class TestElementsToMarkdown:
+    """Tests for elements_to_markdown function (Story 7.28 AC-7.28.6)."""
+
+    def test_empty_elements_returns_empty_string(self) -> None:
+        """Test that empty elements list returns empty string."""
+        from app.workers.parsing import elements_to_markdown
+
+        result = elements_to_markdown([])
+        assert result == ""
+
+    def test_title_element_becomes_h1(self) -> None:
+        """Test that Title element becomes # heading."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(text="Document Title", element_type="Title", metadata={})
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "# Document Title"
+
+    def test_header_element_with_default_level(self) -> None:
+        """Test Header element defaults to ## (level 2)."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(text="Section Header", element_type="Header", metadata={})
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "## Section Header"
+
+    def test_header_element_with_custom_level(self) -> None:
+        """Test Header element respects heading_level from metadata."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="Level 3 Header",
+                element_type="Header",
+                metadata={"heading_level": 3},
+            ),
+            ParsedElement(
+                text="Level 4 Header",
+                element_type="Header",
+                metadata={"heading_level": 4},
+            ),
+        ]
+        result = elements_to_markdown(elements)
+        assert "### Level 3 Header" in result
+        assert "#### Level 4 Header" in result
+
+    def test_header_level_clamped_to_valid_range(self) -> None:
+        """Test that heading levels are clamped to 1-6."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="Too Low", element_type="Header", metadata={"heading_level": 0}
+            ),
+            ParsedElement(
+                text="Too High", element_type="Header", metadata={"heading_level": 10}
+            ),
+        ]
+        result = elements_to_markdown(elements)
+        # Level 0 should become level 1
+        assert "# Too Low" in result
+        # Level 10 should become level 6
+        assert "###### Too High" in result
+
+    def test_list_item_element(self) -> None:
+        """Test ListItem elements become bulleted list."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(text="First item", element_type="ListItem", metadata={}),
+            ParsedElement(text="Second item", element_type="ListItem", metadata={}),
+        ]
+        result = elements_to_markdown(elements)
+        assert "- First item" in result
+        assert "- Second item" in result
+
+    def test_narrative_text_element(self) -> None:
+        """Test NarrativeText elements become paragraphs with spacing."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="This is a paragraph.", element_type="NarrativeText", metadata={}
+            )
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "This is a paragraph."
+
+    def test_text_element_same_as_narrative(self) -> None:
+        """Test Text elements are treated same as NarrativeText."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(text="Plain text content.", element_type="Text", metadata={})
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "Plain text content."
+
+    def test_code_snippet_element(self) -> None:
+        """Test CodeSnippet elements become code blocks."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        code = "def hello():\n    print('Hello')"
+        elements = [ParsedElement(text=code, element_type="CodeSnippet", metadata={})]
+        result = elements_to_markdown(elements)
+        assert "```" in result
+        assert code in result
+        assert result.startswith("```\n")
+        assert result.endswith("\n```")
+
+    def test_figure_caption_element(self) -> None:
+        """Test FigureCaption elements become italic text."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="Figure 1: Architecture diagram",
+                element_type="FigureCaption",
+                metadata={},
+            )
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "*Figure 1: Architecture diagram*"
+
+    def test_table_element_with_html(self) -> None:
+        """Test Table element uses markdownify for HTML conversion."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        html_table = "<table><tr><th>Name</th><th>Value</th></tr><tr><td>A</td><td>1</td></tr></table>"
+        elements = [
+            ParsedElement(
+                text="Name | Value",
+                element_type="Table",
+                metadata={"text_as_html": html_table},
+            )
+        ]
+        result = elements_to_markdown(elements)
+        # markdownify converts to markdown table format
+        assert "Name" in result
+        assert "Value" in result
+
+    def test_table_element_without_html_fallback(self) -> None:
+        """Test Table element falls back to plain text when no HTML."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="Column1 | Column2",
+                element_type="Table",
+                metadata={},  # No text_as_html
+            )
+        ]
+        result = elements_to_markdown(elements)
+        assert "Column1 | Column2" in result
+
+    def test_unknown_element_type_becomes_paragraph(self) -> None:
+        """Test unknown element types are treated as paragraphs."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="Unknown content", element_type="CustomElement", metadata={}
+            )
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "Unknown content"
+
+    def test_empty_text_elements_skipped(self) -> None:
+        """Test that elements with empty text are skipped."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(text="", element_type="Title", metadata={}),
+            ParsedElement(text="   ", element_type="NarrativeText", metadata={}),
+            ParsedElement(text="Valid content", element_type="Text", metadata={}),
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "Valid content"
+
+    def test_none_text_elements_skipped(self) -> None:
+        """Test that elements with None text are handled gracefully."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        # Create element with explicit None-like behavior
+        elements = [
+            ParsedElement(text="", element_type="Title", metadata={}),
+            ParsedElement(text="Valid", element_type="Text", metadata={}),
+        ]
+        result = elements_to_markdown(elements)
+        assert result == "Valid"
+
+    def test_mixed_element_types_preserve_order(self) -> None:
+        """Test that mixed element types preserve document order."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(text="Document Title", element_type="Title", metadata={}),
+            ParsedElement(
+                text="Introduction paragraph.",
+                element_type="NarrativeText",
+                metadata={},
+            ),
+            ParsedElement(
+                text="Section 1", element_type="Header", metadata={"heading_level": 2}
+            ),
+            ParsedElement(text="First point", element_type="ListItem", metadata={}),
+            ParsedElement(text="Second point", element_type="ListItem", metadata={}),
+        ]
+        result = elements_to_markdown(elements)
+
+        # Verify order is preserved
+        lines = result.split("\n")
+        title_idx = next(
+            i for i, line in enumerate(lines) if "# Document Title" in line
+        )
+        intro_idx = next(
+            i for i, line in enumerate(lines) if "Introduction paragraph" in line
+        )
+        section_idx = next(i for i, line in enumerate(lines) if "## Section 1" in line)
+        first_idx = next(i for i, line in enumerate(lines) if "- First point" in line)
+        second_idx = next(i for i, line in enumerate(lines) if "- Second point" in line)
+
+        assert title_idx < intro_idx < section_idx < first_idx < second_idx
+
+    def test_special_characters_preserved(self) -> None:
+        """Test that special characters in text are preserved."""
+        from app.workers.parsing import ParsedElement, elements_to_markdown
+
+        elements = [
+            ParsedElement(
+                text="Code: `var x = 1;` and *emphasis*",
+                element_type="NarrativeText",
+                metadata={},
+            ),
+        ]
+        result = elements_to_markdown(elements)
+        assert "`var x = 1;`" in result
+        assert "*emphasis*" in result
+
+
+class TestParsedContentMarkdownField:
+    """Tests for ParsedContent.markdown_content field (Story 7.28 AC-7.28.3)."""
+
+    def test_markdown_content_field_default_none(self) -> None:
+        """Test that markdown_content defaults to None."""
+        from app.workers.parsing import ParsedContent
+
+        content = ParsedContent(text="Test", elements=[], metadata={})
+        assert content.markdown_content is None
+
+    def test_markdown_content_field_can_be_set(self) -> None:
+        """Test that markdown_content can be set to a string."""
+        from app.workers.parsing import ParsedContent
+
+        content = ParsedContent(
+            text="Test",
+            elements=[],
+            metadata={},
+            markdown_content="# Heading\n\nParagraph",
+        )
+        assert content.markdown_content == "# Heading\n\nParagraph"
+
+    def test_parse_pdf_generates_markdown(self, mock_unstructured) -> None:
+        """Test that parse_pdf populates markdown_content field."""
+        from app.workers.parsing import parse_pdf
+
+        mock_partition = mock_unstructured["partition_pdf"]
+
+        mock_title = MagicMock()
+        mock_title.text = "PDF Document Title"
+        mock_title.metadata = MagicMock()
+        mock_title.metadata.page_number = 1
+        mock_title.metadata.coordinates = None
+        type(mock_title).__name__ = "Title"
+
+        mock_content = MagicMock()
+        mock_content.text = "This is the main content of the PDF document with enough text to pass validation checks and meet the minimum threshold."
+        mock_content.metadata = MagicMock()
+        mock_content.metadata.page_number = 1
+        mock_content.metadata.coordinates = None
+        type(mock_content).__name__ = "NarrativeText"
+
+        mock_partition.return_value = [mock_title, mock_content]
+
+        result = parse_pdf("/tmp/test.pdf")
+
+        assert result.markdown_content is not None
+        assert "# PDF Document Title" in result.markdown_content
+        assert "main content" in result.markdown_content
+
+    def test_parse_docx_generates_markdown(self, mock_unstructured) -> None:
+        """Test that parse_docx populates markdown_content field."""
+        from app.workers.parsing import parse_docx
+
+        mock_partition = mock_unstructured["partition_docx"]
+
+        mock_title = MagicMock()
+        mock_title.text = "DOCX Document Title"
+        type(mock_title).__name__ = "Title"
+
+        mock_content = MagicMock()
+        mock_content.text = "This is the main content of the DOCX document with sufficient text to pass all validation requirements."
+        type(mock_content).__name__ = "NarrativeText"
+
+        mock_partition.return_value = [mock_title, mock_content]
+
+        result = parse_docx("/tmp/test.docx")
+
+        assert result.markdown_content is not None
+        assert "# DOCX Document Title" in result.markdown_content
+        assert "main content" in result.markdown_content

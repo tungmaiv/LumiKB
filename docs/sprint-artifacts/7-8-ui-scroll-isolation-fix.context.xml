@@ -1,0 +1,331 @@
+<story-context id="7-8-ui-scroll-isolation-fix" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7-8</storyId>
+    <title>UI Scroll Isolation Fix</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-8-ui-scroll-isolation-fix.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>scrollable panels to scroll independently without affecting adjacent panels</iWant>
+    <soThat>I can navigate document chunks and content without losing my position in other UI areas</soThat>
+    <tasks>
+      <task id="1" ac="7.8.1,7.8.2">
+        <name>Audit Current Scroll Behavior</name>
+        <subtasks>
+          <subtask id="1.1">Identify all scrollable containers in Document Chunk Viewer</subtask>
+          <subtask id="1.2">Document current scroll leak issues (which panels affect which)</subtask>
+          <subtask id="1.3">Test scroll behavior in Chrome, Firefox, Safari</subtask>
+          <subtask id="1.4">Create reproduction steps for scroll isolation failures</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="7.8.1,7.8.2">
+        <name>Implement Scroll Isolation CSS</name>
+        <subtasks>
+          <subtask id="2.1">Add overscroll-behavior: contain to document viewer panel</subtask>
+          <subtask id="2.2">Add overscroll-behavior: contain to chunk sidebar</subtask>
+          <subtask id="2.3">Ensure overflow: auto or overflow-y: scroll on containers</subtask>
+          <subtask id="2.4">Add isolation: isolate if needed for stacking context</subtask>
+          <subtask id="2.5">Test scroll isolation in all target browsers</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="7.8.3">
+        <name>Fix Resize Interaction</name>
+        <subtasks>
+          <subtask id="3.1">Verify react-resizable-panels preserves scroll on resize</subtask>
+          <subtask id="3.2">Test drag handle behavior doesn't trigger scroll</subtask>
+          <subtask id="3.3">Add touch-action: none to resize handle if needed</subtask>
+          <subtask id="3.4">Ensure mobile touch gestures work correctly</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="7.8.1,7.8.2">
+        <name>Apply Pattern to Other Panels</name>
+        <subtasks>
+          <subtask id="4.1">Audit KB sidebar scroll isolation</subtask>
+          <subtask id="4.2">Audit search results panel scroll isolation</subtask>
+          <subtask id="4.3">Audit chat message list scroll isolation</subtask>
+          <subtask id="4.4">Apply consistent scroll isolation CSS pattern</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="7.8.1,7.8.2,7.8.3">
+        <name>Testing and Validation</name>
+        <subtasks>
+          <subtask id="5.1">Write E2E tests for scroll isolation behavior</subtask>
+          <subtask id="5.2">Manual testing on Chrome, Firefox, Safari, Edge</subtask>
+          <subtask id="5.3">Mobile device testing (iOS Safari, Android Chrome)</subtask>
+          <subtask id="5.4">Document tested scenarios and results</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.8.1" priority="P0">
+      <description>Document viewer panel scrolls independently from chunk sidebar</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Scroll document viewer to bottom, verify chunk sidebar scroll position unchanged</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.8.2" priority="P0">
+      <description>Chunk sidebar scrolls independently from document viewer panel</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Scroll chunk sidebar to bottom, verify document viewer scroll position unchanged</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.8.3" priority="P1">
+      <description>Scroll isolation maintained after panel resize via drag handle</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Resize panels, then verify scroll isolation still works for both panels</verificationMethod>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md">
+        <relevance>Architecture reference for UI patterns</relevance>
+        <keyInfo>
+          - Component-based architecture with Next.js
+          - Tailwind CSS for styling
+          - react-resizable-panels for split panes
+        </keyInfo>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md">
+        <relevance>Tech spec with scroll isolation requirements</relevance>
+        <keyInfo>
+          - CSS overscroll-behavior: contain pattern
+          - Cross-browser compatibility requirements
+          - Mobile touch gesture support
+        </keyInfo>
+      </doc>
+    </docs>
+    <code>
+      <existing>
+        <file path="frontend/src/components/documents/chunk-viewer/chunk-sidebar.tsx">
+          <purpose>Chunk list sidebar with virtual scrolling</purpose>
+          <status>EXISTS - Already has scroll isolation implemented</status>
+          <keyElements>
+            - Uses style={{ overscrollBehavior: 'contain' }} on line 145
+            - Has overflow-y-auto overflow-x-hidden classes
+            - Uses data-scroll-container attribute
+            - Virtual scrolling with react-virtual
+          </keyElements>
+          <codeSnippet>
+&lt;div
+  ref={parentRef}
+  className="flex-1 overflow-y-auto overflow-x-hidden"
+  style={{ overscrollBehavior: 'contain' }}
+  data-testid="chunk-list-scroll"
+  data-scroll-container
+&gt;
+          </codeSnippet>
+        </file>
+        <file path="frontend/src/components/documents/chunk-viewer/viewers/text-viewer.tsx">
+          <purpose>Plain text document viewer</purpose>
+          <status>EXISTS - Already has scroll isolation implemented</status>
+          <keyElements>
+            - Uses style={{ overscrollBehavior: 'contain' }} on line 138
+            - Has overflow-y-auto overflow-x-hidden classes
+            - Has data-scroll-container attribute
+          </keyElements>
+          <codeSnippet>
+&lt;div
+  className="h-full overflow-y-auto overflow-x-hidden"
+  ref={scrollRef}
+  style={{ overscrollBehavior: 'contain' }}
+  data-testid="text-viewer"
+  data-scroll-container
+&gt;
+          </codeSnippet>
+        </file>
+        <file path="frontend/src/components/documents/chunk-viewer/viewers/pdf-viewer.tsx">
+          <purpose>PDF document viewer with react-pdf</purpose>
+          <status>EXISTS - Already has scroll isolation implemented</status>
+          <keyElements>
+            - Uses style={{ overscrollBehavior: 'contain' }} on line 255
+            - Has overflow-y-auto overflow-x-hidden classes
+            - Has data-scroll-container attribute
+          </keyElements>
+          <codeSnippet>
+&lt;div
+  ref={containerRef}
+  className="flex-1 overflow-y-auto overflow-x-hidden"
+  style={{ overscrollBehavior: 'contain' }}
+  data-testid="pdf-scroll-container"
+  data-scroll-container
+&gt;
+          </codeSnippet>
+        </file>
+        <file path="frontend/src/components/documents/chunk-viewer/viewers/markdown-viewer.tsx">
+          <purpose>Markdown document viewer with react-markdown</purpose>
+          <status>EXISTS - Already has scroll isolation implemented</status>
+          <keyElements>
+            - Uses style={{ overscrollBehavior: 'contain' }} on line 93
+            - Has overflow-y-auto overflow-x-hidden classes
+            - Has data-scroll-container attribute
+          </keyElements>
+          <codeSnippet>
+&lt;div
+  className="h-full overflow-y-auto overflow-x-hidden"
+  ref={contentRef}
+  style={{ overscrollBehavior: 'contain' }}
+  data-testid="markdown-viewer"
+  data-scroll-container
+&gt;
+          </codeSnippet>
+        </file>
+        <file path="frontend/src/components/documents/chunk-viewer/viewers/docx-viewer.tsx">
+          <purpose>DOCX document viewer with DOMPurify sanitization</purpose>
+          <status>EXISTS - Already has scroll isolation implemented</status>
+          <keyElements>
+            - Uses style={{ overscrollBehavior: 'contain' }} on line 126
+            - Has overflow-y-auto overflow-x-hidden classes
+            - Has data-scroll-container attribute
+          </keyElements>
+          <codeSnippet>
+&lt;div
+  className="h-full overflow-y-auto overflow-x-hidden"
+  ref={contentRef}
+  style={{ overscrollBehavior: 'contain' }}
+  data-testid="docx-viewer"
+  data-scroll-container
+&gt;
+          </codeSnippet>
+        </file>
+        <file path="frontend/src/app/globals.css">
+          <purpose>Global CSS with theme variables</purpose>
+          <status>EXISTS - May need scroll isolation utility classes</status>
+          <keyElements>
+            - Tailwind CSS configuration
+            - Theme CSS variables
+            - Global styles
+          </keyElements>
+        </file>
+        <file path="frontend/src/components/layout/kb-sidebar.tsx">
+          <purpose>Knowledge base sidebar - needs audit</purpose>
+          <status>EXISTS - Needs scroll isolation audit</status>
+        </file>
+        <file path="frontend/src/components/chat/chat-container.tsx">
+          <purpose>Chat message container - needs audit</purpose>
+          <status>EXISTS - Needs scroll isolation audit</status>
+        </file>
+      </existing>
+      <toCreate>
+        <file path="frontend/e2e/tests/documents/scroll-isolation.spec.ts">
+          <purpose>E2E tests for scroll isolation behavior</purpose>
+          <pattern>Playwright test verifying scroll positions are preserved</pattern>
+        </file>
+      </toCreate>
+    </code>
+    <dependencies>
+      <frontend>
+        <package name="react-resizable-panels" version="existing" status="EXISTS">
+          <purpose>Split pane component with drag handles</purpose>
+        </package>
+        <package name="@tanstack/react-virtual" version="existing" status="EXISTS">
+          <purpose>Virtual scrolling for chunk list</purpose>
+        </package>
+        <package name="@playwright/test" version="existing" status="EXISTS">
+          <purpose>E2E testing for scroll isolation</purpose>
+        </package>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      CSS Scroll Containment: Use overscroll-behavior: contain to prevent scroll chaining
+    </constraint>
+    <constraint type="architecture">
+      Overflow Control: Each scrollable container must explicitly set overflow behavior
+    </constraint>
+    <constraint type="architecture">
+      Isolation Context: Use isolation: isolate only when z-index stacking affects scroll
+    </constraint>
+    <constraint type="compatibility">
+      Browser Support: Chrome 63+, Firefox 59+, Safari 16+, Edge 79+
+    </constraint>
+    <constraint type="compatibility">
+      Mobile Support: iOS Safari 16+, Android Chrome with touch gestures
+    </constraint>
+    <constraint type="ux">
+      Touch Optimization: Configure touch-action for mobile scroll behavior
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="css">
+      <name>Scroll Isolation Pattern</name>
+      <description>CSS pattern for preventing scroll chaining</description>
+      <pattern>
+.scroll-isolated {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+      </pattern>
+    </interface>
+    <interface type="html-attribute">
+      <name>data-scroll-container</name>
+      <description>Marker attribute for scrollable containers (used for testing)</description>
+    </interface>
+    <interface type="component">
+      <name>ResizablePanel</name>
+      <description>react-resizable-panels component</description>
+      <requirement>Scroll positions must be preserved during resize</requirement>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>E2E Tests: Playwright tests for scroll isolation scenarios</standard>
+      <standard>Visual Testing: Verify scroll position preserved during adjacent panel scroll</standard>
+      <standard>Cross-Browser: Test on Chrome, Firefox, Safari, Edge</standard>
+      <standard>Mobile Testing: iOS Safari, Android Chrome</standard>
+    </standards>
+    <locations>
+      <location path="frontend/e2e/tests/documents/scroll-isolation.spec.ts">E2E tests for scroll isolation</location>
+      <location path="frontend/e2e/tests/documents/document-chunk-viewer.spec.ts">Existing chunk viewer tests (extend)</location>
+    </locations>
+    <ideas>
+      <idea ac="7.8.1">
+        E2E test: Scroll document viewer to bottom, verify chunk sidebar scrollTop is 0
+      </idea>
+      <idea ac="7.8.1">
+        E2E test: Scroll document viewer with mousewheel over boundary, verify no scroll leak
+      </idea>
+      <idea ac="7.8.2">
+        E2E test: Scroll chunk sidebar to bottom, verify document viewer scrollTop unchanged
+      </idea>
+      <idea ac="7.8.2">
+        E2E test: Select chunk that triggers document scroll, verify chunk sidebar position preserved
+      </idea>
+      <idea ac="7.8.3">
+        E2E test: Resize panels via drag handle, verify both scroll positions preserved
+      </idea>
+      <idea ac="7.8.3">
+        E2E test: Touch drag resize handle on mobile, verify no scroll triggered
+      </idea>
+    </ideas>
+  </tests>
+
+  <notes>
+    <note type="implementation">
+      All document viewers (text, pdf, markdown, docx) and chunk-sidebar already have
+      overscroll-behavior: contain implemented. This story primarily requires:
+      1. Audit other scrollable panels (KB sidebar, chat container, search results)
+      2. Apply consistent pattern where missing
+      3. Write E2E tests to validate behavior
+      4. Test resize interactions with react-resizable-panels
+    </note>
+    <note type="browser-compatibility">
+      overscroll-behavior is well supported in modern browsers:
+      - Chrome 63+ (Dec 2017)
+      - Firefox 59+ (Mar 2018)
+      - Safari 16+ (Sep 2022)
+      - Edge 79+ (Jan 2020)
+      Earlier Safari versions have partial support.
+    </note>
+  </notes>
+</story-context>

@@ -12,7 +12,7 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import ExportModal from '../export-modal';
+import { ExportModal } from '../export-modal';
 
 describe('ExportModal - AC1: Format Selection', () => {
   it('[P1] should display all three format options with descriptions', () => {
@@ -25,7 +25,6 @@ describe('ExportModal - AC1: Format Selection', () => {
         open={true}
         onClose={onClose}
         onExport={onExport}
-        draftId="test-draft-id"
         citationCount={5}
       />
     );
@@ -36,9 +35,9 @@ describe('ExportModal - AC1: Format Selection', () => {
     expect(screen.getByTestId('format-option-markdown')).toBeInTheDocument();
 
     // THEN: Each option has description
-    expect(screen.getByText(/Best for Word editing/i)).toBeInTheDocument();
-    expect(screen.getByText(/Professional sharing/i)).toBeInTheDocument();
-    expect(screen.getByText(/Developer-friendly/i)).toBeInTheDocument();
+    expect(screen.getByText(/Best for editing and collaboration/i)).toBeInTheDocument();
+    expect(screen.getByText(/Best for sharing and printing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Best for developers and version control/i)).toBeInTheDocument();
 
     // THEN: Each option shows file size estimate
     expect(screen.getByText(/~50KB/i)).toBeInTheDocument(); // DOCX estimate
@@ -56,7 +55,6 @@ describe('ExportModal - AC1: Format Selection', () => {
         open={true}
         onClose={onClose}
         onExport={onExport}
-        draftId="test-draft-id"
         citationCount={3}
       />
     );
@@ -65,16 +63,18 @@ describe('ExportModal - AC1: Format Selection', () => {
     const docxOption = screen.getByTestId('format-option-docx');
     fireEvent.click(docxOption);
 
-    // THEN: DOCX is selected
-    expect(docxOption).toHaveAttribute('aria-checked', 'true');
+    // THEN: DOCX is selected (check the radio button inside)
+    const docxRadio = screen.getByRole('radio', { name: /Microsoft Word/i });
+    expect(docxRadio).toHaveAttribute('aria-checked', 'true');
 
     // WHEN: User selects PDF format (should deselect DOCX)
     const pdfOption = screen.getByTestId('format-option-pdf');
     fireEvent.click(pdfOption);
 
     // THEN: PDF is selected, DOCX is deselected (radio behavior)
-    expect(pdfOption).toHaveAttribute('aria-checked', 'true');
-    expect(docxOption).toHaveAttribute('aria-checked', 'false');
+    const pdfRadio = screen.getByRole('radio', { name: /^PDF$/i });
+    expect(pdfRadio).toHaveAttribute('aria-checked', 'true');
+    expect(docxRadio).toHaveAttribute('aria-checked', 'false');
 
     // WHEN: User clicks export button
     const exportButton = screen.getByTestId('export-modal-submit');

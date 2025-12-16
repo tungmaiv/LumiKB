@@ -1,18 +1,32 @@
 /**
  * Component tests for CommandPalette (Story 3.7, AC1-AC7)
  *
- * TEST COVERAGE STATUS: 7/10 passing (70%)
+ * TEST COVERAGE STATUS: 10/10 passing (100%)
  *
- * KNOWN LIMITATION:
- * Three tests timeout due to shadcn/ui Command component's internal filtering
- * behavior not working with mocked fetch responses. The production code is
- * verified correct through:
- * - 7 passing component tests (rendering, keyboard shortcuts, debouncing)
- * - Manual testing shows all features work correctly
- * - Backend integration tests validate API contract
+ * ROOT CAUSE (Story 5.10 Investigation):
+ * Previously 3 tests timed out due to cmdk library's internal filtering behavior.
+ * The shadcn/ui Command component uses cmdk which filters CommandItem elements
+ * based on the input value. When `value={result.document_id}` (e.g., "doc-1")
+ * doesn't match the search text (e.g., "test"), cmdk hides those items even though
+ * React state contains results. This caused tests waiting for result text to timeout.
  *
- * BACKLOG: Story 5-X will address test mocking approach to achieve 100% coverage
- * by either mocking at component level or using E2E tests instead.
+ * FIX APPLIED:
+ * 1. Component fix: Added `shouldFilter={false}` to Command component in
+ *    command-palette.tsx to disable cmdk's client-side filtering. This is correct
+ *    for our use case since we perform server-side search.
+ *
+ * 2. Test fix: Changed `vi.clearAllMocks()` to `vi.resetAllMocks()` in beforeEach
+ *    to properly reset mock implementations between tests (not just call history).
+ *    This fixed test isolation issues where previous tests' mocks persisted.
+ *
+ * PATTERN FOR TESTING cmdk/Command COMPONENTS:
+ * - Use `shouldFilter={false}` when doing server-side search
+ * - Use `vi.resetAllMocks()` to clear mock implementations between tests
+ * - Use `mockResolvedValue()` instead of `mockResolvedValueOnce()` when typing
+ *   triggers multiple effect cycles due to debouncing
+ * - Wait for debounce (300ms) + fetch + state update in assertions
+ *
+ * @see Story 5.10 for technical debt resolution details
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -27,7 +41,7 @@ describe('CommandPalette', () => {
   const mockOnOpenChange = vi.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   afterEach(() => {
@@ -165,6 +179,7 @@ describe('CommandPalette', () => {
   });
 
   it('shows error state on API failure (AC9)', async () => {
+    // Use mockResolvedValue (not Once) since typing triggers multiple effect cycles
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false,
       status: 503,
@@ -176,11 +191,12 @@ describe('CommandPalette', () => {
     const input = screen.getByPlaceholderText('Search knowledge bases...');
     await userEvent.type(input, 'fail');
 
+    // Wait for debounce (300ms) + fetch + state update
     await waitFor(
       () => {
         expect(screen.getByText('Search temporarily unavailable')).toBeInTheDocument();
       },
-      { timeout: 2000 }
+      { timeout: 3000 }
     );
   });
 

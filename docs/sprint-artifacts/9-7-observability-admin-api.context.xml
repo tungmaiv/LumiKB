@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context version="1.0" generated="2025-12-15">
+  <metadata>
+    <story-id>9-7</story-id>
+    <story-title>Observability Admin API</story-title>
+    <epic-id>9</epic-id>
+    <epic-title>Hybrid Observability Platform</epic-title>
+    <status>ready-for-dev</status>
+    <priority>P0</priority>
+    <story-points>5</story-points>
+  </metadata>
+
+  <story-summary>
+    As a system administrator, I want REST API endpoints for querying observability data
+    including traces, chat history, document processing events, and aggregated statistics,
+    so that I can access observability information programmatically for debugging, monitoring,
+    and building admin dashboard views.
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC-9.7.1">GET /api/v1/observability/traces - list traces with filters (operation_type, status, user_id, date range)</criterion>
+    <criterion id="AC-9.7.2">GET /api/v1/observability/traces/{trace_id} - trace detail with all child spans</criterion>
+    <criterion id="AC-9.7.3">GET /api/v1/observability/chat-history - query chat messages with filters (user_id, kb_id, session_id, date range)</criterion>
+    <criterion id="AC-9.7.4">GET /api/v1/observability/documents/{document_id}/timeline - document processing events for a specific document</criterion>
+    <criterion id="AC-9.7.5">GET /api/v1/observability/stats - aggregated statistics (token usage, costs, processing metrics)</criterion>
+    <criterion id="AC-9.7.6">All endpoints require admin authentication (require_admin dependency)</criterion>
+    <criterion id="AC-9.7.7">Pagination with skip/limit (max 100 traces per page, max 500 messages per page)</criterion>
+    <criterion id="AC-9.7.8">Date range filtering on all list endpoints (start_date, end_date query parameters)</criterion>
+    <criterion id="AC-9.7.9">OpenAPI schemas documented with examples and descriptions</criterion>
+    <criterion id="AC-9.7.10">Integration tests for all endpoints with positive and negative test cases</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="T1" title="Create observability API router" acs="AC-9.7.1,AC-9.7.6">
+      <subtask id="T1.1">Create backend/app/api/v1/observability.py router file</subtask>
+      <subtask id="T1.2">Add router to main app with prefix /api/v1/observability</subtask>
+      <subtask id="T1.3">Apply require_admin dependency to all endpoints</subtask>
+      <subtask id="T1.4">Import and use ObservabilityService for data access</subtask>
+    </task>
+    <task id="T2" title="Create Pydantic schemas" acs="AC-9.7.9">
+      <subtask id="T2.1">Create backend/app/schemas/observability.py</subtask>
+      <subtask id="T2.2">Define TraceListResponse with pagination metadata</subtask>
+      <subtask id="T2.3">Define TraceDetailResponse with spans array</subtask>
+      <subtask id="T2.4">Define SpanResponse with type-specific metrics</subtask>
+      <subtask id="T2.5">Define ChatHistoryResponse with session grouping</subtask>
+      <subtask id="T2.6">Define ChatMessageResponse with citations and metrics</subtask>
+      <subtask id="T2.7">Define DocumentTimelineResponse with events array</subtask>
+      <subtask id="T2.8">Define DocumentEventResponse with step details</subtask>
+      <subtask id="T2.9">Define ObservabilityStatsResponse with aggregated metrics</subtask>
+      <subtask id="T2.10">Add OpenAPI examples to all schemas</subtask>
+    </task>
+    <task id="T3" title="Implement traces list endpoint" acs="AC-9.7.1,AC-9.7.7,AC-9.7.8">
+      <subtask id="T3.1">Define GET /traces endpoint with query parameters</subtask>
+      <subtask id="T3.2">Accept filters: operation_type, status, user_id, start_date, end_date</subtask>
+      <subtask id="T3.3">Accept pagination: skip (default 0), limit (default 20, max 100)</subtask>
+      <subtask id="T3.4">Call ObservabilityService.list_traces() with filters</subtask>
+      <subtask id="T3.5">Return TraceListResponse with total count and items</subtask>
+    </task>
+    <task id="T4" title="Implement trace detail endpoint" acs="AC-9.7.2">
+      <subtask id="T4.1">Define GET /traces/{trace_id} endpoint</subtask>
+      <subtask id="T4.2">Validate trace_id format (32-hex W3C trace ID)</subtask>
+      <subtask id="T4.3">Call ObservabilityService.get_trace_with_spans()</subtask>
+      <subtask id="T4.4">Return 404 if trace not found</subtask>
+      <subtask id="T4.5">Return TraceDetailResponse with spans ordered by start_time</subtask>
+    </task>
+    <task id="T5" title="Implement chat history endpoint" acs="AC-9.7.3,AC-9.7.7,AC-9.7.8">
+      <subtask id="T5.1">Define GET /chat-history endpoint with query parameters</subtask>
+      <subtask id="T5.2">Accept filters: user_id, kb_id, session_id, search_query, start_date, end_date</subtask>
+      <subtask id="T5.3">Accept pagination: skip (default 0), limit (default 50, max 500)</subtask>
+      <subtask id="T5.4">Call ObservabilityService.list_chat_messages() with filters</subtask>
+      <subtask id="T5.5">Return ChatHistoryResponse with messages and session info</subtask>
+    </task>
+    <task id="T6" title="Implement document timeline endpoint" acs="AC-9.7.4">
+      <subtask id="T6.1">Define GET /documents/{document_id}/timeline endpoint</subtask>
+      <subtask id="T6.2">Validate document_id is valid UUID</subtask>
+      <subtask id="T6.3">Call ObservabilityService.get_document_timeline()</subtask>
+      <subtask id="T6.4">Return 404 if no events found for document</subtask>
+      <subtask id="T6.5">Return DocumentTimelineResponse with events ordered by timestamp</subtask>
+    </task>
+    <task id="T7" title="Implement stats endpoint" acs="AC-9.7.5">
+      <subtask id="T7.1">Define GET /stats endpoint with query parameters</subtask>
+      <subtask id="T7.2">Accept time_period: hour, day, week, month (default: day)</subtask>
+      <subtask id="T7.3">Accept optional filters: kb_id, user_id</subtask>
+      <subtask id="T7.4">Call ObservabilityService.get_aggregated_stats()</subtask>
+      <subtask id="T7.5">Return ObservabilityStatsResponse with metrics breakdown</subtask>
+    </task>
+    <task id="T8" title="Add ObservabilityService query methods" acs="AC-9.7.1,AC-9.7.2,AC-9.7.3,AC-9.7.4,AC-9.7.5">
+      <subtask id="T8.1">Implement list_traces() with SQLAlchemy query</subtask>
+      <subtask id="T8.2">Implement get_trace_with_spans() joining traces and spans</subtask>
+      <subtask id="T8.3">Implement list_chat_messages() with full-text search support</subtask>
+      <subtask id="T8.4">Implement get_document_timeline() filtering by document_id</subtask>
+      <subtask id="T8.5">Implement get_aggregated_stats() using metrics_aggregates table</subtask>
+    </task>
+    <task id="T9" title="Write integration tests" acs="AC-9.7.10">
+      <subtask id="T9.1">Test traces list with various filters</subtask>
+      <subtask id="T9.2">Test trace detail returns spans correctly</subtask>
+      <subtask id="T9.3">Test chat history pagination and search</subtask>
+      <subtask id="T9.4">Test document timeline for known document</subtask>
+      <subtask id="T9.5">Test stats aggregation by time period</subtask>
+      <subtask id="T9.6">Test 403 for non-admin users</subtask>
+      <subtask id="T9.7">Test 404 for non-existent resources</subtask>
+      <subtask id="T9.8">Test pagination limits enforced</subtask>
+    </task>
+  </tasks>
+
+  <dependencies>
+    <dependency type="story" status="done">9-1: Observability Schema &amp; Models - TimescaleDB tables</dependency>
+    <dependency type="story" status="done">9-2: PostgreSQL Provider Implementation - Data storage</dependency>
+    <dependency type="story" status="done">9-3: TraceContext &amp; Core Service - TraceContext, ObservabilityService</dependency>
+    <dependency type="story" status="done">9-4: Document Processing Instrumentation - Document events in DB</dependency>
+    <dependency type="story" status="done">9-5: Chat/RAG Flow Instrumentation - Chat messages in DB</dependency>
+    <dependency type="story" status="done">9-6: LiteLLM Integration Hooks - LLM spans in DB</dependency>
+    <dependency type="internal" status="exists">backend/app/core/auth.py - require_admin dependency</dependency>
+    <dependency type="internal" status="exists">backend/app/models/observability.py - Trace, Span, ObsChatMessage, DocumentEvent models</dependency>
+    <dependency type="internal" status="exists">backend/app/services/observability_service.py - ObservabilityService (write methods exist, need query methods)</dependency>
+  </dependencies>
+
+  <technical-context>
+    <architecture-patterns>
+      <pattern name="Repository Pattern">ObservabilityService encapsulates all database queries</pattern>
+      <pattern name="Admin-Only Access">All endpoints use require_admin dependency</pattern>
+      <pattern name="Fire-and-Forget Writes, Sync Reads">Writes are async fire-and-forget, reads are sync for consistency</pattern>
+      <pattern name="Pagination Pattern">Use skip/limit with max limits to prevent large queries</pattern>
+    </architecture-patterns>
+
+    <key-decisions>
+      <decision>W3C Trace ID Format: trace_id is 32-hex string, validated via regex</decision>
+      <decision>Date Range Filtering: Always filter by created_at using TimescaleDB time_bucket efficiency</decision>
+      <decision>Full-Text Search: Chat history search uses PostgreSQL ILIKE for simplicity (no tsvector needed for MVP)</decision>
+      <decision>Stats Pre-Computation: Stats endpoint reads from pre-computed metrics_aggregates table</decision>
+    </key-decisions>
+  </technical-context>
+
+  <source-tree-components>
+    <new-files>
+      <file path="backend/app/api/v1/observability.py" purpose="API router with 5 admin endpoints" />
+      <file path="backend/app/schemas/observability.py" purpose="Pydantic schemas for API responses" />
+      <file path="backend/tests/integration/test_observability_api.py" purpose="Integration tests" />
+    </new-files>
+    <modified-files>
+      <file path="backend/app/services/observability_service.py" change="Add query methods (list_traces, get_trace_with_spans, list_chat_messages, get_document_timeline, get_aggregated_stats)" />
+      <file path="backend/app/main.py" change="Register observability router" />
+    </modified-files>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="Admin Router Pattern" source="backend/app/api/v1/admin.py">
+      <description>Use APIRouter with prefix, tags, require_admin dependency pattern</description>
+      <example>router = APIRouter(prefix="/admin", tags=["admin"])</example>
+    </pattern>
+    <pattern name="Paginated Response Pattern" source="backend/app/schemas/admin.py">
+      <description>Use PaginatedResponse with PaginationMeta</description>
+      <example>PaginatedResponse[T] with total, skip, limit fields</example>
+    </pattern>
+    <pattern name="Service Query Pattern" source="backend/app/services/admin_stats_service.py">
+      <description>Async SQLAlchemy queries with proper session handling</description>
+      <example>async def get_stats(session: AsyncSession) -&gt; AdminStats</example>
+    </pattern>
+    <pattern name="Date Filter Pattern" source="backend/app/api/v1/admin.py">
+      <description>Optional datetime query params with proper validation</description>
+      <example>start_date: datetime | None = None, end_date: datetime | None = None</example>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <schema-reference>
+    <model name="Trace" table="observability.traces">
+      <field name="trace_id" type="String(32)" pk="true">W3C trace-id</field>
+      <field name="timestamp" type="DateTime" pk="true">Hypertable partition key</field>
+      <field name="name" type="String(255)">Human-readable name</field>
+      <field name="user_id" type="UUID" nullable="true">User who initiated</field>
+      <field name="kb_id" type="UUID" nullable="true">Knowledge base context</field>
+      <field name="status" type="String(20)">in_progress, completed, failed</field>
+      <field name="duration_ms" type="Integer" nullable="true">Total duration</field>
+      <field name="attributes" type="JSONB" nullable="true">Additional metadata</field>
+    </model>
+    <model name="Span" table="observability.spans">
+      <field name="span_id" type="String(16)" pk="true">W3C span-id</field>
+      <field name="trace_id" type="String(32)">Parent trace</field>
+      <field name="parent_span_id" type="String(16)" nullable="true">Nesting</field>
+      <field name="timestamp" type="DateTime" pk="true">Partition key</field>
+      <field name="name" type="String(255)">Operation name</field>
+      <field name="span_type" type="String(50)">llm, retrieval, generation, embedding</field>
+      <field name="duration_ms" type="Integer" nullable="true">Duration</field>
+      <field name="input_tokens" type="Integer" nullable="true">LLM input tokens</field>
+      <field name="output_tokens" type="Integer" nullable="true">LLM output tokens</field>
+      <field name="model" type="String(100)" nullable="true">Model identifier</field>
+      <field name="status" type="String(20)">Status</field>
+      <field name="error_message" type="Text" nullable="true">Error details</field>
+    </model>
+    <model name="ObsChatMessage" table="observability.chat_messages">
+      <field name="id" type="UUID" pk="true">Message ID</field>
+      <field name="trace_id" type="String(32)">Correlation</field>
+      <field name="timestamp" type="DateTime" pk="true">Partition key</field>
+      <field name="user_id" type="UUID" nullable="true">User</field>
+      <field name="kb_id" type="UUID" nullable="true">Knowledge base</field>
+      <field name="conversation_id" type="UUID" nullable="true">Session grouping</field>
+      <field name="role" type="String(20)">user, assistant, system</field>
+      <field name="content" type="Text">Message content</field>
+      <field name="input_tokens" type="Integer" nullable="true">Input tokens</field>
+      <field name="output_tokens" type="Integer" nullable="true">Output tokens</field>
+      <field name="model" type="String(100)" nullable="true">Model used</field>
+      <field name="latency_ms" type="Integer" nullable="true">Response latency</field>
+    </model>
+    <model name="DocumentEvent" table="observability.document_events">
+      <field name="id" type="UUID" pk="true">Event ID</field>
+      <field name="trace_id" type="String(32)">Correlation</field>
+      <field name="timestamp" type="DateTime" pk="true">Partition key</field>
+      <field name="document_id" type="UUID">Document being processed</field>
+      <field name="kb_id" type="UUID">Knowledge base</field>
+      <field name="event_type" type="String(50)">upload, parse, chunk, embed, index</field>
+      <field name="status" type="String(20)">started, completed, failed</field>
+      <field name="duration_ms" type="Integer" nullable="true">Duration</field>
+      <field name="chunk_count" type="Integer" nullable="true">Chunks created</field>
+      <field name="token_count" type="Integer" nullable="true">Tokens processed</field>
+      <field name="error_message" type="Text" nullable="true">Error details</field>
+    </model>
+    <model name="MetricsAggregate" table="observability.metrics_aggregates">
+      <field name="id" type="UUID" pk="true">Aggregate ID</field>
+      <field name="bucket" type="DateTime" pk="true">Time bucket start</field>
+      <field name="metric_type" type="String(50)">Metric name</field>
+      <field name="dimensions" type="JSONB" nullable="true">Grouping dimensions</field>
+      <field name="count" type="BigInteger">Observation count</field>
+      <field name="sum_value" type="Float" nullable="true">Sum</field>
+      <field name="avg_value" type="Float" nullable="true">Average</field>
+      <field name="min_value" type="Float" nullable="true">Minimum</field>
+      <field name="max_value" type="Float" nullable="true">Maximum</field>
+    </model>
+  </schema-reference>
+
+  <implementation-notes>
+    <note>Use observability.* schema for all queries - tables are in separate schema</note>
+    <note>TimescaleDB queries benefit from time-based filtering - always include timestamp range</note>
+    <note>Composite primary keys (trace_id + timestamp) require both fields for updates</note>
+    <note>ObservabilityService write methods use fire-and-forget pattern - reads should be sync</note>
+    <note>Full-text search on chat content uses ILIKE - consider tsvector for production scale</note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test>TraceListResponse schema validation</test>
+      <test>SpanResponse with type-specific metrics</test>
+      <test>ChatHistoryResponse pagination metadata</test>
+      <test>DocumentTimelineResponse ordering</test>
+      <test>ObservabilityStatsResponse aggregation</test>
+    </unit-tests>
+    <integration-tests>
+      <test>GET /traces returns filtered results</test>
+      <test>GET /traces/{trace_id} returns spans</test>
+      <test>GET /traces/{invalid_id} returns 404</test>
+      <test>GET /chat-history with search query</test>
+      <test>GET /documents/{doc_id}/timeline</test>
+      <test>GET /stats with time_period</test>
+      <test>Non-admin user gets 403</test>
+      <test>Pagination limits enforced</test>
+    </integration-tests>
+    <test-fixtures>
+      <fixture>Admin user for authenticated requests</fixture>
+      <fixture>Non-admin user for 403 tests</fixture>
+      <fixture>Traces with spans in database</fixture>
+      <fixture>Chat messages with various filters</fixture>
+      <fixture>Document events for timeline</fixture>
+    </test-fixtures>
+  </testing-requirements>
+
+  <references>
+    <reference type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" section="6.1 API Endpoints" />
+    <reference type="epic" path="docs/epics/epic-9-observability.md" />
+    <reference type="pattern" path="backend/app/api/v1/admin.py" description="Existing admin endpoints pattern" />
+    <reference type="pattern" path="backend/app/core/auth.py" description="require_admin dependency" />
+    <reference type="model" path="backend/app/models/observability.py" description="TimescaleDB models" />
+    <reference type="service" path="backend/app/services/observability_service.py" description="ObservabilityService (add query methods)" />
+  </references>
+</story-context>

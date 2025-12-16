@@ -1,0 +1,62 @@
+# Prometheus Configuration
+# Story 7.5: Monitoring and Observability (AC-7.5.1, AC-7.5.3)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'lumikb'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # LumiKB Backend API
+  - job_name: 'lumikb-api'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['backend:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'lumikb-api'
+
+  # Celery Worker (if metrics exposed)
+  - job_name: 'lumikb-celery-worker'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['celery-worker:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'lumikb-celery-worker'
+
+  # Redis Exporter (optional)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # PostgreSQL Exporter (optional)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Qdrant (if metrics exposed)
+  - job_name: 'qdrant'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['qdrant:6333']

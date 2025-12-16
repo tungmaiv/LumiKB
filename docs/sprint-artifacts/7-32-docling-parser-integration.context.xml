@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story 7.32: Docling Document Parser Integration
+  Generated: 2025-12-16
+
+  This context file provides implementation guidance for integrating Docling
+  as an alternative document parser backend with feature flag and KB-level setting.
+-->
+<story-context story-id="7.32" title="Docling Document Parser Integration">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: STORY OVERVIEW -->
+  <!-- ============================================================ -->
+  <overview>
+    <description>
+      Integrate Docling as an alternative document parser backend for all document types
+      (PDF, DOCX, Markdown). This is a feature-flagged enhancement that preserves
+      backward compatibility while allowing administrators to enable advanced parsing
+      capabilities with better table extraction and layout analysis.
+    </description>
+    <story-points>2</story-points>
+    <type>Feature Enhancement (Feature-Flagged)</type>
+    <branch>feature/docling-parser-poc</branch>
+    <prerequisites>
+      - Story 7.12 (KB Settings Schema) - DONE
+      - Story 7.14 (KB Settings UI) - DONE (for UI integration)
+    </prerequisites>
+  </overview>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: ACCEPTANCE CRITERIA SUMMARY -->
+  <!-- ============================================================ -->
+  <acceptance-criteria>
+    <criterion id="AC-7.32.1" category="System Configuration">
+      System-level feature flag LUMIKB_PARSER_DOCLING_ENABLED (default: false)
+    </criterion>
+    <criterion id="AC-7.32.2" category="KB-Level Configuration">
+      KB setting processing.parser_backend with options: unstructured, docling, auto
+    </criterion>
+    <criterion id="AC-7.32.3" category="KB Settings UI">
+      Document Parser dropdown in KB Settings modal > Processing tab
+    </criterion>
+    <criterion id="AC-7.32.4" category="Backward Compatibility">
+      Default behavior unchanged when LUMIKB_PARSER_DOCLING_ENABLED=false
+    </criterion>
+    <criterion id="AC-7.32.5" category="Backward Compatibility">
+      Existing documents remain valid without reprocessing
+    </criterion>
+    <criterion id="AC-7.32.6" category="Backward Compatibility">
+      ParsedContent interface preserved for downstream services
+    </criterion>
+    <criterion id="AC-7.32.7" category="Parser Strategy">
+      Strategy pattern in parse_document() with parser_backend parameter
+    </criterion>
+    <criterion id="AC-7.32.8" category="Parser Strategy">
+      Docling parser module with parse_pdf_docling, parse_docx_docling, is_docling_available
+    </criterion>
+    <criterion id="AC-7.32.9" category="Fallback Strategy">
+      Auto mode: Try Docling first, fallback to Unstructured on failure
+    </criterion>
+    <criterion id="AC-7.32.10" category="Fallback Strategy">
+      Graceful degradation when Docling not installed
+    </criterion>
+    <criterion id="AC-7.32.11" category="Format Support">
+      PDF parsing with Docling's Heron layout model
+    </criterion>
+    <criterion id="AC-7.32.12" category="Format Support">
+      DOCX parsing with Docling, formatting preserved
+    </criterion>
+    <criterion id="AC-7.32.13" category="Format Support">
+      Markdown passthrough to Unstructured (Docling has no advantage)
+    </criterion>
+    <criterion id="AC-7.32.14" category="Testing">
+      Unit tests with mocked Docling library
+    </criterion>
+    <criterion id="AC-7.32.15" category="Testing">
+      Integration tests conditional (skip if Docling not installed)
+    </criterion>
+    <criterion id="AC-7.32.16" category="Testing">
+      Existing parsing tests unchanged and passing
+    </criterion>
+    <criterion id="AC-7.32.17" category="Audit Logging">
+      Parser selection logged with fallback indicator
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: IMPLEMENTATION TASKS -->
+  <!-- ============================================================ -->
+  <implementation-tasks>
+    <task id="T1" title="Add System-Level Feature Flag" est-hours="0.5">
+      <description>Add LUMIKB_PARSER_DOCLING_ENABLED to backend config</description>
+      <file>backend/app/core/config.py</file>
+      <changes>+4 lines: Add env var with default=False</changes>
+      <ac-refs>AC-7.32.1, AC-7.32.4</ac-refs>
+    </task>
+
+    <task id="T2" title="Add KB Settings Schema Field" est-hours="0.5" status="DONE">
+      <description>Add DocumentParserBackend enum and parser_backend field</description>
+      <file>backend/app/schemas/kb_settings.py</file>
+      <changes>+12 lines: Enum definition, field in DocumentProcessingConfig</changes>
+      <ac-refs>AC-7.32.2</ac-refs>
+      <completion-note>Completed 2025-12-16 during correct-course workflow</completion-note>
+    </task>
+
+    <task id="T3" title="Create Docling Parser Module" est-hours="3">
+      <description>Implement Docling parser wrapper with ParsedContent output</description>
+      <file>backend/app/workers/docling_parser.py</file>
+      <changes>~200 lines: New file with parse_pdf_docling, parse_docx_docling, is_docling_available</changes>
+      <ac-refs>AC-7.32.8, AC-7.32.11, AC-7.32.12</ac-refs>
+    </task>
+
+    <task id="T4" title="Update Parse Document Strategy" est-hours="1.5">
+      <description>Add strategy pattern to parse_document() function</description>
+      <file>backend/app/workers/parsing.py</file>
+      <changes>+40 lines: Parser selection logic, fallback handling</changes>
+      <ac-refs>AC-7.32.7, AC-7.32.9, AC-7.32.10, AC-7.32.13</ac-refs>
+    </task>
+
+    <task id="T5" title="Update Document Tasks" est-hours="0.5">
+      <description>Pass KB config to parse_document() in document worker</description>
+      <file>backend/app/workers/document_tasks.py</file>
+      <changes>+8 lines: KB config loading, parser_backend parameter</changes>
+      <ac-refs>AC-7.32.7</ac-refs>
+    </task>
+
+    <task id="T6" title="Add Docling Optional Dependency" est-hours="0.25">
+      <description>Add docling as optional extra in pyproject.toml</description>
+      <file>backend/pyproject.toml</file>
+      <changes>+3 lines: Optional dependency group</changes>
+      <ac-refs>AC-7.32.1</ac-refs>
+    </task>
+
+    <task id="T7" title="Add Audit Logging" est-hours="0.5">
+      <description>Log parser_backend used and fallback indicator</description>
+      <file>backend/app/workers/parsing.py</file>
+      <changes>+10 lines: Audit log integration</changes>
+      <ac-refs>AC-7.32.17</ac-refs>
+    </task>
+
+    <task id="T8" title="Unit Tests for Docling Parser" est-hours="2">
+      <description>Create unit tests with mocked Docling library</description>
+      <file>backend/tests/unit/test_docling_parser.py</file>
+      <changes>~120 lines: New test file</changes>
+      <ac-refs>AC-7.32.14</ac-refs>
+    </task>
+
+    <task id="T9" title="Integration Tests for Parser Strategy" est-hours="1">
+      <description>Create integration tests for strategy pattern</description>
+      <file>backend/tests/integration/test_parser_strategy.py</file>
+      <changes>~80 lines: New test file with conditional skip</changes>
+      <ac-refs>AC-7.32.15</ac-refs>
+    </task>
+
+    <task id="T10" title="Verify Existing Tests Pass" est-hours="0.5">
+      <description>Run existing parsing tests to ensure no regression</description>
+      <file>backend/tests/unit/test_parsing.py</file>
+      <changes>No changes, verification only</changes>
+      <ac-refs>AC-7.32.16</ac-refs>
+    </task>
+
+    <task id="T11" title="KB Settings UI Integration" est-hours="1" optional="true">
+      <description>Add Document Parser dropdown to KB Settings modal</description>
+      <file>frontend/src/components/kb/kb-settings-modal.tsx</file>
+      <changes>+30 lines: Dropdown component, options display</changes>
+      <ac-refs>AC-7.32.3</ac-refs>
+      <note>Optional: Can be done in separate story if time-constrained</note>
+    </task>
+  </implementation-tasks>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: TECHNICAL DESIGN -->
+  <!-- ============================================================ -->
+  <technical-design>
+    <config-hierarchy>
+      <level name="System" env-var="LUMIKB_PARSER_DOCLING_ENABLED" default="false">
+        When false, all documents use Unstructured regardless of KB settings
+      </level>
+      <level name="KB" field="processing.parser_backend" default="unstructured">
+        When system flag is true, this setting controls parser selection:
+        - unstructured: Use Unstructured library
+        - docling: Use Docling library (fallback to Unstructured if unavailable)
+        - auto: Try Docling first, fallback to Unstructured on any failure
+      </level>
+    </config-hierarchy>
+
+    <parser-module interface="ParsedContent">
+      <function name="is_docling_available" returns="bool">
+        Check if Docling library is installed and importable
+      </function>
+      <function name="parse_pdf_docling" params="file_path: str" returns="ParsedContent">
+        Parse PDF using Docling's Heron layout model with cell-level table extraction
+      </function>
+      <function name="parse_docx_docling" params="file_path: str" returns="ParsedContent">
+        Parse DOCX using Docling, preserving formatting in markdown output
+      </function>
+    </parser-module>
+
+    <strategy-pattern>
+      <code-sample>
+```python
+# backend/app/workers/parsing.py
+
+def parse_document(
+    file_path: str,
+    mime_type: str,
+    parser_backend: str = "unstructured",
+    docling_enabled: bool = False,
+) -> ParsedContent:
+    """Parse document with configurable backend.
+
+    Args:
+        file_path: Path to document file
+        mime_type: MIME type of document
+        parser_backend: Parser backend selection (unstructured/docling/auto)
+        docling_enabled: System-level feature flag
+
+    Returns:
+        ParsedContent with text, metadata, and optional markdown_content
+    """
+    # If Docling not enabled at system level, always use Unstructured
+    if not docling_enabled:
+        return _parse_with_unstructured(file_path, mime_type)
+
+    # Markdown always uses Unstructured (Docling has no advantage)
+    if mime_type == "text/markdown":
+        return _parse_with_unstructured(file_path, mime_type)
+
+    # Select parser based on KB setting
+    if parser_backend == "unstructured":
+        return _parse_with_unstructured(file_path, mime_type)
+    elif parser_backend == "docling":
+        return _parse_with_docling_fallback(file_path, mime_type)
+    elif parser_backend == "auto":
+        return _parse_with_auto_fallback(file_path, mime_type)
+    else:
+        # Unknown backend, use default
+        return _parse_with_unstructured(file_path, mime_type)
+```
+      </code-sample>
+    </strategy-pattern>
+  </technical-design>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: EXISTING CODE REFERENCES -->
+  <!-- ============================================================ -->
+  <code-references>
+    <reference path="backend/app/core/config.py" purpose="Add LUMIKB_PARSER_DOCLING_ENABLED">
+      Settings class with environment variable configuration
+    </reference>
+    <reference path="backend/app/schemas/kb_settings.py" purpose="DocumentParserBackend enum DONE">
+      Contains DocumentProcessingConfig with parser_backend field (already added)
+    </reference>
+    <reference path="backend/app/workers/parsing.py" purpose="Add strategy pattern">
+      Contains parse_pdf(), parse_docx(), parse_markdown(), parse_document() functions
+    </reference>
+    <reference path="backend/app/workers/document_tasks.py" purpose="Pass KB config">
+      Contains process_document_task() Celery task
+    </reference>
+    <reference path="backend/tests/unit/test_parsing.py" purpose="Verify no regression">
+      Contains 160+ existing parsing tests
+    </reference>
+  </code-references>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: RISK MITIGATION -->
+  <!-- ============================================================ -->
+  <risks>
+    <risk id="R1" likelihood="Medium" impact="Medium">
+      <description>Memory issues with large PDFs</description>
+      <mitigation>Add max_pages limit (500) for Docling processing</mitigation>
+    </risk>
+    <risk id="R2" likelihood="Low" impact="Medium">
+      <description>Docling library breaking changes</description>
+      <mitigation>Pin version, test before upgrade, maintain fallback</mitigation>
+    </risk>
+    <risk id="R3" likelihood="Low" impact="Low">
+      <description>Performance regression</description>
+      <mitigation>Fallback to Unstructured if Docling is slower for specific documents</mitigation>
+    </risk>
+    <risk id="R4" likelihood="Low" impact="Medium">
+      <description>Dependency conflicts</description>
+      <mitigation>Docling as separate optional extra in pyproject.toml</mitigation>
+    </risk>
+  </risks>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 7: DOCLING FORMAT SUPPORT -->
+  <!-- ============================================================ -->
+  <format-support>
+    <format name="PDF">
+      <unstructured>Basic text extraction</unstructured>
+      <docling>Heron layout model, cell-level table extraction, ML reading order</docling>
+      <advantage>Better layout analysis, superior table handling</advantage>
+    </format>
+    <format name="DOCX">
+      <unstructured>Basic text extraction</unstructured>
+      <docling>Formatting preservation, table extraction</docling>
+      <advantage>Better table extraction, formatting preserved</advantage>
+    </format>
+    <format name="Markdown">
+      <unstructured>Native markdown parsing</unstructured>
+      <docling>Similar quality</docling>
+      <advantage>None - always use Unstructured</advantage>
+    </format>
+    <format name="PPTX (Future)">
+      <unstructured>Not supported</unstructured>
+      <docling>Supported</docling>
+      <advantage>New format support</advantage>
+    </format>
+    <format name="XLSX (Future)">
+      <unstructured>Not supported</unstructured>
+      <docling>Supported</docling>
+      <advantage>New format support</advantage>
+    </format>
+  </format-support>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 8: DEFINITION OF DONE -->
+  <!-- ============================================================ -->
+  <definition-of-done>
+    <item>All 17 ACs implemented and verified</item>
+    <item>System feature flag added to config.py</item>
+    <item>KB setting parser_backend functional</item>
+    <item>Docling parser module created with ParsedContent output</item>
+    <item>Strategy pattern implemented in parse_document()</item>
+    <item>Fallback behavior working for all scenarios</item>
+    <item>Unit tests passing with mocked Docling</item>
+    <item>Integration tests passing (conditional)</item>
+    <item>Existing 160+ parsing tests passing</item>
+    <item>Audit logging includes parser_backend</item>
+    <item>Ruff linting clean</item>
+    <item>Code review approved</item>
+  </definition-of-done>
+
+</story-context>

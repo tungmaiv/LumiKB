@@ -56,20 +56,125 @@ model_list:
       description: "Anthropic Claude 3.5 Haiku - Fast and efficient"
       max_tokens: 200000
 
-  # Default model aliases for application use
+  # =============================================================================
+  # Google Gemini Models
+  # =============================================================================
+  # Generation Models
+  - model_name: gemini-2.0-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash-exp
+      api_key: os.environ/GEMINI_API_KEY
+    model_info:
+      description: "Google Gemini 2.0 Flash - Latest experimental model"
+      max_tokens: 8192
+
+  - model_name: gemini-1.5-flash
+    litellm_params:
+      model: gemini/gemini-1.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+    model_info:
+      description: "Google Gemini 1.5 Flash - Fast and efficient"
+      max_tokens: 8192
+
+  - model_name: gemini-1.5-pro
+    litellm_params:
+      model: gemini/gemini-1.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+    model_info:
+      description: "Google Gemini 1.5 Pro - High capability"
+      max_tokens: 8192
+
+  # Gemini Embedding Model
+  - model_name: gemini-embedding
+    litellm_params:
+      model: gemini/text-embedding-004
+      api_key: os.environ/GEMINI_API_KEY
+    model_info:
+      description: "Google Gemini Text Embedding - 768 dimensions"
+
+  # =============================================================================
+  # Ollama Models (Local)
+  # =============================================================================
+  # Generation Models
+  - model_name: ollama-llama3.2
+    litellm_params:
+      model: ollama/llama3.2
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      description: "Ollama Llama 3.2 - Local model"
+      max_tokens: 4096
+
+  - model_name: ollama-mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      description: "Ollama Mistral - Local model"
+      max_tokens: 4096
+
+  - model_name: ollama-gemma3
+    litellm_params:
+      model: ollama/gemma3:4b
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      description: "Ollama Gemma3 4B - Local generation model"
+      max_tokens: 8192
+
+  # Ollama Embedding Models
+  - model_name: ollama-embedding
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      description: "Ollama Nomic Embed Text - Local embedding model (768 dimensions)"
+
+  - model_name: ollama-mxbai-embed
+    litellm_params:
+      model: ollama/mxbai-embed-large
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      description: "Ollama MXBAI Embed Large - Local embedding model (1024 dimensions)"
+
+  # =============================================================================
+  # Default Model Aliases for Application Use
+  # =============================================================================
+  # These are the models LumiKB uses by default
+  # Change these to switch between providers
+
+  # Default Generation Model (for chat, synthesis, document generation)
+  # Using local Ollama gemma3:4b for offline/free usage
   - model_name: default
     litellm_params:
-      model: openai/gpt-4o-mini
-      api_key: os.environ/OPENAI_API_KEY
+      model: ollama/gemma3:4b
+      api_base: os.environ/OLLAMA_API_BASE
     model_info:
-      description: "Default model for general use"
+      description: "Default generation model for LumiKB (Ollama local)"
 
+  # Default Embedding Model (for document indexing, search)
+  # Using local Ollama nomic-embed-text (768 dimensions, same as Gemini)
   - model_name: embedding
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      description: "Default embedding model for document processing (Ollama local)"
+
+  # =============================================================================
+  # OpenAI Embedding Models
+  # =============================================================================
+  - model_name: openai-embedding-small
     litellm_params:
       model: openai/text-embedding-3-small
       api_key: os.environ/OPENAI_API_KEY
     model_info:
-      description: "Default embedding model for document processing"
+      description: "OpenAI Text Embedding 3 Small - 1536 dimensions"
+
+  - model_name: openai-embedding-large
+    litellm_params:
+      model: openai/text-embedding-3-large
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "OpenAI Text Embedding 3 Large - 3072 dimensions"
 
 # =============================================================================
 # Router Settings
@@ -78,14 +183,21 @@ model_list:
 
 router_settings:
   routing_strategy: simple-shuffle
-  num_retries: 3
+  # CRITICAL: num_retries must be 0 to prevent duplicate streaming requests
+  # LiteLLM's retry mechanism sends the request again even on streaming success,
+  # causing tokens to be duplicated (e.g., "Here'sHere's a a structured structured")
+  num_retries: 0
   timeout: 120
   retry_after: 5
 
-  # Fallback configuration
-  fallbacks:
-    - gpt-4o: [claude-3-5-sonnet, gpt-4o-mini]
-    - claude-3-5-sonnet: [gpt-4o, gpt-4o-mini]
+  # NOTE: Fallbacks disabled to prevent duplicate streaming issue
+  # The fallback mechanism was causing LiteLLM to make two requests
+  # when streaming responses, resulting in duplicated text.
+  # fallbacks:
+  #   - default: [gemini-1.5-flash, gpt-4o-mini, ollama-llama3.2]
+  #   - gpt-4o: [claude-3-5-sonnet, gemini-1.5-pro, gpt-4o-mini]
+  #   - gemini-1.5-flash: [gpt-4o-mini, claude-3-5-haiku]
+  #   - claude-3-5-sonnet: [gpt-4o, gemini-1.5-pro]
 
 # =============================================================================
 # General Settings
@@ -115,5 +227,6 @@ litellm_settings:
   # Request timeout
   request_timeout: 120
 
-  # Enable streaming by default
-  stream: true
+  # NOTE: Do NOT set stream: true here
+  # The backend explicitly controls streaming via the stream= parameter
+  # Setting it here causes double-streaming issues

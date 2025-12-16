@@ -473,6 +473,7 @@ frontend/src/lib/api/conversation.ts
 - Session-scoped conversations (24h TTL)
 - KB-isolated conversation contexts
 - Undo as client-side buffer (not persistent)
+- **KB-Specific Generation Models (Story 7-10):** Each KB can have its own generation model configured; ConversationService fetches KB's `generation_model_id` via `_get_kb_generation_model()` for chat responses
 
 ---
 

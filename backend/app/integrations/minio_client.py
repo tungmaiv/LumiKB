@@ -6,6 +6,7 @@ from uuid import UUID
 
 import boto3
 import structlog
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.core.config import settings
@@ -32,6 +33,13 @@ class MinIOService:
             boto3.client: The S3-compatible client instance.
         """
         if self._client is None:
+            # Tech Debt Fix P2: Add timeouts to prevent hanging connections
+            # that can cause documents to get stuck in Processing status
+            config = Config(
+                connect_timeout=30,  # 30 seconds to establish connection
+                read_timeout=60,  # 60 seconds for read operations
+                retries={"max_attempts": 3},  # Retry up to 3 times on failure
+            )
             endpoint_url = (
                 f"{'https' if settings.minio_secure else 'http'}://"
                 f"{settings.minio_endpoint}"
@@ -42,6 +50,7 @@ class MinIOService:
                 aws_access_key_id=settings.minio_access_key,
                 aws_secret_access_key=settings.minio_secret_key,
                 region_name="us-east-1",  # Required by boto3, not used by MinIO
+                config=config,
             )
         return self._client
 

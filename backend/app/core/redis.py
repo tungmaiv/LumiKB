@@ -20,8 +20,60 @@ SESSION_PREFIX = "session:"
 FAILED_LOGIN_PREFIX = "failed_login:"
 
 # TTL values in seconds
-SESSION_TTL = settings.jwt_expiry_minutes * 60  # Match JWT expiry (60 minutes)
+# Default session TTL - will be overridden by get_session_timeout_seconds()
+DEFAULT_SESSION_TTL = settings.jwt_expiry_minutes * 60  # Fallback: 60 minutes
 FAILED_LOGIN_TTL = 15 * 60  # 15 minutes for rate limiting window
+
+# Cache for session timeout from DB config
+_session_timeout_cache: dict[str, int | float] = {"value": 0, "expires_at": 0}
+
+
+async def get_session_timeout_seconds() -> int:
+    """Get session timeout in seconds from DB config with caching.
+
+    Queries the session_timeout_minutes setting from SystemConfig table.
+    Caches the result for 60 seconds to avoid DB queries on every request.
+
+    Returns:
+        Session timeout in seconds (default: 720 minutes = 43200 seconds).
+    """
+    import time
+
+    from sqlalchemy import select
+
+    from app.core.database import async_session_factory
+    from app.models.config import SystemConfig
+
+    # Check cache first (60 second TTL)
+    now = time.time()
+    if (
+        _session_timeout_cache["expires_at"] > now
+        and _session_timeout_cache["value"] > 0
+    ):
+        return int(_session_timeout_cache["value"])
+
+    # Query database for session_timeout_minutes
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(SystemConfig.value).where(
+                    SystemConfig.key == "session_timeout_minutes"
+                )
+            )
+            db_value = result.scalar_one_or_none()
+
+            # Use DB value if set, otherwise default (720 minutes)
+            timeout_seconds = int(db_value) * 60 if db_value is not None else 720 * 60
+
+            # Update cache
+            _session_timeout_cache["value"] = timeout_seconds
+            _session_timeout_cache["expires_at"] = now + 60  # 60 second cache
+
+            return timeout_seconds
+    except Exception:
+        # Fallback to env config if DB query fails
+        return DEFAULT_SESSION_TTL
+
 
 # Rate limiting threshold
 MAX_FAILED_ATTEMPTS = 5
@@ -79,15 +131,18 @@ class RedisSessionStore:
         self,
         user_id: UUID,
         session_data: dict[str, Any],
-        ttl: int = SESSION_TTL,
+        ttl: int | None = None,
     ) -> None:
         """Store session data for a user.
 
         Args:
             user_id: The user's UUID.
             session_data: Session metadata (login_time, ip_address, etc.).
-            ttl: Time-to-live in seconds (default: 60 minutes).
+            ttl: Time-to-live in seconds. If None, uses session_timeout_minutes from DB config.
         """
+        if ttl is None:
+            ttl = await get_session_timeout_seconds()
+
         key = f"{SESSION_PREFIX}{user_id}"
         # Add user_id to session data
         session_data["user_id"] = str(user_id)

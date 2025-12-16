@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document
+  Generated: 2025-12-03
+  Epic: 5 (Administration & Polish)
+  Story: 5-12 ATDD Integration Tests Transition to GREEN (Technical Debt)
+  Status: drafted -> ready-for-dev
+-->
+<story-context version="1.0" story-id="5-12" epic-id="5">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: STORY METADATA                                     -->
+  <!-- ============================================================ -->
+  <metadata>
+    <title>ATDD Integration Tests Transition to GREEN (Technical Debt)</title>
+    <type>Technical Debt - Test Infrastructure</type>
+    <priority>Medium</priority>
+    <effort>3-4 hours</effort>
+    <prerequisites>
+      <prereq>Epic 2 complete (document processing pipeline functional)</prereq>
+      <prereq>Story 3.10 complete (all search features implemented)</prereq>
+    </prerequisites>
+    <user-story>
+      <as-a>developer</as-a>
+      <i-want>to transition 31 ATDD integration tests from RED phase to GREEN</i-want>
+      <so-that>search feature integration tests validate against real indexed data in Qdrant and provide comprehensive regression protection</so-that>
+    </user-story>
+  </metadata>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: ACCEPTANCE CRITERIA                                -->
+  <!-- ============================================================ -->
+  <acceptance-criteria>
+    <criterion id="AC1" title="Test Fixture Helper Created">
+      <given>ATDD integration tests require indexed documents in Qdrant</given>
+      <when>I create backend/tests/helpers/indexing.py</when>
+      <then>wait_for_document_indexed(doc_id, timeout=30) helper implemented</then>
+      <and>Helper polls Qdrant until document chunks are indexed</and>
+      <and>Raises TimeoutError if indexing not complete within timeout</and>
+    </criterion>
+
+    <criterion id="AC2" title="Cross-KB Search Tests Pass (9 tests)">
+      <given>test_cross_kb_search.py has 9 ATDD RED tests</given>
+      <when>I update tests to use wait_for_document_indexed()</when>
+      <then>All 9 tests pass: cross-KB queries, permission checks, ranking, merging</then>
+      <tests>
+        <test>test_cross_kb_search_queries_all_permitted_kbs</test>
+        <test>test_cross_kb_search_respects_permissions</test>
+        <test>test_cross_kb_results_ranked_by_relevance</test>
+        <test>test_cross_kb_search_merges_results_with_limit</test>
+        <test>test_cross_kb_results_include_kb_name</test>
+        <test>test_cross_kb_search_performance_basic_timing</test>
+        <test>test_cross_kb_search_uses_parallel_queries</test>
+        <test>test_cross_kb_search_with_no_results</test>
+        <test>test_cross_kb_search_with_explicit_kb_ids</test>
+      </tests>
+    </criterion>
+
+    <criterion id="AC3" title="LLM Synthesis Tests Pass (6 tests)">
+      <given>test_llm_synthesis.py has 6 ATDD RED tests</given>
+      <when>I update tests to use wait_for_document_indexed()</when>
+      <then>All 6 tests pass: citation markers, grounding, confidence scores</then>
+      <tests>
+        <test>test_llm_answer_contains_citation_markers</test>
+        <test>test_llm_answer_citations_map_to_chunks</test>
+        <test>test_llm_answer_grounded_in_retrieved_chunks</test>
+        <test>test_llm_answer_includes_confidence_score</test>
+        <test>test_citations_include_all_required_metadata</test>
+        <test>test_synthesis_without_results_returns_empty_answer</test>
+      </tests>
+    </criterion>
+
+    <criterion id="AC4" title="Quick Search Tests Pass (5 tests)">
+      <given>test_semantic_search.py has tests that require indexed documents</given>
+      <when>I update tests to use wait_for_document_indexed()</when>
+      <then>All relevant semantic search tests pass</then>
+      <tests>
+        <test>test_search_with_natural_language_query_returns_results</test>
+        <test>test_search_returns_semantically_relevant_results_not_keywords</test>
+        <test>test_search_respects_kb_permissions</test>
+        <test>test_search_response_time_under_threshold</test>
+        <test>test_search_creates_audit_log</test>
+      </tests>
+    </criterion>
+
+    <criterion id="AC5" title="SSE Streaming Tests Pass (6 tests)">
+      <given>test_sse_streaming.py has 6 ATDD RED tests</given>
+      <when>I update tests to use wait_for_document_indexed()</when>
+      <then>All 6 tests pass: SSE protocol, event ordering, graceful degradation</then>
+      <tests>
+        <test>test_search_with_sse_query_param_returns_event_stream</test>
+        <test>test_sse_events_streamed_in_correct_order</test>
+        <test>test_sse_token_events_contain_incremental_text</test>
+        <test>test_sse_citation_events_contain_metadata</test>
+        <test>test_search_without_stream_param_returns_non_streaming</test>
+        <test>test_sse_first_token_latency_under_1_second</test>
+      </tests>
+    </criterion>
+
+    <criterion id="AC6" title="Similar Search Tests Pass (5 tests)">
+      <given>Similar search tests require indexed documents</given>
+      <when>I update tests to use wait_for_document_indexed()</when>
+      <then>All 5 similar search tests pass</then>
+    </criterion>
+
+    <criterion id="AC7" title="Documentation Updated">
+      <given>Story implementation is complete</given>
+      <when>I update documentation</when>
+      <then>epic-3-tech-debt.md TD-ATDD section marked RESOLVED</then>
+      <and>wait_for_document_indexed() usage documented in testing-framework-guideline.md</and>
+    </criterion>
+
+    <criterion id="AC8" title="Regression Protection">
+      <given>All 31 ATDD tests are now GREEN</given>
+      <when>I run make test-backend</when>
+      <then>0 failures, 0 errors</then>
+      <and>Existing 496+ passing tests still pass (no regressions)</and>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: TASK BREAKDOWN                                     -->
+  <!-- ============================================================ -->
+  <tasks>
+    <task id="T1" ac-ref="AC1" estimate="1h">
+      <title>Create Test Helpers Module</title>
+      <description>Create backend/tests/helpers/__init__.py and backend/tests/helpers/indexing.py with wait_for_document_indexed() helper</description>
+      <subtasks>
+        <subtask>Create helpers directory structure</subtask>
+        <subtask>Implement wait_for_document_indexed() using Qdrant client</subtask>
+        <subtask>Add TimeoutError handling with configurable timeout</subtask>
+        <subtask>Export from __init__.py for easy import</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T2" ac-ref="AC1" estimate="30m">
+      <title>Add Qdrant Client Fixture</title>
+      <description>Add fixture to conftest.py that provides Qdrant client for test helper</description>
+      <subtasks>
+        <subtask>Create qdrant_client fixture in integration conftest.py</subtask>
+        <subtask>Ensure proper cleanup after tests</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T3" ac-ref="AC2" estimate="45m">
+      <title>Update Cross-KB Search Tests</title>
+      <description>Update test_cross_kb_search.py to index documents before assertions</description>
+      <subtasks>
+        <subtask>Add document upload fixtures with real content</subtask>
+        <subtask>Call wait_for_document_indexed() after upload</subtask>
+        <subtask>Remove pytest.skip markers if present</subtask>
+        <subtask>Verify all 9 tests pass</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T4" ac-ref="AC3" estimate="45m">
+      <title>Update LLM Synthesis Tests</title>
+      <description>Update test_llm_synthesis.py fixtures to wait for indexing</description>
+      <subtasks>
+        <subtask>Update kb_with_indexed_security_docs fixture</subtask>
+        <subtask>Add real document upload and indexing wait</subtask>
+        <subtask>Verify all 6 tests pass</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T5" ac-ref="AC4" estimate="30m">
+      <title>Update Quick Search Tests</title>
+      <description>Update test_semantic_search.py to use indexing helper</description>
+      <subtasks>
+        <subtask>Update indexed_kb_with_docs fixture</subtask>
+        <subtask>Remove pytest.skip markers</subtask>
+        <subtask>Verify tests pass</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T6" ac-ref="AC5" estimate="30m">
+      <title>Update SSE Streaming Tests</title>
+      <description>Update test_sse_streaming.py to use indexing helper</description>
+      <subtasks>
+        <subtask>Update kb_for_streaming fixture</subtask>
+        <subtask>Add document indexing to fixture</subtask>
+        <subtask>Verify all 6 tests pass</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T7" ac-ref="AC6" estimate="30m">
+      <title>Update Similar Search Tests</title>
+      <description>Create or update similar search tests with indexing</description>
+      <subtasks>
+        <subtask>Locate or create test_similar_search.py</subtask>
+        <subtask>Add indexing fixtures</subtask>
+        <subtask>Verify 5 tests pass</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T8" ac-ref="AC7" estimate="30m">
+      <title>Documentation Updates</title>
+      <description>Update technical debt and testing documentation</description>
+      <subtasks>
+        <subtask>Mark TD-ATDD as RESOLVED in epic-3-tech-debt.md (if exists)</subtask>
+        <subtask>Add wait_for_document_indexed() section to testing-framework-guideline.md</subtask>
+      </subtasks>
+    </task>
+
+    <task id="T9" ac-ref="AC8" estimate="30m">
+      <title>Regression Testing</title>
+      <description>Run full test suite to verify no regressions</description>
+      <subtasks>
+        <subtask>Run make test-backend</subtask>
+        <subtask>Verify 0 failures, 0 errors</subtask>
+        <subtask>Document final test count</subtask>
+      </subtasks>
+    </task>
+  </tasks>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: TECHNICAL CONTEXT                                  -->
+  <!-- ============================================================ -->
+  <technical-context>
+    <!-- Architecture Overview -->
+    <architecture>
+      <pattern>Modular Monolith with Service Layer</pattern>
+      <key-services>
+        <service name="SearchService" path="backend/app/services/search_service.py">
+          Orchestrates semantic search: permission check, embedding, Qdrant query, citation assembly
+        </service>
+        <service name="QdrantService" path="backend/app/integrations/qdrant_client.py">
+          Vector database client for chunk storage and retrieval
+        </service>
+        <service name="EmbeddingClient" path="backend/app/integrations/litellm_client.py">
+          LiteLLM client for generating query embeddings
+        </service>
+      </key-services>
+    </architecture>
+
+    <!-- Existing Test Infrastructure -->
+    <test-infrastructure>
+      <framework>pytest 8.x with pytest-asyncio</framework>
+      <fixtures-location>backend/tests/integration/conftest.py</fixtures-location>
+      <factories-location>backend/tests/factories/</factories-location>
+      <markers>
+        <marker name="integration">Integration tests with database containers</marker>
+        <marker name="unit">Isolated unit tests</marker>
+      </markers>
+      <containers>
+        <container type="postgres">PostgresContainer("postgres:16-alpine")</container>
+        <container type="redis">RedisContainer("redis:7-alpine")</container>
+      </containers>
+    </test-infrastructure>
+
+    <!-- Key Files to Modify -->
+    <key-files>
+      <file path="backend/tests/helpers/__init__.py" action="create">New module init</file>
+      <file path="backend/tests/helpers/indexing.py" action="create">wait_for_document_indexed() helper</file>
+      <file path="backend/tests/integration/conftest.py" action="modify">Add Qdrant client fixture</file>
+      <file path="backend/tests/integration/test_cross_kb_search.py" action="modify">Update fixtures</file>
+      <file path="backend/tests/integration/test_llm_synthesis.py" action="modify">Update fixtures</file>
+      <file path="backend/tests/integration/test_semantic_search.py" action="modify">Update fixtures, remove skips</file>
+      <file path="backend/tests/integration/test_sse_streaming.py" action="modify">Update fixtures</file>
+      <file path="docs/testing-framework-guideline.md" action="modify">Document new helper</file>
+    </key-files>
+
+    <!-- Implementation Strategy -->
+    <implementation-strategy>
+      <step n="1">
+        <title>Create Polling Helper</title>
+        <description>Implement wait_for_document_indexed() that polls Qdrant collection for chunk count > 0</description>
+        <code-pattern><![CDATA[
+async def wait_for_document_indexed(
+    qdrant_client: QdrantClient,
+    collection_name: str,
+    doc_id: str,
+    timeout: float = 30.0,
+    poll_interval: float = 0.5,
+) -> int:
+    """Wait for document chunks to be indexed in Qdrant.
+
+    Args:
+        qdrant_client: Qdrant client instance
+        collection_name: Name of collection (usually kb-{kb_id})
+        doc_id: Document ID to check for
+        timeout: Maximum wait time in seconds
+        poll_interval: Time between polls
+
+    Returns:
+        Number of chunks indexed
+
+    Raises:
+        TimeoutError: If indexing not complete within timeout
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        # Query Qdrant for chunks with this document_id
+        results = qdrant_client.scroll(
+            collection_name=collection_name,
+            scroll_filter=models.Filter(
+                must=[models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchValue(value=doc_id)
+                )]
+            ),
+            limit=1,
+        )
+        if results[0]:  # Has at least one chunk
+            return len(results[0])
+        await asyncio.sleep(poll_interval)
+
+    raise TimeoutError(f"Document {doc_id} not indexed within {timeout}s")
+]]></code-pattern>
+      </step>
+      <step n="2">
+        <title>Update Test Fixtures</title>
+        <description>Modify fixtures to upload documents and wait for indexing</description>
+        <code-pattern><![CDATA[
+@pytest.fixture
+async def kb_with_indexed_docs(authenticated_client: AsyncClient, qdrant_client) -> dict:
+    """Create KB with indexed documents for search testing."""
+    # Create KB
+    kb_data = create_kb_data(name="Test KB")
+    kb_response = await authenticated_client.post("/api/v1/knowledge-bases/", json=kb_data)
+    kb = kb_response.json()
+
+    # Upload document with real content
+    content = "OAuth 2.0 is an authorization framework that enables applications..."
+    files = {"file": ("auth-guide.md", content.encode(), "text/markdown")}
+    doc_response = await authenticated_client.post(
+        f"/api/v1/knowledge-bases/{kb['id']}/documents",
+        files=files,
+    )
+    doc = doc_response.json()
+
+    # Wait for indexing
+    await wait_for_document_indexed(
+        qdrant_client,
+        collection_name=f"kb-{kb['id']}",
+        doc_id=doc["id"],
+        timeout=30,
+    )
+
+    return kb
+]]></code-pattern>
+      </step>
+      <step n="3">
+        <title>Ensure Test Collection Cleanup</title>
+        <description>Add fixture to clean up Qdrant collections after tests</description>
+      </step>
+      <step n="4">
+        <title>Run Full Test Suite</title>
+        <description>Verify all tests pass with make test-backend</description>
+      </step>
+    </implementation-strategy>
+  </technical-context>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: DEPENDENCIES & FRAMEWORKS                          -->
+  <!-- ============================================================ -->
+  <dependencies>
+    <backend>
+      <dependency name="pytest" version=">=8.0.0">Test framework</dependency>
+      <dependency name="pytest-asyncio" version=">=0.24.0">Async test support</dependency>
+      <dependency name="testcontainers" version=">=4.0.0">Container-based testing</dependency>
+      <dependency name="httpx" version=">=0.27.0">Async HTTP client for API tests</dependency>
+      <dependency name="qdrant-client" version=">=1.10.0">Vector database client</dependency>
+      <dependency name="faker" version=">=24.0.0">Test data generation</dependency>
+    </backend>
+  </dependencies>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: TEST PATTERNS                                      -->
+  <!-- ============================================================ -->
+  <test-patterns>
+    <pattern name="ATDD">
+      <description>Acceptance Test-Driven Development - tests written before implementation</description>
+      <phases>
+        <phase name="RED">Tests fail (expected - implementation not complete)</phase>
+        <phase name="GREEN">Tests pass (implementation complete)</phase>
+        <phase name="REFACTOR">Optimize while keeping tests green</phase>
+      </phases>
+      <current-state>Transitioning from RED to GREEN</current-state>
+    </pattern>
+
+    <pattern name="Integration Test Fixtures">
+      <description>Session-scoped containers, function-scoped data</description>
+      <example><![CDATA[
+@pytest.fixture(scope="session")
+def postgres_container():
+    with PostgresContainer("postgres:16-alpine") as postgres:
+        yield postgres
+
+@pytest.fixture
+async def db_session(test_engine) -> AsyncSession:
+    async with test_session_factory() as session:
+        yield session
+        await session.rollback()
+]]></example>
+    </pattern>
+
+    <pattern name="Factory Pattern for Test Data">
+      <description>Use factories from tests/factories/ for consistent test data</description>
+      <factories>
+        <factory name="create_registration_data">Unique user registration payloads</factory>
+        <factory name="create_kb_data">Knowledge base creation data</factory>
+        <factory name="create_document_data">Document creation data</factory>
+      </factories>
+    </pattern>
+
+    <pattern name="API Client with Cookie Auth">
+      <description>Authenticated client fixture for API tests</description>
+      <example><![CDATA[
+@pytest.fixture
+async def authenticated_client(api_client: AsyncClient, test_user_data: dict):
+    # Login and return client with session cookies
+    await api_client.post("/api/v1/auth/login", data={...})
+    return api_client
+]]></example>
+    </pattern>
+  </test-patterns>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 7: ERROR PATTERNS & EDGE CASES                        -->
+  <!-- ============================================================ -->
+  <error-patterns>
+    <pattern name="Empty Qdrant Collection">
+      <cause>Tests run before documents are indexed</cause>
+      <symptom>assert 500 == 200 (search returns error)</symptom>
+      <solution>Use wait_for_document_indexed() to ensure indexing complete</solution>
+    </pattern>
+
+    <pattern name="Timeout During Indexing">
+      <cause>Document processing takes longer than expected</cause>
+      <symptom>TimeoutError from wait_for_document_indexed()</symptom>
+      <solution>Increase timeout or check Celery worker status</solution>
+    </pattern>
+
+    <pattern name="Cross-Test Pollution">
+      <cause>Qdrant collections not cleaned between tests</cause>
+      <symptom>Tests pass individually but fail together</symptom>
+      <solution>Add collection cleanup fixture or use unique collection names</solution>
+    </pattern>
+  </error-patterns>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 8: VALIDATION CHECKLIST                               -->
+  <!-- ============================================================ -->
+  <validation-checklist>
+    <check id="V1">backend/tests/helpers/indexing.py exists and exports wait_for_document_indexed()</check>
+    <check id="V2">All 9 cross-KB search tests pass (test_cross_kb_search.py)</check>
+    <check id="V3">All 6 LLM synthesis tests pass (test_llm_synthesis.py)</check>
+    <check id="V4">All quick search tests pass (test_semantic_search.py)</check>
+    <check id="V5">All 6 SSE streaming tests pass (test_sse_streaming.py)</check>
+    <check id="V6">All similar search tests pass</check>
+    <check id="V7">make test-backend shows 0 failures, 0 errors</check>
+    <check id="V8">Documentation updated with helper usage</check>
+    <check id="V9">No regressions in existing tests</check>
+  </validation-checklist>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 9: RELATED ARTIFACTS                                  -->
+  <!-- ============================================================ -->
+  <related-artifacts>
+    <artifact type="story" path="docs/sprint-artifacts/5-12-atdd-integration-tests-transition-to-green.md">Story definition</artifact>
+    <artifact type="epics" path="docs/epics.md" section="Story 5.12">Epic source</artifact>
+    <artifact type="architecture" path="docs/architecture.md">System architecture</artifact>
+    <artifact type="testing-guide" path="docs/testing-framework-guideline.md">Testing conventions</artifact>
+    <artifact type="coding-standards" path="docs/coding-standards.md">Coding conventions</artifact>
+    <artifact type="test-file" path="backend/tests/integration/test_cross_kb_search.py">Cross-KB search tests</artifact>
+    <artifact type="test-file" path="backend/tests/integration/test_llm_synthesis.py">LLM synthesis tests</artifact>
+    <artifact type="test-file" path="backend/tests/integration/test_semantic_search.py">Semantic search tests</artifact>
+    <artifact type="test-file" path="backend/tests/integration/test_sse_streaming.py">SSE streaming tests</artifact>
+    <artifact type="conftest" path="backend/tests/integration/conftest.py">Integration test fixtures</artifact>
+  </related-artifacts>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 10: NOTES FOR DEVELOPER                               -->
+  <!-- ============================================================ -->
+  <developer-notes>
+    <note priority="high">
+      The root cause of test failures is that tests were written in ATDD RED phase
+      BEFORE documents were indexed in Qdrant. The fix is to add wait logic, not
+      to mock the Qdrant responses.
+    </note>
+    <note priority="medium">
+      Consider whether Qdrant testcontainer should be added for full isolation,
+      or if connecting to the development Qdrant instance is acceptable for
+      integration tests.
+    </note>
+    <note priority="medium">
+      The document processing pipeline (Epic 2) includes Celery workers that
+      handle parsing, chunking, and embedding. The wait helper should account
+      for this async processing time.
+    </note>
+    <note priority="low">
+      Some tests like test_sse_reconnection_resumes_from_last_event are already
+      marked as pytest.skip() - these are deferred features, not ATDD RED tests.
+    </note>
+  </developer-notes>
+
+</story-context>

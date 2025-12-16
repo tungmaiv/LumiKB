@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="5-26" title="Document Chunk Viewer - Frontend UI" generated="2025-12-07">
+
+  <summary>
+    Split-pane document viewer showing original documents alongside extracted text chunks.
+    Enables users to verify AI citations and admins to inspect document processing quality.
+    Supports PDF, DOCX, Markdown, and plain text formats with format-specific highlighting.
+  </summary>
+
+  <objectives>
+    <objective id="1">Create split-pane viewer with document on left, chunk sidebar on right</objective>
+    <objective id="2">Implement format-specific viewers: PDF (react-pdf), DOCX (docx-preview), MD (react-markdown), TXT (pre)</objective>
+    <objective id="3">Enable chunk search with debounced filtering</objective>
+    <objective id="4">Implement expand/collapse for chunk previews (3-line preview, full text on expand)</objective>
+    <objective id="5">Highlight source sections when chunks are selected</objective>
+    <objective id="6">Use virtual scroll for performance with 1000+ chunks</objective>
+  </objectives>
+
+  <acceptance-criteria>
+    <criterion id="AC-5.26.0">Feature accessible via KB Dashboard → Document → Detail Modal → View &amp; Chunks tab (DoD Learning #5)</criterion>
+    <criterion id="AC-5.26.1">Document detail modal has "View &amp; Chunks" tab</criterion>
+    <criterion id="AC-5.26.2">Split-pane layout with resizable, responsive panels</criterion>
+    <criterion id="AC-5.26.3">Chunk sidebar with search box, count, and scrollable list</criterion>
+    <criterion id="AC-5.26.4">Chunks expand to full text, collapse button at bottom-right</criterion>
+    <criterion id="AC-5.26.5">Search filters chunks in real-time (300ms debounce)</criterion>
+    <criterion id="AC-5.26.6">PDF viewer with page navigation and text layer highlighting</criterion>
+    <criterion id="AC-5.26.7">DOCX viewer with paragraph-level highlighting</criterion>
+    <criterion id="AC-5.26.8">Markdown viewer with character-range highlighting</criterion>
+    <criterion id="AC-5.26.9">Text viewer with character-range highlighting</criterion>
+    <criterion id="AC-5.26.10">Loading skeletons, error states, and empty states handled</criterion>
+  </acceptance-criteria>
+
+  <technical-context>
+    <architecture>
+      <component name="DocumentChunkViewer" path="frontend/src/components/documents/document-chunk-viewer/index.tsx" status="new">
+        Main split-pane container with format-specific viewer switching
+      </component>
+      <component name="ChunkSidebar" path="frontend/src/components/documents/document-chunk-viewer/chunk-sidebar.tsx" status="new">
+        Search box, chunk count, and virtual-scroll chunk list
+      </component>
+      <component name="ChunkItem" path="frontend/src/components/documents/document-chunk-viewer/chunk-item.tsx" status="new">
+        Expandable chunk preview with 3-line truncation
+      </component>
+      <component name="PDFViewer" path="frontend/src/components/documents/document-chunk-viewer/viewers/pdf-viewer.tsx" status="new">
+        react-pdf integration with text layer highlighting
+      </component>
+      <component name="DOCXViewer" path="frontend/src/components/documents/document-chunk-viewer/viewers/docx-viewer.tsx" status="new">
+        docx-preview integration with paragraph highlighting
+      </component>
+      <component name="MarkdownViewer" path="frontend/src/components/documents/document-chunk-viewer/viewers/markdown-viewer.tsx" status="new">
+        react-markdown rendering with character highlighting
+      </component>
+      <component name="TextViewer" path="frontend/src/components/documents/document-chunk-viewer/viewers/text-viewer.tsx" status="new">
+        Pre-formatted text display with character highlighting
+      </component>
+      <component name="useDocumentChunks" path="frontend/src/hooks/useDocumentChunks.ts" status="new">
+        React Query hook for fetching and searching chunks
+      </component>
+      <component name="useDocumentContent" path="frontend/src/hooks/useDocumentContent.ts" status="new">
+        React Query hook for fetching document blob
+      </component>
+      <component name="DocumentDetailModal" path="frontend/src/components/documents/document-detail-modal.tsx" status="extend">
+        Add tab navigation with "View &amp; Chunks" tab
+      </component>
+    </architecture>
+
+    <existing-code>
+      <file path="frontend/src/components/documents/document-detail-modal.tsx" relevance="high" lines="81-200">
+        Existing modal to extend with tabs - currently shows document metadata
+      </file>
+      <file path="frontend/src/components/documents/documents-panel.tsx" relevance="medium" lines="1-50">
+        Document list that opens detail modal - no changes needed
+      </file>
+      <file path="frontend/src/hooks/useDebounce.ts" relevance="high" lines="19-35">
+        Existing debounce hook to reuse for search input
+      </file>
+      <file path="frontend/src/components/ui/tabs.tsx" relevance="medium" lines="1-60">
+        shadcn tabs component for modal tab navigation
+      </file>
+    </existing-code>
+
+    <dependencies>
+      <dependency name="react-pdf" version="^9.1.0" purpose="PDF rendering with text layer" />
+      <dependency name="pdfjs-dist" version="^4.0.0" purpose="PDF.js worker for react-pdf" />
+      <dependency name="docx-preview" version="^0.3.2" purpose="Client-side DOCX rendering" />
+      <dependency name="react-markdown" version="^9.0.0" purpose="Markdown rendering" />
+      <dependency name="react-resizable-panels" version="^2.0.0" purpose="Split-pane layout" />
+      <dependency name="@tanstack/react-virtual" version="^3.0.0" purpose="Virtual scroll for chunk list" />
+    </dependencies>
+
+    <data-models>
+      <model name="DocumentChunk" type="frontend-type">
+        <field name="chunk_index" type="number" />
+        <field name="chunk_text" type="string" />
+        <field name="char_start" type="number" />
+        <field name="char_end" type="number" />
+        <field name="page_number" type="number | null" />
+        <field name="paragraph_index" type="number | null" />
+      </model>
+      <model name="DocumentChunksResponse" type="api-response">
+        <field name="document_id" type="string" />
+        <field name="chunks" type="DocumentChunk[]" />
+        <field name="total" type="number" />
+        <field name="skip" type="number" />
+        <field name="limit" type="number" />
+      </model>
+    </data-models>
+  </technical-context>
+
+  <ui-specifications>
+    <layout>
+      <panel name="document-viewer" position="left" default-width="60%" min-width="40%">
+        Format-specific document renderer with highlighting capability
+      </panel>
+      <panel name="chunk-sidebar" position="right" default-width="40%" min-width="25%">
+        Search box, chunk count, virtual-scroll chunk list
+      </panel>
+      <divider type="draggable">Resize handle between panels</divider>
+    </layout>
+
+    <responsive-breakpoints>
+      <breakpoint name="desktop" min="1024px">Side-by-side panels</breakpoint>
+      <breakpoint name="tablet-mobile" max="1023px">Stacked vertically (document above, chunks below)</breakpoint>
+    </responsive-breakpoints>
+
+    <chunk-item-states>
+      <state name="collapsed">Shows first 3 lines with ellipsis, expand indicator (▼)</state>
+      <state name="expanded">Shows full text, collapse button at bottom-right [↑ less]</state>
+      <state name="selected">Blue left border, light blue background highlight</state>
+    </chunk-item-states>
+
+    <highlight-strategies>
+      <strategy format="PDF">Scroll to page_number, apply yellow overlay on text layer</strategy>
+      <strategy format="DOCX">Scroll to paragraph, highlight entire paragraph (yellow background)</strategy>
+      <strategy format="Markdown">Scroll to char_start position, highlight char range</strategy>
+      <strategy format="Text">Scroll to line containing char_start, highlight char range</strategy>
+    </highlight-strategies>
+  </ui-specifications>
+
+  <test-requirements>
+    <unit-tests>
+      <test name="test_document_chunk_viewer_renders">Container renders with split-pane layout</test>
+      <test name="test_chunk_sidebar_search_box">Search box renders and accepts input</test>
+      <test name="test_chunk_sidebar_count_display">Shows correct chunk count</test>
+      <test name="test_chunk_item_preview">Shows first 3 lines when collapsed</test>
+      <test name="test_chunk_item_expand">Expands to full text on click</test>
+      <test name="test_chunk_item_collapse">Collapses when collapse button clicked</test>
+      <test name="test_chunk_accordion_behavior">Only one chunk expanded at a time</test>
+      <test name="test_search_debounce">Search input debounces by 300ms</test>
+      <test name="test_pdf_viewer_renders">PDFViewer renders document</test>
+      <test name="test_pdf_viewer_page_navigation">Page prev/next buttons work</test>
+      <test name="test_pdf_viewer_scrolls_to_page">Scrolls to correct page on chunk select</test>
+      <test name="test_docx_viewer_renders">DOCXViewer renders document</test>
+      <test name="test_docx_viewer_highlights_paragraph">Highlights paragraph on chunk select</test>
+      <test name="test_markdown_viewer_renders">MarkdownViewer renders content</test>
+      <test name="test_markdown_viewer_highlights">Highlights character range</test>
+      <test name="test_text_viewer_renders">TextViewer renders pre-formatted</test>
+      <test name="test_text_viewer_highlights">Highlights character range</test>
+      <test name="test_loading_state">Shows skeletons while loading</test>
+      <test name="test_error_state">Shows error message with retry button</test>
+      <test name="test_empty_state">Shows message when no chunks</test>
+      <test name="test_use_document_chunks_hook">Hook fetches and returns chunks</test>
+      <test name="test_use_document_chunks_search">Hook filters by search query</test>
+      <test name="test_use_document_content_hook">Hook fetches and creates blob URL</test>
+      <test name="test_tab_navigation">Tab switches between Details and View &amp; Chunks</test>
+      <test name="test_responsive_stacking">Panels stack vertically on mobile</test>
+      <test name="test_panel_resize">Dragging divider resizes panels</test>
+      <test name="test_virtual_scroll_performance">1000 chunks scroll smoothly</test>
+    </unit-tests>
+    <e2e-tests>
+      <test name="test_navigation_to_chunk_viewer">KB Dashboard → click document → modal opens → View &amp; Chunks tab accessible</test>
+      <test name="test_pdf_chunk_viewer_flow">Upload PDF → view chunks → click chunk → verify highlight</test>
+      <test name="test_docx_chunk_viewer_flow">Upload DOCX → view chunks → verify paragraph highlight</test>
+      <test name="test_search_chunks_e2e">Open viewer → search → verify filtered results</test>
+      <test name="test_expand_collapse_e2e">Click chunk → expand → click collapse → verify</test>
+    </e2e-tests>
+  </test-requirements>
+
+  <tasks>
+    <task id="1" ac="5.26.1,5.26.2">Install npm dependencies: react-pdf, pdfjs-dist, docx-preview, react-markdown, react-resizable-panels, @tanstack/react-virtual</task>
+    <task id="2" ac="5.26.1,5.26.2">Create DocumentChunkViewer component - main container with split-pane layout</task>
+    <task id="3" ac="5.26.3,5.26.4,5.26.5">Create ChunkSidebar component - search box, count display, virtual-scroll chunk list</task>
+    <task id="4" ac="5.26.4">Create ChunkItem component - expandable 3-line preview with collapse button</task>
+    <task id="5" ac="5.26.6">Create PDFViewer component - react-pdf with page navigation and text layer highlighting</task>
+    <task id="6" ac="5.26.7">Create DOCXViewer component - docx-preview with paragraph highlighting</task>
+    <task id="7" ac="5.26.8">Create MarkdownViewer component - react-markdown with character-range highlighting</task>
+    <task id="8" ac="5.26.9">Create TextViewer component - pre-formatted text with character-range highlighting</task>
+    <task id="9" ac="5.26.3,5.26.5">Create useDocumentChunks hook - React Query for chunk fetching with search</task>
+    <task id="10" ac="5.26.6,5.26.7,5.26.8,5.26.9">Create useDocumentContent hook - React Query for document blob fetching</task>
+    <task id="11" ac="5.26.0,5.26.1">Extend DocumentDetailModal - add tab navigation with "View &amp; Chunks" tab</task>
+    <task id="12" ac="5.26.10">Add loading skeletons, error states, and empty states</task>
+    <task id="13" ac="5.26.0">Write E2E tests - navigation, PDF flow, DOCX flow, search, expand/collapse (5 tests)</task>
+  </tasks>
+
+  <implementation-notes>
+    <note priority="high">
+      PDF.js worker must be configured separately - copy worker to public folder or use CDN
+    </note>
+    <note priority="high">
+      DOCX paragraph-level highlighting (not character-level) was explicitly approved
+    </note>
+    <note priority="high">
+      Virtual scroll is critical - without it, 1000+ chunks will cause performance issues
+    </note>
+    <note priority="medium">
+      Consider lazy-loading viewer components to reduce initial bundle size
+    </note>
+    <note priority="medium">
+      Blob URLs from useDocumentContent must be revoked on unmount to prevent memory leaks
+    </note>
+    <note priority="low">
+      PDF text layer highlighting may need custom CSS - react-pdf renders text in spans
+    </note>
+  </implementation-notes>
+
+  <related-stories>
+    <story id="5-25" relation="depends-on">Document Chunk Viewer - Backend API</story>
+    <story id="2-7" relation="related">Document Detail View (existing modal to extend)</story>
+    <story id="3-3" relation="related">Citation Display (similar highlighting patterns)</story>
+  </related-stories>
+
+</story-context>

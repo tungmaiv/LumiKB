@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-20" title="Feedback Button Integration">
+  <summary>
+    Wire the existing FeedbackModal component into the DraftEditor, allowing users
+    to provide feedback on generated drafts and receive recovery alternatives.
+  </summary>
+
+  <key-files>
+    <file path="frontend/src/components/generation/draft-editor.tsx" purpose="Draft editing component">
+      <note>443 lines - complex editor with citation preservation</note>
+      <note>Uses useDraftEditor, useDraftUndo, useExport hooks</note>
+      <note>FeedbackModal NOT imported - needs integration</note>
+      <note>Need to add feedback button to toolbar (around line 280-320)</note>
+    </file>
+    <file path="frontend/src/components/generation/feedback-modal.tsx" purpose="Feedback submission modal">
+      <note>167 lines - already implemented with FeedbackType enum</note>
+      <note>Types: "not_relevant", "wrong_format", "needs_more_detail", "low_confidence", "other"</note>
+      <note>Props: isOpen, onClose, onSubmit, isSubmitting</note>
+    </file>
+    <file path="frontend/src/components/generation/recovery-modal.tsx" purpose="Recovery alternatives display">
+      <note>80 lines - displays alternatives from feedback response</note>
+      <note>Props: isOpen, onClose, alternatives, onActionSelect</note>
+      <note>Alternative interface: type, description, action</note>
+    </file>
+    <file path="frontend/src/hooks/useFeedback.ts" purpose="Feedback submission hook">
+      <note>70 lines - posts to /api/v1/drafts/${draftId}/feedback</note>
+      <note>Returns: { handleSubmit, isSubmitting, alternatives, error, resetAlternatives }</note>
+    </file>
+    <file path="backend/app/api/v1/drafts.py" purpose="Draft API endpoints">
+      <note>Lines 464-544: submit_feedback() endpoint exists</note>
+      <note>Returns AlternativeResponse with list of recovery options</note>
+    </file>
+    <file path="backend/app/services/feedback_service.py" purpose="Feedback processing">
+      <note>178 lines - ALTERNATIVES_MAP with recovery suggestions per feedback type</note>
+      <note>suggest_alternatives() returns list of Alternative objects</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="useFeedback Hook">
+      <description>From useFeedback.ts - existing feedback submission logic</description>
+      <code><![CDATA[
+export function useFeedback(draftId: string | null) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alternatives, setAlternatives] = useState<Alternative[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (feedbackType: FeedbackType, comments?: string) => {
+    if (!draftId) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/v1/drafts/${draftId}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback_type: feedbackType, comments }),
+      });
+      const data = await response.json();
+      setAlternatives(data.alternatives);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit feedback");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return { handleSubmit, isSubmitting, alternatives, error, resetAlternatives };
+}
+]]></code>
+    </pattern>
+    <pattern name="FeedbackModal Props">
+      <description>From feedback-modal.tsx - interface for modal component</description>
+      <code><![CDATA[
+interface FeedbackModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (type: FeedbackType, comments?: string) => Promise<void>;
+  isSubmitting: boolean;
+}
+
+export type FeedbackType =
+  | "not_relevant"
+  | "wrong_format"
+  | "needs_more_detail"
+  | "low_confidence"
+  | "other";
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="integration-steps">
+      1. Import FeedbackModal and RecoveryModal into draft-editor.tsx
+      2. Add useFeedback hook with draft.id
+      3. Add feedback button to toolbar (MessageSquare icon)
+      4. Wire button onClick to open FeedbackModal
+      5. Handle feedback submission → show RecoveryModal with alternatives
+      6. Implement action handlers for recovery options
+    </note>
+    <note type="ui-location">
+      Feedback button should go in draft editor toolbar, likely near export button.
+      Use MessageSquare or ThumbsDown icon from lucide-react.
+    </note>
+    <note type="state-management">
+      Need local state for:
+      - isFeedbackModalOpen
+      - isRecoveryModalOpen
+      - Selected action handling (action dispatch to parent component)
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.20.1" status="not-implemented">
+      <description>Feedback button visible in draft editor</description>
+      <implementation>Need to add button to draft-editor.tsx toolbar</implementation>
+    </criterion>
+    <criterion id="AC-7.20.2" status="component-exists">
+      <description>FeedbackModal opens on button click</description>
+      <implementation>FeedbackModal component exists, needs wiring</implementation>
+    </criterion>
+    <criterion id="AC-7.20.3" status="hook-exists">
+      <description>Feedback submitted to API</description>
+      <implementation>useFeedback hook exists with handleSubmit</implementation>
+    </criterion>
+    <criterion id="AC-7.20.4" status="component-exists">
+      <description>Recovery alternatives displayed</description>
+      <implementation>RecoveryModal component exists, needs wiring</implementation>
+    </criterion>
+    <criterion id="AC-7.20.5" status="not-implemented">
+      <description>Action selection triggers recovery flow</description>
+      <implementation>Need to implement onActionSelect handlers</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <dependency story="4-8" status="completed">Generation feedback and recovery (backend)</dependency>
+    <dependency story="4-6" status="completed">Draft editing infrastructure</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>Render DraftEditor, verify feedback button present</test>
+      <test>Click feedback button, verify FeedbackModal opens</test>
+      <test>Submit feedback, verify RecoveryModal shows alternatives</test>
+      <test>Select recovery action, verify callback triggered</test>
+    </unit-tests>
+    <e2e-tests>
+      <test>Full flow: generate draft → give feedback → select recovery → verify action</test>
+    </e2e-tests>
+  </test-strategy>
+</story-context>

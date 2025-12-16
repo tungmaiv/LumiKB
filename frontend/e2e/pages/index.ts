@@ -3,3 +3,7 @@ export { LoginPage } from './login.page';
 export { RegisterPage } from './register.page';
 export { DashboardPage } from './dashboard.page';
 export { ChatPage } from './chat.page';
+export { AdminPage } from './admin.page';
+export { QueuePage } from './queue.page';
+export { DocumentPage } from './document.page';
+export { ArchivePage } from './archive.page';

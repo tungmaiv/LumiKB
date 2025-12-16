@@ -1,0 +1,372 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>9</storyId>
+    <title>Recent KBs and Polish Items</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-9-recent-kbs-and-polish-items.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>quick access to recently used KBs and a polished UI</iWant>
+    <soThat>my daily workflow is efficient</soThat>
+    <tasks>
+      <task id="1" title="Create Recent KBs Backend Endpoint">
+        <objective>Implement API endpoint to retrieve user's recently accessed KBs</objective>
+        <subtasks>
+          <subtask id="1.1">Create GET /api/v1/users/me/recent-kbs endpoint in backend/app/api/v1/users.py</subtask>
+          <subtask id="1.2">Create Pydantic schema: RecentKB in backend/app/schemas/kb_recommendation.py</subtask>
+          <subtask id="1.3">Ensure query uses indexed columns for less than 100ms response</subtask>
+          <subtask id="1.4">Add OpenAPI documentation</subtask>
+          <subtask id="1.5">Require authentication (current_active_user dependency)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Create Recent KBs Frontend Hook">
+        <objective>Create React hook to fetch and cache recent KBs</objective>
+        <subtasks>
+          <subtask id="2.1">Create frontend/src/hooks/useRecentKBs.ts with React Query pattern</subtask>
+          <subtask id="2.2">Add TypeScript types for RecentKB</subtask>
+          <subtask id="2.3">Handle loading and error states</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Update KB Sidebar with Recent Section">
+        <objective>Add Recent KBs section to the KB sidebar</objective>
+        <subtasks>
+          <subtask id="3.1">Update frontend/src/components/layout/kb-sidebar.tsx with Recent section</subtask>
+          <subtask id="3.2">Create RecentKBItem component variant</subtask>
+          <subtask id="3.3">Implement empty state for no recent KBs</subtask>
+          <subtask id="3.4">Add loading skeleton for Recent section</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Integrate KB Recommendations UI">
+        <objective>Display personalized KB recommendations from Story 5.8</objective>
+        <subtasks>
+          <subtask id="4.1">Create frontend/src/hooks/useKBRecommendations.ts</subtask>
+          <subtask id="4.2">Create KBRecommendationItem component</subtask>
+          <subtask id="4.3">Add Recommended section to sidebar below Recent</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Add Dashboard Tooltips">
+        <objective>Add tooltips to icon-only buttons throughout the app</objective>
+        <subtasks>
+          <subtask id="5.1">Install/verify Tooltip component from shadcn/ui</subtask>
+          <subtask id="5.2">Update header.tsx with tooltips</subtask>
+          <subtask id="5.3">Update kb-sidebar.tsx with tooltips</subtask>
+          <subtask id="5.4">Update dashboard page with tooltips</subtask>
+          <subtask id="5.5">Ensure consistent 200ms delay</subtask>
+        </subtasks>
+      </task>
+      <task id="6" title="Implement Loading Skeletons">
+        <objective>Add loading skeletons to data-fetching views</objective>
+        <subtasks>
+          <subtask id="6.1">Create DashboardSkeleton component</subtask>
+          <subtask id="6.2">Update dashboard page to show skeleton during load</subtask>
+          <subtask id="6.3">Add skeleton for Recent section in sidebar</subtask>
+        </subtasks>
+      </task>
+      <task id="7" title="Add Error Boundaries">
+        <objective>Wrap major components with error boundaries</objective>
+        <subtasks>
+          <subtask id="7.1">Create frontend/src/components/ui/error-boundary.tsx</subtask>
+          <subtask id="7.2">Wrap dashboard page with error boundary</subtask>
+          <subtask id="7.3">Wrap KB sidebar with error boundary</subtask>
+          <subtask id="7.4">Wrap documents panel with error boundary</subtask>
+          <subtask id="7.5">Log errors to console with stack trace</subtask>
+        </subtasks>
+      </task>
+      <task id="8" title="Verify Keyboard Navigation">
+        <objective>Ensure keyboard accessibility throughout the app</objective>
+        <subtasks>
+          <subtask id="8.1">Audit tab order in dashboard</subtask>
+          <subtask id="8.2">Audit tab order in KB sidebar</subtask>
+          <subtask id="8.3">Verify focus indicators</subtask>
+          <subtask id="8.4">Verify Escape behavior</subtask>
+          <subtask id="8.5">Manual accessibility audit</subtask>
+        </subtasks>
+      </task>
+      <task id="9" title="Write Backend Unit Tests">
+        <objective>Test recent KBs endpoint logic</objective>
+        <subtasks>
+          <subtask id="9.1">Create backend/tests/unit/test_recent_kbs.py</subtask>
+          <subtask id="9.2">Test endpoint logic (max 5, ordered, grouped)</subtask>
+          <subtask id="9.3">Test edge cases (empty, permissions)</subtask>
+        </subtasks>
+      </task>
+      <task id="10" title="Write Backend Integration Tests">
+        <objective>Test API endpoint with authentication</objective>
+        <subtasks>
+          <subtask id="10.1">Create backend/tests/integration/test_recent_kbs_api.py</subtask>
+          <subtask id="10.2">Test API endpoint (200, 401, schema)</subtask>
+          <subtask id="10.3">Test performance (less than 100ms)</subtask>
+        </subtasks>
+      </task>
+      <task id="11" title="Write Frontend Unit Tests">
+        <objective>Test React hooks and components</objective>
+        <subtasks>
+          <subtask id="11.1">Create useRecentKBs.test.ts</subtask>
+          <subtask id="11.2">Create useKBRecommendations.test.ts</subtask>
+          <subtask id="11.3">Create kb-sidebar-recent.test.tsx</subtask>
+          <subtask id="11.4">Create error-boundary.test.tsx</subtask>
+        </subtasks>
+      </task>
+      <task id="12" title="E2E Tests (Deferred to Story 5.16)">
+        <objective>End-to-end tests for recent KB workflow</objective>
+        <note>Deferred to Story 5.16 Docker E2E Infrastructure</note>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.9.1" title="Recent KBs Section in Sidebar">
+      <given>I am a logged-in user</given>
+      <when>I open the KB sidebar</when>
+      <then>a Recent section displays my last 5 accessed KBs, ordered by most recent first</then>
+      <validation>
+        <item>Sidebar shows Recent section above the full KB list</item>
+        <item>Maximum 5 KBs displayed in Recent section</item>
+        <item>Most recently accessed KB appears first</item>
+        <item>Clicking a recent KB sets it as active</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.2" title="Recent KB Query Performance">
+      <given>the system queries recent KBs</given>
+      <when>GET /api/v1/users/me/recent-kbs is called</when>
+      <then>the response completes in less than 100ms using indexed last_accessed column</then>
+      <validation>
+        <item>Response time measured via performance logging</item>
+        <item>Query uses index on kb_access_log.accessed_at</item>
+        <item>Response returns max 5 KBs with timestamps</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.3" title="Empty State for No Recent KBs">
+      <given>a user has no KB access history</given>
+      <when>the Recent section is rendered</when>
+      <then>a helpful empty state message is displayed suggesting to select a KB</then>
+      <validation>
+        <item>New users see empty state with helpful message</item>
+        <item>Message includes call-to-action to explore KBs</item>
+        <item>Empty state matches design system patterns</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.4" title="Click Recent KB Navigates to KB Search">
+      <given>I see a recent KB in the sidebar</given>
+      <when>I click on the recent KB card</when>
+      <then>the KB is set as active and I can navigate to search within that KB context</then>
+      <validation>
+        <item>Clicking recent KB calls setActiveKb(kb)</item>
+        <item>Active KB state updates in global store</item>
+        <item>Search page uses active KB for queries</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.5" title="Dashboard Tooltip Help for New Users">
+      <given>I am viewing the dashboard</given>
+      <when>I hover over icon-only buttons</when>
+      <then>tooltips display with helpful descriptions</then>
+      <validation>
+        <item>All icon-only buttons have aria-label and tooltip</item>
+        <item>Tooltips appear on hover with 200ms delay</item>
+        <item>Tooltip content is concise and actionable</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.6" title="KB Recommendations Integration">
+      <given>the KB recommendations API is available (Story 5.8)</given>
+      <when>I view the KB selector</when>
+      <then>I can see personalized KB recommendations with reason and score</then>
+      <validation>
+        <item>useKBRecommendations hook fetches from /api/v1/users/me/kb-recommendations</item>
+        <item>Recommendations section shows in sidebar below Recent</item>
+        <item>Each recommendation shows kb_name, reason, and visual score indicator</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.7" title="Loading Skeletons on Data-Fetching Views">
+      <given>data is being fetched from the API</given>
+      <when>the loading state is active</when>
+      <then>skeleton loaders display instead of empty content</then>
+      <validation>
+        <item>Dashboard cards show skeleton during load</item>
+        <item>KB sidebar shows skeleton during load</item>
+        <item>Skeletons match actual component dimensions</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.8" title="Error Boundaries with Recovery Options">
+      <given>an error occurs during rendering or data fetch</given>
+      <when>the error boundary catches the error</when>
+      <then>a friendly error message displays with recovery options</then>
+      <validation>
+        <item>Error boundaries wrap major components</item>
+        <item>Error UI shows retry button</item>
+        <item>Errors are logged to console/monitoring</item>
+      </validation>
+    </criterion>
+    <criterion id="AC-5.9.9" title="Keyboard Navigation Throughout">
+      <given>I am navigating the application</given>
+      <when>I use Tab, Enter, and Escape keys</when>
+      <then>focus moves logically through interactive elements</then>
+      <validation>
+        <item>Tab order follows visual layout</item>
+        <item>Focus indicators visible (ring styling)</item>
+        <item>Escape closes modals/dropdowns</item>
+        <item>Enter activates focused elements</item>
+      </validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" relevance="FR12, FR12d - Recent KB access requirements"/>
+      <doc path="docs/architecture.md" relevance="Frontend/Backend stack, API patterns, shadcn/ui components"/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" relevance="Epic 5 technical specification"/>
+      <doc path="docs/sprint-artifacts/5-8-smart-kb-suggestions.md" relevance="KB Recommendations API (dependency)"/>
+    </docs>
+    <code>
+      <file path="backend/app/api/v1/users.py" relevance="MODIFY - Add GET /me/recent-kbs endpoint. Already has /me/kb-recommendations as pattern reference."/>
+      <file path="backend/app/schemas/kb_recommendation.py" relevance="MODIFY - Add RecentKB schema. KBRecommendation schema as pattern reference."/>
+      <file path="backend/app/models/kb_access_log.py" relevance="READ - KBAccessLog model with AccessType enum and indexed accessed_at column."/>
+      <file path="backend/app/services/kb_recommendation_service.py" relevance="READ - Pattern reference for querying kb_access_log, batch queries, caching."/>
+      <file path="frontend/src/components/layout/kb-sidebar.tsx" relevance="MODIFY - Add Recent and Recommendations sections above KB list. Already has KbSelectorSkeleton."/>
+      <file path="frontend/src/components/layout/header.tsx" relevance="MODIFY - Add tooltips to icon-only buttons (Menu, UserMenu)."/>
+      <file path="frontend/src/app/(protected)/dashboard/page.tsx" relevance="MODIFY - Add loading skeletons, error boundaries, tooltips to cards."/>
+      <file path="frontend/src/components/ui/tooltip.tsx" relevance="READ - Existing Tooltip component from shadcn/ui. Set delayDuration=200 for AC-5.9.5."/>
+      <file path="frontend/src/components/ui/skeleton.tsx" relevance="READ - Existing Skeleton component for loading states."/>
+      <file path="frontend/src/lib/stores/kb-store.ts" relevance="READ - useKBStore hook for setActiveKb() function."/>
+      <file path="frontend/src/hooks/useOnboarding.ts" relevance="READ - Pattern reference for React Query hooks with API calls."/>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="fastapi" version=">=0.115.0" purpose="REST API framework"/>
+        <package name="pydantic" version=">=2.7.0" purpose="Schema validation (RecentKB model)"/>
+        <package name="sqlalchemy" version=">=2.0.44" purpose="Database ORM (KBAccessLog queries)"/>
+        <package name="structlog" version=">=25.5.0" purpose="Performance logging"/>
+      </backend>
+      <frontend>
+        <package name="@radix-ui/react-tooltip" version="^1.2.8" installed="true" purpose="Tooltip component (AC-5.9.5)"/>
+        <package name="react" version="19.2.0" installed="true" purpose="React framework"/>
+        <package name="zustand" version="^5.0.8" installed="true" purpose="State management (setActiveKb)"/>
+        <package name="lucide-react" version="^0.554.0" installed="true" purpose="Icons (Clock, Sparkles for sections)"/>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" type="performance">GET /api/v1/users/me/recent-kbs must complete in less than 100ms. Use indexed query on kb_access_log(user_id, kb_id, accessed_at DESC).</constraint>
+    <constraint id="C2" type="data">Recent KBs limited to max 5, deduplicated by kb_id, ordered by most recent accessed_at first.</constraint>
+    <constraint id="C3" type="security">All endpoints require current_active_user dependency. Users only see KBs they have permission to access.</constraint>
+    <constraint id="C4" type="ux">Tooltip delay must be exactly 200ms for consistency (TooltipProvider delayDuration=200).</constraint>
+    <constraint id="C5" type="accessibility">All icon-only buttons must have aria-label attribute. Focus indicators must be visible (ring-2 styling).</constraint>
+    <constraint id="C6" type="dependency">Story 5.8 (KB Recommendations API) must be complete before AC-5.9.6 can be fully tested.</constraint>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/api/v1/users/me/recent-kbs" auth="required">
+        <description>Get user's 5 most recently accessed KBs</description>
+        <response status="200">
+          <schema>
+            <![CDATA[
+[{
+  "kb_id": "uuid",
+  "kb_name": "string",
+  "description": "string | null",
+  "last_accessed": "datetime",
+  "document_count": "integer"
+}]
+            ]]>
+          </schema>
+        </response>
+        <response status="401">Not authenticated</response>
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/users/me/kb-recommendations" auth="required" existing="true">
+        <description>Get personalized KB recommendations (from Story 5.8)</description>
+        <note>Already implemented - integrate UI only</note>
+      </endpoint>
+    </api>
+    <components>
+      <component name="RecentKBItem" path="frontend/src/components/kb/recent-kb-item.tsx">
+        <props>
+          <prop name="kb" type="RecentKB" required="true"/>
+          <prop name="onClick" type="() => void" required="true"/>
+        </props>
+      </component>
+      <component name="KBRecommendationItem" path="frontend/src/components/kb/kb-recommendation-item.tsx">
+        <props>
+          <prop name="recommendation" type="KBRecommendation" required="true"/>
+          <prop name="onClick" type="() => void" required="true"/>
+        </props>
+      </component>
+      <component name="ErrorBoundary" path="frontend/src/components/ui/error-boundary.tsx">
+        <props>
+          <prop name="children" type="ReactNode" required="true"/>
+          <prop name="fallback" type="ReactNode" required="false"/>
+          <prop name="onError" type="(error: Error) => void" required="false"/>
+        </props>
+      </component>
+      <component name="DashboardSkeleton" path="frontend/src/components/dashboard/dashboard-skeleton.tsx">
+        <description>Loading skeleton matching dashboard card layout</description>
+      </component>
+    </components>
+    <hooks>
+      <hook name="useRecentKBs" path="frontend/src/hooks/useRecentKBs.ts">
+        <returns>
+          <field name="recentKBs" type="RecentKB[]"/>
+          <field name="isLoading" type="boolean"/>
+          <field name="error" type="Error | null"/>
+          <field name="refetch" type="() => void"/>
+        </returns>
+      </hook>
+      <hook name="useKBRecommendations" path="frontend/src/hooks/useKBRecommendations.ts">
+        <returns>
+          <field name="recommendations" type="KBRecommendation[]"/>
+          <field name="isLoading" type="boolean"/>
+          <field name="error" type="Error | null"/>
+        </returns>
+      </hook>
+    </hooks>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <backend>
+        <standard>Use pytest with pytest-asyncio for async tests</standard>
+        <standard>Mock AsyncSession for unit tests (see test_kb_recommendation_service.py pattern)</standard>
+        <standard>Integration tests use testcontainers[postgres,redis]</standard>
+        <standard>Timeout: 90 seconds per test (pytest.ini_options)</standard>
+        <standard>Test files: test_*.py, test functions: test_*</standard>
+      </backend>
+      <frontend>
+        <standard>Use vitest with @testing-library/react</standard>
+        <standard>Mock fetch calls for hook tests</standard>
+        <standard>Use msw for integration-style frontend tests</standard>
+        <standard>Test files: *.test.ts or *.test.tsx</standard>
+      </frontend>
+    </standards>
+    <locations>
+      <backend>
+        <location>backend/tests/unit/test_recent_kbs.py - Unit tests for recent KBs logic</location>
+        <location>backend/tests/integration/test_recent_kbs_api.py - API endpoint tests</location>
+      </backend>
+      <frontend>
+        <location>frontend/src/hooks/__tests__/useRecentKBs.test.ts</location>
+        <location>frontend/src/hooks/__tests__/useKBRecommendations.test.ts</location>
+        <location>frontend/src/components/kb/__tests__/recent-kb-section.test.tsx</location>
+        <location>frontend/src/components/ui/__tests__/error-boundary.test.tsx</location>
+      </frontend>
+    </locations>
+    <ideas>
+      <testIdea ac="AC-5.9.1" type="unit">Test recentKBs returns max 5 items ordered by accessed_at DESC</testIdea>
+      <testIdea ac="AC-5.9.1" type="unit">Test clicking recent KB calls setActiveKb with correct KB object</testIdea>
+      <testIdea ac="AC-5.9.2" type="integration">Test GET /me/recent-kbs returns 200 with valid auth cookie</testIdea>
+      <testIdea ac="AC-5.9.2" type="integration">Test GET /me/recent-kbs returns 401 without auth</testIdea>
+      <testIdea ac="AC-5.9.2" type="performance">Assert response time less than 100ms using performance logging</testIdea>
+      <testIdea ac="AC-5.9.3" type="unit">Test empty state renders when recentKBs is empty array</testIdea>
+      <testIdea ac="AC-5.9.5" type="unit">Test tooltips render with 200ms delay on icon buttons</testIdea>
+      <testIdea ac="AC-5.9.6" type="unit">Test useKBRecommendations fetches from correct endpoint</testIdea>
+      <testIdea ac="AC-5.9.7" type="unit">Test skeleton renders during isLoading=true state</testIdea>
+      <testIdea ac="AC-5.9.8" type="unit">Test ErrorBoundary catches render errors and shows fallback</testIdea>
+      <testIdea ac="AC-5.9.8" type="unit">Test ErrorBoundary calls onError callback with error details</testIdea>
+      <testIdea ac="AC-5.9.9" type="manual">Keyboard navigation audit: Tab through sidebar, verify focus ring visible</testIdea>
+    </ideas>
+  </tests>
+</story-context>

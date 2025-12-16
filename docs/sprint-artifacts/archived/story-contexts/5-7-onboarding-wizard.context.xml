@@ -1,0 +1,417 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>7</storyId>
+    <title>Onboarding Wizard</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-7-onboarding-wizard.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>first-time user</asA>
+    <iWant>a guided introduction to LumiKB</iWant>
+    <soThat>I understand the value and how to use it</soThat>
+    <tasks>
+### Task 1: Add Onboarding Fields to User Model (Backend) - AC-5.7.1, AC-5.7.5
+- 1.1 Create Alembic migration to add `onboarding_completed` field to users table
+- 1.2 Update `backend/app/models/user.py` to include new fields
+- 1.3 Update user response schema (`backend/app/schemas/user.py`)
+
+### Task 2: Create Onboarding API Endpoint (Backend) - AC-5.7.5
+- 2.1 Create `PUT /api/v1/users/me/onboarding` endpoint
+- 2.2 Endpoint marks `onboarding_completed = true` for authenticated user
+- 2.3 Return updated user object (UserRead schema)
+
+### Task 3: Create Onboarding Wizard Component (Frontend) - AC-5.7.2, AC-5.7.3
+- 3.1 Create `frontend/src/components/onboarding/onboarding-wizard.tsx`
+- 3.2 Use shadcn/ui Dialog component as modal container
+- 3.3 Implement step state management (5 steps)
+- 3.4 Create step content components (5 separate components)
+- 3.5 Implement navigation controls (Next, Back, Progress dots)
+
+### Task 4: Implement Skip Tutorial Feature (Frontend) - AC-5.7.4
+- 4.1 Add "Skip Tutorial" link to wizard footer
+- 4.2 Create skip confirmation dialog
+- 4.3 On "Skip", call onboarding API endpoint to mark completed
+
+### Task 5: Create useOnboarding Hook (Frontend) - AC-5.7.1, AC-5.7.5
+- 5.1 Create `frontend/src/hooks/useOnboarding.ts`
+- 5.2 Fetch user onboarding status from `/api/v1/users/me`
+- 5.3 Implement `markOnboardingComplete()` function
+- 5.4 Use React Query for caching and state management
+
+### Task 6: Integrate Wizard into Dashboard (Frontend) - AC-5.7.1
+- 6.1 Update `frontend/src/app/(protected)/dashboard/page.tsx`
+- 6.2 Use `useOnboarding()` hook to check onboarding status
+- 6.3 If `isOnboardingComplete === false`, render OnboardingWizard
+
+### Task 7: Add Restart Tutorial Option in Settings (Frontend) - AC-5.7.6 (Optional)
+- 7.1 Update User Settings page
+- 7.2 Add "Tutorial" section with "Restart Tutorial" button
+
+### Task 8: Create Onboarding Wizard Visual Assets
+- 8.1 Create or source LumiKB logo for Step 1
+- 8.2 Create screenshots/diagrams for Steps 2 & 4
+- 8.3 Store assets in `frontend/public/onboarding/`
+
+### Task 9-11: Testing
+- Task 9: Backend Unit Tests
+- Task 10: Backend Integration Tests
+- Task 11: Frontend Tests (Component + Hook)
+
+### Task 12: E2E Smoke Test (Deferred to Story 5.16)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+**AC-5.7.1: Wizard Trigger and Modal Display**
+- First-time users (onboarding_completed = false) see wizard automatically on dashboard load
+- Modal centered with dimmed background overlay
+- Cannot be dismissed by clicking outside (requires explicit action)
+
+**AC-5.7.2: Five-Step Wizard Flow**
+- Step 1: "Welcome to LumiKB!" - Value proposition, CTA
+- Step 2: "Explore the Sample KB" - Guided tour of KB selector
+- Step 3: "Try a Search" - Example query demonstration
+- Step 4: "See the Magic" - Citations build trust
+- Step 5: "You're Ready!" - Next steps and completion CTA
+
+**AC-5.7.3: Navigation Controls**
+- "Next" button advances to next step (Steps 1-4)
+- "Back" button returns to previous step (Steps 2-5, disabled on Step 1)
+- "Start Exploring" button closes wizard on Step 5
+- Progress dots show current step (5 dots)
+- Keyboard navigation: Enter advances, Escape triggers skip confirmation
+
+**AC-5.7.4: Skip Tutorial Option**
+- "Skip Tutorial" link visible on all steps
+- Confirmation dialog: "Are you sure you want to skip the tutorial?"
+- Two options: "Cancel" (returns to wizard) and "Skip" (closes wizard)
+- On "Skip", user.onboarding_completed set to true
+
+**AC-5.7.5: Completion and Persistence**
+- Completing all 5 steps sets user.onboarding_completed = true
+- API endpoint: PUT /api/v1/users/me/onboarding
+- Wizard never reappears on subsequent logins
+
+**AC-5.7.6: Restart Option (Optional)**
+- User Settings includes "Restart Tutorial" option
+- Clicking restart shows wizard again from Step 1
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- PRD References -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 5 PRD - Story 5.7 Requirements</title>
+        <section>Story 5.7: Onboarding Wizard</section>
+        <snippet>First-time users see a guided 5-step wizard to introduce LumiKB value: Welcome screen with value prop → Explore Sample KB → Try search example → Citations demonstration → Next steps. Wizard is dismissible with skip option, completion tracked in user.onboarding_completed field.</snippet>
+      </doc>
+
+      <!-- Tech Spec References -->
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic 5 Technical Specification</title>
+        <section>Story 5.7: Onboarding Wizard</section>
+        <snippet>Backend: Add onboarding_completed bool field to users table via Alembic migration. API: PUT /api/v1/users/me/onboarding marks wizard complete. Frontend: shadcn/ui Dialog modal with 5-step flow, keyboard navigation (Enter/Escape), useOnboarding hook with React Query caching.</snippet>
+      </doc>
+
+      <!-- Architecture References -->
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Authentication & User Management (Story 1.4)</section>
+        <snippet>User model implemented with FastAPI-Users + SQLAlchemy 2.0 + argon2. JWT-based authentication. User table schema extensible for additional fields. Example: Adding onboarding tracking fields follows established migration pattern.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Frontend Framework: Next.js 15 App Router</section>
+        <snippet>Frontend uses Next.js 15 with App Router, React 19, shadcn/ui components, Zustand for state. Protected routes under /app/(protected)/ directory. Dashboard loads at /app/(protected)/dashboard/page.tsx - ideal location for wizard trigger logic.</snippet>
+      </doc>
+
+      <!-- UX Design References -->
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>Empty State Strategy - Getting Started Wizard</section>
+        <snippet>First-time user experience critical: "A knowledge system with no knowledge is worthless." Wizard flow: Step 1 Welcome → Step 2 Sample KB exploration → Step 3 Ask first question → Step 4 See LumiKB in action. Pre-populated sample KB shows what good results look like before users upload own content.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>LumiKB UX Design Specification</title>
+        <section>User Empathy Profiles</section>
+        <snippet>Sarah (Sales, urgent mode): "I have superpowers now - I found exactly what I needed in seconds." David (Engineer, methodical): "Surprisingly smart - understood what I actually needed." Trust pillars: Every answer shows sources, relevance explained, users can verify in one click, system admits uncertainty.</snippet>
+      </doc>
+
+      <!-- Related Story References -->
+      <doc>
+        <path>docs/sprint-artifacts/5-1-admin-dashboard-overview.md</path>
+        <title>Story 5.1: Admin Dashboard Overview (Completed)</title>
+        <section>Learnings: React Query Hook Pattern</section>
+        <snippet>useAdminStats hook uses React Query with staleTime: 10 minutes for caching. Pattern: Export hook with isLoading, error, data states. Client-side caching reduces API calls, improves perceived performance. Story 5-7 useOnboarding hook should follow identical pattern for consistency.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/sprint-artifacts/5-6-kb-statistics-admin-view.md</path>
+        <title>Story 5.6: KB Statistics Admin View (Completed)</title>
+        <section>Quality Standards Achieved</section>
+        <snippet>98/100 code review score: Proper type hints (Python) + TypeScript strict mode, dependency injection pattern, graceful error handling with user-friendly messages, structured logging with correlation IDs, KISS/DRY/YAGNI principles. 18/18 tests passing (8 unit + 4 integration + 6 frontend). Zero linting errors. Target for Story 5-7: 95/100 minimum.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Backend: User Model -->
+      <artifact>
+        <path>backend/app/models/user.py</path>
+        <kind>model</kind>
+        <symbol>User</symbol>
+        <lines>18-65</lines>
+        <reason>Extend User model with onboarding_completed and last_active fields. Model uses SQLAlchemy 2.0 mapped_column pattern with FastAPI-Users base class. Created_at/updated_at timestamps already established as pattern to follow.</reason>
+      </artifact>
+
+      <!-- Backend: User Schemas -->
+      <artifact>
+        <path>backend/app/schemas/user.py</path>
+        <kind>schema</kind>
+        <symbol>UserRead, UserCreate, UserUpdate</symbol>
+        <lines>10-53</lines>
+        <reason>Extend UserRead schema to include onboarding_completed and last_active fields for API responses. Schemas use FastAPI-Users base classes and Pydantic Field validation.</reason>
+      </artifact>
+
+      <!-- Backend: User API Endpoints -->
+      <artifact>
+        <path>backend/app/api/v1/users.py</path>
+        <kind>controller</kind>
+        <symbol>Users API Router</symbol>
+        <lines>1-100</lines>
+        <reason>Add PUT /api/v1/users/me/onboarding endpoint to mark onboarding complete. API uses FastAPI dependency injection with current_active_user for auth. Follow existing endpoint patterns for consistency.</reason>
+      </artifact>
+
+      <!-- Frontend: Dashboard Page -->
+      <artifact>
+        <path>frontend/src/app/(protected)/dashboard/page.tsx</path>
+        <kind>component</kind>
+        <symbol>DashboardPage</symbol>
+        <lines>11-80</lines>
+        <reason>Integrate onboarding wizard trigger logic here. Dashboard already uses useUser hook (line 12) for user data. Check onboarding_completed field from user state, conditionally render OnboardingWizard component for first-time users. Pattern: Conditional rendering with early return.</reason>
+      </artifact>
+
+      <!-- Frontend: shadcn/ui Dialog Component -->
+      <artifact>
+        <path>frontend/src/components/ui/dialog.tsx</path>
+        <kind>component</kind>
+        <symbol>Dialog, DialogTrigger, DialogContent</symbol>
+        <lines>1-50</lines>
+        <reason>Use shadcn/ui Dialog as modal container for wizard. Dialog component already installed with Radix UI primitives. Use modal:true prop to prevent dismissal by clicking outside. See Story 5-2 audit log viewer for Dialog usage example.</reason>
+      </artifact>
+
+      <!-- Frontend: Existing Hooks Pattern -->
+      <artifact>
+        <path>frontend/src/hooks/useAdminStats.ts</path>
+        <kind>hook</kind>
+        <symbol>useAdminStats</symbol>
+        <lines>1-50</lines>
+        <reason>Follow React Query hook pattern from Story 5-1. useOnboarding hook should mirror this structure: useQuery with staleTime, export isLoading/error/data states, API client integration via fetch.</reason>
+      </artifact>
+
+      <!-- Frontend: Authentication Store -->
+      <artifact>
+        <path>frontend/src/lib/stores/auth-store.ts</path>
+        <kind>state</kind>
+        <symbol>useUser, authStore</symbol>
+        <lines>1-100</lines>
+        <reason>User state managed via Zustand auth-store. useUser hook provides current user data. After onboarding completion, update user state to reflect onboarding_completed=true to prevent wizard from reappearing.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <!-- Backend -->
+      <python>
+        <package name="fastapi" version="≥0.115.0">Web framework for API endpoints</package>
+        <package name="fastapi-users" version="≥14.0.0">Authentication, user model base class</package>
+        <package name="sqlalchemy" version="2.0.44">ORM for database models</package>
+        <package name="asyncpg" version="0.30.0">Async PostgreSQL driver</package>
+        <package name="alembic" version="latest">Database migrations</package>
+        <package name="pydantic" version="≥2.0">Request/response schemas</package>
+      </python>
+
+      <!-- Frontend -->
+      <javascript>
+        <package name="next" version="16.0.3">App framework, routing</package>
+        <package name="react" version="19.2.0">UI library</package>
+        <package name="@radix-ui/react-dialog" version="latest">Dialog primitive for modal</package>
+        <package name="react-hook-form" version="^7.66.1">Form handling (optional for wizard steps)</package>
+        <package name="zod" version="^4.1.12">Schema validation</package>
+        <package name="zustand" version="≥5.0.0">State management (auth store)</package>
+        <package name="lucide-react" version="^0.554.0">Icons for wizard UI</package>
+      </javascript>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+**Development Patterns (from Architecture):**
+- Backend: SQLAlchemy 2.0 mapped_column pattern with type hints (Mapped[type])
+- Backend: FastAPI dependency injection for auth (current_active_user)
+- Backend: Pydantic v2 schemas for request/response validation
+- Backend: Alembic migrations must be reversible (upgrade/downgrade)
+- Frontend: Next.js 15 App Router with TypeScript strict mode
+- Frontend: shadcn/ui components for consistent design system
+- Frontend: React Query for API caching and state (staleTime pattern)
+- Frontend: Zustand for global state (auth, KB selection)
+
+**Security Requirements:**
+- User onboarding endpoint requires authentication (current_active_user dependency)
+- No PII tracking beyond completion status
+- Database migration sets existing users to onboarding_completed=true to avoid re-triggering
+
+**Quality Standards (from Story 5-6):**
+- Code quality target: 95/100 minimum
+- Test coverage: All tests must pass before story complete
+- Type hints: Python type hints + TypeScript strict mode
+- Logging: Structured logging with correlation IDs
+- Error handling: Graceful degradation with user-friendly messages
+- KISS/DRY/YAGNI principles applied
+
+**Deferred Features:**
+- E2E tests deferred to Story 5.16 (Docker E2E Infrastructure)
+- Interactive Step 3 (live search during wizard) - static example only
+- Wizard analytics tracking - future enhancement
+- Multi-language wizard content - future internationalization
+  </constraints>
+  <interfaces>
+**Backend API:**
+
+```python
+# New Endpoint: Mark Onboarding Complete
+PUT /api/v1/users/me/onboarding
+Authorization: Bearer <JWT>
+Response: UserRead (includes onboarding_completed: true)
+
+# Updated Endpoint: Get Current User
+GET /api/v1/users/me
+Authorization: Bearer <JWT>
+Response: UserRead {
+  id: UUID,
+  email: str,
+  is_active: bool,
+  created_at: datetime,
+  onboarding_completed: bool,  # NEW FIELD
+  last_active: datetime | None  # NEW FIELD
+}
+```
+
+**Frontend Components:**
+
+```typescript
+// OnboardingWizard Component
+interface OnboardingWizardProps {
+  onComplete: () => void;
+}
+
+// useOnboarding Hook
+interface UseOnboardingResult {
+  isOnboardingComplete: boolean;
+  markOnboardingComplete: () => Promise<void>;
+  isLoading: boolean;
+  error: Error | null;
+}
+```
+
+**Database Schema:**
+
+```sql
+-- Alembic Migration: Add onboarding fields to users table
+ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN last_active TIMESTAMPTZ;
+
+-- Set existing users to onboarding_completed = TRUE to avoid re-triggering
+UPDATE users SET onboarding_completed = TRUE;
+```
+
+**Wizard Flow State Machine:**
+
+```
+Step 1 (Welcome) → Step 2 (Explore KB) → Step 3 (Try Search) → Step 4 (Citations) → Step 5 (Ready!)
+     ↓                 ↓                    ↓                      ↓                    ↓
+  Skip? ←───────────────────────────────────────────────────────────────────────────→ Complete
+```
+  </interfaces>
+  <tests>
+    <standards>
+**Backend Testing Standards:**
+- Framework: pytest + pytest-asyncio + httpx
+- Unit tests: Test service methods, idempotency, field updates
+- Integration tests: Test API endpoints with authentication, schema validation
+- Authorization: Verify authenticated users only (401 for unauthenticated)
+- Pattern: Use factories for test data (UserFactory from tests/factories)
+
+**Frontend Testing Standards:**
+- Framework: vitest + @testing-library/react
+- Component tests: Test wizard renders all 5 steps correctly
+- Navigation tests: Test Next/Back buttons, progress dots, keyboard shortcuts
+- Hook tests: Test useOnboarding fetches status, calls API, handles errors
+- Accessibility: Verify ARIA labels, keyboard navigation, focus management
+- Pattern: Mock API responses, test loading/error states
+
+**Quality Benchmarks:**
+- Story 5-6 achieved: 18/18 tests passing (8 unit + 4 integration + 6 frontend), zero linting errors
+- Story 5-7 target: Similar comprehensive coverage before marking complete
+- E2E tests: Deferred to Story 5.16 (Docker E2E Infrastructure)
+    </standards>
+    <locations>
+**Backend Test Files:**
+- backend/tests/unit/test_onboarding_service.py (if service layer created)
+- backend/tests/integration/test_onboarding_api.py
+
+**Frontend Test Files:**
+- frontend/src/components/onboarding/__tests__/onboarding-wizard.test.tsx
+- frontend/src/hooks/__tests__/useOnboarding.test.ts
+
+**E2E Test Files (Story 5.16):**
+- frontend/e2e/tests/onboarding/onboarding-wizard.spec.ts
+    </locations>
+    <ideas>
+**Backend Unit Tests (AC-5.7.1, AC-5.7.5):**
+- test_onboarding_completed_field_default_value() → Verify new users have onboarding_completed=false
+- test_mark_onboarding_complete() → Verify field updates correctly
+- test_mark_onboarding_complete_idempotency() → Calling endpoint multiple times is safe
+
+**Backend Integration Tests:**
+- test_get_user_me_returns_onboarding_fields() → GET /api/v1/users/me includes onboarding_completed, last_active
+- test_put_onboarding_authenticated_user() → PUT /api/v1/users/me/onboarding returns 200 OK
+- test_put_onboarding_unauthenticated() → PUT without auth returns 401 Unauthorized
+- test_onboarding_response_schema() → Verify UserRead schema matches expected structure
+- test_onboarding_database_persistence() → Verify field updated in database after API call
+
+**Frontend Component Tests (AC-5.7.2, AC-5.7.3, AC-5.7.4):**
+- test_wizard_renders_step_1_content() → Wizard starts with Step 1 (Welcome screen)
+- test_next_button_advances_to_next_step() → Clicking "Next" advances from Step 1 to Step 2
+- test_back_button_returns_to_previous_step() → Clicking "Back" on Step 2 returns to Step 1
+- test_back_button_disabled_on_step_1() → "Back" button disabled on first step
+- test_progress_dots_update_on_step_change() → Progress indicator shows current step (1/5, 2/5, etc.)
+- test_skip_tutorial_opens_confirmation() → Clicking "Skip Tutorial" shows confirmation dialog
+- test_skip_confirmation_cancel_returns_to_wizard() → Clicking "Cancel" in confirmation returns to wizard
+- test_skip_confirmation_skip_closes_wizard() → Clicking "Skip" closes wizard and calls API
+- test_start_exploring_button_closes_wizard() → "Start Exploring" button on Step 5 closes wizard
+- test_keyboard_navigation_enter() → Enter key advances to next step
+- test_keyboard_navigation_escape() → Escape key triggers skip confirmation
+
+**Frontend Hook Tests (AC-5.7.1, AC-5.7.5):**
+- test_useOnboarding_fetches_user_status() → Hook fetches onboarding_completed from /api/v1/users/me
+- test_markOnboardingComplete_calls_api() → Calling markOnboardingComplete() hits PUT /api/v1/users/me/onboarding
+- test_markOnboardingComplete_updates_react_query_cache() → API call updates cache to reflect new status
+- test_useOnboarding_error_handling() → Verify graceful error handling for API failures
+
+**E2E Smoke Tests (Story 5.16):**
+- test_new_user_sees_wizard_on_first_login() → Register → Login → Verify wizard appears
+- test_completing_all_steps_closes_wizard() → Complete all 5 steps → Verify wizard closes and doesn't reappear
+- test_skipping_wizard_with_confirmation() → Click "Skip Tutorial" → Confirm → Verify no wizard on next login
+- test_wizard_does_not_appear_on_subsequent_logins() → Login after completion → Verify dashboard loads without wizard
+- test_restart_tutorial_from_settings() → Go to settings → Restart tutorial → Verify wizard appears
+    </ideas>
+  </tests>
+</story-context>

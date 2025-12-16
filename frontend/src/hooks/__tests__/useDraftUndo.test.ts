@@ -8,26 +8,22 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { useDraftUndo } from '../useDraftUndo';
+import type { Citation } from '@/types/citation';
 
 describe('useDraftUndo', () => {
-  const initialSnapshot = {
-    content: 'Initial content',
-    citations: [],
-  };
+  const initialContent = 'Initial content';
+  const initialCitations: never[] = [];
 
   describe('[P1] Undo Functionality', () => {
     it('should undo last change', () => {
       // GIVEN: Hook with initial snapshot
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       // WHEN: Recording new snapshot then undoing
       act(() => {
-        result.current.recordSnapshot({
-          content: 'Changed content',
-          citations: [],
-        });
+        result.current.recordSnapshot('Changed content', []);
       });
 
       expect(result.current.snapshot.content).toBe('Changed content');
@@ -42,12 +38,12 @@ describe('useDraftUndo', () => {
 
     it('should undo multiple changes in reverse order', () => {
       // GIVEN: Hook with 3 snapshots
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       act(() => {
-        result.current.recordSnapshot({ content: 'Change 1', citations: [] });
-        result.current.recordSnapshot({ content: 'Change 2', citations: [] });
-        result.current.recordSnapshot({ content: 'Change 3', citations: [] });
+        result.current.recordSnapshot('Change 1', []);
+        result.current.recordSnapshot('Change 2', []);
+        result.current.recordSnapshot('Change 3', []);
       });
 
       expect(result.current.snapshot.content).toBe('Change 3');
@@ -71,14 +67,14 @@ describe('useDraftUndo', () => {
 
     it('should disable undo when at beginning of history', () => {
       // GIVEN: Hook at initial state
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       // THEN: canUndo is false
       expect(result.current.canUndo).toBe(false);
 
       // WHEN: Recording snapshot
       act(() => {
-        result.current.recordSnapshot({ content: 'Change', citations: [] });
+        result.current.recordSnapshot('Change', []);
       });
 
       // THEN: canUndo is true
@@ -89,10 +85,10 @@ describe('useDraftUndo', () => {
   describe('[P1] Redo Functionality', () => {
     it('should redo undone change', () => {
       // GIVEN: Hook with snapshot that's been undone
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       act(() => {
-        result.current.recordSnapshot({ content: 'Changed', citations: [] });
+        result.current.recordSnapshot('Changed', []);
       });
 
       act(() => {
@@ -112,12 +108,12 @@ describe('useDraftUndo', () => {
 
     it('should redo multiple changes in forward order', () => {
       // GIVEN: Hook with 3 changes, all undone
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       act(() => {
-        result.current.recordSnapshot({ content: 'Change 1', citations: [] });
-        result.current.recordSnapshot({ content: 'Change 2', citations: [] });
-        result.current.recordSnapshot({ content: 'Change 3', citations: [] });
+        result.current.recordSnapshot('Change 1', []);
+        result.current.recordSnapshot('Change 2', []);
+        result.current.recordSnapshot('Change 3', []);
 
         result.current.undo();
         result.current.undo();
@@ -145,14 +141,14 @@ describe('useDraftUndo', () => {
 
     it('should disable redo when at end of history', () => {
       // GIVEN: Hook at latest state
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       // THEN: canRedo is false
       expect(result.current.canRedo).toBe(false);
 
       // WHEN: Recording and undoing
       act(() => {
-        result.current.recordSnapshot({ content: 'Change', citations: [] });
+        result.current.recordSnapshot('Change', []);
         result.current.undo();
       });
 
@@ -162,11 +158,11 @@ describe('useDraftUndo', () => {
 
     it('should clear redo history when new snapshot recorded', () => {
       // GIVEN: Hook with undone changes
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       act(() => {
-        result.current.recordSnapshot({ content: 'Change 1', citations: [] });
-        result.current.recordSnapshot({ content: 'Change 2', citations: [] });
+        result.current.recordSnapshot('Change 1', []);
+        result.current.recordSnapshot('Change 2', []);
         result.current.undo(); // Now can redo
       });
 
@@ -174,7 +170,7 @@ describe('useDraftUndo', () => {
 
       // WHEN: Recording new snapshot from middle of history
       act(() => {
-        result.current.recordSnapshot({ content: 'New branch', citations: [] });
+        result.current.recordSnapshot('New branch', []);
       });
 
       // THEN: Redo disabled (history forked)
@@ -186,15 +182,12 @@ describe('useDraftUndo', () => {
   describe('[P2] History Buffer Limit', () => {
     it('should maintain maximum 10 snapshots in history', () => {
       // GIVEN: Hook with initial snapshot
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
       // WHEN: Recording 15 snapshots (exceeds 10 buffer)
       act(() => {
         for (let i = 1; i <= 15; i++) {
-          result.current.recordSnapshot({
-            content: `Change ${i}`,
-            citations: [],
-          });
+          result.current.recordSnapshot(`Change ${i}`, []);
         }
       });
 
@@ -208,8 +201,10 @@ describe('useDraftUndo', () => {
         }
       });
 
-      // THEN: Stops at Change 6 (15 - 9, oldest in 10-buffer is Change 6)
-      expect(result.current.snapshot.content).toBe('Change 6');
+      // THEN: Stops at oldest in buffer (Change 5 since buffer holds 10 past + 1 present)
+      // Buffer: [Change 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] + present=Change 15
+      // After 10 undos: present=Change 5, past=[]
+      expect(result.current.snapshot.content).toBe('Change 5');
       expect(result.current.canUndo).toBe(false);
     });
   });
@@ -217,37 +212,33 @@ describe('useDraftUndo', () => {
   describe('[P2] Citation Preservation in Undo/Redo', () => {
     it('should preserve citations when undoing', () => {
       // GIVEN: Snapshots with different citations
-      const { result } = renderHook(() => useDraftUndo(initialSnapshot));
+      const { result } = renderHook(() => useDraftUndo(initialContent, initialCitations));
 
-      const citation1 = {
+      const citation1: Citation = {
         number: 1,
         document_id: 'doc-1',
         document_name: 'test.pdf',
-        page: 5,
-        chunk_index: 2,
-        confidence_score: 0.9,
-        snippet: 'Test',
+        page_number: 5,
+        excerpt: 'Test excerpt text',
+        char_start: 0,
+        char_end: 100,
+        confidence: 0.9,
       };
 
-      const citation2 = {
+      const citation2: Citation = {
         number: 2,
         document_id: 'doc-2',
         document_name: 'auth.pdf',
-        page: 10,
-        chunk_index: 5,
-        confidence_score: 0.95,
-        snippet: 'Auth',
+        page_number: 10,
+        excerpt: 'Auth excerpt text',
+        char_start: 200,
+        char_end: 300,
+        confidence: 0.95,
       };
 
       act(() => {
-        result.current.recordSnapshot({
-          content: 'Content with [1]',
-          citations: [citation1],
-        });
-        result.current.recordSnapshot({
-          content: 'Content with [1] and [2]',
-          citations: [citation1, citation2],
-        });
+        result.current.recordSnapshot('Content with [1]', [citation1]);
+        result.current.recordSnapshot('Content with [1] and [2]', [citation1, citation2]);
       });
 
       expect(result.current.snapshot.citations).toHaveLength(2);

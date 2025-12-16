@@ -1,242 +1,253 @@
 """Unit tests for DraftService.
 
-Tests business logic, status transitions, and citation validation.
-No database or HTTP - pure service layer testing.
+Tests business logic, status transitions, and draft operations.
+Uses AsyncSession mock - no database calls.
 
 Coverage Target: 85%+
 Test Count: 12
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from app.models.draft import DraftStatus
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.draft import Draft, DraftStatus
 from app.services.draft_service import DraftService
-from tests.factories import create_draft, create_draft_with_citations, create_citation
+
+
+# Fixtures
+@pytest.fixture
+def mock_session():
+    """Create mock AsyncSession with query chain."""
+    session = AsyncMock(spec=AsyncSession)
+    result = MagicMock()
+    result.scalars.return_value.first.return_value = None
+    result.scalars.return_value.all.return_value = []
+    session.execute = AsyncMock(return_value=result)
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    session.add = MagicMock()
+    session.delete = AsyncMock()
+    return session
+
+
+@pytest.fixture
+def sample_draft():
+    """Create a sample Draft model instance."""
+    return Draft(
+        id=uuid4(),
+        kb_id=uuid4(),
+        user_id=uuid4(),
+        title="Test Draft",
+        content="Test content with citation [1]",
+        citations=[{"number": 1, "source": "doc.pdf"}],
+        status=DraftStatus.STREAMING,
+        word_count=5,
+    )
 
 
 class TestDraftServiceCreation:
     """Test draft creation logic."""
 
     @pytest.mark.asyncio
-    async def test_create_draft_sets_default_status(self):
+    async def test_create_draft_sets_default_status(self, mock_session):
         """[P1] Draft creation should set status to 'streaming' by default."""
-        # GIVEN: DraftService with mocked repository
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+        service = DraftService(session=mock_session)
 
-        draft_data = create_draft()
-        draft_data.pop("status")  # Remove status to test default
+        # Capture added draft via side_effect
+        added_draft = None
 
-        # WHEN: Creating draft without explicit status
-        await service.create_draft(draft_data)
+        def capture_add(draft):
+            nonlocal added_draft
+            added_draft = draft
 
-        # THEN: Repository called with status='streaming'
-        mock_repo.create.assert_called_once()
-        call_args = mock_repo.create.call_args[0][0]
-        assert call_args["status"] == DraftStatus.STREAMING
+        mock_session.add.side_effect = capture_add
 
-    @pytest.mark.asyncio
-    async def test_create_draft_calculates_word_count(self):
-        """[P2] Draft creation should auto-calculate word count if not provided."""
-        # GIVEN: DraftService
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+        await service.create_draft(
+            kb_id=uuid4(),
+            user_id=uuid4(),
+            title="Test Draft",
+        )
 
-        content = "The quick brown fox jumps over the lazy dog"
-        draft_data = create_draft(content=content)
-        draft_data.pop("word_count")  # Remove to test auto-calculation
-
-        # WHEN: Creating draft without word_count
-        await service.create_draft(draft_data)
-
-        # THEN: Word count calculated (9 words)
-        call_args = mock_repo.create.call_args[0][0]
-        assert call_args["word_count"] == 9
+        assert added_draft is not None
+        assert added_draft.status == DraftStatus.STREAMING
+        mock_session.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_draft_preserves_explicit_word_count(self):
-        """[P2] Draft creation should use explicit word_count if provided."""
-        # GIVEN: DraftService
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+    async def test_create_draft_with_content(self, mock_session):
+        """[P2] Draft creation stores provided content."""
+        service = DraftService(session=mock_session)
 
-        draft_data = create_draft(word_count=500)
+        added_draft = None
 
-        # WHEN: Creating draft with explicit word_count
-        await service.create_draft(draft_data)
+        def capture_add(draft):
+            nonlocal added_draft
+            added_draft = draft
 
-        # THEN: Explicit word_count preserved
-        call_args = mock_repo.create.call_args[0][0]
-        assert call_args["word_count"] == 500
+        mock_session.add.side_effect = capture_add
+
+        content = "The quick brown fox"
+        await service.create_draft(
+            kb_id=uuid4(),
+            user_id=uuid4(),
+            title="Test",
+            content=content,
+        )
+
+        assert added_draft.content == content
+
+    @pytest.mark.asyncio
+    async def test_create_draft_with_word_count(self, mock_session):
+        """[P2] Draft creation stores explicit word_count."""
+        service = DraftService(session=mock_session)
+
+        added_draft = None
+
+        def capture_add(draft):
+            nonlocal added_draft
+            added_draft = draft
+
+        mock_session.add.side_effect = capture_add
+
+        await service.create_draft(
+            kb_id=uuid4(),
+            user_id=uuid4(),
+            title="Test",
+            word_count=500,
+        )
+
+        assert added_draft.word_count == 500
 
 
 class TestDraftStatusTransitions:
     """Test draft status state machine transitions."""
 
     @pytest.mark.asyncio
-    async def test_transition_streaming_to_complete(self):
+    async def test_transition_streaming_to_complete(self, mock_session, sample_draft):
         """[P0] Draft status can transition from 'streaming' to 'complete'."""
-        # GIVEN: Draft with status='streaming'
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+        sample_draft.status = DraftStatus.STREAMING
 
-        draft = create_draft(status=DraftStatus.STREAMING)
-        mock_repo.get_by_id.return_value = draft
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = sample_draft
+        mock_session.execute = AsyncMock(return_value=result)
 
-        # WHEN: Updating status to 'complete'
-        await service.update_draft(draft["id"], {"status": DraftStatus.COMPLETE})
+        service = DraftService(session=mock_session)
+        updated = await service.transition_status(sample_draft.id, DraftStatus.COMPLETE)
 
-        # THEN: Update succeeds
-        mock_repo.update.assert_called_once()
-        call_args = mock_repo.update.call_args[0]
-        assert call_args[1]["status"] == DraftStatus.COMPLETE
+        assert updated.status == DraftStatus.COMPLETE
+        mock_session.commit.assert_called()
 
     @pytest.mark.asyncio
-    async def test_transition_complete_to_editing(self):
+    async def test_transition_complete_to_editing(self, mock_session, sample_draft):
         """[P0] Draft status can transition from 'complete' to 'editing'."""
-        # GIVEN: Draft with status='complete'
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+        sample_draft.status = DraftStatus.COMPLETE
 
-        draft = create_draft(status=DraftStatus.COMPLETE)
-        mock_repo.get_by_id.return_value = draft
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = sample_draft
+        mock_session.execute = AsyncMock(return_value=result)
 
-        # WHEN: Updating content (triggers editing status)
-        await service.update_draft(
-            draft["id"],
-            {"content": "Updated content", "status": DraftStatus.EDITING}
-        )
+        service = DraftService(session=mock_session)
+        updated = await service.transition_status(sample_draft.id, DraftStatus.EDITING)
 
-        # THEN: Status transitions to 'editing'
-        call_args = mock_repo.update.call_args[0]
-        assert call_args[1]["status"] == DraftStatus.EDITING
+        assert updated.status == DraftStatus.EDITING
 
     @pytest.mark.asyncio
-    async def test_transition_editing_to_exported(self):
+    async def test_transition_editing_to_exported(self, mock_session, sample_draft):
         """[P1] Draft status can transition from 'editing' to 'exported'."""
-        # GIVEN: Draft with status='editing'
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+        sample_draft.status = DraftStatus.EDITING
 
-        draft = create_draft(status=DraftStatus.EDITING)
-        mock_repo.get_by_id.return_value = draft
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = sample_draft
+        mock_session.execute = AsyncMock(return_value=result)
 
-        # WHEN: Marking as exported
-        await service.update_draft(draft["id"], {"status": DraftStatus.EXPORTED})
+        service = DraftService(session=mock_session)
+        updated = await service.transition_status(sample_draft.id, DraftStatus.EXPORTED)
 
-        # THEN: Status transitions to 'exported'
-        call_args = mock_repo.update.call_args[0]
-        assert call_args[1]["status"] == DraftStatus.EXPORTED
-
-
-class TestCitationMarkerValidation:
-    """Test citation marker validation logic."""
+        assert updated.status == DraftStatus.EXPORTED
 
     @pytest.mark.asyncio
-    async def test_validate_citation_markers_match(self):
-        """[P0] Validation succeeds when citation markers match citation data."""
-        # GIVEN: Draft with 2 citations and matching markers
-        draft_data = create_draft_with_citations(citation_count=2)
+    async def test_invalid_transition_raises_error(self, mock_session, sample_draft):
+        """[P0] Invalid status transition raises ValueError."""
+        sample_draft.status = DraftStatus.EXPORTED  # Terminal state
 
-        # WHEN: Validating citations
-        service = DraftService(draft_repository=AsyncMock())
-        result = service._validate_citation_markers(
-            draft_data["content"],
-            draft_data["citations"]
-        )
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = sample_draft
+        mock_session.execute = AsyncMock(return_value=result)
 
-        # THEN: Validation passes
-        assert result is True
+        service = DraftService(session=mock_session)
 
-    @pytest.mark.asyncio
-    async def test_validate_detects_orphaned_citations(self):
-        """[P1] Validation detects citations without markers in content."""
-        # GIVEN: Draft with citation but no marker in content
-        content = "OAuth 2.0 is secure"  # No [1] marker
-        citations = [create_citation(number=1)]
-
-        # WHEN: Validating citations
-        service = DraftService(draft_repository=AsyncMock())
-        result = service._validate_citation_markers(content, citations)
-
-        # THEN: Validation fails (orphaned citation)
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_validate_detects_missing_citation_data(self):
-        """[P1] Validation detects markers without citation data."""
-        # GIVEN: Draft with marker but no citation data
-        content = "OAuth 2.0 [1] is secure"
-        citations = []  # No citation for [1]
-
-        # WHEN: Validating citations
-        service = DraftService(draft_repository=AsyncMock())
-        result = service._validate_citation_markers(content, citations)
-
-        # THEN: Validation fails (missing citation data)
-        assert result is False
+        with pytest.raises(ValueError, match="Invalid transition"):
+            await service.transition_status(sample_draft.id, DraftStatus.STREAMING)
 
 
 class TestDraftRetrieval:
     """Test draft retrieval operations."""
 
     @pytest.mark.asyncio
-    async def test_get_drafts_by_kb_filters_correctly(self):
-        """[P1] Service retrieves only drafts for specified knowledge base."""
-        # GIVEN: DraftService with mock repository
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+    async def test_get_draft_returns_draft(self, mock_session, sample_draft):
+        """[P1] Service retrieves draft by ID correctly."""
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = sample_draft
+        mock_session.execute = AsyncMock(return_value=result)
 
-        kb_id = str(uuid4())
-        mock_repo.get_by_kb.return_value = [
-            create_draft(kb_id=kb_id),
-            create_draft(kb_id=kb_id),
-        ]
+        service = DraftService(session=mock_session)
+        draft = await service.get_draft(sample_draft.id)
 
-        # WHEN: Getting drafts for KB
-        result = await service.get_drafts_by_kb(kb_id)
-
-        # THEN: Repository called with KB ID filter
-        mock_repo.get_by_kb.assert_called_once_with(kb_id)
-        assert len(result) == 2
-        assert all(draft["kb_id"] == kb_id for draft in result)
+        assert draft == sample_draft
+        mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_draft_by_id_returns_single_draft(self):
-        """[P1] Service retrieves draft by ID correctly."""
-        # GIVEN: DraftService
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+    async def test_get_draft_returns_none_if_not_found(self, mock_session):
+        """[P1] Service returns None if draft not found."""
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = None
+        mock_session.execute = AsyncMock(return_value=result)
 
-        draft_id = str(uuid4())
-        expected_draft = create_draft(id=draft_id)
-        mock_repo.get_by_id.return_value = expected_draft
+        service = DraftService(session=mock_session)
+        draft = await service.get_draft(uuid4())
 
-        # WHEN: Getting draft by ID
-        result = await service.get_draft(draft_id)
+        assert draft is None
 
-        # THEN: Correct draft returned
-        mock_repo.get_by_id.assert_called_once_with(draft_id)
-        assert result["id"] == draft_id
+    @pytest.mark.asyncio
+    async def test_list_drafts_by_kb(self, mock_session, sample_draft):
+        """[P1] Service lists drafts filtered by KB."""
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = [sample_draft]
+        mock_session.execute = AsyncMock(return_value=result)
+
+        service = DraftService(session=mock_session)
+        drafts = await service.list_drafts(sample_draft.kb_id)
+
+        assert len(drafts) == 1
+        assert drafts[0] == sample_draft
 
 
 class TestDraftDeletion:
     """Test draft deletion operations."""
 
     @pytest.mark.asyncio
-    async def test_delete_draft_calls_repository(self):
-        """[P2] Draft deletion delegates to repository correctly."""
-        # GIVEN: DraftService
-        mock_repo = AsyncMock()
-        service = DraftService(draft_repository=mock_repo)
+    async def test_delete_draft_removes_draft(self, mock_session, sample_draft):
+        """[P2] Draft deletion removes from database."""
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = sample_draft
+        mock_session.execute = AsyncMock(return_value=result)
 
-        draft_id = str(uuid4())
+        service = DraftService(session=mock_session)
+        await service.delete_draft(sample_draft.id)
 
-        # WHEN: Deleting draft
-        await service.delete_draft(draft_id)
+        mock_session.delete.assert_called_once_with(sample_draft)
+        mock_session.commit.assert_called()
 
-        # THEN: Repository delete called
-        mock_repo.delete.assert_called_once_with(draft_id)
+    @pytest.mark.asyncio
+    async def test_delete_draft_raises_if_not_found(self, mock_session):
+        """[P2] Deletion raises ValueError if draft not found."""
+        result = MagicMock()
+        result.scalars.return_value.first.return_value = None
+        mock_session.execute = AsyncMock(return_value=result)
+
+        service = DraftService(session=mock_session)
+
+        with pytest.raises(ValueError, match="not found"):
+            await service.delete_draft(uuid4())

@@ -570,3 +570,342 @@ async def test_list_documents_nonexistent_kb_returns_404(
     )
 
     assert response.status_code == 404
+
+
+# =============================================================================
+# Story 5-24: Document Filtering Tests
+# =============================================================================
+
+
+@pytest.fixture
+async def test_documents_with_tags(
+    authenticated_client: AsyncClient, test_kb: dict
+) -> list[dict]:
+    """Create test documents with different tags for filtering tests."""
+    kb_id = test_kb["id"]
+    documents = []
+    doc_configs = [
+        {"filename": "report_2024.pdf", "tags": ["report", "2024", "finance"]},
+        {"filename": "report_2023.pdf", "tags": ["report", "2023", "finance"]},
+        {"filename": "invoice_001.pdf", "tags": ["invoice", "billing"]},
+        {"filename": "contract_abc.pdf", "tags": ["contract", "legal"]},
+        {"filename": "notes.md", "tags": []},
+    ]
+
+    with patch(
+        "app.services.document_service.minio_service.upload_file",
+        new_callable=AsyncMock,
+        return_value=f"kb-{kb_id}/doc/file.pdf",
+    ):
+        with patch(
+            "app.services.document_service.minio_service.ensure_bucket_exists",
+            new_callable=AsyncMock,
+        ):
+            for config in doc_configs:
+                pdf_content = create_test_pdf_content()
+                # Use a different extension for markdown
+                mime_type = (
+                    "text/markdown"
+                    if config["filename"].endswith(".md")
+                    else "application/pdf"
+                )
+                response = await authenticated_client.post(
+                    f"/api/v1/knowledge-bases/{kb_id}/documents",
+                    files={
+                        "file": (
+                            config["filename"],
+                            pdf_content,
+                            mime_type,
+                        )
+                    },
+                )
+                assert response.status_code == 202
+                doc = response.json()
+
+                # Update tags for this document
+                if config["tags"]:
+                    tag_response = await authenticated_client.patch(
+                        f"/api/v1/knowledge-bases/{kb_id}/documents/{doc['id']}/tags",
+                        json={"tags": config["tags"]},
+                    )
+                    assert tag_response.status_code == 200
+                    doc["tags"] = config["tags"]
+
+                documents.append(doc)
+
+    return documents
+
+
+async def test_filter_documents_by_search(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by search string (Story 5-24 AC-5.24.1)."""
+    kb_id = test_kb["id"]
+
+    # Search by filename
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?search=report"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 2
+    assert len(data["data"]) == 2
+    for doc in data["data"]:
+        assert (
+            "report" in doc["name"].lower()
+            or "report" in doc["original_filename"].lower()
+        )
+
+
+async def test_filter_documents_by_search_case_insensitive(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test search filter is case-insensitive."""
+    kb_id = test_kb["id"]
+
+    # Search with uppercase
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?search=REPORT"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 2
+
+
+async def test_filter_documents_by_status(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by status (Story 5-24 AC-5.24.1)."""
+    kb_id = test_kb["id"]
+
+    # Filter by PENDING status (all test docs should be PENDING)
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?status=PENDING"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # All test documents should be PENDING
+    assert data["total"] == 5
+    for doc in data["data"]:
+        assert doc["status"] == "PENDING"
+
+
+async def test_filter_documents_by_status_no_results(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by status with no matches."""
+    kb_id = test_kb["id"]
+
+    # Filter by READY status (none should be ready yet)
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?status=READY"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 0
+    assert data["data"] == []
+
+
+async def test_filter_documents_by_mime_type(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by MIME type (Story 5-24 AC-5.24.1)."""
+    kb_id = test_kb["id"]
+
+    # Filter by PDF
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?mime_type=application/pdf"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # All PDFs should be returned
+    assert data["total"] == 4
+    for doc in data["data"]:
+        assert doc["mime_type"] == "application/pdf"
+
+
+async def test_filter_documents_by_tags_single(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by a single tag (Story 5-24 AC-5.24.1)."""
+    kb_id = test_kb["id"]
+
+    # Filter by 'report' tag
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?tags=report"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 2
+    for doc in data["data"]:
+        assert "report" in doc["tags"]
+
+
+async def test_filter_documents_by_tags_multiple(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by multiple tags (AND logic)."""
+    kb_id = test_kb["id"]
+
+    # Filter by 'report' AND 'finance' tags
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?tags=report&tags=finance"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Only documents with BOTH tags
+    assert data["total"] == 2
+    for doc in data["data"]:
+        assert "report" in doc["tags"]
+        assert "finance" in doc["tags"]
+
+
+async def test_filter_documents_by_tags_specific_year(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering documents by specific year tag."""
+    kb_id = test_kb["id"]
+
+    # Filter by '2024' tag
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?tags=2024"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 1
+    assert "2024" in data["data"][0]["tags"]
+
+
+async def test_filter_documents_combined_filters(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test combining multiple filter parameters (Story 5-24 AC-5.24.1)."""
+    kb_id = test_kb["id"]
+
+    # Filter by search, mime_type, and tags
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?"
+        "search=report&mime_type=application/pdf&tags=finance"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 2
+    for doc in data["data"]:
+        assert "report" in doc["original_filename"].lower()
+        assert doc["mime_type"] == "application/pdf"
+        assert "finance" in doc["tags"]
+
+
+async def test_filter_documents_with_pagination(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering works with pagination (Story 5-24 AC-5.24.2)."""
+    kb_id = test_kb["id"]
+
+    # Filter by PDF with pagination
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?"
+        "mime_type=application/pdf&page=1&limit=2"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 4
+    assert data["page"] == 1
+    assert data["limit"] == 2
+    assert data["total_pages"] == 2
+    assert len(data["data"]) == 2
+
+
+async def test_filter_documents_with_sort(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filtering works with sorting (Story 5-24 AC-5.24.2)."""
+    kb_id = test_kb["id"]
+
+    # Filter by PDF with sorting by name
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?"
+        "mime_type=application/pdf&sort_by=name&sort_order=asc"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 4
+    names = [doc["name"] for doc in data["data"]]
+    assert names == sorted(names)
+
+
+async def test_filter_documents_no_matching_search(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+    test_documents_with_tags: list[dict],
+):
+    """Test filter returns empty for no matching search."""
+    kb_id = test_kb["id"]
+
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?search=nonexistent"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 0
+    assert data["data"] == []
+
+
+async def test_filter_documents_invalid_status(
+    authenticated_client: AsyncClient,
+    test_kb: dict,
+):
+    """Test filter with invalid status returns validation error."""
+    kb_id = test_kb["id"]
+
+    response = await authenticated_client.get(
+        f"/api/v1/knowledge-bases/{kb_id}/documents?status=INVALID"
+    )
+
+    assert response.status_code == 422  # Validation error

@@ -1,0 +1,37 @@
+name: 'Setup Frontend'
+description: 'Setup Node.js environment with caching for LumiKB frontend'
+
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+  install-playwright:
+    description: 'Install Playwright browsers (for E2E tests)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          npm-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: cd frontend && npm ci
+
+    - name: Install Playwright browsers
+      if: ${{ inputs.install-playwright == 'true' }}
+      shell: bash
+      run: cd frontend && npx playwright install --with-deps chromium

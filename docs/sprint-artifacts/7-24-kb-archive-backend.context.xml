@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-24" title="KB Archive Backend">
+  <summary>
+    Implement KB Archive functionality allowing administrators to archive a Knowledge Base
+    and all its documents. Archived KBs are hidden from normal operations but preserved
+    for potential restoration. Uses the transactional outbox pattern for reliable Qdrant
+    payload updates.
+  </summary>
+
+  <key-files>
+    <file path="backend/app/models/knowledge_base.py" purpose="KB model - needs archived_at column">
+      <note>Currently has: status column (active/archived) but no archived_at timestamp</note>
+      <note>Need to add: archived_at TIMESTAMP WITH TIME ZONE nullable column</note>
+      <note>Add @property is_archived -> bool based on archived_at</note>
+    </file>
+    <file path="backend/app/models/document.py" purpose="Document model - already has archived_at">
+      <note>Lines 118-121: archived_at column already exists</note>
+      <code><![CDATA[
+archived_at: Mapped[datetime | None] = mapped_column(
+    DateTime(timezone=True),
+    nullable=True,
+)
+]]></code>
+    </file>
+    <file path="backend/app/services/kb_service.py" purpose="KB service - existing archive method needs enhancement">
+      <note>Lines 484-543: Existing archive() method sets status only, no archived_at or document cascade</note>
+      <note>Needs enhancement: Set archived_at, cascade to documents, outbox event</note>
+    </file>
+    <file path="backend/app/api/v1/knowledge_bases.py" purpose="KB API endpoints">
+      <note>Lines 680-714: Current DELETE endpoint calls kb_service.archive()</note>
+      <note>Need new: POST /knowledge-bases/{id}/archive endpoint</note>
+      <note>Lines 187-207: list_knowledge_bases needs include_archived query param</note>
+    </file>
+    <file path="backend/app/workers/outbox_tasks.py" purpose="Outbox event handlers">
+      <note>Lines 304-373: _handle_kb_delete() pattern to follow for KB_ARCHIVE handler</note>
+      <note>Need to add: _handle_kb_archive() for batch Qdrant payload updates</note>
+    </file>
+    <file path="backend/app/services/audit_service.py" purpose="Audit logging">
+      <note>Use audit_service.log_event(action="kb.archived", ...)</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="KB Archive Method (Current - Needs Enhancement)">
+      <description>Current implementation in kb_service.py lines 484-543</description>
+      <code><![CDATA[
+async def archive(self, kb_id: UUID, user: User) -> bool:
+    """Archive a Knowledge Base (soft delete)."""
+    # Check ADMIN permission (AC5, AC7)
+    has_admin = await self.check_permission(kb_id, user, PermissionLevel.ADMIN)
+    if not has_admin:
+        raise PermissionError("ADMIN permission required to archive KB")
+
+    # Get KB
+    result = await self.session.execute(
+        select(KnowledgeBase).where(
+            KnowledgeBase.id == kb_id,
+            KnowledgeBase.status == "active",
+        )
+    )
+    kb = result.scalar_one_or_none()
+
+    if not kb:
+        return False
+
+    # Set status to archived (AC5)
+    kb.status = "archived"
+
+    # Create outbox event for async Qdrant cleanup (AC5)
+    outbox_event = Outbox(
+        event_type="kb.archived",
+        aggregate_id=kb_id,
+        aggregate_type="knowledge_base",
+        payload={
+            "kb_id": str(kb_id),
+            "collection_name": f"kb_{kb_id}",
+        },
+    )
+    self.session.add(outbox_event)
+
+    # Audit log (AC5)
+    await audit_service.log_event(
+        action="kb.archived",
+        resource_type="knowledge_base",
+        user_id=user.id,
+        resource_id=kb_id,
+    )
+
+    return True
+]]></code>
+    </pattern>
+    <pattern name="KB Delete Handler (Reference Pattern)">
+      <description>Outbox handler pattern from outbox_tasks.py lines 304-373</description>
+      <code><![CDATA[
+async def _handle_kb_delete(kb_id: str, event_id: str) -> None:
+    """Handle kb.delete event - soft-delete docs, delete vectors and files."""
+    from uuid import UUID
+    from app.models.document import Document, DocumentStatus
+
+    kb_uuid = UUID(kb_id)
+
+    async with celery_session_factory() as session:
+        # 1. Soft-delete all documents in the KB
+        await session.execute(
+            update(Document)
+            .where(Document.kb_id == kb_uuid)
+            .where(Document.deleted_at.is_(None))
+            .values(
+                status=DocumentStatus.ARCHIVED,
+                deleted_at=datetime.now(UTC),
+            )
+        )
+        await session.commit()
+
+    # 2. Delete Qdrant collection
+    try:
+        await qdrant_service.delete_collection(kb_uuid)
+    except Exception as e:
+        logger.warning("kb_delete_qdrant_cleanup_failed", ...)
+
+    # 3. Delete MinIO files
+    # ...
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-plan>
+    <task id="1" name="Database Migration">
+      <description>Add archived_at column to knowledge_bases table</description>
+      <code><![CDATA[
+# alembic/versions/xxxx_add_kb_archived_at.py
+def upgrade():
+    op.add_column(
+        'knowledge_bases',
+        sa.Column('archived_at', sa.DateTime(timezone=True), nullable=True)
+    )
+    # Partial index for efficient archived KB queries
+    op.create_index(
+        'idx_kb_archived_at',
+        'knowledge_bases',
+        ['archived_at'],
+        postgresql_where=text('archived_at IS NOT NULL')
+    )
+
+def downgrade():
+    op.drop_index('idx_kb_archived_at')
+    op.drop_column('knowledge_bases', 'archived_at')
+]]></code>
+    </task>
+    <task id="2" name="Model Update">
+      <description>Add archived_at to KnowledgeBase model</description>
+      <code><![CDATA[
+# In knowledge_base.py
+from datetime import datetime
+from sqlalchemy import DateTime
+
+class KnowledgeBase(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    # ... existing columns ...
+
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    @property
+    def is_archived(self) -> bool:
+        """Check if KB is archived."""
+        return self.archived_at is not None
+]]></code>
+    </task>
+    <task id="3" name="Enhanced Archive Service Method">
+      <description>Update kb_service.archive() to cascade to documents</description>
+      <code><![CDATA[
+async def archive_kb(self, kb_id: UUID, user_id: UUID) -> KnowledgeBase:
+    """Archive KB with document cascade."""
+    # 1. Check ADMIN permission
+    has_admin = await self.check_permission(kb_id, user, PermissionLevel.ADMIN)
+    if not has_admin:
+        raise PermissionError("ADMIN permission required")
+
+    # 2. Get and validate KB
+    kb = await self.get_kb_by_id(kb_id)
+    if kb.archived_at is not None:
+        raise HTTPException(400, "KB is already archived")
+
+    # 3. Set archived_at
+    now = datetime.now(UTC)
+    kb.archived_at = now
+
+    # 4. Cascade to documents
+    await self.session.execute(
+        update(Document)
+        .where(Document.kb_id == kb_id)
+        .where(Document.archived_at.is_(None))
+        .values(archived_at=now)
+    )
+
+    # 5. Create outbox event for Qdrant
+    outbox_event = Outbox(
+        event_type="KB_ARCHIVE",
+        aggregate_id=kb_id,
+        aggregate_type="knowledge_base",
+        payload={"kb_id": str(kb_id)}
+    )
+    self.session.add(outbox_event)
+
+    # 6. Audit log
+    await audit_service.log_event(
+        action="kb.archived",
+        user_id=user_id,
+        resource_id=kb_id,
+        metadata={"document_count": kb.document_count}
+    )
+
+    return kb
+]]></code>
+    </task>
+    <task id="4" name="Outbox Handler for KB Archive">
+      <description>Add KB_ARCHIVE handler to outbox_tasks.py</description>
+      <code><![CDATA[
+async def _handle_kb_archive(kb_id: str, event_id: str) -> None:
+    """Handle KB_ARCHIVE event - update Qdrant payloads."""
+    from app.integrations.qdrant_client import qdrant_service
+
+    kb_uuid = UUID(kb_id)
+    collection_name = f"kb_{kb_id}"
+
+    # Get all point IDs in collection
+    # Batch update payload with is_archived: true
+    try:
+        # Use scroll to get all points
+        points = await qdrant_service.scroll_all_points(collection_name)
+
+        # Batch update in chunks of 100
+        for batch in chunks(points, 100):
+            await qdrant_service.set_payload(
+                collection_name=collection_name,
+                payload={"is_archived": True},
+                points=[p.id for p in batch]
+            )
+
+        logger.info(
+            "kb_archive_qdrant_updated",
+            kb_id=kb_id,
+            points_updated=len(points)
+        )
+    except Exception as e:
+        logger.error("kb_archive_qdrant_failed", kb_id=kb_id, error=str(e))
+        raise
+]]></code>
+    </task>
+    <task id="5" name="Archive API Endpoint">
+      <description>Add POST /knowledge-bases/{id}/archive endpoint</description>
+      <code><![CDATA[
+@router.post("/{kb_id}/archive", response_model=KBResponse)
+async def archive_knowledge_base(
+    kb_id: UUID,
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> KBResponse:
+    """Archive a Knowledge Base and all its documents.
+
+    Requires ADMIN permission on the KB.
+    Archived KBs are hidden from default listings and searches.
+    Documents are archived but preserved for potential restoration.
+    """
+    kb_service = KBService(session)
+
+    try:
+        kb = await kb_service.archive_kb(kb_id, current_user)
+    except PermissionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "PERMISSION_DENIED", "message": "ADMIN permission required"}
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    if not kb:
+        raise HTTPException(status_code=404, detail="KB not found")
+
+    # Build response...
+    return KBResponse(...)
+]]></code>
+    </task>
+    <task id="6" name="List Filter for Archived KBs">
+      <description>Add include_archived query param to list endpoint</description>
+      <code><![CDATA[
+@router.get("/", response_model=KBListResponse)
+async def list_knowledge_bases(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    include_archived: bool = Query(default=False, description="Include archived KBs"),
+    current_user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> KBListResponse:
+    """List Knowledge Bases. By default excludes archived KBs."""
+    kb_service = KBService(session)
+    summaries, total = await kb_service.list_for_user(
+        current_user, page, limit, include_archived=include_archived
+    )
+    return KBListResponse(data=summaries, total=total, page=page, limit=limit)
+]]></code>
+    </task>
+    <task id="7" name="Upload Protection">
+      <description>Block document upload to archived KBs</description>
+      <code><![CDATA[
+# In document upload endpoint
+kb = await kb_service.get(kb_id, current_user)
+if kb.archived_at is not None:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"code": "KB_ARCHIVED", "message": "Cannot upload to archived KB"}
+    )
+]]></code>
+    </task>
+  </implementation-plan>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.24.1" status="not-implemented">
+      <description>Archive endpoint sets KB.archived_at</description>
+      <implementation>Create POST /knowledge-bases/{id}/archive endpoint</implementation>
+    </criterion>
+    <criterion id="AC-7.24.2" status="not-implemented">
+      <description>Cascade archive to documents</description>
+      <implementation>UPDATE documents SET archived_at = now() WHERE kb_id = {id}</implementation>
+    </criterion>
+    <criterion id="AC-7.24.3" status="not-implemented">
+      <description>Qdrant payload updates via outbox</description>
+      <implementation>Add KB_ARCHIVE handler to set is_archived: true on all points</implementation>
+    </criterion>
+    <criterion id="AC-7.24.4" status="partially-implemented">
+      <description>Archived KB hidden from listings</description>
+      <implementation>Current list excludes by status, need to add include_archived param</implementation>
+    </criterion>
+    <criterion id="AC-7.24.5" status="not-implemented">
+      <description>Upload blocked on archived KB</description>
+      <implementation>Add check in document upload endpoint</implementation>
+    </criterion>
+    <criterion id="AC-7.24.6" status="partially-implemented">
+      <description>Audit logging</description>
+      <implementation>Current archive() logs kb.archived, ensure metadata includes document_count</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <dependency story="2.1" status="completed">KB CRUD Backend</dependency>
+    <dependency story="6.1" status="completed">Document Archive Pattern (reference)</dependency>
+    <dependency story="2.11" status="completed">Outbox Processing Infrastructure</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>Test archive_kb sets KB.archived_at</test>
+      <test>Test archive_kb cascades to all documents</test>
+      <test>Test archive_kb creates outbox event</test>
+      <test>Test archiving already archived KB returns 400</test>
+      <test>Test ADMIN permission required</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Create KB with documents, archive, verify all archived_at set</test>
+      <test>Verify archived KB hidden from default list</test>
+      <test>Verify archived KB appears with include_archived=true</test>
+      <test>Verify upload blocked on archived KB</test>
+      <test>Verify audit log created with document_count</test>
+    </integration-tests>
+  </test-strategy>
+
+  <schema-changes>
+    <migration name="add_kb_archived_at">
+      <sql><![CDATA[
+ALTER TABLE knowledge_bases
+ADD COLUMN archived_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+
+CREATE INDEX idx_kb_archived_at ON knowledge_bases(archived_at)
+WHERE archived_at IS NOT NULL;
+]]></sql>
+    </migration>
+  </schema-changes>
+</story-context>

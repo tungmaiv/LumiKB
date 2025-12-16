@@ -1,0 +1,519 @@
+<story-context id="7-10-kb-model-configuration" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7-10</storyId>
+    <title>KB Model Configuration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-10-kb-model-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>knowledge base owner</asA>
+    <iWant>to select which embedding and generation models my KB uses from the Model Registry</iWant>
+    <soThat>I can optimize my KB for specific use cases and leverage different AI capabilities</soThat>
+    <tasks>
+      <task id="1" ac="7.10.1,7.10.4,7.10.5">
+        <name>Database Schema Updates</name>
+        <subtasks>
+          <subtask id="1.1">Add embedding_model_id FK to knowledge_bases table</subtask>
+          <subtask id="1.2">Add generation_model_id FK to knowledge_bases table</subtask>
+          <subtask id="1.3">Add KB-level RAG parameter columns (similarity_threshold, search_top_k, etc.)</subtask>
+          <subtask id="1.4">Add qdrant_collection_name and qdrant_vector_size columns</subtask>
+          <subtask id="1.5">Create Alembic migration with proper constraints</subtask>
+          <subtask id="1.6">Write tests for schema validation</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="7.10.1,7.10.2,7.10.3,7.10.4">
+        <name>KB Creation API Updates</name>
+        <subtasks>
+          <subtask id="2.1">Update KnowledgeBaseCreate schema with model_id fields</subtask>
+          <subtask id="2.2">Validate model_ids reference active models</subtask>
+          <subtask id="2.3">Update POST /api/v1/knowledge-bases to accept model selection</subtask>
+          <subtask id="2.4">Implement Qdrant collection creation on KB save</subtask>
+          <subtask id="2.5">Store collection name and vector size in KB record</subtask>
+          <subtask id="2.6">Write integration tests for KB creation with models</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="7.10.5,7.10.6,7.10.7">
+        <name>KB Settings API Updates</name>
+        <subtasks>
+          <subtask id="3.1">Update GET /api/v1/knowledge-bases/{id} to include model details</subtask>
+          <subtask id="3.2">Update PUT /api/v1/knowledge-bases/{id} with model change handling</subtask>
+          <subtask id="3.3">Implement embedding model lock check (documents > 0)</subtask>
+          <subtask id="3.4">Allow generation model changes without restrictions</subtask>
+          <subtask id="3.5">Implement KB-level RAG parameter updates</subtask>
+          <subtask id="3.6">Write integration tests for KB settings updates</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="7.10.8,7.10.9">
+        <name>Document Processing Integration</name>
+        <subtasks>
+          <subtask id="4.1">Update embedding worker to fetch KB's embedding model</subtask>
+          <subtask id="4.2">Configure LiteLLM client with KB's model settings</subtask>
+          <subtask id="4.3">Use correct Qdrant collection for KB</subtask>
+          <subtask id="4.4">Update search service to use KB's embedding model</subtask>
+          <subtask id="4.5">Apply KB-level RAG parameter overrides in search</subtask>
+          <subtask id="4.6">Write integration tests for document processing with models</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="7.10.10">
+        <name>Generation Integration</name>
+        <subtasks>
+          <subtask id="5.1">Update generation service to fetch KB's generation model</subtask>
+          <subtask id="5.2">Configure LiteLLM client with KB's generation settings</subtask>
+          <subtask id="5.3">Apply KB-level generation parameter overrides</subtask>
+          <subtask id="5.4">Write integration tests for generation with models</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="7.10.1,7.10.2,7.10.3,7.10.6">
+        <name>KB Creation UI Updates</name>
+        <subtasks>
+          <subtask id="6.1">Add embedding model dropdown to KB create modal</subtask>
+          <subtask id="6.2">Add generation model dropdown to KB create modal</subtask>
+          <subtask id="6.3">Fetch active models from /api/v1/models/embedding</subtask>
+          <subtask id="6.4">Display model info (dimensions, context) on selection</subtask>
+          <subtask id="6.5">Pre-select default models if configured</subtask>
+          <subtask id="6.6">Write component tests for model selection</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="7.10.5,7.10.6,7.10.7">
+        <name>KB Settings UI Updates</name>
+        <subtasks>
+          <subtask id="7.1">Add Models section to KB settings page</subtask>
+          <subtask id="7.2">Display current embedding and generation models</subtask>
+          <subtask id="7.3">Show embedding model lock warning if documents exist</subtask>
+          <subtask id="7.4">Allow generation model changes with confirmation</subtask>
+          <subtask id="7.5">Add RAG parameter override fields</subtask>
+          <subtask id="7.6">Write component tests for KB settings</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.10.1" priority="P0">
+      <description>Model selection dropdown during KB creation shows active models from registry</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Open KB create modal, verify embedding and generation dropdowns populated with active models from /api/v1/models/{type}</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.2" priority="P0">
+      <description>Only active models appear in selection dropdown</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: POST /api/v1/knowledge-bases with inactive model_id returns 400 validation error</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.3" priority="P1">
+      <description>Model info (dimensions, context window) displayed on selection</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: Select embedding model, verify dimensions and max_tokens displayed; select generation model, verify context_window displayed</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.4" priority="P0">
+      <description>Qdrant collection auto-created with correct dimensions and distance metric from selected embedding model</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Create KB with 1536-dimension embedding model, verify Qdrant collection created with size=1536, distance=COSINE</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.5" priority="P1">
+      <description>KB-level parameter overrides (similarity_threshold, top_k, rerank) supported</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Create KB with custom similarity_threshold=0.8, verify search uses this value instead of model default</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.6" priority="P0">
+      <description>Embedding model lock warning displayed after first document is processed</description>
+      <testable>true</testable>
+      <verificationMethod>E2E test: KB with documents shows embedding model as locked with warning message; KB without documents allows model change</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.7" priority="P1">
+      <description>Generation model changeable without document reprocessing</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Update KB's generation model when documents exist, verify update succeeds without triggering document reprocessing</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.8" priority="P0">
+      <description>Document processing uses KB-configured embedding model</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Upload document to KB with custom embedding model, verify embedding worker uses KB's model for vectorization</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.9" priority="P0">
+      <description>Search operations use KB-configured embedding model</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Search in KB with custom embedding model, verify query embedding generated with KB's model</verificationMethod>
+    </criterion>
+    <criterion id="AC-7.10.10" priority="P0">
+      <description>Chat/generation operations use KB-configured generation model</description>
+      <testable>true</testable>
+      <verificationMethod>Integration test: Generate content from KB with custom generation model, verify LiteLLM called with KB's model_id</verificationMethod>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md">
+        <relevance>Architecture reference for KB-model relationships</relevance>
+        <keyInfo>
+          - Qdrant collection per KB pattern
+          - LiteLLM proxy for model abstraction
+          - JSONB settings field for flexible configuration
+        </keyInfo>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md">
+        <relevance>Tech spec with KB model configuration design</relevance>
+        <keyInfo>
+          - KB schema with model FKs
+          - Collection naming: kb_{kb_id}
+          - Parameter override hierarchy
+          - Embedding model lock pattern
+        </keyInfo>
+      </doc>
+      <doc path="docs/sprint-artifacts/7-9-llm-model-registry.md">
+        <relevance>Prerequisite story - Model Registry must exist first</relevance>
+        <keyInfo>
+          - llm_models table schema
+          - Public model list endpoints
+          - EmbeddingModelConfig and GenerationModelConfig
+        </keyInfo>
+      </doc>
+    </docs>
+    <code>
+      <existing>
+        <file path="backend/app/models/knowledge_base.py">
+          <purpose>KB SQLAlchemy model - needs model FK columns</purpose>
+          <status>EXISTS - Needs embedding_model_id, generation_model_id columns added</status>
+          <keyElements>
+            - KnowledgeBase model with id, name, description, tags
+            - settings JSONB field for flexible configuration
+            - owner_id FK to users table
+            - status field with active/archived states
+          </keyElements>
+          <codeSnippet>
+class KnowledgeBase(Base):
+    __tablename__ = "knowledge_bases"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    tags = Column(JSONB, nullable=True, default=list)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    status = Column(String(20), nullable=False, default="active")
+    settings = Column(JSONB, nullable=True, default=dict)
+          </codeSnippet>
+        </file>
+        <file path="backend/app/schemas/knowledge_base.py">
+          <purpose>KB Pydantic schemas - needs model_id fields</purpose>
+          <status>EXISTS - Needs KnowledgeBaseCreate/Update updated with model fields</status>
+          <keyElements>
+            - KnowledgeBaseCreate: name, description, tags
+            - KnowledgeBaseUpdate: optional name, description, tags, settings
+            - KnowledgeBaseResponse: full KB with computed fields
+          </keyElements>
+        </file>
+        <file path="backend/app/services/kb_service.py">
+          <purpose>KB service with CRUD operations</purpose>
+          <status>EXISTS - Needs model validation and collection creation</status>
+          <keyElements>
+            - KBService class with create(), get(), update(), archive()
+            - Permission checking methods
+            - 1312 lines of existing KB logic
+          </keyElements>
+        </file>
+        <file path="backend/app/integrations/qdrant_client.py">
+          <purpose>Qdrant integration - needs dynamic vector size</purpose>
+          <status>EXISTS - Needs update to use model-specific dimensions</status>
+          <keyElements>
+            - QdrantService with collection CRUD
+            - Hardcoded VECTOR_SIZE = 768
+            - DISTANCE_METRIC = models.Distance.COSINE
+            - create_collection() method
+          </keyElements>
+          <codeSnippet>
+VECTOR_SIZE = 768
+DISTANCE_METRIC = models.Distance.COSINE
+
+async def create_collection(self, kb_id: UUID) -> None:
+    collection_name = f"kb_{kb_id}"
+    self.client.create_collection(
+        collection_name=collection_name,
+        vectors_config=models.VectorParams(
+            size=VECTOR_SIZE,
+            distance=DISTANCE_METRIC,
+        ),
+    )
+          </codeSnippet>
+        </file>
+        <file path="backend/app/workers/embedding.py">
+          <purpose>Embedding worker - needs KB model lookup</purpose>
+          <status>EXISTS - Needs to fetch KB's embedding model for vectorization</status>
+          <keyElements>
+            - create_embeddings() Celery task
+            - Uses LiteLLMEmbeddingClient with hardcoded settings
+            - Batch processing with retry logic
+          </keyElements>
+        </file>
+        <file path="backend/app/services/search_service.py">
+          <purpose>Search service - needs KB model for query embedding</purpose>
+          <status>EXISTS - Needs to use KB's embedding model for queries</status>
+          <keyElements>
+            - SearchService with semantic_search, cross_kb_search
+            - Uses hardcoded embedding model from settings
+            - 1152 lines of search logic
+          </keyElements>
+        </file>
+        <file path="backend/app/services/generation_service.py">
+          <purpose>Generation service - needs KB model for completions</purpose>
+          <status>EXISTS - Needs to use KB's generation model</status>
+          <keyElements>
+            - GenerationService with generate(), stream_generate()
+            - Uses hardcoded llm_model from settings
+          </keyElements>
+        </file>
+        <file path="frontend/src/components/kb/kb-create-modal.tsx">
+          <purpose>KB creation modal - needs model dropdowns</purpose>
+          <status>EXISTS - Needs embedding and generation model selectors</status>
+          <keyElements>
+            - Form with name, description, tags inputs
+            - react-hook-form with zod validation
+            - useMutation for POST /api/v1/knowledge-bases
+          </keyElements>
+        </file>
+        <file path="backend/app/integrations/litellm_client.py">
+          <purpose>LiteLLM client - reference for model configuration</purpose>
+          <status>EXISTS - Shows current model configuration pattern</status>
+          <keyElements>
+            - LiteLLMEmbeddingClient with model, api_base, api_key
+            - LiteLLMCompletionClient for generation
+            - aembedding() and acompletion() calls
+          </keyElements>
+        </file>
+      </existing>
+      <toCreate>
+        <file path="backend/alembic/versions/xxxx_add_model_refs_to_kb.py">
+          <purpose>Migration adding model FKs to knowledge_bases</purpose>
+          <pattern>Alembic migration with embedding_model_id, generation_model_id, qdrant columns</pattern>
+        </file>
+        <file path="frontend/src/components/kb/kb-settings-modal.tsx">
+          <purpose>KB settings modal with model configuration</purpose>
+          <pattern>Modal with model display, lock warning, RAG parameter fields</pattern>
+        </file>
+        <file path="frontend/src/hooks/useKBModels.ts">
+          <purpose>Hook for fetching available models</purpose>
+          <pattern>useQuery for /api/v1/models/embedding and /api/v1/models/generation</pattern>
+        </file>
+        <file path="backend/tests/integration/test_kb_model_configuration.py">
+          <purpose>Integration tests for KB model configuration</purpose>
+          <pattern>pytest with model fixtures, collection verification</pattern>
+        </file>
+        <file path="frontend/src/components/kb/__tests__/kb-model-selection.test.tsx">
+          <purpose>Component tests for KB model selection</purpose>
+          <pattern>React Testing Library with mocked model list</pattern>
+        </file>
+      </toCreate>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="qdrant-client" version="existing" status="EXISTS">
+          <purpose>Qdrant vector DB client for collection management</purpose>
+        </package>
+        <package name="litellm" version="existing" status="EXISTS">
+          <purpose>Multi-provider LLM abstraction</purpose>
+        </package>
+        <package name="sqlalchemy" version="existing" status="EXISTS">
+          <purpose>ORM for KB-model relationships</purpose>
+        </package>
+      </backend>
+      <frontend>
+        <package name="@tanstack/react-query" version="existing" status="EXISTS">
+          <purpose>Data fetching for models and KB operations</purpose>
+        </package>
+        <package name="react-hook-form" version="existing" status="EXISTS">
+          <purpose>Form handling for KB create/settings</purpose>
+        </package>
+        <package name="zod" version="existing" status="EXISTS">
+          <purpose>Form validation schemas</purpose>
+        </package>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      Collection Per KB: Each KB has its own Qdrant collection named kb_{kb_id}
+    </constraint>
+    <constraint type="architecture">
+      Model Binding at Creation: Embedding model selected at KB creation, locked after first document
+    </constraint>
+    <constraint type="architecture">
+      Flexible Generation: Generation model can be changed anytime without document reprocessing
+    </constraint>
+    <constraint type="architecture">
+      Parameter Inheritance: KB Override > Model Default > System Default hierarchy
+    </constraint>
+    <constraint type="data-integrity">
+      Embedding Model Lock: Cannot change embedding model after documents processed (dimensions mismatch)
+    </constraint>
+    <constraint type="data-integrity">
+      Active Model Validation: Only active models from registry can be assigned to KBs
+    </constraint>
+    <constraint type="dependency">
+      Prerequisite: Story 7-9 (LLM Model Registry) must be completed first
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="database">
+      <name>knowledge_bases (updated)</name>
+      <description>KB table with model references</description>
+      <schema>
+ALTER TABLE knowledge_bases
+ADD COLUMN embedding_model_id UUID REFERENCES llm_models(id),
+ADD COLUMN generation_model_id UUID REFERENCES llm_models(id),
+ADD COLUMN qdrant_collection_name VARCHAR(100),
+ADD COLUMN qdrant_vector_size INTEGER,
+ADD COLUMN similarity_threshold FLOAT DEFAULT 0.7,
+ADD COLUMN search_top_k INTEGER DEFAULT 10,
+ADD COLUMN temperature FLOAT,
+ADD COLUMN rerank_enabled BOOLEAN DEFAULT false;
+      </schema>
+    </interface>
+    <interface type="api">
+      <name>KB Creation with Models</name>
+      <description>Updated KB creation endpoint accepting model selection</description>
+      <request>
+POST /api/v1/knowledge-bases
+{
+  "name": "My KB",
+  "description": "Description",
+  "embedding_model_id": "uuid-of-embedding-model",
+  "generation_model_id": "uuid-of-generation-model",
+  "similarity_threshold": 0.75,
+  "search_top_k": 15
+}
+      </request>
+      <response>
+{
+  "id": "kb-uuid",
+  "name": "My KB",
+  "embedding_model": { "id": "...", "name": "...", "dimensions": 1536 },
+  "generation_model": { "id": "...", "name": "...", "context_window": 128000 },
+  "qdrant_collection_name": "kb_uuid",
+  "qdrant_vector_size": 1536,
+  "similarity_threshold": 0.75,
+  "search_top_k": 15
+}
+      </response>
+    </interface>
+    <interface type="api">
+      <name>KB Update with Model Lock</name>
+      <description>KB update with embedding model lock check</description>
+      <behavior>
+        - If documents_count == 0: Allow embedding_model_id change
+        - If documents_count > 0: Reject embedding_model_id change with 400 error
+        - Always allow generation_model_id change
+        - Always allow RAG parameter updates
+      </behavior>
+    </interface>
+    <interface type="service">
+      <name>QdrantService.create_collection_for_kb()</name>
+      <description>Creates collection with model-specific parameters</description>
+      <signature>
+async def create_collection_for_kb(
+    self,
+    kb_id: UUID,
+    vector_size: int,
+    distance_metric: str = "cosine"
+) -> str:
+    """Returns collection name: kb_{kb_id}"""
+      </signature>
+    </interface>
+    <interface type="service">
+      <name>EmbeddingWorker with KB model</name>
+      <description>Worker fetches KB's embedding model for vectorization</description>
+      <flow>
+        1. Fetch document's KB from database
+        2. Get KB's embedding_model via FK
+        3. Configure LiteLLMEmbeddingClient with model settings
+        4. Generate embeddings
+        5. Store in KB's Qdrant collection
+      </flow>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Unit Tests: Model validation, parameter inheritance logic</standard>
+      <standard>Integration Tests: KB creation with models, collection creation, search/generation</standard>
+      <standard>E2E Tests: Full KB creation with model selection, document upload, search flow</standard>
+      <standard>Coverage Target: 80% for kb_service.py model-related code</standard>
+    </standards>
+    <locations>
+      <location path="backend/tests/integration/test_kb_model_configuration.py">Integration tests for KB model configuration</location>
+      <location path="backend/tests/unit/test_kb_service.py">Unit tests for model validation</location>
+      <location path="frontend/src/components/kb/__tests__/kb-model-selection.test.tsx">Component tests for model selection UI</location>
+    </locations>
+    <ideas>
+      <idea ac="7.10.1">
+        E2E test: Open KB create modal, verify embedding dropdown shows active models from registry
+      </idea>
+      <idea ac="7.10.2">
+        Integration test: POST KB with inactive model_id returns 400 "Model is not active"
+      </idea>
+      <idea ac="7.10.4">
+        Integration test: Create KB with 1536-dim model, verify Qdrant collection_info returns size=1536
+      </idea>
+      <idea ac="7.10.4">
+        Integration test: Create KB with Euclidean distance model, verify collection uses EUCLID distance
+      </idea>
+      <idea ac="7.10.5">
+        Integration test: KB with similarity_threshold=0.9, search returns only results above 0.9
+      </idea>
+      <idea ac="7.10.6">
+        E2E test: KB with 0 documents allows embedding model change
+      </idea>
+      <idea ac="7.10.6">
+        E2E test: KB with documents shows "Embedding model locked" warning, change button disabled
+      </idea>
+      <idea ac="7.10.7">
+        Integration test: Update KB generation model with 10 documents, succeeds without errors
+      </idea>
+      <idea ac="7.10.8">
+        Integration test: Upload to KB with text-embedding-3-large, verify vectors have 3072 dimensions
+      </idea>
+      <idea ac="7.10.9">
+        Integration test: Search KB uses KB's embedding model for query vectorization
+      </idea>
+      <idea ac="7.10.10">
+        Integration test: Generate from KB with gpt-4o, verify LiteLLM called with model="gpt-4o"
+      </idea>
+    </ideas>
+  </tests>
+
+  <notes>
+    <note type="implementation">
+      Collection Naming Convention:
+      - Pattern: kb_{kb_id} (e.g., "kb_123e4567-e89b-12d3-a456-426614174000")
+      - Collection created on KB save, not on first document upload
+      - Vector size and distance metric determined by embedding model config
+    </note>
+    <note type="implementation">
+      Embedding Model Lock Logic:
+      - Check: SELECT COUNT(*) FROM documents WHERE kb_id = ? AND status = 'processed'
+      - If count > 0, embedding model changes are rejected with HTTP 400
+      - Lock warning displayed in UI with count of processed documents
+    </note>
+    <note type="implementation">
+      Parameter Override Hierarchy:
+      1. KB-level override (if set): kb.similarity_threshold
+      2. Model default (from config): model.config.similarity_threshold
+      3. System default (hardcoded): 0.7
+
+      Resolution code pattern:
+      threshold = kb.similarity_threshold or model.config.get("similarity_threshold") or 0.7
+    </note>
+    <note type="dependency">
+      Story 7-9 (LLM Model Registry) must be completed first.
+      This story depends on:
+      - llm_models table existing
+      - GET /api/v1/models/embedding endpoint
+      - GET /api/v1/models/generation endpoint
+      - Model config schemas (EmbeddingModelConfig, GenerationModelConfig)
+    </note>
+  </notes>
+</story-context>

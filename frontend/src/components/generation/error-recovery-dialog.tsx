@@ -12,7 +12,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 
 export interface RecoveryOption {
   type: string;
@@ -52,7 +51,7 @@ export function ErrorRecoveryDialog({
             Generation Failed
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Something went wrong while generating your draft. Here's what you
+            Something went wrong while generating your draft. Here&apos;s what you
             can do:
           </AlertDialogDescription>
         </AlertDialogHeader>

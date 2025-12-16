@@ -758,9 +758,10 @@ async def get_redis() -> redis.Redis:
 **Dependencies:**
 - SearchService (Epic 3): `search.search(query, kb_id, k=10)`
 - CitationService (Epic 3): `citation.extract_citations(text, chunks)`, `calculate_confidence(text, chunks)`
-- LiteLLMClient: `llm.generate(prompt)`
+- LiteLLMClient: `llm.generate(prompt)`, `llm.chat_completion(model=kb_model)` for KB-specific models
 - AuditService (Epic 1): `audit.log(user_id, action, resource_type, resource_id, details)`
 - Redis: `redis.get(key)`, `redis.setex(key, ttl, value)`
+- AsyncSession (Story 7-10): Database session for KB generation model lookup
 
 ---
 
@@ -1209,6 +1210,7 @@ async def test_chat_permission_enforcement(client: AsyncClient, auth_headers):
    - Use LiteLLMClient for response generation
    - Redis key: `conversation:{session_id}:{kb_id}`
    - Redis TTL: 24 hours
+   - **KB-Specific Model Support (Story 7-10):** ConversationService accepts optional `AsyncSession` parameter for KB model lookup via `_get_kb_generation_model(kb_id)` method
 
 2. **Context Window Management:**
    - MAX_CONTEXT_TOKENS: 6000
@@ -1611,3 +1613,50 @@ Story 4.1 implements a complete multi-turn RAG conversation backend with Redis s
 
 **Review Completed:** 2025-11-26
 **Next Action:** Address HIGH severity action items (create fixtures, verify router registration), then re-run integration tests and update story status to done when all tests pass.
+
+---
+
+## Technical Notes: LiteLLM Streaming Fix
+
+### Issue: Duplicate Tokens in Chat Streaming
+
+**Problem Identified (2025-12-16):**
+Chat streaming responses were displaying duplicate tokens (e.g., "HereHere's's a a structured structured"). This occurred because LiteLLM's internal retry mechanism was sending duplicate streaming requests even on success.
+
+**Root Cause:**
+LiteLLM's `num_retries` setting in both the proxy configuration and the Python client's `acompletion()` call triggered automatic retries that duplicated streaming responses.
+
+**Solution Applied:**
+
+1. **LiteLLM Proxy** (`infrastructure/docker/litellm_config.yaml`):
+```yaml
+router_settings:
+  num_retries: 0  # CRITICAL: Prevents duplicate streaming requests
+```
+
+2. **Python Client** (`backend/app/integrations/litellm_client.py`):
+```python
+response = await acompletion(
+    model=model_name,
+    stream=stream,
+    num_retries=0,  # Disable retries to prevent duplicate streaming
+)
+```
+
+3. **Additional Settings**:
+```python
+# Prevent event loop issues in workers
+litellm.disable_streaming_logging = True
+litellm.turn_off_message_logging = True
+```
+
+**Verification:**
+Streaming responses now show clean sequential tokens:
+```
+data: {"type": "token", "content": "Phase"}
+data: {"type": "token", "content": " A"}
+data: {"type": "token", "content": " in"}
+...
+```
+
+**Reference:** See TD-002a in [tech-spec-epic-4.md](./tech-spec-epic-4.md) for detailed documentation.

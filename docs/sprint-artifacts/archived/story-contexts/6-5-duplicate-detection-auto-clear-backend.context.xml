@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-5: Duplicate Detection & Auto-Clear Backend
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-5">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Duplicate Detection and Auto-Clear Backend</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>5</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>user uploading documents</asA>
+      <iWant>the system to detect duplicate document names and auto-clear failed documents</iWant>
+      <soThat>I can re-upload without manual cleanup</soThat>
+    </userStory>
+
+    <context>
+      When uploading documents, users should be warned about duplicates (completed, archived)
+      but failed documents with the same name should be automatically cleared to allow
+      seamless re-upload. This improves UX by handling common retry scenarios gracefully.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.5.1">
+      <title>Upload detects duplicate active document</title>
+      <given>I upload a document named "report.pdf" (case-insensitive)</given>
+      <and>a document with the same name exists with status "completed" or "processing" or "pending"</and>
+      <when>the upload is processed</when>
+      <then>I receive 409 Conflict with duplicate_document error and existing document info</then>
+    </criterion>
+
+    <criterion id="AC-6.5.2">
+      <title>Upload detects duplicate archived document</title>
+      <given>I upload a document named "report.pdf"</given>
+      <and>an archived document with the same name exists</and>
+      <when>the upload is processed</when>
+      <then>I receive 409 Conflict indicating archived duplicate</then>
+    </criterion>
+
+    <criterion id="AC-6.5.3">
+      <title>Upload auto-clears failed document</title>
+      <given>I upload a document named "report.pdf"</given>
+      <and>a failed document with the same name exists</and>
+      <when>the upload is processed</when>
+      <then>the failed document is auto-cleared</then>
+      <and>the new upload proceeds normally</and>
+      <and>response includes auto_cleared_document_id notification</and>
+    </criterion>
+
+    <criterion id="AC-6.5.4">
+      <title>Case-insensitive matching</title>
+      <given>a document named "Report.PDF" exists</given>
+      <when>I upload "report.pdf" or "REPORT.pdf"</when>
+      <then>duplicate detection triggers</then>
+    </criterion>
+
+    <criterion id="AC-6.5.5">
+      <title>Duplicate check scoped to KB</title>
+      <given>a document "report.pdf" exists in KB-A</given>
+      <when>I upload "report.pdf" to KB-B</when>
+      <then>no duplicate is detected</then>
+      <and>upload proceeds normally</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService - add duplicate detection to upload</description>
+      <keyElements>
+        - Check for existing document with same name (case-insensitive)
+        - Auto-clear failed documents on same-name upload
+        - Return appropriate error for completed/archived duplicates
+      </keyElements>
+    </reference>
+
+    <reference type="api" path="backend/app/api/v1/documents.py">
+      <description>Document upload endpoint - handle duplicate detection</description>
+      <keyElements>
+        - Return 409 for duplicates with detailed error response
+        - Include auto_cleared_document_id in success response when applicable
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents" modified="true">
+        <description>Upload document - enhanced with duplicate detection</description>
+        <response code="409">
+          <field name="error" type="string">"duplicate_document"</field>
+          <field name="existing_document_id" type="uuid">ID of existing document</field>
+          <field name="existing_status" type="string">"completed" | "archived" | "processing" | "pending"</field>
+          <field name="message" type="string">Human-readable message</field>
+        </response>
+        <response code="201" note="with auto-clear">
+          <field name="id" type="uuid">New document ID</field>
+          <field name="auto_cleared_document_id" type="uuid">ID of auto-cleared failed document</field>
+          <field name="message" type="string">"Previous failed upload was automatically cleared"</field>
+        </response>
+      </endpoint>
+    </api>
+
+    <duplicateCheck>
+      <sql><![CDATA[
+SELECT id, status FROM documents
+WHERE kb_id = :kb_id
+AND LOWER(name) = LOWER(:doc_name)
+LIMIT 1
+      ]]></sql>
+      <logic>
+        - If status == 'failed': auto-clear and proceed with upload
+        - If status in ('completed', 'archived', 'processing', 'pending'): return 409
+        - If no match: proceed with upload
+      </logic>
+    </duplicateCheck>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-4" status="pending">
+      <name>Clear Failed Document Backend</name>
+      <provides>clear_failed_document() method for auto-clear</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Backend Integration Tests" count="6">
+      <test>Upload returns 409 for completed document duplicate</test>
+      <test>Upload returns 409 for archived document duplicate</test>
+      <test>Upload auto-clears failed document and succeeds</test>
+      <test>Duplicate detection is case-insensitive</test>
+      <test>Duplicate detection is scoped to KB</test>
+      <test>Auto-clear creates audit log entry</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

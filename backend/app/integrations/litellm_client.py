@@ -24,6 +24,15 @@ logger = structlog.get_logger(__name__)
 # Suppress LiteLLM debug logging that causes issues during shutdown
 litellm.suppress_debug_info = True
 
+# Disable streaming logging to prevent event loop issues in Celery workers
+# The LoggingWorker uses asyncio.Queue which gets bound to specific event loops
+# and causes RuntimeError when used across Celery's forked worker processes
+# See: https://github.com/BerriAI/litellm/issues/6921
+litellm.disable_streaming_logging = True
+
+# Turn off message logging to reduce logging worker activity
+litellm.turn_off_message_logging = True
+
 # Exponential backoff delays for rate limit (429) responses
 RETRY_DELAYS = [30, 60, 120, 240, 300]  # seconds
 
@@ -54,6 +63,10 @@ class LiteLLMEmbeddingClient:
     - OpenAI-compatible API via LiteLLM
     """
 
+    # Providers that require direct API calls (not through LiteLLM proxy)
+    # These providers need their specific model name format (e.g., ollama/model)
+    DIRECT_CALL_PROVIDERS = {"ollama", "lmstudio"}
+
     def __init__(
         self,
         model: str | None = None,
@@ -61,6 +74,7 @@ class LiteLLMEmbeddingClient:
         max_retries: int | None = None,
         api_base: str | None = None,
         api_key: str | None = None,
+        provider: str | None = None,
     ):
         """Initialize the embedding client.
 
@@ -70,12 +84,14 @@ class LiteLLMEmbeddingClient:
             max_retries: Max retries for rate limits (default: from settings).
             api_base: LiteLLM proxy URL (default: from settings).
             api_key: API key for LiteLLM (default: from settings).
+            provider: Model provider (ollama, openai, lmstudio, etc.) for routing.
         """
         self.model = model or settings.embedding_model
         self.batch_size = batch_size or settings.embedding_batch_size
         self.max_retries = max_retries or settings.embedding_max_retries
         self.api_base = api_base or settings.litellm_url
         self.api_key = api_key or settings.litellm_api_key
+        self.provider = provider
 
         # Track total tokens for cost monitoring
         self.total_tokens_used = 0
@@ -92,7 +108,7 @@ class LiteLLMEmbeddingClient:
             texts: List of text strings to embed.
 
         Returns:
-            List of embedding vectors (1536 dimensions for ada-002).
+            List of embedding vectors (768 dimensions for Gemini text-embedding-004).
 
         Raises:
             RateLimitExceededError: If rate limit retries exhausted.
@@ -204,13 +220,36 @@ class LiteLLMEmbeddingClient:
         """
         start_time = time.time()
 
-        response = await aembedding(
-            model=self.model,
-            input=texts,
-            api_base=self.api_base,
-            api_key=self.api_key,
-            timeout=settings.embedding_timeout,
+        # Determine routing based on provider (not port number)
+        # Providers like ollama, lmstudio require direct calls with provider prefix
+        is_direct_provider = (
+            self.provider and self.provider.lower() in self.DIRECT_CALL_PROVIDERS
         )
+
+        if is_direct_provider:
+            # Direct call to local provider (Ollama, LM Studio, etc.)
+            # Format model name with provider prefix if not already present
+            model_name = self.model
+            provider_prefix = f"{self.provider.lower()}/"
+            if not model_name.startswith(provider_prefix):
+                model_name = f"{provider_prefix}{model_name}"
+
+            response = await aembedding(
+                model=model_name,
+                input=texts,
+                api_base=self.api_base,
+                timeout=settings.embedding_timeout,
+            )
+        else:
+            # Default: call through LiteLLM proxy with OpenAI-compatible format
+            response = await aembedding(
+                model=self.model,
+                input=texts,
+                api_base=self.api_base,
+                api_key=self.api_key,
+                timeout=settings.embedding_timeout,
+                custom_llm_provider="openai",  # Use OpenAI-compatible API format for LiteLLM proxy
+            )
 
         elapsed = time.time() - start_time
 
@@ -225,6 +264,8 @@ class LiteLLMEmbeddingClient:
             text_count=len(texts),
             tokens_used=tokens_used,
             elapsed_seconds=round(elapsed, 2),
+            provider=self.provider,
+            is_direct_provider=is_direct_provider,
         )
 
         return embeddings, tokens_used
@@ -247,15 +288,23 @@ class LiteLLMEmbeddingClient:
         temperature: float = 0.3,
         max_tokens: int = 500,
         stream: bool = False,
+        model: str | None = None,
+        top_p: float | None = None,
     ):
         """Generate chat completion via LiteLLM.
 
+        Story 7-10: Supports KB-specific generation model via model parameter.
+
         Args:
             messages: List of message dicts with 'role' and 'content'.
-                Example: [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}]
+                Example: [{"role": "system", "content": "..."}, ...]
             temperature: Sampling temperature (0.0-2.0). Lower = more deterministic.
             max_tokens: Maximum tokens in response.
-            stream: If True, return async generator of chunks. If False, return complete response.
+            stream: If True, return async generator of chunks. If False, return
+                complete response.
+            model: Optional model ID override for KB-specific generation (Story 7-10).
+                If None, uses settings.llm_model default.
+            top_p: Nucleus sampling parameter (0.0-1.0). Controls token diversity.
 
         Returns:
             If stream=False: Response dict with 'choices' containing generated text.
@@ -266,24 +315,48 @@ class LiteLLMEmbeddingClient:
             EmbeddingError: If LLM API fails.
         """
         try:
-            response = await acompletion(
-                model=settings.llm_model,  # e.g., "gpt-4"
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                api_base=self.api_base,
-                api_key=self.api_key,
-                timeout=settings.embedding_timeout,  # Reuse embedding timeout
-                stream=stream,
-            )
+            # Use litellm_proxy/ prefix when calling through LiteLLM proxy server
+            # Per Context7 docs: model="litellm_proxy/your-model-name" for proxy calls
+            # This prevents duplicate streaming requests that occur with other prefixes
+            # Story 7-10: Use KB-specific model if provided, else use default
+            model_name = model or settings.llm_model
+            if not model_name.startswith("litellm_proxy/"):
+                # Strip any existing prefix and use litellm_proxy/
+                if "/" in model_name:
+                    model_name = model_name.split("/", 1)[1]
+                model_name = f"litellm_proxy/{model_name}"
+
+            # Build completion kwargs
+            completion_kwargs = {
+                "model": model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "api_base": self.api_base,
+                "api_key": self.api_key,
+                "timeout": settings.llm_timeout,  # Use LLM-specific timeout (120s)
+                "stream": stream,
+                "num_retries": 0,  # Disable retries to prevent duplicate streaming requests
+            }
+            # Only include top_p if provided (some models don't support it)
+            if top_p is not None:
+                completion_kwargs["top_p"] = top_p
+
+            response = await acompletion(**completion_kwargs)
 
             if stream:
                 # Return async generator for streaming
+                logger.debug(
+                    "chat_completion_stream_started",
+                    model=model_name,
+                    message_count=len(messages),
+                )
                 return response
             else:
                 # Return complete response
                 logger.debug(
                     "chat_completion_success",
+                    model=model_name,
                     message_count=len(messages),
                     response_length=(
                         len(response.choices[0].message.content)
@@ -321,6 +394,30 @@ async def get_embeddings(
         return await client.get_embeddings(texts)
 
     return await embedding_client.get_embeddings(texts)
+
+
+def reset_litellm_logging_worker() -> None:
+    """Reset LiteLLM's global logging worker queue.
+
+    Call this when initializing a new event loop (e.g., in Celery worker tasks)
+    to prevent "Queue is bound to a different event loop" errors.
+
+    The LoggingWorker uses asyncio.Queue which gets bound to the event loop
+    that was active when the queue was created. In Celery workers, each task
+    may run in a different event loop context, causing RuntimeError.
+    """
+    try:
+        from litellm.litellm_core_utils.logging_worker import GLOBAL_LOGGING_WORKER
+
+        if GLOBAL_LOGGING_WORKER is not None:
+            # Reset the queue to None so it will be recreated with the new event loop
+            GLOBAL_LOGGING_WORKER._queue = None
+            GLOBAL_LOGGING_WORKER._worker_task = None
+            GLOBAL_LOGGING_WORKER._sem = None
+            logger.debug("litellm_logging_worker_reset")
+    except Exception as e:
+        # Log but don't raise - this is best-effort
+        logger.debug("litellm_logging_worker_reset_skipped", reason=str(e))
 
 
 async def close_litellm_clients() -> None:

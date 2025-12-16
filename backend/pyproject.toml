@@ -40,6 +40,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Development and testing tools
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
@@ -55,21 +56,45 @@ dev = [
     # Async test support for Celery tasks
     "nest_asyncio>=1.6.0",
 ]
-all = [
+
+# API server dependencies (FastAPI + auth + monitoring)
+api = [
+    "prometheus-client>=0.21.0,<1.0.0",
+    "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
+]
+
+# Observability - LangFuse integration (Story 9-11)
+# Optional external observability provider for LLM tracing
+observability = [
+    "langfuse>=2.0.0,<3.0.0",
+]
+
+# Celery scheduler (beat) - minimal deps for task scheduling
+# Note: Includes boto3, qdrant-client, litellm because celery_app.py autodiscovers
+# document_tasks and outbox_tasks which import these at module level
+scheduler = [
+    "celery>=5.5.0,<6.0.0",
+    # Required for module imports during autodiscover
+    "boto3>=1.35.0",
+    "qdrant-client[async]>=1.12.0,<2.0.0",
+    "litellm>=1.50.0,<2.0.0",
+]
+
+# Celery worker - document processing, ML, vector DB
+worker = [
+    # Task Queue
+    "celery>=5.5.0,<6.0.0",
     # Vector & LLM
     "langchain>=0.3.0,<1.0.0",
     "langchain-core>=0.3.0,<1.0.0",
     "langchain-text-splitters>=0.3.0,<1.0.0",
     "langchain-qdrant>=0.1.0,<1.0.0",
-    "qdrant-client>=1.10.0,<2.0.0",
+    "qdrant-client[async]>=1.12.0,<2.0.0",
     "litellm>=1.50.0,<2.0.0",
     "tiktoken>=0.8.0,<1.0.0",
-    # Task Queue (redis dep already included above, don't use celery[redis] to avoid version conflict)
-    "celery>=5.5.0,<6.0.0",
     # Document Processing - PDF, DOCX, Markdown parsing
+    # Note: unstructured pulls in PyTorch; use CPU-only torch in Dockerfile
     "unstructured[pdf,docx,md]>=0.16.0,<1.0.0",
-    # Monitoring
-    "prometheus-client>=0.21.0,<1.0.0",
     # Object Storage
     "boto3>=1.35.0",
     # Natural Language Processing (Story 3.9 - keyword stemming)
@@ -79,6 +104,25 @@ all = [
     "reportlab>=4.0.0,<5.0.0",
     "beautifulsoup4>=4.12.0,<5.0.0",
     "markdown>=3.5.0,<4.0.0",
+    # Document Chunk Viewer (Story 5.25 - DOCX to HTML)
+    "mammoth>=1.8.0,<2.0.0",
+    # Markdown Generation from DOCX/PDF (Story 7.28)
+    "markdownify>=0.11.0,<1.0.0",
+]
+
+# Docling parser - enhanced document processing (Story 7.32)
+# Optional: pip install lumikb-backend[docling]
+# Enables advanced table extraction, layout analysis, and better markdown generation
+# Note: Docling has significant dependencies (torch, transformers) - use in GPU-enabled environments
+docling = [
+    "docling>=2.5.0,<3.0.0",
+    "docling-core>=2.0.0,<3.0.0",
+]
+
+# All dependencies (for local development)
+all = [
+    # Include all optional groups
+    "lumikb-backend[api,scheduler,worker]",
 ]
 
 [tool.setuptools.packages.find]
@@ -119,7 +163,9 @@ ignore = [
 # SIM117: Allow nested async with statements (session management)
 # SIM105: Allow try-except-pass for cleanup (intentional error suppression)
 # ARG001: Allow unused fixture arguments (fixtures used for side effects)
-"tests/**/*.py" = ["E402", "SIM117", "SIM105", "ARG001"]
+# ARG002: Allow unused method arguments (ATDD skipped tests use db_session)
+# F841: Allow unused variables (ATDD skipped tests prepare data before skip)
+"tests/**/*.py" = ["E402", "SIM117", "SIM105", "ARG001", "ARG002", "F841"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

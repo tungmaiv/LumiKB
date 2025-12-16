@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import {
   RotateCwIcon,
@@ -9,6 +10,10 @@ import {
   ArrowUpDownIcon,
   InfoIcon,
   TrashIcon,
+  ArchiveIcon,
+  MoreVerticalIcon,
+  LayersIcon,
+  XCircleIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,8 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { DocumentStatusBadge, type DocumentStatus } from './document-status-badge';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
+import { ArchiveConfirmationModal } from './archive-confirmation-modal';
+import { ClearConfirmationModal } from './clear-confirmation-modal';
+import { DocumentTagsDisplay } from './document-tag-input';
+import { useDocumentLifecycle } from '@/hooks/useDocumentLifecycle';
 import { useDocumentStatusPolling } from '@/lib/hooks/use-document-status-polling';
 import { showDocumentStatusToast } from '@/lib/utils/document-toast';
 import { cn } from '@/lib/utils';
@@ -45,6 +61,7 @@ interface Document {
   uploaded_by?: string | null;
   uploader_email?: string | null;
   version_number?: number;
+  tags?: string[];
 }
 
 interface DocumentListItemProps {
@@ -53,6 +70,8 @@ interface DocumentListItemProps {
   onRetry?: (documentId: string) => void;
   onClick?: () => void;
   onDeleted?: (documentId: string) => void;
+  /** Whether user can manage (archive/clear) documents */
+  canManage?: boolean;
 }
 
 /**
@@ -93,10 +112,23 @@ function formatRelativeDate(dateString: string): string {
 /**
  * Single document row with status polling.
  */
-function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted }: DocumentListItemProps) {
+function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted, canManage = false }: DocumentListItemProps) {
+  const router = useRouter();
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [localStatus, setLocalStatus] = useState<DocumentStatus>(document.status);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+
+  const { archiveDocument, clearDocument } = useDocumentLifecycle(kbId);
+
+  // Determine if archive/clear/cancel actions should be shown
+  const canArchive = canManage && localStatus === 'READY';
+  const canClear = canManage && localStatus === 'FAILED';
+  const canCancel = localStatus === 'PROCESSING' || localStatus === 'PENDING';
+  // View Chunks available for READY documents with chunks - only for owner/admin
+  const canViewChunks = canManage && localStatus === 'READY' && (document.chunk_count ?? 0) > 0;
 
   const handleStatusChange = useCallback(
     (newStatus: DocumentStatus) => {
@@ -141,6 +173,29 @@ function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted }: Docum
     }
   };
 
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsCancelling(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/documents/${document.id}/cancel`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
+
+      if (response.ok) {
+        showDocumentStatusToast(document.name, 'cancel');
+        setLocalStatus('FAILED');
+      }
+    } catch (err) {
+      console.error('Failed to cancel document processing:', err);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleClick = () => {
     onClick?.();
   };
@@ -180,6 +235,9 @@ function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted }: Docum
             <span className="shrink-0">Processed in {duration}s</span>
           )}
         </div>
+        {document.tags && document.tags.length > 0 && (
+          <DocumentTagsDisplay tags={document.tags} maxVisible={3} className="mt-1" />
+        )}
       </div>
 
       <div className="flex items-center gap-3 shrink-0 ml-4">
@@ -216,20 +274,64 @@ function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted }: Docum
           <InfoIcon className="size-4" />
         </Button>
 
-        {/* Delete button - disabled when processing */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 text-muted-foreground hover:text-destructive"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDeleteDialog(true);
-          }}
-          disabled={status === 'PROCESSING'}
-          title={status === 'PROCESSING' ? 'Cannot delete while processing' : 'Delete document'}
-        >
-          <TrashIcon className="size-4" />
-        </Button>
+        {/* Actions dropdown menu - for archive, clear, delete */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={(e) => e.stopPropagation()}
+              title="More actions"
+            >
+              <MoreVerticalIcon className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {canViewChunks && (
+              <DropdownMenuItem
+                onClick={() => router.push(`/documents/${document.id}/chunks?kb=${kbId}`)}
+              >
+                <LayersIcon className="mr-2 h-4 w-4" />
+                View Chunks
+              </DropdownMenuItem>
+            )}
+            {canArchive && (
+              <DropdownMenuItem onClick={() => setShowArchiveModal(true)}>
+                <ArchiveIcon className="mr-2 h-4 w-4" />
+                Archive
+              </DropdownMenuItem>
+            )}
+            {canClear && (
+              <DropdownMenuItem
+                onClick={() => setShowClearModal(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <TrashIcon className="mr-2 h-4 w-4" />
+                Clear
+              </DropdownMenuItem>
+            )}
+            {canCancel && (
+              <DropdownMenuItem
+                onClick={handleCancel}
+                disabled={isCancelling}
+                className="text-destructive focus:text-destructive"
+              >
+                <XCircleIcon className="mr-2 h-4 w-4" />
+                {isCancelling ? 'Cancelling...' : 'Cancel Processing'}
+              </DropdownMenuItem>
+            )}
+            {(canViewChunks || canArchive || canClear || canCancel) && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={status === 'PROCESSING' || status === 'PENDING'}
+              className="text-destructive focus:text-destructive"
+            >
+              <TrashIcon className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {isPolling && (
           <span className="text-xs text-muted-foreground animate-pulse">Checking...</span>
@@ -250,6 +352,32 @@ function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted }: Docum
         onError={(error) => {
           showDocumentStatusToast(document.name, 'delete-error', error);
         }}
+      />
+
+      {/* Archive confirmation modal */}
+      <ArchiveConfirmationModal
+        isOpen={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        onConfirm={async () => {
+          await archiveDocument.mutateAsync(document.id);
+          setShowArchiveModal(false);
+          onDeleted?.(document.id);
+        }}
+        documentName={document.name}
+        isLoading={archiveDocument.isPending}
+      />
+
+      {/* Clear confirmation modal */}
+      <ClearConfirmationModal
+        isOpen={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        onConfirm={async () => {
+          await clearDocument.mutateAsync(document.id);
+          setShowClearModal(false);
+          onDeleted?.(document.id);
+        }}
+        documentName={document.name}
+        isLoading={clearDocument.isPending}
       />
     </div>
   );
@@ -371,6 +499,8 @@ interface DocumentListProps {
   isLoading?: boolean;
   /** Total document count for display */
   total?: number;
+  /** Whether user can manage documents (archive/clear). Pass true if user is KB owner or admin */
+  canManage?: boolean;
 }
 
 /**
@@ -417,6 +547,7 @@ export function DocumentList({
   onSortOrderChange,
   isLoading = false,
   total,
+  canManage = false,
 }: DocumentListProps) {
   if (isLoading) {
     return (
@@ -472,6 +603,7 @@ export function DocumentList({
           onRetry={onRetry}
           onClick={() => onDocumentClick?.(doc)}
           onDeleted={onDeleted}
+          canManage={canManage}
         />
       ))}
 

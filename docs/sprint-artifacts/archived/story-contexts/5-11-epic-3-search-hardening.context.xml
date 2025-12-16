@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 5-11 Epic 3 Search Hardening (Technical Debt)
+  Generated: 2025-12-03
+  Status: READY_FOR_DEV
+
+  This file assembles all relevant context for developing Story 5-11.
+  The developer agent should load this file to understand the full scope.
+-->
+<story-context story-id="5-11" title="Epic 3 Search Hardening (Technical Debt)">
+
+  <!-- ================================================================== -->
+  <!-- STORY DEFINITION -->
+  <!-- ================================================================== -->
+  <story-definition>
+    <summary>
+      Address technical debt from Epic 3 Search implementation:
+      1. Add missing backend unit tests for similar_search
+      2. Add isolated unit tests for useDraftStore hook
+      3. Fix command palette dialog accessibility (WCAG 2.1 AA)
+      4. Screen reader testing verification
+      5. Optional: Desktop hover reveal for action buttons
+    </summary>
+
+    <acceptance-criteria>
+      <ac id="AC1">Backend unit tests for SearchService.similar_search() method (3 tests minimum)</ac>
+      <ac id="AC2">Frontend unit tests for useDraftStore Zustand hook (3 tests minimum)</ac>
+      <ac id="AC3">Command palette dialog has proper DialogTitle and Description for screen readers</ac>
+      <ac id="AC4">Manual screen reader testing documented (NVDA or VoiceOver)</ac>
+      <ac id="AC5">(Optional) Desktop hover reveal for SearchResultCard action buttons</ac>
+    </acceptance-criteria>
+
+    <tasks>
+      <task id="T1" status="pending">Add test_similar_search_uses_chunk_embedding unit test</task>
+      <task id="T2" status="pending">Add test_similar_search_excludes_original unit test</task>
+      <task id="T3" status="pending">Add test_similar_search_checks_permissions unit test</task>
+      <task id="T4" status="pending">Add test_add_remove_draft_selection hook unit test</task>
+      <task id="T5" status="pending">Add test_localStorage_persistence hook unit test</task>
+      <task id="T6" status="pending">Add test_clear_all_selections hook unit test</task>
+      <task id="T7" status="pending">Add VisuallyHidden DialogTitle to command-palette.tsx</task>
+      <task id="T8" status="pending">Add DialogDescription to command-palette.tsx</task>
+      <task id="T9" status="pending">Document screen reader testing results</task>
+      <task id="T10" status="pending">(Optional) Add hover reveal CSS to SearchResultCard</task>
+    </tasks>
+
+    <priority>Medium</priority>
+    <estimated-effort>4.5 hours (core) + 1-2 hours (optional)</estimated-effort>
+  </story-definition>
+
+  <!-- ================================================================== -->
+  <!-- TECH DEBT ITEMS -->
+  <!-- ================================================================== -->
+  <tech-debt-items>
+    <item id="TD-3.8-1" priority="Medium" effort="2h">
+      <title>Backend Unit Tests for Similar Search</title>
+      <description>Add unit tests for SearchService.similar_search() method to strengthen test pyramid.</description>
+      <missing-tests>
+        <test>test_similar_search_uses_chunk_embedding() - Verify chunk embedding retrieval from Qdrant</test>
+        <test>test_similar_search_excludes_original() - Verify original chunk filtered from results</test>
+        <test>test_similar_search_checks_permissions() - Verify KB permission enforcement</test>
+      </missing-tests>
+      <current-coverage>Integration tests exist (5/5 passing), unit tests missing (0/3)</current-coverage>
+    </item>
+
+    <item id="TD-3.8-2" priority="Low" effort="1.5h">
+      <title>Hook Unit Tests for Draft Selection</title>
+      <description>Add dedicated unit tests for useDraftStore Zustand hook.</description>
+      <missing-tests>
+        <test>test_add_remove_draft_selection() - Verify add/remove from draft</test>
+        <test>test_localStorage_persistence() - Verify localStorage sync</test>
+        <test>test_clear_all_selections() - Verify clearAll functionality</test>
+      </missing-tests>
+      <current-coverage>Hook tested via DraftSelectionPanel component tests (4/4 passing), isolated hook tests missing</current-coverage>
+    </item>
+
+    <item id="TD-3.7-1" priority="Medium" effort="0.5h">
+      <title>Command Palette Dialog Accessibility</title>
+      <description>DialogContent in command-palette.tsx is missing required accessibility attributes.</description>
+      <missing-elements>
+        <element>DialogTitle (required by Radix UI for a11y)</element>
+        <element>Description or aria-describedby attribute</element>
+      </missing-elements>
+      <proposed-fix><![CDATA[
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
+
+<DialogContent>
+  <VisuallyHidden>
+    <DialogTitle>Quick Search</DialogTitle>
+  </VisuallyHidden>
+  <DialogDescription className="sr-only">
+    Search across your knowledge bases
+  </DialogDescription>
+  {/* ... rest of content */}
+</DialogContent>
+      ]]></proposed-fix>
+    </item>
+
+    <item id="TD-3.8-3" priority="Medium" effort="1h">
+      <title>Screen Reader Support Verification</title>
+      <description>Manual testing with screen readers to verify WCAG 2.1 AA compliance.</description>
+      <test-scenarios>
+        <scenario>Action buttons announce labels correctly</scenario>
+        <scenario>Draft selection panel announces count changes</scenario>
+        <scenario>Similar search results navigable by screen reader</scenario>
+      </test-scenarios>
+      <current-state>ARIA labels implemented, keyboard navigation works (shadcn defaults), screen reader testing not performed</current-state>
+    </item>
+
+    <item id="TD-3.8-4" priority="Low" effort="0.5h" optional="true">
+      <title>Desktop Hover Reveal for Action Buttons</title>
+      <description>Implement hover reveal for action buttons on desktop (1024px+) instead of always-visible.</description>
+      <proposed-fix><![CDATA[
+<div className="flex gap-2 mt-4 pt-4 border-t border-gray-200
+                 lg:opacity-0 lg:group-hover:opacity-100
+                 transition-opacity">
+      ]]></proposed-fix>
+    </item>
+  </tech-debt-items>
+
+  <!-- ================================================================== -->
+  <!-- EXISTING CODE REFERENCES -->
+  <!-- ================================================================== -->
+  <code-references>
+    <!-- Backend: SearchService similar_search method -->
+    <file path="backend/app/services/search_service.py" relevance="HIGH">
+      <description>Contains similar_search() method that needs unit tests (lines 852-1050)</description>
+      <key-methods>
+        <method name="similar_search" lines="852-1050">Find content similar to a given chunk using pre-computed embeddings</method>
+      </key-methods>
+    </file>
+
+    <file path="backend/tests/unit/test_search_service.py" relevance="HIGH">
+      <description>Existing unit tests for SearchService - add similar_search tests here</description>
+      <pattern>Follow existing test patterns with mock_permission_service, mock_audit_service fixtures</pattern>
+    </file>
+
+    <!-- Frontend: Draft Store -->
+    <file path="frontend/src/lib/stores/draft-store.ts" relevance="HIGH">
+      <description>Zustand store for draft selection - needs isolated unit tests</description>
+      <interface><![CDATA[
+interface DraftStore {
+  selectedResults: DraftResult[];
+  addToDraft: (result: DraftResult) => void;
+  removeFromDraft: (chunkId: string) => void;
+  clearAll: () => void;
+  isInDraft: (chunkId: string) => boolean;
+}
+      ]]></interface>
+    </file>
+
+    <!-- Frontend: Command Palette -->
+    <file path="frontend/src/components/search/command-palette.tsx" relevance="HIGH">
+      <description>Command palette component - needs accessibility fixes (lines 120-199)</description>
+      <fix-location>DialogContent component around line 121-122</fix-location>
+    </file>
+
+    <file path="frontend/src/components/search/__tests__/command-palette.test.tsx" relevance="MEDIUM">
+      <description>Existing tests - reference for test patterns (10/10 passing)</description>
+      <note>Contains documentation about cmdk library filtering behavior and test fixes</note>
+    </file>
+
+    <!-- Frontend: Search Components -->
+    <file path="frontend/src/components/search/search-result-card.tsx" relevance="LOW">
+      <description>Optional: Add hover reveal CSS for action buttons</description>
+    </file>
+  </code-references>
+
+  <!-- ================================================================== -->
+  <!-- TESTING PATTERNS -->
+  <!-- ================================================================== -->
+  <testing-patterns>
+    <backend-pattern>
+      <description>Backend unit test pattern for SearchService</description>
+      <example><![CDATA[
+@pytest.mark.asyncio
+async def test_similar_search_uses_chunk_embedding(search_service):
+    """Test similar_search retrieves chunk embedding from Qdrant."""
+    chunk_id = "chunk-123"
+    user_id = "user-1"
+
+    # Mock Qdrant retrieve to return chunk with vector
+    mock_point = MagicMock()
+    mock_point.vector = [0.1, 0.2, 0.3]
+    mock_point.payload = {
+        "document_id": "doc-1",
+        "document_name": "Test.pdf",
+        "chunk_text": "Original chunk text",
+    }
+
+    search_service.qdrant_client = MagicMock()
+    search_service.qdrant_client.retrieve.return_value = [mock_point]
+    search_service.qdrant_client.search.return_value = []
+
+    # Execute similar search
+    with patch("app.services.search_service.embedding_client"):
+        response = await search_service.similar_search(
+            chunk_id=chunk_id,
+            kb_ids=None,
+            user_id=user_id,
+            limit=10,
+        )
+
+    # Verify chunk was retrieved
+    search_service.qdrant_client.retrieve.assert_called()
+      ]]></example>
+    </backend-pattern>
+
+    <frontend-pattern>
+      <description>Zustand store unit test pattern</description>
+      <example><![CDATA[
+import { describe, it, expect, beforeEach } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { useDraftStore } from '../draft-store';
+
+describe('useDraftStore', () => {
+  beforeEach(() => {
+    // Clear store between tests
+    const { result } = renderHook(() => useDraftStore());
+    act(() => {
+      result.current.clearAll();
+    });
+    // Clear localStorage
+    localStorage.clear();
+  });
+
+  it('adds and removes draft selections', () => {
+    const { result } = renderHook(() => useDraftStore());
+
+    const mockResult = {
+      chunkId: 'chunk-1',
+      documentId: 'doc-1',
+      documentName: 'Test.pdf',
+      chunkText: 'Test content',
+      kbId: 'kb-1',
+      kbName: 'Test KB',
+      relevanceScore: 0.9,
+    };
+
+    act(() => {
+      result.current.addToDraft(mockResult);
+    });
+
+    expect(result.current.selectedResults).toHaveLength(1);
+    expect(result.current.isInDraft('chunk-1')).toBe(true);
+
+    act(() => {
+      result.current.removeFromDraft('chunk-1');
+    });
+
+    expect(result.current.selectedResults).toHaveLength(0);
+    expect(result.current.isInDraft('chunk-1')).toBe(false);
+  });
+});
+      ]]></example>
+    </frontend-pattern>
+  </testing-patterns>
+
+  <!-- ================================================================== -->
+  <!-- ACCESSIBILITY FIX DETAILS -->
+  <!-- ================================================================== -->
+  <accessibility-fix>
+    <component>CommandPalette</component>
+    <file>frontend/src/components/search/command-palette.tsx</file>
+    <issue>Missing DialogTitle and DialogDescription for screen reader users</issue>
+    <wcag-criteria>WCAG 2.1 AA - 4.1.2 Name, Role, Value</wcag-criteria>
+
+    <implementation-steps>
+      <step n="1">Import VisuallyHidden from @radix-ui/react-visually-hidden</step>
+      <step n="2">Import DialogTitle, DialogDescription from @/components/ui/dialog</step>
+      <step n="3">Add VisuallyHidden DialogTitle after DialogContent opens</step>
+      <step n="4">Add DialogDescription with sr-only class for screen readers only</step>
+      <step n="5">Run tests to verify no regressions</step>
+    </implementation-steps>
+
+    <before><![CDATA[
+<DialogContent className="overflow-hidden p-0 shadow-lg">
+  <Command shouldFilter={false} ...>
+    ]]></before>
+
+    <after><![CDATA[
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
+
+<DialogContent className="overflow-hidden p-0 shadow-lg">
+  <VisuallyHidden>
+    <DialogTitle>Quick Search</DialogTitle>
+  </VisuallyHidden>
+  <DialogDescription className="sr-only">
+    Search across your knowledge bases. Type at least 2 characters to search.
+  </DialogDescription>
+  <Command shouldFilter={false} ...>
+    ]]></after>
+  </accessibility-fix>
+
+  <!-- ================================================================== -->
+  <!-- VALIDATION CHECKLIST -->
+  <!-- ================================================================== -->
+  <validation-checklist>
+    <section name="Backend Unit Tests">
+      <check>test_similar_search_uses_chunk_embedding passes</check>
+      <check>test_similar_search_excludes_original passes</check>
+      <check>test_similar_search_checks_permissions passes</check>
+      <check>All existing SearchService tests still pass</check>
+    </section>
+
+    <section name="Frontend Unit Tests">
+      <check>test_add_remove_draft_selection passes</check>
+      <check>test_localStorage_persistence passes</check>
+      <check>test_clear_all_selections passes</check>
+      <check>All existing draft-store tests still pass</check>
+    </section>
+
+    <section name="Accessibility">
+      <check>No Radix UI accessibility warnings in console</check>
+      <check>Command palette announces "Quick Search" to screen readers</check>
+      <check>All command-palette tests pass (10/10)</check>
+    </section>
+
+    <section name="Build">
+      <check>npm run build succeeds without errors</check>
+      <check>npm run lint passes</check>
+      <check>make test-backend passes</check>
+    </section>
+  </validation-checklist>
+
+  <!-- ================================================================== -->
+  <!-- COMMANDS -->
+  <!-- ================================================================== -->
+  <commands>
+    <command name="Run backend tests">
+      <code>cd backend && source .venv/bin/activate && pytest tests/unit/test_search_service.py -v</code>
+    </command>
+    <command name="Run frontend draft-store tests">
+      <code>cd frontend && npm test -- src/lib/stores/__tests__/draft-store.test.ts</code>
+    </command>
+    <command name="Run command-palette tests">
+      <code>cd frontend && npm test -- src/components/search/__tests__/command-palette.test.tsx</code>
+    </command>
+    <command name="Run all frontend tests">
+      <code>cd frontend && npm test</code>
+    </command>
+    <command name="Run linting">
+      <code>cd frontend && npm run lint</code>
+    </command>
+    <command name="Build frontend">
+      <code>cd frontend && npm run build</code>
+    </command>
+  </commands>
+
+</story-context>

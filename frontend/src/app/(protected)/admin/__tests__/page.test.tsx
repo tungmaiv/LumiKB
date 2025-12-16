@@ -1,21 +1,28 @@
 /**
-import { vi, describe, it, expect, beforeEach } from 'vitest';
- * Component tests for Admin Dashboard page
+ * Component Tests: Admin Dashboard Page (Story 5-1, AC1-AC6)
  *
- * Tests rendering, loading states, error states, and data display
+ * Test Coverage:
+ * - Loading state (skeleton display)
+ * - Error state (error message display)
+ * - Success state (all stat cards rendered)
+ * - Hook integration (useAdminStats)
+ * - Data formatting (formatBytes utility)
+ * - Responsive grid layout
+ * - Section organization
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
-import AdminPage from '../page';
+import AdminDashboardPage from '../page';
 
 // Mock useAdminStats hook
-vi.mock('@/hooks/useAdminStats', () => ({
-  useAdminStats: vi.fn(),
-}));
+vi.mock('@/hooks/useAdminStats');
 
-const { useAdminStats } = require('@/hooks/useAdminStats');
+import { useAdminStats } from '@/hooks/useAdminStats';
+
+const mockUseAdminStats = vi.mocked(useAdminStats);
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -31,168 +38,470 @@ const createWrapper = () => {
   );
 };
 
-const mockStats = {
-  users: { total: 100, active: 80, inactive: 20 },
-  knowledge_bases: { total: 50, by_status: { active: 45, archived: 5 } },
+const mockAdminStats = {
+  users: {
+    total: 150,
+    active: 120,
+    inactive: 30,
+  },
+  knowledge_bases: {
+    total: 45,
+    by_status: {
+      active: 40,
+      archived: 5,
+    },
+  },
   documents: {
-    total: 1000,
-    by_status: { READY: 900, PENDING: 50, FAILED: 50 },
+    total: 1250,
+    by_status: {
+      READY: 1100,
+      PENDING: 75,
+      PROCESSING: 50,
+      FAILED: 25,
+    },
   },
-  storage: { total_bytes: 1000000000, avg_doc_size_bytes: 1000000 },
+  storage: {
+    total_bytes: 1073741824, // 1GB
+    avg_doc_size_bytes: 1048576, // 1MB
+  },
   activity: {
-    searches: { last_24h: 10, last_7d: 70, last_30d: 300 },
-    generations: { last_24h: 5, last_7d: 35, last_30d: 150 },
+    searches: {
+      last_24h: 42,
+      last_7d: 285,
+      last_30d: 1150,
+    },
+    generations: {
+      last_24h: 15,
+      last_7d: 98,
+      last_30d: 420,
+    },
   },
-  trends: { searches: Array(30).fill(10), generations: Array(30).fill(5) },
+  trends: {
+    searches: Array.from({ length: 30 }, (_, i) => 90 + i),
+    generations: Array.from({ length: 30 }, (_, i) => 45 + i),
+  },
 };
 
-describe('AdminPage', () => {
+describe('AdminDashboardPage Component (Story 5-1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should display loading skeleton while fetching data', () => {
-    // Arrange
-    useAdminStats.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  describe('[P0] Loading State', () => {
+    it('should display loading skeletons while fetching data', () => {
+      mockUseAdminStats.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        isSuccess: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
+
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should show title
+      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+
+      // Should show 8 skeleton placeholders
+      const skeletons = document.querySelectorAll('.h-32');
+      expect(skeletons.length).toBeGreaterThanOrEqual(8);
     });
 
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
+    it('should not show stat cards while loading', () => {
+      mockUseAdminStats.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        isSuccess: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
 
-    // Assert
-    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
-    // Skeleton should be present (implementation may vary)
-  });
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
 
-  it('should display error message when fetch fails', () => {
-    // Arrange
-    useAdminStats.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      error: new Error('Failed to load stats'),
-      refetch: vi.fn(),
-    });
-
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
-
-    // Assert
-    expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
-  });
-
-  it('should display statistics when data is loaded', async () => {
-    // Arrange
-    useAdminStats.mockReturnValue({
-      data: mockStats,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
-
-    // Assert
-    await waitFor(() => {
-      // User stats
-      expect(screen.getByText('100')).toBeInTheDocument(); // Total users
-
-      // Knowledge base stats
-      expect(screen.getByText('50')).toBeInTheDocument(); // Total KBs
-
-      // Document stats
-      expect(screen.getByText('1,000')).toBeInTheDocument(); // Total documents
-
-      // Storage stats (formatted)
-      expect(screen.getByText(/GB|MB/i)).toBeInTheDocument();
-
-      // Activity stats
-      expect(screen.getByText('10')).toBeInTheDocument(); // Last 24h searches
-      expect(screen.getByText('5')).toBeInTheDocument(); // Last 24h generations
+      // Stat cards should not be visible
+      expect(screen.queryByText('Total Users')).not.toBeInTheDocument();
+      expect(screen.queryByText('Knowledge Bases')).not.toBeInTheDocument();
     });
   });
 
-  it('should format storage bytes correctly', () => {
-    // Arrange
-    useAdminStats.mockReturnValue({
-      data: mockStats,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  describe('[P0] Error State', () => {
+    it('should display error message when hook returns error', () => {
+      const errorMessage = 'Failed to fetch admin statistics';
+      mockUseAdminStats.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error(errorMessage),
+        isSuccess: false,
+        isError: true,
+        refetch: vi.fn(),
+      } as never);
+
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should show error message
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+
+      // Should not show stat cards
+      expect(screen.queryByText('Total Users')).not.toBeInTheDocument();
     });
 
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
+    it('should display generic error message when error is not Error instance', () => {
+      mockUseAdminStats.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: 'String error',
+        isSuccess: false,
+        isError: true,
+        refetch: vi.fn(),
+      } as never);
 
-    // Assert
-    // 1000000000 bytes = 1 GB
-    expect(screen.getByText(/1.*GB/i)).toBeInTheDocument();
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should show generic error
+      expect(screen.getByText('Failed to load statistics')).toBeInTheDocument();
+    });
+
+    it('should apply error styling to error container', () => {
+      mockUseAdminStats.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('Test error'),
+        isSuccess: false,
+        isError: true,
+        refetch: vi.fn(),
+      } as never);
+
+      const { container } = render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should have destructive border styling
+      const errorContainer = container.querySelector('.border-destructive');
+      expect(errorContainer).toBeInTheDocument();
+    });
   });
 
-  it('should display trend sparklines', () => {
-    // Arrange
-    useAdminStats.mockReturnValue({
-      data: mockStats,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  describe('[P0] Success State - User Statistics', () => {
+    beforeEach(() => {
+      mockUseAdminStats.mockReturnValue({
+        data: mockAdminStats,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
     });
 
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
+    it('should render page title and subtitle', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
 
-    // Assert
-    // Recharts renders SVG elements for charts
-    const charts = screen.getAllByRole('img', { hidden: true });
-    expect(charts.length).toBeGreaterThan(0);
+      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('System-wide statistics and metrics')).toBeInTheDocument();
+    });
+
+    it('should render "Users" section with all stat cards', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Section header
+      expect(screen.getByText('Users')).toBeInTheDocument();
+
+      // Total Users card
+      expect(screen.getByText('Total Users')).toBeInTheDocument();
+      expect(screen.getByText('150')).toBeInTheDocument();
+      expect(screen.getByText('All registered users')).toBeInTheDocument();
+
+      // Active Users card
+      expect(screen.getByText('Active Users')).toBeInTheDocument();
+      expect(screen.getByText('120')).toBeInTheDocument();
+      expect(screen.getByText('Active in last 30 days')).toBeInTheDocument();
+
+      // Inactive Users card
+      expect(screen.getByText('Inactive Users')).toBeInTheDocument();
+      expect(screen.getByText('30')).toBeInTheDocument();
+      expect(screen.getByText('No activity in 30+ days')).toBeInTheDocument();
+    });
   });
 
-  it('should display last updated timestamp', () => {
-    // Arrange
-    useAdminStats.mockReturnValue({
-      data: mockStats,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  describe('[P0] Success State - Content Statistics', () => {
+    beforeEach(() => {
+      mockUseAdminStats.mockReturnValue({
+        data: mockAdminStats,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
     });
 
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
+    it('should render "Content" section with all stat cards', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
 
-    // Assert
-    expect(screen.getByText(/last updated/i)).toBeInTheDocument();
+      // Section header
+      expect(screen.getByText('Content')).toBeInTheDocument();
+
+      // Knowledge Bases card
+      expect(screen.getByText('Knowledge Bases')).toBeInTheDocument();
+      expect(screen.getByText('45')).toBeInTheDocument();
+      expect(screen.getByText('Active: 40')).toBeInTheDocument();
+
+      // Total Documents card
+      expect(screen.getByText('Total Documents')).toBeInTheDocument();
+      expect(screen.getByText('1250')).toBeInTheDocument();
+      expect(screen.getByText('Ready: 1100')).toBeInTheDocument();
+
+      // Failed Documents card
+      expect(screen.getByText('Failed Documents')).toBeInTheDocument();
+      expect(screen.getByText('25')).toBeInTheDocument();
+      expect(screen.getByText('Pending: 75')).toBeInTheDocument();
+    });
+
+    it('should format storage bytes correctly', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Storage Used card
+      expect(screen.getByText('Storage Used')).toBeInTheDocument();
+      expect(screen.getByText('1 GB')).toBeInTheDocument(); // 1073741824 bytes = 1GB
+      expect(screen.getByText('Avg: 1 MB')).toBeInTheDocument(); // 1048576 bytes = 1MB
+    });
   });
 
-  it('should have refresh button', () => {
-    // Arrange
-    const mockRefetch = vi.fn();
-    useAdminStats.mockReturnValue({
-      data: mockStats,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: mockRefetch,
+  describe('[P0] Success State - Activity Statistics', () => {
+    beforeEach(() => {
+      mockUseAdminStats.mockReturnValue({
+        data: mockAdminStats,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
     });
 
-    // Act
-    render(<AdminPage />, { wrapper: createWrapper() });
+    it('should render "Activity" section with search statistics', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
 
-    // Assert
-    const refreshButton = screen.getByRole('button', { name: /refresh/i });
-    expect(refreshButton).toBeInTheDocument();
+      // Section header
+      expect(screen.getByText('Activity')).toBeInTheDocument();
 
-    // Click refresh
-    refreshButton.click();
-    expect(mockRefetch).toHaveBeenCalled();
+      // Searches (24h)
+      expect(screen.getByText('Searches (24h)')).toBeInTheDocument();
+      expect(screen.getByText('42')).toBeInTheDocument();
+      expect(screen.getByText('7d: 285 | 30d: 1150')).toBeInTheDocument();
+
+      // Searches (7d)
+      expect(screen.getByText('Searches (7d)')).toBeInTheDocument();
+      expect(screen.getByText('285')).toBeInTheDocument();
+
+      // Searches (30d)
+      expect(screen.getByText('Searches (30d)')).toBeInTheDocument();
+      expect(screen.getByText('1150')).toBeInTheDocument();
+    });
+
+    it('should render "Generations" section with generation statistics', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Section header
+      expect(screen.getByText('Generations')).toBeInTheDocument();
+
+      // Generations (24h)
+      expect(screen.getByText('Generations (24h)')).toBeInTheDocument();
+      expect(screen.getByText('15')).toBeInTheDocument();
+      expect(screen.getByText('7d: 98 | 30d: 420')).toBeInTheDocument();
+
+      // Generations (7d)
+      expect(screen.getByText('Generations (7d)')).toBeInTheDocument();
+      expect(screen.getByText('98')).toBeInTheDocument();
+
+      // Generations (30d)
+      expect(screen.getByText('Generations (30d)')).toBeInTheDocument();
+      expect(screen.getByText('420')).toBeInTheDocument();
+    });
+  });
+
+  describe('[P1] Data Formatting', () => {
+    it('should format bytes correctly for various sizes', () => {
+      const testCases = [
+        { bytes: 0, expected: '0 Bytes' },
+        { bytes: 1024, expected: '1 KB' },
+        { bytes: 1048576, expected: '1 MB' },
+        { bytes: 1073741824, expected: '1 GB' },
+        { bytes: 524288, expected: '512 KB' },
+      ];
+
+      testCases.forEach(({ bytes, expected }) => {
+        const statsWithBytes = {
+          ...mockAdminStats,
+          storage: {
+            total_bytes: bytes,
+            avg_doc_size_bytes: 0,
+          },
+        };
+
+        mockUseAdminStats.mockReturnValue({
+          data: statsWithBytes,
+          isLoading: false,
+          error: null,
+          isSuccess: true,
+          isError: false,
+          refetch: vi.fn(),
+        } as never);
+
+        const { unmount } = render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+        expect(screen.getByText(expected)).toBeInTheDocument();
+
+        unmount();
+      });
+    });
+  });
+
+  describe('[P2] Edge Cases', () => {
+    it('should handle missing by_status data gracefully', () => {
+      const statsWithMissingStatus = {
+        ...mockAdminStats,
+        knowledge_bases: {
+          total: 50,
+          by_status: {},
+        },
+        documents: {
+          total: 1000,
+          by_status: {},
+        },
+      };
+
+      mockUseAdminStats.mockReturnValue({
+        data: statsWithMissingStatus,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
+
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should show 0 for missing status counts
+      expect(screen.getByText('Active: 0')).toBeInTheDocument();
+      expect(screen.getByText('Ready: 0')).toBeInTheDocument();
+      expect(screen.getByText('Pending: 0')).toBeInTheDocument();
+    });
+
+    it('should render nothing when stats is undefined (edge case)', () => {
+      mockUseAdminStats.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
+
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should render empty container inside DashboardLayout (no stat cards)
+      expect(screen.queryByText('Total Users')).not.toBeInTheDocument();
+      expect(screen.queryByText('Knowledge Bases')).not.toBeInTheDocument();
+    });
+
+    it('should handle zero values correctly', () => {
+      const zeroStats = {
+        users: { total: 0, active: 0, inactive: 0 },
+        knowledge_bases: { total: 0, by_status: {} },
+        documents: { total: 0, by_status: {} },
+        storage: { total_bytes: 0, avg_doc_size_bytes: 0 },
+        activity: {
+          searches: { last_24h: 0, last_7d: 0, last_30d: 0 },
+          generations: { last_24h: 0, last_7d: 0, last_30d: 0 },
+        },
+        trends: { searches: [], generations: [] },
+      };
+
+      mockUseAdminStats.mockReturnValue({
+        data: zeroStats,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
+
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should show zeros
+      expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+      expect(screen.getByText('0 Bytes')).toBeInTheDocument();
+    });
+  });
+
+  describe('[P2] Responsive Layout', () => {
+    beforeEach(() => {
+      mockUseAdminStats.mockReturnValue({
+        data: mockAdminStats,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
+    });
+
+    it('should apply responsive grid classes', () => {
+      const { container } = render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      // Should have responsive grid classes
+      const grids = container.querySelectorAll('.grid');
+      expect(grids.length).toBeGreaterThan(0);
+
+      // Check for responsive breakpoint classes
+      const hasResponsiveClasses = Array.from(grids).some((grid) => {
+        const classes = grid.className;
+        return classes.includes('md:grid-cols') || classes.includes('lg:grid-cols');
+      });
+
+      expect(hasResponsiveClasses).toBe(true);
+    });
+
+    it('should have container with padding', () => {
+      const { container } = render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      const mainContainer = container.querySelector('.container');
+      expect(mainContainer).toBeInTheDocument();
+      expect(mainContainer).toHaveClass('mx-auto', 'p-6');
+    });
+  });
+
+  describe('[P1] Section Organization', () => {
+    beforeEach(() => {
+      mockUseAdminStats.mockReturnValue({
+        data: mockAdminStats,
+        isLoading: false,
+        error: null,
+        isSuccess: true,
+        isError: false,
+        refetch: vi.fn(),
+      } as never);
+    });
+
+    it('should render all 5 sections in correct order', () => {
+      render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      const sections = screen.getAllByRole('heading', { level: 2 });
+
+      expect(sections).toHaveLength(5);
+      expect(sections[0]).toHaveTextContent('Users');
+      expect(sections[1]).toHaveTextContent('Content');
+      expect(sections[2]).toHaveTextContent('Activity');
+      expect(sections[3]).toHaveTextContent('Generations');
+      expect(sections[4]).toHaveTextContent('Admin Tools');
+    });
+
+    it('should have semantic section elements', () => {
+      const { container } = render(<AdminDashboardPage />, { wrapper: createWrapper() });
+
+      const sections = container.querySelectorAll('section');
+      expect(sections.length).toBeGreaterThanOrEqual(3);
+    });
   });
 });

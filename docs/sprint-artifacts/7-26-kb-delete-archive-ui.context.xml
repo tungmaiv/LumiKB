@@ -1,0 +1,866 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-26" title="KB Delete/Archive UI">
+  <summary>
+    Implement frontend UI for KB lifecycle management: Archive, Restore, and Delete actions.
+    Provides confirmation dialogs with appropriate warnings, archived KB filter in list view,
+    and proper visual indicators for archived KBs. Delete is only enabled for empty KBs.
+  </summary>
+
+  <key-files>
+    <file path="frontend/src/components/kb/kb-selector-item.tsx" purpose="KB list item component">
+      <note>Lines 36-98: Current KB list item, needs archived state styling</note>
+      <note>Add Archive badge, grayed-out styling for archived KBs</note>
+    </file>
+    <file path="frontend/src/components/layout/kb-sidebar.tsx" purpose="KB sidebar with list">
+      <note>Add "Show Archived" toggle filter</note>
+      <note>Pass include_archived=true to API when toggled</note>
+    </file>
+    <file path="frontend/src/components/kb/kb-settings-modal.tsx" purpose="KB settings modal pattern">
+      <note>Reference pattern for Dialog, Tabs, Form usage</note>
+      <note>Shows shadcn/ui component patterns</note>
+    </file>
+    <file path="frontend/src/hooks/useArchive.ts" purpose="Document archive hook pattern">
+      <note>Lines 76-128: useMutation pattern for restore/purge operations</note>
+      <note>Follow this pattern for KB archive/restore/delete hooks</note>
+    </file>
+    <file path="frontend/src/components/documents/document-list.tsx" purpose="DropdownMenu pattern">
+      <note>Lines 26-31: DropdownMenu imports</note>
+      <note>Lines 33-35: Confirmation modal imports</note>
+      <note>Pattern for actions menu with confirmation dialogs</note>
+    </file>
+    <file path="frontend/src/components/admin/kb-permissions/edit-permission-modal.tsx" purpose="AlertDialog pattern">
+      <note>Lines 239-268: AlertDialog confirmation pattern with destructive action</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="useMutation Pattern for API Actions">
+      <description>From useArchive.ts - restore/purge mutation pattern</description>
+      <code><![CDATA[
+export function useRestoreDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      kbId,
+      documentId,
+    }: {
+      kbId: string;
+      documentId: string;
+    }): Promise<RestoreDocumentResponse> => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/documents/${documentId}/restore`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || 'Failed to restore document');
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['archived-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      toast.success('Document restored successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to restore document');
+    },
+  });
+}
+]]></code>
+    </pattern>
+    <pattern name="AlertDialog Confirmation">
+      <description>From edit-permission-modal.tsx - confirmation dialog pattern</description>
+      <code><![CDATA[
+<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle className="flex items-center gap-2">
+        <AlertTriangle className="h-5 w-5 text-destructive" />
+        Revoke Permission
+      </AlertDialogTitle>
+      <AlertDialogDescription>
+        Are you sure you want to revoke access for{" "}
+        <span className="font-medium">{permission.entity_name}</span>?
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+      <AlertDialogAction
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      >
+        {isDeleting && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        )}
+        Revoke Access
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+]]></code>
+    </pattern>
+    <pattern name="DropdownMenu Actions">
+      <description>From document-list.tsx - actions dropdown pattern</description>
+      <code><![CDATA[
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="ghost" size="icon">
+      <MoreVerticalIcon className="h-4 w-4" />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem onClick={onArchive}>
+      <ArchiveIcon className="mr-2 h-4 w-4" />
+      Archive
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem onClick={onDelete} disabled={hasDocuments}>
+      <TrashIcon className="mr-2 h-4 w-4" />
+      Delete
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+]]></code>
+    </pattern>
+    <pattern name="KB Selector Item Styling">
+      <description>From kb-selector-item.tsx - item styling pattern</description>
+      <code><![CDATA[
+<button
+  onClick={onClick}
+  className={cn(
+    'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors',
+    'hover:bg-accent hover:text-accent-foreground',
+    isActive && 'bg-accent text-accent-foreground'
+  )}
+>
+  {/* Content */}
+</button>
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-plan>
+    <task id="1" name="useKBActions Hook">
+      <description>Create hook for KB archive/restore/delete mutations</description>
+      <code><![CDATA[
+// frontend/src/hooks/useKBActions.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+export function useKBActions() {
+  const queryClient = useQueryClient();
+
+  const archiveMutation = useMutation({
+    mutationFn: async (kbId: string) => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/archive`,
+        { method: 'POST', credentials: 'include' }
+      );
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || error.message || 'Failed to archive KB');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
+      toast.success('Knowledge Base archived');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to archive KB');
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (kbId: string) => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/restore`,
+        { method: 'POST', credentials: 'include' }
+      );
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || error.message || 'Failed to restore KB');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
+      toast.success('Knowledge Base restored');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to restore KB');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (kbId: string) => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}`,
+        { method: 'DELETE', credentials: 'include' }
+      );
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || error.message || 'Failed to delete KB');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
+      toast.success('Knowledge Base deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete KB');
+    },
+  });
+
+  return { archiveMutation, restoreMutation, deleteMutation };
+}
+]]></code>
+    </task>
+    <task id="2" name="KBActionsMenu Component">
+      <description>Create dropdown menu for KB archive/delete/restore actions</description>
+      <code><![CDATA[
+// frontend/src/components/kb/kb-actions-menu.tsx
+'use client';
+
+import { useState } from 'react';
+import { Archive, ArchiveRestore, Trash2, MoreVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { ArchiveKBDialog } from './dialogs/archive-kb-dialog';
+import { DeleteKBDialog } from './dialogs/delete-kb-dialog';
+import { RestoreKBDialog } from './dialogs/restore-kb-dialog';
+import type { KnowledgeBase } from '@/lib/api/knowledge-bases';
+
+interface KBActionsMenuProps {
+  kb: KnowledgeBase;
+  onArchive: () => void;
+  onDelete: () => void;
+  onRestore: () => void;
+}
+
+export function KBActionsMenu({ kb, onArchive, onDelete, onRestore }: KBActionsMenuProps) {
+  const isArchived = kb.archived_at !== null;
+  const hasDocuments = kb.document_count > 0;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreVertical className="h-4 w-4" />
+          <span className="sr-only">KB actions</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {!isArchived ? (
+          <>
+            <DropdownMenuItem onClick={onArchive}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archive KB
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full">
+                    <DropdownMenuItem
+                      onClick={onDelete}
+                      disabled={hasDocuments}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete KB
+                    </DropdownMenuItem>
+                  </span>
+                </TooltipTrigger>
+                {hasDocuments && (
+                  <TooltipContent>
+                    <p>Remove all documents before deleting</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </>
+        ) : (
+          <DropdownMenuItem onClick={onRestore}>
+            <ArchiveRestore className="mr-2 h-4 w-4" />
+            Restore KB
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+]]></code>
+    </task>
+    <task id="3" name="ArchiveKBDialog Component">
+      <description>Confirmation dialog for archiving KB</description>
+      <code><![CDATA[
+// frontend/src/components/kb/dialogs/archive-kb-dialog.tsx
+'use client';
+
+import { Archive, AlertTriangle, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import type { KnowledgeBase } from '@/lib/api/knowledge-bases';
+
+interface ArchiveKBDialogProps {
+  kb: KnowledgeBase;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isLoading?: boolean;
+}
+
+export function ArchiveKBDialog({
+  kb,
+  open,
+  onOpenChange,
+  onConfirm,
+  isLoading = false,
+}: ArchiveKBDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Archive className="h-5 w-5 text-amber-500" />
+            Archive Knowledge Base
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              Are you sure you want to archive{" "}
+              <span className="font-medium">{kb.name}</span>?
+            </p>
+            {kb.document_count > 0 && (
+              <p className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                This will archive {kb.document_count} document{kb.document_count !== 1 ? 's' : ''}.
+              </p>
+            )}
+            <p className="text-muted-foreground">
+              Archived KBs are hidden from search and document upload is disabled.
+              You can restore the KB later.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-amber-600 text-white hover:bg-amber-700"
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Archive KB
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+]]></code>
+    </task>
+    <task id="4" name="DeleteKBDialog Component">
+      <description>Confirmation dialog for permanent deletion with name confirmation</description>
+      <code><![CDATA[
+// frontend/src/components/kb/dialogs/delete-kb-dialog.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { KnowledgeBase } from '@/lib/api/knowledge-bases';
+
+interface DeleteKBDialogProps {
+  kb: KnowledgeBase;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isLoading?: boolean;
+}
+
+export function DeleteKBDialog({
+  kb,
+  open,
+  onOpenChange,
+  onConfirm,
+  isLoading = false,
+}: DeleteKBDialogProps) {
+  const [confirmName, setConfirmName] = useState('');
+  const canDelete = confirmName === kb.name;
+
+  // Reset confirmation when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setConfirmName('');
+    }
+  }, [open]);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5 text-destructive" />
+            Delete Knowledge Base
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <p className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              This action cannot be undone.
+            </p>
+            <p>
+              This will permanently delete{" "}
+              <span className="font-medium">{kb.name}</span> and its Qdrant collection.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="py-4 space-y-2">
+          <Label htmlFor="confirm-name">
+            Type <span className="font-mono font-medium">{kb.name}</span> to confirm:
+          </Label>
+          <Input
+            id="confirm-name"
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            placeholder={kb.name}
+            disabled={isLoading}
+          />
+        </div>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={!canDelete || isLoading}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Delete Permanently
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+]]></code>
+    </task>
+    <task id="5" name="RestoreKBDialog Component">
+      <description>Confirmation dialog for restoring archived KB</description>
+      <code><![CDATA[
+// frontend/src/components/kb/dialogs/restore-kb-dialog.tsx
+'use client';
+
+import { ArchiveRestore, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import type { KnowledgeBase } from '@/lib/api/knowledge-bases';
+
+interface RestoreKBDialogProps {
+  kb: KnowledgeBase;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isLoading?: boolean;
+}
+
+export function RestoreKBDialog({
+  kb,
+  open,
+  onOpenChange,
+  onConfirm,
+  isLoading = false,
+}: RestoreKBDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ArchiveRestore className="h-5 w-5 text-green-600" />
+            Restore Knowledge Base
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              Are you sure you want to restore{" "}
+              <span className="font-medium">{kb.name}</span>?
+            </p>
+            {kb.document_count > 0 && (
+              <p>
+                This will restore {kb.document_count} document{kb.document_count !== 1 ? 's' : ''}.
+              </p>
+            )}
+            <p className="text-muted-foreground">
+              The KB will become active and searchable again.
+              Document upload will be enabled.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Restore KB
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+]]></code>
+    </task>
+    <task id="6" name="Archived KB Styling in List Item">
+      <description>Add archived state styling to KbSelectorItem</description>
+      <code><![CDATA[
+// Update frontend/src/components/kb/kb-selector-item.tsx
+import { Archive } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+interface KbSelectorItemProps {
+  name: string;
+  documentCount: number;
+  permissionLevel: PermissionLevel;
+  tags?: string[];
+  isActive?: boolean;
+  isArchived?: boolean;  // NEW
+  onClick?: () => void;
+}
+
+export function KbSelectorItem({
+  name,
+  documentCount,
+  permissionLevel,
+  tags = [],
+  isActive = false,
+  isArchived = false,  // NEW
+  onClick,
+}: KbSelectorItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors',
+        'hover:bg-accent hover:text-accent-foreground',
+        isActive && 'bg-accent text-accent-foreground',
+        isArchived && 'opacity-60 bg-muted/50'  // NEW: archived styling
+      )}
+    >
+      {/* Permission icon */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium" title={name}>
+            {name}
+          </span>
+          {/* NEW: Archived badge */}
+          {isArchived && (
+            <Badge variant="secondary" className="text-xs shrink-0">
+              <Archive className="h-3 w-3 mr-1" />
+              Archived
+            </Badge>
+          )}
+        </div>
+        {/* Tags */}
+      </div>
+      {/* Document count */}
+    </button>
+  );
+}
+]]></code>
+    </task>
+    <task id="7" name="Show Archived Toggle in KB Sidebar">
+      <description>Add filter toggle for showing archived KBs</description>
+      <code><![CDATA[
+// Update frontend/src/components/layout/kb-sidebar.tsx
+import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+
+// In component:
+const [showArchived, setShowArchived] = useState(false);
+
+// Pass to API query:
+const { data: kbs } = useKnowledgeBases({ include_archived: showArchived });
+
+// In JSX, add toggle above KB list:
+<div className="flex items-center justify-between px-3 py-2 border-b">
+  <Label htmlFor="show-archived" className="text-xs text-muted-foreground">
+    Show archived
+  </Label>
+  <Switch
+    id="show-archived"
+    checked={showArchived}
+    onCheckedChange={setShowArchived}
+  />
+</div>
+]]></code>
+    </task>
+  </implementation-plan>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.26.1" status="not-implemented">
+      <description>KB actions menu with Archive/Delete options</description>
+      <implementation>KBActionsMenu component with DropdownMenu</implementation>
+    </criterion>
+    <criterion id="AC-7.26.2" status="not-implemented">
+      <description>Delete disabled for non-empty KB with tooltip</description>
+      <implementation>disabled={hasDocuments} with TooltipProvider</implementation>
+    </criterion>
+    <criterion id="AC-7.26.3" status="not-implemented">
+      <description>Archive confirmation dialog</description>
+      <implementation>ArchiveKBDialog with document count warning</implementation>
+    </criterion>
+    <criterion id="AC-7.26.4" status="not-implemented">
+      <description>Delete confirmation with name input</description>
+      <implementation>DeleteKBDialog requiring exact name match</implementation>
+    </criterion>
+    <criterion id="AC-7.26.5" status="not-implemented">
+      <description>Archived KB list filter</description>
+      <implementation>Switch toggle with include_archived query param</implementation>
+    </criterion>
+    <criterion id="AC-7.26.6" status="not-implemented">
+      <description>Restore action from archived list</description>
+      <implementation>RestoreKBDialog with confirmation</implementation>
+    </criterion>
+    <criterion id="AC-7.26.7" status="not-implemented">
+      <description>Backend DELETE for empty KB only</description>
+      <implementation>Update DELETE /knowledge-bases/{id} endpoint</implementation>
+    </criterion>
+    <criterion id="AC-7.26.8" status="not-implemented">
+      <description>Backend DELETE returns 400 for non-empty KB</description>
+      <implementation>Check document_count > 0, return error message</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <dependency story="7-24" status="not-started">KB Archive Backend - POST /archive endpoint</dependency>
+    <dependency story="7-25" status="not-started">KB Restore Backend - POST /restore endpoint</dependency>
+    <dependency story="2-3" status="completed">KB List and Selection Frontend</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>Test KBActionsMenu shows Archive/Delete for active KB</test>
+      <test>Test KBActionsMenu shows Restore for archived KB</test>
+      <test>Test Delete button disabled when document_count > 0</test>
+      <test>Test tooltip shown on disabled Delete button</test>
+      <test>Test ArchiveKBDialog shows document count</test>
+      <test>Test DeleteKBDialog requires exact name match</test>
+      <test>Test RestoreKBDialog shows document count</test>
+      <test>Test KbSelectorItem archived styling</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Archive KB flow: click Archive -> confirm -> KB moves to archived</test>
+      <test>Restore KB flow: toggle archived -> click Restore -> confirm -> KB active</test>
+      <test>Delete empty KB flow: click Delete -> type name -> confirm -> KB removed</test>
+      <test>Delete non-empty KB blocked: click Delete -> button disabled</test>
+    </integration-tests>
+    <e2e-tests>
+      <test>Complete archive/restore cycle with real backend</test>
+      <test>Delete empty KB with real backend</test>
+      <test>Verify archived KB filter toggle</test>
+    </e2e-tests>
+    <test-fixtures>
+      <fixture name="kb-actions-menu-test">
+        <code><![CDATA[
+// frontend/src/components/kb/__tests__/kb-actions-menu.test.tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { KBActionsMenu } from '../kb-actions-menu';
+
+const mockKB = {
+  id: 'test-kb-id',
+  name: 'Test KB',
+  document_count: 5,
+  archived_at: null,
+};
+
+describe('KBActionsMenu', () => {
+  it('shows Archive and Delete for active KB', async () => {
+    const user = userEvent.setup();
+    render(
+      <KBActionsMenu
+        kb={mockKB}
+        onArchive={jest.fn()}
+        onDelete={jest.fn()}
+        onRestore={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByText('Archive KB')).toBeInTheDocument();
+    expect(screen.getByText('Delete KB')).toBeInTheDocument();
+  });
+
+  it('disables Delete when KB has documents', async () => {
+    const user = userEvent.setup();
+    render(
+      <KBActionsMenu
+        kb={mockKB}
+        onArchive={jest.fn()}
+        onDelete={jest.fn()}
+        onRestore={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button'));
+    const deleteItem = screen.getByText('Delete KB').closest('[role="menuitem"]');
+    expect(deleteItem).toHaveAttribute('data-disabled');
+  });
+
+  it('shows Restore for archived KB', async () => {
+    const user = userEvent.setup();
+    const archivedKB = { ...mockKB, archived_at: '2025-01-01T00:00:00Z' };
+
+    render(
+      <KBActionsMenu
+        kb={archivedKB}
+        onArchive={jest.fn()}
+        onDelete={jest.fn()}
+        onRestore={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByText('Restore KB')).toBeInTheDocument();
+    expect(screen.queryByText('Archive KB')).not.toBeInTheDocument();
+  });
+});
+]]></code>
+      </fixture>
+      <fixture name="delete-kb-dialog-test">
+        <code><![CDATA[
+// frontend/src/components/kb/dialogs/__tests__/delete-kb-dialog.test.tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { DeleteKBDialog } from '../delete-kb-dialog';
+
+const mockKB = {
+  id: 'test-kb-id',
+  name: 'My Test KB',
+  document_count: 0,
+  archived_at: null,
+};
+
+describe('DeleteKBDialog', () => {
+  it('requires exact name match to enable delete', async () => {
+    const user = userEvent.setup();
+    const onConfirm = jest.fn();
+
+    render(
+      <DeleteKBDialog
+        kb={mockKB}
+        open={true}
+        onOpenChange={jest.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+
+    const deleteButton = screen.getByRole('button', { name: /delete permanently/i });
+    expect(deleteButton).toBeDisabled();
+
+    const input = screen.getByPlaceholderText(mockKB.name);
+    await user.type(input, 'Wrong Name');
+    expect(deleteButton).toBeDisabled();
+
+    await user.clear(input);
+    await user.type(input, mockKB.name);
+    expect(deleteButton).toBeEnabled();
+  });
+});
+]]></code>
+      </fixture>
+    </test-fixtures>
+  </test-strategy>
+
+  <api-contract>
+    <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/archive">
+      <description>Archive a Knowledge Base (from Story 7-24)</description>
+      <response status="200">
+        <body schema="KBResponse">Archived KB details with archived_at set</body>
+      </response>
+    </endpoint>
+    <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/restore">
+      <description>Restore an archived Knowledge Base (from Story 7-25)</description>
+      <response status="200">
+        <body schema="KBResponse">Restored KB details with archived_at=null</body>
+      </response>
+    </endpoint>
+    <endpoint method="DELETE" path="/api/v1/knowledge-bases/{kb_id}">
+      <description>Permanently delete an empty Knowledge Base</description>
+      <response status="200">
+        <body>{"message": "Knowledge Base deleted"}</body>
+      </response>
+      <response status="400">
+        <body>{"code": "KB_NOT_EMPTY", "message": "Cannot delete KB with documents. Archive or remove documents first."}</body>
+      </response>
+    </endpoint>
+    <endpoint method="GET" path="/api/v1/knowledge-bases">
+      <description>List Knowledge Bases with optional archived filter</description>
+      <request>
+        <param name="include_archived" type="boolean" location="query" required="false">Include archived KBs in listing</param>
+      </request>
+    </endpoint>
+  </api-contract>
+</story-context>

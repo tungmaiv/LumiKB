@@ -1,11 +1,14 @@
 /**
  * ChatMessage Component - Epic 4, Story 4.2
+ * Story 9-15: Added debug info panel support
  * Renders individual chat messages with user/AI styling, timestamps, and citations
  */
 
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { DebugInfoPanel } from './debug-info-panel';
+import type { DebugInfo } from '@/types/debug';
 
 interface Citation {
   number: number;
@@ -20,6 +23,8 @@ interface ChatMessageProps {
   citations: Citation[];
   confidence?: number;
   onCitationClick?: (citation: Citation) => void;
+  /** Debug info (AC-9.15.14) - displayed in collapsible panel for assistant messages */
+  debugInfo?: DebugInfo;
 }
 
 /**
@@ -122,11 +127,14 @@ export function ChatMessage({
   citations,
   confidence,
   onCitationClick,
+  debugInfo,
 }: ChatMessageProps) {
   const isUser = role === 'user';
   const isAssistant = role === 'assistant';
   const showConfidence = isAssistant && confidence !== undefined;
   const confidenceStyles = showConfidence ? getConfidenceStyles(confidence) : null;
+  // AC-9.15.14: Show debug panel for assistant messages when debug info is present
+  const showDebugPanel = isAssistant && debugInfo !== undefined;
 
   return (
     <div
@@ -182,6 +190,11 @@ export function ChatMessage({
           </div>
         )}
       </div>
+
+      {/* Debug Info Panel (AC-9.15.14-17) - only for assistant messages with debug data */}
+      {showDebugPanel && debugInfo && (
+        <DebugInfoPanel debugInfo={debugInfo} className="w-full" />
+      )}
     </div>
   );
 }

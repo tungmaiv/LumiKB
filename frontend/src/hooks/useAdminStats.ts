@@ -40,11 +40,8 @@ export function useAdminStats() {
   return useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: async (): Promise<AdminStats> => {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/api/v1/admin/stats`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       if (!res.ok) {

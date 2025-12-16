@@ -50,6 +50,8 @@ async def store_parsed_content(
             "page_count": parsed.page_count,
             "section_count": parsed.section_count,
         },
+        # Story 7.28 (AC-7.28.4): Include markdown content for chunk viewer
+        "markdown_content": parsed.markdown_content,
     }
 
     # Serialize to JSON
@@ -108,10 +110,12 @@ async def load_parsed_content(kb_id: UUID, document_id: UUID) -> ParsedContent |
             for el in content_dict["elements"]
         ]
 
+        # Story 7.28 (AC-7.28.4): Load markdown_content for chunk viewer
         return ParsedContent(
             text=content_dict["text"],
             elements=elements,
             metadata=content_dict["metadata"],
+            markdown_content=content_dict.get("markdown_content"),
         )
 
     except Exception as e:

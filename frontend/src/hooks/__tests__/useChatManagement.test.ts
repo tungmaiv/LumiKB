@@ -259,7 +259,7 @@ describe('useChatManagement - localStorage persistence', () => {
       // THEN: Error was thrown and is set in state
       expect(thrownError).toBeTruthy();
       if (thrownError) {
-        expect(thrownError.message).toBe('Undo window expired (30 seconds)');
+        expect((thrownError as Error).message).toBe('Undo window expired (30 seconds)');
       }
       expect(result.current.error).toBe('Undo window expired (30 seconds)');
     });

@@ -1,0 +1,61 @@
+# LumiKB Celery Worker Dockerfile
+# Document processing worker with ML/vector dependencies
+# Dependencies: Celery, unstructured, langchain, qdrant, torch (CPU-only)
+
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only dependency files first for better caching
+COPY pyproject.toml ./
+
+# Install worker dependencies
+# IMPORTANT: Pre-install CPU-only PyTorch BEFORE unstructured to avoid ~1.5GB NVIDIA packages
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir .[worker,docling]
+
+# Stage 2: Runtime
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies for document processing
+# poppler-utils: PDF parsing
+# libmagic1: File type detection
+# libgl1: OpenGL library required by OpenCV (cv2) used by unstructured
+# libglib2.0-0: GLib library required by OpenCV
+# tesseract-ocr: OCR for scanned PDFs and images
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    libmagic1 \
+    libgl1 \
+    libglib2.0-0 \
+    tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Download NLTK data required by unstructured for document parsing (DOCX, etc.)
+# punkt_tab: Sentence tokenization (required for text chunking)
+# averaged_perceptron_tagger_eng: POS tagging (may be needed for some parsers)
+RUN python -m nltk.downloader -d /usr/local/share/nltk_data punkt_tab averaged_perceptron_tagger_eng
+
+# Copy application code
+COPY . .
+
+# Set Python path
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV NLTK_DATA=/usr/local/share/nltk_data
+
+# Default command (can be overridden in docker-compose)
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--queues=default,document_processing", "--concurrency=2"]

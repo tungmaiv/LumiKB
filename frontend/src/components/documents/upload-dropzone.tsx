@@ -68,21 +68,41 @@ export function UploadDropzone({
   // State for duplicate dialog
   const [duplicateFile, setDuplicateFile] = useState<UploadFile | null>(null);
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null);
+  const [isReplacing, setIsReplacing] = useState(false);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
 
   // Initialize file upload hook
   const { files, addFiles, cancelUpload, retryUpload, replaceFile, skipDuplicate, isUploading } =
     useFileUpload({
       kbId,
       onUploadComplete: (file) => {
+        // If this was a replace operation, clear the replacing state
+        if (isReplacing) {
+          setIsReplacing(false);
+          setDuplicateFile(null);
+          setDuplicateInfo(null);
+          setReplaceError(null);
+        }
         showDocumentStatusToast(file.file.name, 'upload-success');
         onUploadComplete?.();
       },
       onUploadError: (file, error) => {
+        // If this was a replace operation, show error in dialog
+        if (isReplacing) {
+          setIsReplacing(false);
+          setReplaceError(error);
+          return; // Don't show toast, error is shown in dialog
+        }
         showDocumentStatusToast(file.file.name, 'upload-error', error);
       },
       onDuplicateDetected: (file, info) => {
         setDuplicateFile(file);
         setDuplicateInfo(info);
+        setReplaceError(null);
+      },
+      // AC-6.9.4: Auto-clear notification
+      onAutoClear: (_documentId, message) => {
+        showDocumentStatusToast('', 'info', message);
       },
     });
 
@@ -127,9 +147,10 @@ export function UploadDropzone({
   // Handlers for duplicate dialog
   const handleDuplicateReplace = useCallback(() => {
     if (duplicateFile) {
+      setIsReplacing(true);
+      setReplaceError(null);
       replaceFile(duplicateFile.id);
-      setDuplicateFile(null);
-      setDuplicateInfo(null);
+      // Don't close dialog - wait for success/error callback
     }
   }, [duplicateFile, replaceFile]);
 
@@ -138,11 +159,13 @@ export function UploadDropzone({
       skipDuplicate(duplicateFile.id);
       setDuplicateFile(null);
       setDuplicateInfo(null);
+      setReplaceError(null);
+      setIsReplacing(false);
     }
   }, [duplicateFile, skipDuplicate]);
 
   const handleDuplicateCancel = useCallback(() => {
-    // Cancel is same as skip for now
+    // Cancel is same as skip
     handleDuplicateSkip();
   }, [handleDuplicateSkip]);
 
@@ -229,6 +252,8 @@ export function UploadDropzone({
         onSkip={handleDuplicateSkip}
         filename={duplicateFile?.file.name || ''}
         duplicateInfo={duplicateInfo}
+        isReplacing={isReplacing}
+        error={replaceError}
       />
     </div>
   );

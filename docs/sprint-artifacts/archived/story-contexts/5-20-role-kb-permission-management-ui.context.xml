@@ -1,0 +1,688 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document
+  Generated: 2025-12-05
+  Story: 5-20-role-kb-permission-management-ui
+  Purpose: Provide development agent with all context needed for implementation
+-->
+<story-context story-id="5-20" epic-id="5" generated="2025-12-05">
+
+  <story-summary>
+    <title>Role &amp; KB Permission Management UI</title>
+    <description>Admin UI for managing Knowledge Base permissions for both users and groups, including group-level permission inheritance and effective permission display.</description>
+    <priority>MEDIUM</priority>
+    <points>5</points>
+    <status>drafted</status>
+    <owner>Amelia (Dev)</owner>
+    <support>Winston (Architect)</support>
+  </story-summary>
+
+  <prerequisites>
+    <prerequisite id="5.18" status="DONE">User Management UI</prerequisite>
+    <prerequisite id="5.19" status="DONE">Group Management</prerequisite>
+    <prerequisite id="2.2" status="DONE">Knowledge Base Permissions Backend</prerequisite>
+  </prerequisites>
+
+  <acceptance-criteria>
+    <criterion id="AC-5.20.1" title="KB Permission Tab Added">
+      <description>Admin can view KB permissions with User Permissions and Group Permissions sections showing entity, permission level badge, source indicator, created date, and actions.</description>
+      <technical-notes>
+        - Create `/admin/kb-permissions/[kb_id]/page.tsx` or add Permissions tab to KB detail
+        - Fetch both user and group permissions via API
+        - Use table component patterns from Story 5.18/5.19
+      </technical-notes>
+    </criterion>
+    <criterion id="AC-5.20.2" title="Add Permission Modal Implemented">
+      <description>Admin can add user or group permissions via modal with entity picker (email autocomplete for users, dropdown for groups), permission level dropdown, validation for duplicates, and proper error handling.</description>
+      <technical-notes>
+        - Reuse user search from useUsers hook
+        - Reuse group list from useGroups hook
+        - Create separate modals: AddUserPermissionModal, AddGroupPermissionModal
+        - Follow react-hook-form + zod patterns
+      </technical-notes>
+    </criterion>
+    <criterion id="AC-5.20.3" title="Edit/Remove Permission Works">
+      <description>Admin can edit permission level via dropdown and remove permissions with confirmation dialog. Warning shown when removing last ADMIN. Changes logged to audit.events.</description>
+      <technical-notes>
+        - Edit can be inline dropdown or modal
+        - Delete confirmation using existing AlertDialog pattern
+        - Prevent removing own admin permission if KB owner
+      </technical-notes>
+    </criterion>
+    <criterion id="AC-5.20.4" title="Group Permission Inheritance Displayed">
+      <description>View shows both direct and inherited permissions. Direct permission always takes precedence over group permission (per epics.md). Display both entries with source indication.</description>
+      <technical-notes>
+        - Backend computes effective permissions (direct overrides group)
+        - Cache effective permissions in Redis (5min TTL)
+        - API response includes source: "direct" | "group" and source_group_name
+      </technical-notes>
+    </criterion>
+    <criterion id="AC-5.20.5" title="Backend API Extended for Groups">
+      <description>Create kb_group_permissions table, extend POST/GET permissions endpoints to handle both user_id and group_id, add DELETE by permission_id, add effective-permissions endpoint.</description>
+      <technical-notes>
+        - Migration: Add kb_group_permissions table
+        - POST accepts user_id OR group_id (mutually exclusive)
+        - GET returns entity_type: "user" | "group"
+        - Permission resolution: direct wins, else highest group
+      </technical-notes>
+    </criterion>
+    <criterion id="AC-5.20.6" title="Admin Navigation Updated">
+      <description>Permissions accessible via KB row actions or dedicated admin nav link. Non-admin users get 403.</description>
+      <technical-notes>
+        - Add permission check using AdminGuard or is_superuser
+        - Mobile-responsive design
+      </technical-notes>
+    </criterion>
+  </acceptance-criteria>
+
+  <existing-code-artifacts>
+    <artifact type="model" path="backend/app/models/permission.py">
+      <description>Existing KBPermission model with PermissionLevel enum (READ, WRITE, ADMIN)</description>
+      <key-elements>
+        - KBPermission class with user_id, kb_id, permission_level
+        - PermissionLevel enum: READ, WRITE, ADMIN
+        - PERMISSION_HIERARCHY for level comparison
+        - Unique constraint on (user_id, kb_id)
+      </key-elements>
+      <code-snippet><![CDATA[
+class PermissionLevel(str, enum.Enum):
+    """Permission levels for Knowledge Base access."""
+    READ = "READ"
+    WRITE = "WRITE"
+    ADMIN = "ADMIN"
+
+class KBPermission(Base):
+    __tablename__ = "kb_permissions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "kb_id", name="uq_kb_permissions_user_kb"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    kb_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False)
+    permission_level: Mapped[PermissionLevel] = mapped_column(Enum(PermissionLevel), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+]]></code-snippet>
+    </artifact>
+
+    <artifact type="model" path="backend/app/models/group.py">
+      <description>Group and UserGroup models from Story 5.19</description>
+      <key-elements>
+        - Group class with name, description, is_active
+        - UserGroup junction table for user membership
+        - member_count property
+        - Cascade delete relationships
+      </key-elements>
+      <code-snippet><![CDATA[
+class Group(Base):
+    __tablename__ = "groups"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    user_groups: Mapped[list["UserGroup"]] = relationship("UserGroup", back_populates="group", cascade="all, delete-orphan")
+
+class UserGroup(Base):
+    __tablename__ = "user_groups"
+    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    group_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True)
+]]></code-snippet>
+    </artifact>
+
+    <artifact type="schema" path="backend/app/schemas/permission.py">
+      <description>Permission Pydantic schemas for API contracts</description>
+      <key-elements>
+        - PermissionCreate: user_id, permission_level
+        - PermissionResponse: id, user_id, email, kb_id, permission_level, created_at
+        - PermissionListResponse: paginated list
+      </key-elements>
+      <code-snippet><![CDATA[
+class PermissionCreate(BaseModel):
+    user_id: UUID = Field(..., description="UUID of the user to grant permission to")
+    permission_level: PermissionLevel = Field(..., description="Permission level to grant")
+
+class PermissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    user_id: UUID
+    email: str
+    kb_id: UUID
+    permission_level: PermissionLevel
+    created_at: datetime
+
+class PermissionListResponse(BaseModel):
+    data: list[PermissionResponse] = Field(default_factory=list)
+    total: int
+    page: int
+    limit: int
+]]></code-snippet>
+    </artifact>
+
+    <artifact type="api" path="backend/app/api/v1/knowledge_bases.py" lines="281-424">
+      <description>Existing permission management endpoints</description>
+      <key-elements>
+        - POST /{kb_id}/permissions/ - grant_permission
+        - GET /{kb_id}/permissions/ - list_permissions
+        - DELETE /{kb_id}/permissions/{user_id} - revoke_permission
+        - All require ADMIN permission on KB
+      </key-elements>
+      <code-snippet><![CDATA[
+@router.post("/{kb_id}/permissions/", response_model=PermissionResponse, status_code=status.HTTP_201_CREATED)
+async def grant_permission(kb_id: UUID, data: PermissionCreate, current_user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
+    kb_service = KBService(session)
+    permission = await kb_service.grant_permission(kb_id=kb_id, user_id=data.user_id, level=data.permission_level, admin=current_user)
+    # ... return PermissionResponse
+
+@router.get("/{kb_id}/permissions/", response_model=PermissionListResponse)
+async def list_permissions(kb_id: UUID, page: int = Query(default=1), limit: int = Query(default=20), ...):
+    permissions, total = await kb_service.list_permissions(kb_id=kb_id, admin=current_user, page=page, limit=limit)
+    # ... return paginated response
+
+@router.delete("/{kb_id}/permissions/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_permission(kb_id: UUID, user_id: UUID, ...):
+    success = await kb_service.revoke_permission(kb_id=kb_id, user_id=user_id, admin=current_user)
+]]></code-snippet>
+    </artifact>
+
+    <artifact type="service" path="backend/app/services/kb_service.py">
+      <description>KBService with permission methods</description>
+      <key-elements>
+        - PERMISSION_HIERARCHY: ADMIN=3, WRITE=2, READ=1
+        - check_permission(kb_id, user, min_level)
+        - grant_permission(kb_id, user_id, level, admin)
+        - revoke_permission(kb_id, user_id, admin)
+        - list_permissions(kb_id, admin, page, limit)
+      </key-elements>
+      <code-snippet><![CDATA[
+PERMISSION_HIERARCHY = {
+    PermissionLevel.ADMIN: 3,
+    PermissionLevel.WRITE: 2,
+    PermissionLevel.READ: 1,
+}
+
+class KBService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def check_permission(self, kb_id: UUID, user: User, min_level: PermissionLevel) -> bool:
+        # Check if user has >= min_level permission on KB
+        # Owner always has ADMIN
+
+    async def grant_permission(self, kb_id: UUID, user_id: UUID, level: PermissionLevel, admin: User) -> KBPermission:
+        # Creates or updates (upsert) permission entry
+        # Requires admin to have ADMIN on KB
+
+    async def list_permissions(self, kb_id: UUID, admin: User, page: int, limit: int):
+        # Returns paginated list with user emails joined
+]]></code-snippet>
+    </artifact>
+
+    <artifact type="hook" path="frontend/src/hooks/useGroups.ts">
+      <description>React Query hook for group management (pattern to follow)</description>
+      <key-elements>
+        - UseGroupsOptions interface with pagination
+        - UseGroupsReturn with mutations (create, update, delete)
+        - Optimistic updates with rollback
+        - Query invalidation on mutations
+        - Error handling patterns
+      </key-elements>
+      <code-snippet><![CDATA[
+export function useGroups({ page = 1, pageSize = 20, search }: UseGroupsOptions = {}): UseGroupsReturn {
+  const queryClient = useQueryClient();
+  const queryKey = ['admin', 'groups', page, pageSize, search];
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey,
+    queryFn: () => fetchGroups(page, pageSize, search),
+    staleTime: 30 * 1000,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createGroupApi,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] }),
+  });
+
+  // ... updateMutation, deleteMutation with optimistic updates
+}
+]]></code-snippet>
+    </artifact>
+
+    <artifact type="types" path="frontend/src/types/group.ts">
+      <description>TypeScript types for groups (pattern to follow)</description>
+      <key-elements>
+        - Group interface with id, name, description, is_active
+        - GroupWithMembers extends Group
+        - GroupCreate, GroupUpdate interfaces
+        - PaginatedGroupResponse
+      </key-elements>
+    </artifact>
+  </existing-code-artifacts>
+
+  <new-artifacts-to-create>
+    <artifact type="model" path="backend/app/models/kb_group_permission.py">
+      <description>New model for group-level KB permissions</description>
+      <specification><![CDATA[
+class KBGroupPermission(Base):
+    __tablename__ = "kb_group_permissions"
+    __table_args__ = (
+        UniqueConstraint("group_id", "kb_id", name="uq_kb_group_permissions_group_kb"),
+    )
+    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, server_default=func.gen_random_uuid())
+    group_id: Mapped[UUID] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
+    kb_id: Mapped[UUID] = mapped_column(ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False)
+    permission_level: Mapped[PermissionLevel] = mapped_column(Enum(PermissionLevel), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Relationships to Group and KnowledgeBase
+]]></specification>
+    </artifact>
+
+    <artifact type="migration" path="backend/alembic/versions/xxx_add_kb_group_permissions.py">
+      <description>Migration for kb_group_permissions table</description>
+      <specification><![CDATA[
+CREATE TABLE kb_group_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    kb_id UUID NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+    permission_level permission_level NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT uq_kb_group_permissions_group_kb UNIQUE (group_id, kb_id)
+);
+CREATE INDEX idx_kb_group_permissions_kb_id ON kb_group_permissions(kb_id);
+CREATE INDEX idx_kb_group_permissions_group_id ON kb_group_permissions(group_id);
+]]></specification>
+    </artifact>
+
+    <artifact type="schema-extension" path="backend/app/schemas/permission.py">
+      <description>Extended schemas for group permissions</description>
+      <specification><![CDATA[
+class PermissionCreateExtended(BaseModel):
+    """Either user_id OR group_id (mutually exclusive)"""
+    user_id: UUID | None = None
+    group_id: UUID | None = None
+    permission_level: PermissionLevel
+
+    @model_validator(mode='after')
+    def check_mutual_exclusion(self):
+        if self.user_id and self.group_id:
+            raise ValueError("Cannot specify both user_id and group_id")
+        if not self.user_id and not self.group_id:
+            raise ValueError("Must specify either user_id or group_id")
+        return self
+
+class PermissionResponseExtended(BaseModel):
+    id: UUID
+    entity_type: Literal["user", "group"]
+    entity_id: UUID
+    entity_name: str  # email for user, name for group
+    kb_id: UUID
+    permission_level: PermissionLevel
+    created_at: datetime
+
+class EffectivePermission(BaseModel):
+    user_id: UUID
+    user_email: str
+    effective_level: PermissionLevel
+    sources: list[PermissionSource]
+
+class PermissionSource(BaseModel):
+    type: Literal["direct", "group"]
+    level: PermissionLevel
+    group_id: UUID | None = None
+    group_name: str | None = None
+]]></specification>
+    </artifact>
+
+    <artifact type="service-extension" path="backend/app/services/kb_service.py">
+      <description>Extended KBService methods for group permissions</description>
+      <specification><![CDATA[
+async def grant_group_permission(self, kb_id: UUID, group_id: UUID, level: PermissionLevel, admin: User) -> KBGroupPermission:
+    """Grant group-level KB permission. Upsert behavior."""
+
+async def revoke_group_permission(self, kb_id: UUID, group_id: UUID, admin: User) -> bool:
+    """Remove group-level KB permission."""
+
+async def list_all_permissions(self, kb_id: UUID, admin: User, page: int, limit: int) -> tuple[list[PermissionResponseExtended], int]:
+    """List both user and group permissions with entity_type distinction."""
+
+async def get_effective_permissions(self, kb_id: UUID) -> list[EffectivePermission]:
+    """Compute effective permissions for all users with group inheritance."""
+
+async def check_permission_with_groups(self, user_id: UUID, kb_id: UUID) -> PermissionLevel | None:
+    """Check user permission including group inheritance. Direct wins, else highest group."""
+]]></specification>
+    </artifact>
+
+    <artifact type="types" path="frontend/src/types/kb-permission.ts">
+      <description>TypeScript types for KB permissions</description>
+      <specification><![CDATA[
+export interface KBPermission {
+  id: string;
+  entity_type: 'user' | 'group';
+  entity_id: string;
+  entity_name: string;
+  kb_id: string;
+  permission_level: 'READ' | 'WRITE' | 'ADMIN';
+  created_at: string;
+}
+
+export interface KBPermissionCreate {
+  user_id?: string;
+  group_id?: string;
+  permission_level: 'READ' | 'WRITE' | 'ADMIN';
+}
+
+export interface EffectivePermission {
+  user_id: string;
+  user_email: string;
+  effective_level: 'READ' | 'WRITE' | 'ADMIN';
+  sources: PermissionSource[];
+}
+
+export interface PermissionSource {
+  type: 'direct' | 'group';
+  level: 'READ' | 'WRITE' | 'ADMIN';
+  group_id?: string;
+  group_name?: string;
+}
+]]></specification>
+    </artifact>
+
+    <artifact type="hook" path="frontend/src/hooks/useKBPermissions.ts">
+      <description>React Query hook for KB permissions</description>
+      <specification><![CDATA[
+export function useKBPermissions(kbId: string): UseKBPermissionsReturn {
+  // Query: fetchPermissions(kbId)
+  // Mutations: grantUserPermission, grantGroupPermission, updatePermission, revokePermission
+  // Optimistic updates, invalidation, error handling
+}
+
+export function useEffectivePermissions(kbId: string): UseEffectivePermissionsReturn {
+  // Query: fetchEffectivePermissions(kbId)
+  // Shows computed permissions with source info
+}
+]]></specification>
+    </artifact>
+
+    <artifact type="component" path="frontend/src/components/admin/kb-permissions-table.tsx">
+      <description>Table component for displaying KB permissions</description>
+      <specification><![CDATA[
+- Two sections: User Permissions, Group Permissions (tabs or accordion)
+- Columns: Entity (with User/Group icon), Permission Level (badge), Source, Created, Actions
+- Actions: Edit level, Remove
+- Empty states per section
+- Loading skeletons
+- Click row to expand details
+]]></specification>
+    </artifact>
+
+    <artifact type="component" path="frontend/src/components/admin/add-user-permission-modal.tsx">
+      <description>Modal for adding user KB permission</description>
+      <specification><![CDATA[
+- User search with debounced autocomplete (reuse useUsers)
+- Permission level dropdown (Read, Write, Admin) - default: Read
+- Form validation with react-hook-form + zod
+- Handle 409 duplicate error inline
+- Success toast on completion
+]]></specification>
+    </artifact>
+
+    <artifact type="component" path="frontend/src/components/admin/add-group-permission-modal.tsx">
+      <description>Modal for adding group KB permission</description>
+      <specification><![CDATA[
+- Group dropdown (active groups only, reuse useGroups)
+- Permission level dropdown (Read, Write, Admin) - default: Read
+- Form validation
+- Handle 409 duplicate error inline
+- Success toast on completion
+]]></specification>
+    </artifact>
+
+    <artifact type="component" path="frontend/src/components/admin/edit-permission-modal.tsx">
+      <description>Modal for editing/removing KB permission</description>
+      <specification><![CDATA[
+- Display entity info (read-only: email/group name)
+- Permission level dropdown (editable)
+- Delete button with confirmation dialog
+- Warning for last ADMIN removal
+- Success/error toasts
+]]></specification>
+    </artifact>
+
+    <artifact type="page" path="frontend/src/app/(protected)/admin/kb-permissions/[kbId]/page.tsx">
+      <description>KB permissions management page</description>
+      <specification><![CDATA[
+- KB selector dropdown (list of KBs user can admin)
+- KBPermissionsTable component
+- "Add User Permission" and "Add Group Permission" buttons
+- Wrap in DashboardLayout with AdminGuard
+- Mobile-responsive layout
+]]></specification>
+    </artifact>
+
+    <artifact type="e2e-test" path="frontend/e2e/tests/admin/kb-permissions.spec.ts">
+      <description>E2E tests for KB permissions management</description>
+      <specification><![CDATA[
+- test('Admin can view KB permissions')
+- test('Admin can add user permission')
+- test('Admin can add group permission')
+- test('Admin can edit permission level')
+- test('Admin can remove permission')
+- test('Non-admin gets 403')
+]]></specification>
+    </artifact>
+  </new-artifacts-to-create>
+
+  <api-contracts>
+    <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/permissions/" action="MODIFY">
+      <description>Grant permission (now accepts user_id OR group_id)</description>
+      <request><![CDATA[{
+  "user_id": "uuid" | null,
+  "group_id": "uuid" | null,
+  "permission_level": "READ" | "WRITE" | "ADMIN"
+}]]></request>
+      <response status="201"><![CDATA[{
+  "id": "uuid",
+  "entity_type": "user" | "group",
+  "entity_id": "uuid",
+  "entity_name": "string",
+  "kb_id": "uuid",
+  "permission_level": "READ" | "WRITE" | "ADMIN",
+  "created_at": "iso-datetime"
+}]]></response>
+      <errors>
+        <error status="400">Both or neither user_id/group_id provided</error>
+        <error status="403">Not admin on KB</error>
+        <error status="404">KB or entity not found</error>
+        <error status="409">Permission already exists</error>
+      </errors>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/permissions/" action="MODIFY">
+      <description>List all permissions (now includes groups)</description>
+      <response status="200"><![CDATA[{
+  "data": [
+    {
+      "id": "uuid",
+      "entity_type": "user" | "group",
+      "entity_id": "uuid",
+      "entity_name": "email or group name",
+      "kb_id": "uuid",
+      "permission_level": "READ" | "WRITE" | "ADMIN",
+      "created_at": "iso-datetime"
+    }
+  ],
+  "total": 10,
+  "page": 1,
+  "limit": 20
+}]]></response>
+    </endpoint>
+
+    <endpoint method="DELETE" path="/api/v1/knowledge-bases/{kb_id}/permissions/{permission_id}" action="NEW">
+      <description>Delete permission by ID (works for both user and group)</description>
+      <response status="204">No content</response>
+      <errors>
+        <error status="403">Not admin on KB</error>
+        <error status="404">Permission not found</error>
+      </errors>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/effective-permissions/" action="NEW">
+      <description>Get computed effective permissions for all users</description>
+      <response status="200"><![CDATA[{
+  "data": [
+    {
+      "user_id": "uuid",
+      "user_email": "string",
+      "effective_level": "READ" | "WRITE" | "ADMIN",
+      "sources": [
+        {
+          "type": "direct" | "group",
+          "level": "READ" | "WRITE" | "ADMIN",
+          "group_id": "uuid" | null,
+          "group_name": "string" | null
+        }
+      ]
+    }
+  ],
+  "total": 25
+}]]></response>
+    </endpoint>
+  </api-contracts>
+
+  <database-schema>
+    <table name="kb_group_permissions" action="CREATE">
+      <column name="id" type="UUID" constraints="PRIMARY KEY DEFAULT gen_random_uuid()" />
+      <column name="group_id" type="UUID" constraints="NOT NULL REFERENCES groups(id) ON DELETE CASCADE" />
+      <column name="kb_id" type="UUID" constraints="NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE" />
+      <column name="permission_level" type="permission_level" constraints="NOT NULL" />
+      <column name="created_at" type="TIMESTAMPTZ" constraints="DEFAULT NOW()" />
+      <constraint name="uq_kb_group_permissions_group_kb" type="UNIQUE" columns="group_id, kb_id" />
+      <index name="idx_kb_group_permissions_kb_id" columns="kb_id" />
+      <index name="idx_kb_group_permissions_group_id" columns="group_id" />
+    </table>
+  </database-schema>
+
+  <permission-resolution-logic>
+    <rule priority="1">Check user's direct permission in kb_permissions table</rule>
+    <rule priority="2">If direct permission exists, return it (direct always wins per epics.md)</rule>
+    <rule priority="3">If no direct permission, get user's groups from user_groups</rule>
+    <rule priority="4">For each group, check kb_group_permissions</rule>
+    <rule priority="5">Return highest group permission level found using PERMISSION_HIERARCHY</rule>
+    <rule priority="6">If no permissions found, return null (no access)</rule>
+    <caching>
+      <strategy>Redis cache with 5min TTL for effective permissions</strategy>
+      <invalidation>Clear cache on any permission change for the KB</invalidation>
+    </caching>
+  </permission-resolution-logic>
+
+  <testing-requirements>
+    <unit-tests count="19">
+      <test ac="5.20.5">grant_group_permission creates entry</test>
+      <test ac="5.20.5">grant_group_permission rejects duplicate</test>
+      <test ac="5.20.5">revoke_group_permission deletes entry</test>
+      <test ac="5.20.5">list_all_permissions returns both types</test>
+      <test ac="5.20.4">get_effective_permissions includes groups</test>
+      <test ac="5.20.4">get_effective_permissions direct overrides group</test>
+      <test ac="5.20.4">check_permission_with_groups returns direct first</test>
+      <test ac="5.20.4">check_permission_with_groups falls back to group</test>
+      <test ac="5.20.4">check_permission_with_groups highest group wins</test>
+      <test ac="5.20.5">audit_logging on grant_group_permission</test>
+      <test ac="5.20.5">audit_logging on revoke_group_permission</test>
+      <test ac="5.20.1">Renders permissions table</test>
+      <test ac="5.20.1">Shows user and group sections</test>
+      <test ac="5.20.2">Opens add user modal</test>
+      <test ac="5.20.2">Validates user selection</test>
+      <test ac="5.20.2">Opens add group modal</test>
+      <test ac="5.20.2">Validates group selection</test>
+      <test ac="5.20.3">Edits permission level</test>
+      <test ac="5.20.3">Warns on last admin removal</test>
+    </unit-tests>
+    <integration-tests count="7">
+      <test ac="5.20.5">POST /permissions/ with user_id</test>
+      <test ac="5.20.5">POST /permissions/ with group_id</test>
+      <test ac="5.20.5">POST /permissions/ with both IDs returns 400</test>
+      <test ac="5.20.5">GET /permissions/ returns both types</test>
+      <test ac="5.20.3">DELETE /permissions/{id} removes entry</test>
+      <test ac="5.20.4">GET /effective-permissions/ computes inheritance</test>
+      <test ac="5.20.6">Non-admin gets 403</test>
+    </integration-tests>
+    <e2e-tests count="6">
+      <test ac="5.20.1">Admin can view KB permissions</test>
+      <test ac="5.20.2">Admin can add user permission</test>
+      <test ac="5.20.2">Admin can add group permission</test>
+      <test ac="5.20.3">Admin can edit permission level</test>
+      <test ac="5.20.3">Admin can remove permission</test>
+      <test ac="5.20.6">Non-admin redirected</test>
+    </e2e-tests>
+  </testing-requirements>
+
+  <implementation-patterns>
+    <pattern name="React Query Hook">
+      <reference>frontend/src/hooks/useGroups.ts</reference>
+      <notes>Follow same pattern for useKBPermissions with optimistic updates</notes>
+    </pattern>
+    <pattern name="Admin Table Component">
+      <reference>frontend/src/components/admin/group-table.tsx</reference>
+      <notes>Use same table structure with expandable rows</notes>
+    </pattern>
+    <pattern name="Modal with Form">
+      <reference>frontend/src/components/admin/create-group-modal.tsx</reference>
+      <notes>Use react-hook-form + zod, same validation patterns</notes>
+    </pattern>
+    <pattern name="AdminGuard">
+      <reference>frontend/src/components/auth/admin-guard.tsx</reference>
+      <notes>Wrap page in AdminGuard for route protection</notes>
+    </pattern>
+    <pattern name="Service Method">
+      <reference>backend/app/services/kb_service.py</reference>
+      <notes>Extend existing service, follow audit logging pattern</notes>
+    </pattern>
+  </implementation-patterns>
+
+  <security-considerations>
+    <item>All endpoints require current_superuser dependency (admin only)</item>
+    <item>Return 404 if KB doesn't exist (don't leak existence)</item>
+    <item>Verify admin has ADMIN permission on KB before changes</item>
+    <item>Log all permission operations to audit.events</item>
+    <item>Input validation: sanitize entity IDs, prevent injection</item>
+    <item>Prevent removing own admin permission if KB owner</item>
+  </security-considerations>
+
+  <dependencies>
+    <backend>
+      <dependency>sqlalchemy (existing)</dependency>
+      <dependency>pydantic (existing)</dependency>
+      <dependency>structlog (existing, for audit logging)</dependency>
+      <dependency>redis (for permission caching)</dependency>
+    </backend>
+    <frontend>
+      <dependency>@tanstack/react-query (existing)</dependency>
+      <dependency>react-hook-form (existing)</dependency>
+      <dependency>@hookform/resolvers (existing)</dependency>
+      <dependency>zod (existing)</dependency>
+      <dependency>lucide-react (for icons)</dependency>
+    </frontend>
+  </dependencies>
+
+  <file-inventory>
+    <file action="create" path="backend/app/models/kb_group_permission.py">Group KB permission model</file>
+    <file action="modify" path="backend/app/models/__init__.py">Export new model</file>
+    <file action="modify" path="backend/app/schemas/permission.py">Extended schemas</file>
+    <file action="modify" path="backend/app/services/kb_service.py">Group permission methods</file>
+    <file action="modify" path="backend/app/api/v1/knowledge_bases.py">Extended endpoints</file>
+    <file action="create" path="backend/alembic/versions/xxx_kb_group_permissions.py">Migration</file>
+    <file action="create" path="backend/tests/unit/test_kb_permission_service.py">Unit tests</file>
+    <file action="modify" path="backend/tests/integration/test_kb_permissions_api.py">Integration tests</file>
+    <file action="create" path="frontend/src/types/kb-permission.ts">TypeScript interfaces</file>
+    <file action="create" path="frontend/src/hooks/useKBPermissions.ts">React Query hook</file>
+    <file action="create" path="frontend/src/hooks/__tests__/useKBPermissions.test.tsx">Hook tests</file>
+    <file action="create" path="frontend/src/components/admin/kb-permissions-table.tsx">Table component</file>
+    <file action="create" path="frontend/src/components/admin/add-user-permission-modal.tsx">Add user modal</file>
+    <file action="create" path="frontend/src/components/admin/add-group-permission-modal.tsx">Add group modal</file>
+    <file action="create" path="frontend/src/components/admin/edit-permission-modal.tsx">Edit modal</file>
+    <file action="create" path="frontend/src/components/admin/__tests__/kb-permissions-table.test.tsx">Component tests</file>
+    <file action="create" path="frontend/src/app/(protected)/admin/kb-permissions/[kbId]/page.tsx">Page</file>
+    <file action="modify" path="frontend/src/components/layout/main-nav.tsx">Add nav link</file>
+    <file action="create" path="frontend/e2e/tests/admin/kb-permissions.spec.ts">E2E tests</file>
+  </file-inventory>
+
+</story-context>

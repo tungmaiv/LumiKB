@@ -423,28 +423,44 @@ async def export_draft(
             detail="Invalid format. Must be docx, pdf, or markdown.",
         )
 
-    # Export to requested format
+    # Export to requested format with error logging (AC-7.19.3)
     export_service = ExportService()
 
-    if request.format == "docx":
-        file_bytes = export_service.export_to_docx(draft)
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        extension = "docx"
-    elif request.format == "pdf":
-        file_bytes = export_service.export_to_pdf(draft)
-        media_type = "application/pdf"
-        extension = "pdf"
-    else:  # markdown
-        file_content = export_service.export_to_markdown(draft)
-        file_bytes = file_content.encode("utf-8")
-        media_type = "text/markdown"
-        extension = "md"
+    try:
+        if request.format == "docx":
+            file_bytes = export_service.export_to_docx(draft)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            extension = "docx"
+        elif request.format == "pdf":
+            file_bytes = export_service.export_to_pdf(draft)
+            media_type = "application/pdf"
+            extension = "pdf"
+        else:  # markdown
+            file_content = export_service.export_to_markdown(draft)
+            file_bytes = file_content.encode("utf-8")
+            media_type = "text/markdown"
+            extension = "md"
+    except Exception as e:
+        # Log export failure (AC-7.19.3)
+        await audit_service.log_export_failed(
+            user_id=current_user.id,
+            draft_id=draft_id,
+            export_format=request.format,
+            error_message=str(e),
+            kb_id=draft.kb_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Export failed: {e!s}",
+        ) from e
 
     # Generate safe filename
-    safe_title = re.sub(r"[^\w\s-]", "", draft.title or "draft").strip().replace(" ", "_")
+    safe_title = (
+        re.sub(r"[^\w\s-]", "", draft.title or "draft").strip().replace(" ", "_")
+    )
     filename = f"{safe_title}.{extension}"
 
-    # Log export to audit service
+    # Log successful export to audit service (AC-7.19.1, AC-7.19.2)
     await audit_service.log_export(
         user_id=current_user.id,
         draft_id=draft_id,
@@ -516,7 +532,13 @@ async def submit_feedback(
     )
 
     # Validate feedback type (redundant with schema validation, but defensive)
-    valid_types = ["not_relevant", "wrong_format", "needs_more_detail", "low_confidence", "other"]
+    valid_types = [
+        "not_relevant",
+        "wrong_format",
+        "needs_more_detail",
+        "low_confidence",
+        "other",
+    ]
     if request.feedback_type not in valid_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -37,11 +37,11 @@ const mockAlternatives = [
 ];
 
 const server = setupServer(
-  http.post('/api/v1/drafts/:draftId/feedback', async ({ request, params }) => {
-    const body = await request.json();
+  http.post('/api/v1/drafts/:draftId/feedback', async ({ request }) => {
+    const body = (await request.json()) as { feedback_type: string };
     return HttpResponse.json({
       alternatives: mockAlternatives,
-      feedback_type: body.feedback_type,
+      feedback_type: body?.feedback_type,
     });
   })
 );
@@ -58,7 +58,7 @@ describe('useFeedback', () => {
 
     // WHEN: User submits feedback
     const feedbackType = 'not_relevant';
-    const comments = null;
+    const comments = undefined;
 
     await result.current.handleSubmit(feedbackType, comments);
 
@@ -93,7 +93,7 @@ describe('useFeedback', () => {
     expect(result.current.isSubmitting).toBe(false);
 
     // WHEN: User submits feedback (start submission but don't await)
-    const submitPromise = result.current.handleSubmit('not_relevant', null);
+    const submitPromise = result.current.handleSubmit('not_relevant', undefined);
 
     // THEN: isSubmitting is true during API call
     await waitFor(() => {
@@ -123,7 +123,7 @@ describe('useFeedback', () => {
     const { result } = renderHook(() => useFeedback('draft-123'));
 
     // WHEN: User submits feedback
-    await result.current.handleSubmit('not_relevant', null);
+    await result.current.handleSubmit('not_relevant', undefined);
 
     // THEN: Error state updated
     await waitFor(() => {
@@ -142,7 +142,7 @@ describe('useFeedback', () => {
     expect(result.current.alternatives).toEqual([]);
 
     // WHEN: User submits feedback
-    result.current.handleSubmit('not_relevant', null);
+    result.current.handleSubmit('not_relevant', undefined);
 
     // THEN: Alternatives populated after API response
     await waitFor(() => {
@@ -191,7 +191,7 @@ describe('useFeedback', () => {
     const { result } = renderHook(() => useFeedback('draft-123'));
 
     // WHEN: User submits feedback
-    await result.current.handleSubmit('not_relevant', null);
+    await result.current.handleSubmit('not_relevant', undefined);
 
     // THEN: Error state updated with network error message
     await waitFor(() => {
@@ -214,7 +214,7 @@ describe('useFeedback', () => {
     const { result } = renderHook(() => useFeedback('draft-123'));
 
     // WHEN: First submission fails
-    await result.current.handleSubmit('not_relevant', null);
+    await result.current.handleSubmit('not_relevant', undefined);
 
     // THEN: Error is set
     await waitFor(() => {
@@ -229,7 +229,7 @@ describe('useFeedback', () => {
     );
 
     // WHEN: User submits again
-    await result.current.handleSubmit('wrong_format', null);
+    await result.current.handleSubmit('wrong_format', undefined);
 
     // THEN: Error cleared
     await waitFor(() => {

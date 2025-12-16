@@ -419,7 +419,7 @@ Epic 4 has achieved comprehensive test coverage with no identified gaps.
 
 - **Epic Definition:** [docs/epics.md](../epics.md) - Epic 4 (lines 1362-1720)
 - **Tech Spec:** [docs/sprint-artifacts/tech-spec-epic-4.md](tech-spec-epic-4.md)
-- **Test Design:** [docs/test-design-epic-4.md](../test-design-epic-4.md)
+- **Test Design:** [docs/sprint-artifacts/test-design-epic-4.md](test-design-epic-4.md)
 - **Retrospective:** [docs/sprint-artifacts/epic-4-retrospective-2025-11-30.md](epic-4-retrospective-2025-11-30.md)
 - **Sprint Status:** [docs/sprint-artifacts/sprint-status.yaml](sprint-status.yaml)
 

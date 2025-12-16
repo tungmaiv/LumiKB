@@ -24,6 +24,7 @@ async def index_document(
     kb_id: UUID,
     embeddings: list[ChunkEmbedding],
     max_retries: int = 3,
+    vector_size: int | None = None,
 ) -> int:
     """Index document embeddings to Qdrant.
 
@@ -35,6 +36,8 @@ async def index_document(
         kb_id: Knowledge Base UUID.
         embeddings: List of ChunkEmbedding objects to index.
         max_retries: Maximum retry attempts for Qdrant operations.
+        vector_size: Optional vector dimensions for collection creation.
+                    If not provided, defaults to 768 for backward compatibility.
 
     Returns:
         Number of points indexed.
@@ -60,9 +63,14 @@ async def index_document(
 
     for attempt in range(max_retries):
         try:
-            # Ensure collection exists
+            # Ensure collection exists with correct vector dimensions
             if not await qdrant_service.collection_exists(kb_id):
-                await qdrant_service.create_collection(kb_id)
+                # Use consolidated create_collection with optional vector_size
+                # Defaults to 768 if vector_size is None (backward compatibility)
+                await qdrant_service.create_collection(
+                    kb_id=kb_id,
+                    vector_size=vector_size,
+                )
 
             # Upsert points
             count = await qdrant_service.upsert_points(kb_id, points)

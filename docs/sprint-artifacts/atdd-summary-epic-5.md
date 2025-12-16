@@ -1,19 +1,22 @@
 # ATDD Summary - Epic 5: Administration & Polish
 
-**Date:** 2025-12-02
+**Date:** 2025-12-06 (Updated)
 **TEA Agent:** Murat (Master Test Architect)
-**Epic Status:** ATDD Complete for 2/3 stories
-**Test Strategy:** API-First + Infrastructure Validation
+**Epic Status:** ATDD Complete for 5/6 stories
+**Test Strategy:** API-First + Infrastructure Validation + Network-First E2E
 
 ---
 
 ## Executive Summary
 
-Epic 5 ATDD generation complete for 2 high-priority stories (5-1, 5-16). Story 5-0 already implemented and reviewed (95/100 code quality), so ATDD generation skipped per TDD principles (tests must come BEFORE implementation).
+Epic 5 ATDD generation complete for 5 high-priority stories (5-1, 5-16, 5-22, 5-23, 5-24). Story 5-0 already implemented and reviewed (95/100 code quality), so ATDD generation skipped per TDD principles (tests must come BEFORE implementation).
 
-**Total Tests Generated:** 43 failing tests across 2 stories
+**Total Tests Generated:** 154 failing tests across 5 stories
 - **Story 5-1 (Admin Dashboard):** 23 tests (8 API, 5 unit, 6 E2E, 4 component)
 - **Story 5-16 (Docker E2E Infrastructure):** 20 tests (8 infrastructure, 4 Playwright, 3 CI, 5 E2E smoke)
+- **Story 5-22 (Document Tags):** 24 tests (5 backend unit, 5 integration, 10 frontend unit, 4 E2E)
+- **Story 5-23 (Processing Progress):** 61 tests (20 backend unit, 6 integration, 30 frontend unit, 5 E2E)
+- **Story 5-24 (Dashboard Filtering):** 26 tests (4 backend unit, 6 integration, 12 frontend unit, 4 E2E)
 
 ---
 
@@ -105,6 +108,105 @@ Epic 5 ATDD generation complete for 2 high-priority stories (5-1, 5-16). Story 5
 - Playwright Configuration: 2-3 hours (config, npm scripts)
 - GitHub Actions: 2-3 hours (workflow, artifact upload)
 - E2E Tests: 3-4 hours (critical journey tests)
+
+---
+
+### Story 5-22: Document Tags
+**Status:** 📝 DRAFTED (Ready for ATDD → Implementation)
+**ATDD Status:** ✅ COMPLETE
+**ATDD Checklist:** `docs/sprint-artifacts/atdd-checklist-5-22.md`
+
+**Test Breakdown:**
+- **5 Backend Unit Tests** - TagService validation and normalization
+- **5 Integration Tests** - API endpoints for tag CRUD
+- **10 Frontend Unit Tests** - Tag components and hooks
+- **4 E2E Tests** - Tag management user journeys
+
+**Test Coverage:**
+- ✅ AC1: Tag display on document cards (max 10 tags)
+- ✅ AC2: Add/edit tags modal (50 char limit per tag)
+- ✅ AC3: Bulk tag operations
+- ✅ AC4: Tag search/autocomplete
+- ✅ AC5: Tag persistence across sessions
+
+**Primary Test Level:** Integration (API tag operations)
+**Secondary Test Level:** E2E (tag management workflows)
+
+**Data Infrastructure:**
+- Factory: `document-tags.factory.ts` (already created)
+- Fixtures: Reuse document fixtures with tag extensions
+- Mocks: Tag autocomplete API responses
+
+**Estimated Implementation Effort:** 8-12 hours
+- Backend: 4-6 hours (schema, service, endpoints)
+- Frontend: 4-6 hours (components, hooks, tests)
+
+---
+
+### Story 5-23: Document Processing Progress
+**Status:** 📝 DRAFTED (Ready for ATDD → Implementation)
+**ATDD Status:** ✅ COMPLETE
+**ATDD Checklist:** `docs/sprint-artifacts/atdd-checklist-5-23.md`
+**Priority:** HIGH (8 story points)
+
+**Test Breakdown:**
+- **20 Backend Unit Tests** - Processing pipeline steps, progress tracking
+- **6 Integration Tests** - API endpoints for processing status
+- **30 Frontend Unit Tests** - Progress components and hooks
+- **5 E2E Tests** - Processing progress user journeys
+
+**Test Coverage:**
+- ✅ AC1: Processing screen access (admin-only visibility option)
+- ✅ AC2: Document list with processing columns (status, progress, current step)
+- ✅ AC3: Status filtering (processing, failed, completed, pending)
+- ✅ AC4: Step details modal (expandable error messages)
+- ✅ AC5: Pagination (25/50/100 per page)
+- ✅ AC6: Auto-refresh (10-second intervals)
+
+**Primary Test Level:** Unit (processing pipeline logic)
+**Secondary Test Level:** E2E (progress monitoring workflows)
+
+**Data Infrastructure:**
+- Factory: `processing-progress.factory.ts` (already created)
+- Fixtures: Multi-step processing states, error scenarios
+- Mocks: Real-time progress updates
+
+**Estimated Implementation Effort:** 16-24 hours
+- Backend: 8-12 hours (schema changes, processing pipeline, service)
+- Frontend: 8-12 hours (admin page, components, hooks, tests)
+
+---
+
+### Story 5-24: KB Dashboard Document Filtering & Pagination
+**Status:** 📝 DRAFTED (Ready for ATDD → Implementation)
+**ATDD Status:** ✅ COMPLETE
+**ATDD Checklist:** `docs/sprint-artifacts/atdd-checklist-5-24.md`
+**Depends On:** Story 5-22 (Document Tags)
+
+**Test Breakdown:**
+- **4 Backend Unit Tests** - DocumentService filter logic
+- **6 Integration Tests** - API filtering and pagination
+- **12 Frontend Unit Tests** - Filter components and hooks
+- **4 E2E Tests** - Filtering and pagination workflows
+
+**Test Coverage:**
+- ✅ AC1: Filter bar display (search, type, status, tags, date range)
+- ✅ AC2: Real-time filter updates (no Apply button)
+- ✅ AC3: Pagination controls (25/50/100 per page)
+- ✅ AC4: URL state persistence (bookmarkable filters)
+- ✅ AC5: Tag filtering with AND logic
+
+**Primary Test Level:** Integration (API filter combinations)
+**Secondary Test Level:** E2E (filter workflows)
+
+**Data Infrastructure:**
+- Factory: Reuse document-tags.factory.ts
+- Fixtures: Large document lists for pagination testing
+- Mocks: Filtered API responses
+
+**Estimated Implementation Effort:** 8-12 hours
+- Backend: 3-4 hours (filter params, pagination)
+- Frontend: 5-8 hours (filter bar, pagination, URL sync)
 
 ---
 
@@ -229,11 +331,14 @@ Epic 5 ATDD generation complete for 2 high-priority stories (5-1, 5-16). Story 5
 ## Epic 5 Test Metrics
 
 ### Test Count Summary
-| Story | API | Unit | E2E | Component | Infrastructure | CI | Total |
-|-------|-----|------|-----|-----------|----------------|----|----|
-| 5-1   | 8   | 5    | 6   | 4         | 0              | 0  | 23 |
-| 5-16  | 0   | 0    | 5   | 0         | 8              | 3  | 20 |
-| **Total** | **8** | **5** | **11** | **4** | **8** | **3** | **43** |
+| Story | API/Integration | Unit | E2E | Component | Infrastructure | CI | Total |
+|-------|-----------------|------|-----|-----------|----------------|----|----|
+| 5-1   | 8               | 5    | 6   | 4         | 0              | 0  | 23 |
+| 5-16  | 0               | 0    | 5   | 0         | 8              | 3  | 20 |
+| 5-22  | 5               | 5    | 4   | 10        | 0              | 0  | 24 |
+| 5-23  | 6               | 20   | 5   | 30        | 0              | 0  | 61 |
+| 5-24  | 6               | 4    | 4   | 12        | 0              | 0  | 26 |
+| **Total** | **25** | **34** | **24** | **56** | **8** | **3** | **154** |
 
 ### Test Coverage by Acceptance Criteria
 **Story 5-1:**
@@ -250,6 +355,28 @@ Epic 5 ATDD generation complete for 2 high-priority stories (5-1, 5-16). Story 5
 - AC3 (Database Seeding): 4 tests
 - AC4 (GitHub Actions): 3 tests
 - AC5 (E2E Test Suite): 5 tests
+
+**Story 5-22:**
+- AC1 (Tag Display): 5 tests
+- AC2 (Add/Edit Modal): 6 tests
+- AC3 (Bulk Operations): 4 tests
+- AC4 (Search/Autocomplete): 5 tests
+- AC5 (Persistence): 4 tests
+
+**Story 5-23:**
+- AC1 (Processing Screen Access): 8 tests
+- AC2 (Document List Columns): 12 tests
+- AC3 (Status Filtering): 10 tests
+- AC4 (Step Details Modal): 15 tests
+- AC5 (Pagination): 8 tests
+- AC6 (Auto-Refresh): 8 tests
+
+**Story 5-24:**
+- AC1 (Filter Bar Display): 6 tests
+- AC2 (Real-Time Updates): 5 tests
+- AC3 (Pagination Controls): 6 tests
+- AC4 (URL Persistence): 5 tests
+- AC5 (Tag AND Logic): 4 tests
 
 ---
 
@@ -270,6 +397,21 @@ Epic 5 ATDD generation complete for 2 high-priority stories (5-1, 5-16). Story 5
 - **GREEN Phase:** 🔨 READY TO START
 - **REFACTOR Phase:** ⏳ PENDING
 
+### Story 5-22: Document Tags
+- **RED Phase:** ✅ COMPLETE (24 failing tests)
+- **GREEN Phase:** 🔨 READY TO START
+- **REFACTOR Phase:** ⏳ PENDING
+
+### Story 5-23: Document Processing Progress
+- **RED Phase:** ✅ COMPLETE (61 failing tests)
+- **GREEN Phase:** 🔨 READY TO START
+- **REFACTOR Phase:** ⏳ PENDING
+
+### Story 5-24: KB Dashboard Document Filtering & Pagination
+- **RED Phase:** ✅ COMPLETE (26 failing tests)
+- **GREEN Phase:** 🔨 READY TO START
+- **REFACTOR Phase:** ⏳ PENDING
+
 ---
 
 ## Next Steps
@@ -279,6 +421,9 @@ Epic 5 ATDD generation complete for 2 high-priority stories (5-1, 5-16). Story 5
 1. **Review ATDD Checklists:**
    - Story 5-1: `docs/sprint-artifacts/atdd-checklist-5-1.md`
    - Story 5-16: `docs/sprint-artifacts/atdd-checklist-5-16.md`
+   - Story 5-22: `docs/sprint-artifacts/atdd-checklist-5-22.md`
+   - Story 5-23: `docs/sprint-artifacts/atdd-checklist-5-23.md`
+   - Story 5-24: `docs/sprint-artifacts/atdd-checklist-5-24.md`
 
 2. **Confirm RED Phase:**
    - Run failing tests to verify RED phase
@@ -347,7 +492,7 @@ bash tests/infrastructure/test_github_actions_e2e_workflow.sh
 ## Success Criteria
 
 **Epic 5 ATDD Phase is successful when:**
-- ✅ ATDD checklists created for all implementable stories (2/3 complete)
+- ✅ ATDD checklists created for all implementable stories (5/6 complete)
 - ✅ All tests written in failing state (RED phase verified)
 - ✅ Implementation checklists provide clear guidance
 - ✅ Data factories and fixtures documented
@@ -355,11 +500,13 @@ bash tests/infrastructure/test_github_actions_e2e_workflow.sh
 - ✅ Red-green-refactor workflow documented
 
 **Epic 5 Implementation Phase is successful when:**
-- ⏳ All 43 tests pass (GREEN phase)
+- ⏳ All 154 tests pass (GREEN phase)
 - ⏳ Code quality meets 95+/100 standard (refactor phase)
 - ⏳ Docker E2E infrastructure runs reliably
 - ⏳ Admin dashboard loads within 2 seconds
 - ⏳ GitHub Actions CI runs E2E tests on every PR
+- ⏳ Document tags and filtering work seamlessly
+- ⏳ Processing progress updates in real-time
 
 ---
 
@@ -375,7 +522,22 @@ bash tests/infrastructure/test_github_actions_e2e_workflow.sh
    - Docker Compose architecture defined
    - 17 implementation tasks with effort estimates
 
-3. **Epic 5 ATDD Summary:** `docs/sprint-artifacts/atdd-summary-epic-5.md` (this document)
+3. **ATDD Checklist - Story 5-22:** `docs/sprint-artifacts/atdd-checklist-5-22.md`
+   - 24 failing tests for document tags feature
+   - Tag validation and normalization tests
+   - Bulk operations and autocomplete coverage
+
+4. **ATDD Checklist - Story 5-23:** `docs/sprint-artifacts/atdd-checklist-5-23.md`
+   - 61 failing tests for processing progress (largest test suite)
+   - Pipeline step tracking and error handling tests
+   - Real-time progress update validation
+
+5. **ATDD Checklist - Story 5-24:** `docs/sprint-artifacts/atdd-checklist-5-24.md`
+   - 26 failing tests for dashboard filtering
+   - URL state persistence validation
+   - Pagination and filter combination tests
+
+6. **Epic 5 ATDD Summary:** `docs/sprint-artifacts/atdd-summary-epic-5.md` (this document)
    - Epic-level test metrics
    - Story breakdown and status
    - Risk assessment and mitigation
@@ -404,6 +566,6 @@ bash tests/infrastructure/test_github_actions_e2e_workflow.sh
 
 ---
 
-**Generated by BMad TEA Agent (Murat)** - 2025-12-02
-**Epic 5 ATDD Phase:** ✅ COMPLETE
+**Generated by BMad TEA Agent (Murat)** - 2025-12-06 (Updated)
+**Epic 5 ATDD Phase:** ✅ COMPLETE (5 stories, 154 tests)
 **Ready for Implementation Phase:** 🚀 YES

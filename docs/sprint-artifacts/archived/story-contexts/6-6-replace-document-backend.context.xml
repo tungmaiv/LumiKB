@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-6: Replace Document Backend
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-6">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Replace Document Backend</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>5</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to replace an existing document with a new version</iWant>
+      <soThat>I can update content without changing the document's identity</soThat>
+    </userStory>
+
+    <context>
+      Document replacement allows updating an existing document with a new file while
+      preserving the document ID. This is useful when the user intentionally wants to
+      update a document they uploaded previously, triggered from the duplicate detection
+      workflow.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.6.1">
+      <title>Replace endpoint exists</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <and>a document exists (any status except "processing")</and>
+      <when>I call POST /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/replace with new file</when>
+      <then>I receive 200 OK with updated document details</then>
+      <and>an audit log entry is created with action "document_replaced"</and>
+    </criterion>
+
+    <criterion id="AC-6.6.2">
+      <title>Replace performs atomic delete-then-upload</title>
+      <given>I replace a document</given>
+      <when>the operation executes</when>
+      <then>the old document's vectors are deleted from Qdrant</then>
+      <and>the old file is deleted from MinIO</and>
+      <and>the new file is uploaded to MinIO</and>
+      <and>document metadata is updated (file_size, content_type, updated_at)</and>
+      <and>document status is set to "pending" for reprocessing</and>
+    </criterion>
+
+    <criterion id="AC-6.6.3">
+      <title>Replace preserves document ID and metadata</title>
+      <given>I replace a document</given>
+      <when>the operation completes</when>
+      <then>the document ID remains the same</then>
+      <and>the document name is updated to new file name</and>
+      <and>created_at timestamp is preserved</and>
+      <and>tags and other metadata are preserved</and>
+    </criterion>
+
+    <criterion id="AC-6.6.4">
+      <title>Cannot replace while processing</title>
+      <given>a document has status "processing"</given>
+      <when>I attempt to replace it</when>
+      <then>I receive 400 Bad Request with message "Cannot replace document while processing is in progress"</then>
+    </criterion>
+
+    <criterion id="AC-6.6.5">
+      <title>Permission check enforced</title>
+      <given>I am not KB owner or admin</given>
+      <when>I attempt to replace a document</when>
+      <then>I receive 403 Forbidden</then>
+    </criterion>
+
+    <criterion id="AC-6.6.6">
+      <title>Replace triggers reprocessing</title>
+      <given>I replace a document</given>
+      <when>the operation completes</when>
+      <then>a new Celery task is queued for document processing</then>
+      <and>the document status shows "pending"</and>
+    </criterion>
+
+    <criterion id="AC-6.6.7">
+      <title>Replace from upload flow with confirmation</title>
+      <given>duplicate detection returns 409 for an active document</given>
+      <when>user confirms replacement via the replace endpoint</when>
+      <then>the existing document is replaced with the new upload</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService - add replace_document method</description>
+      <keyElements>
+        - async def replace_document(doc_id, file, user): new method
+        - Atomic operation: delete old + upload new
+        - Preserve document ID and metadata
+        - Trigger reprocessing
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/replace" new="true">
+        <description>Replace an existing document with a new file</description>
+        <authorization>KB owner or admin required</authorization>
+        <contentType>multipart/form-data</contentType>
+        <requestBody>
+          <field name="file" type="file" required="true">New document file</field>
+        </requestBody>
+        <response code="200">
+          <field name="id" type="uuid">Same document ID</field>
+          <field name="name" type="string">New file name</field>
+          <field name="status" type="string">"pending"</field>
+          <field name="message" type="string">"Document replaced and queued for processing"</field>
+        </response>
+        <errors>
+          <error code="400">Document is processing</error>
+          <error code="403">Permission denied</error>
+          <error code="404">Document not found</error>
+        </errors>
+      </endpoint>
+    </api>
+
+    <replaceOperation>
+      <step order="1">Validate document exists and not processing</step>
+      <step order="2">Check permissions (KB owner or admin)</step>
+      <step order="3">Delete old Qdrant vectors</step>
+      <step order="4">Delete old MinIO file</step>
+      <step order="5">Upload new file to MinIO</step>
+      <step order="6">Update document metadata (name, file_size, content_type)</step>
+      <step order="7">Set status to "pending", clear archived_at</step>
+      <step order="8">Queue Celery task for processing</step>
+      <step order="9">Create audit log entry</step>
+    </replaceOperation>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-5" status="pending">
+      <name>Duplicate Detection Backend</name>
+      <provides>Duplicate detection that triggers replace flow</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Backend Integration Tests" count="7">
+      <test>POST /replace returns 200 and updates document</test>
+      <test>POST /replace returns 400 for processing document</test>
+      <test>POST /replace returns 403 for non-owner</test>
+      <test>Replace preserves document ID</test>
+      <test>Replace deletes old Qdrant vectors</test>
+      <test>Replace queues new processing task</test>
+      <test>Replace creates audit log entry</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

@@ -3,6 +3,7 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { StreamingDraftView } from '../streaming-draft-view';
 import type { Citation } from '@/types/citation';
 
@@ -39,8 +40,8 @@ describe('StreamingDraftView', () => {
     confidence: null,
     isGenerating: false,
     error: null,
-    onCancel: jest.fn(),
-    onClose: jest.fn(),
+    onCancel: vi.fn(),
+    onClose: vi.fn(),
   };
 
   it('should render with empty state', () => {
@@ -99,7 +100,7 @@ describe('StreamingDraftView', () => {
   });
 
   it('should call onCancel when cancel button clicked', () => {
-    const onCancel = jest.fn();
+    const onCancel = vi.fn();
     render(<StreamingDraftView {...defaultProps} isGenerating={true} onCancel={onCancel} />);
 
     const cancelButton = screen.getByTestId('cancel-button');
@@ -109,7 +110,7 @@ describe('StreamingDraftView', () => {
   });
 
   it('should call onClose when close button clicked', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<StreamingDraftView {...defaultProps} onClose={onClose} />);
 
     const closeButton = screen.getByTestId('close-button');
@@ -127,7 +128,8 @@ describe('StreamingDraftView', () => {
   it('should display confidence badge when available', () => {
     render(<StreamingDraftView {...defaultProps} confidence={0.85} />);
 
-    expect(screen.getByText(/Medium Confidence \(85%\)/i)).toBeInTheDocument();
+    // 85% >= 80% threshold, so it's "High Confidence"
+    expect(screen.getByText(/High Confidence \(85%\)/i)).toBeInTheDocument();
   });
 
   it('should show high confidence badge for score >= 0.8', () => {

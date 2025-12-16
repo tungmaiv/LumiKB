@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoIcon, Loader2Icon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,6 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 
 export interface DuplicateInfo {
@@ -17,6 +20,8 @@ export interface DuplicateInfo {
   document_id?: string | null;
   uploaded_at?: string | null;
   file_size?: number | null;
+  /** Status of the existing document: completed or archived */
+  existing_status?: 'completed' | 'archived' | null;
 }
 
 interface DuplicateDialogProps {
@@ -32,6 +37,10 @@ interface DuplicateDialogProps {
   filename: string;
   /** Information about the existing document */
   duplicateInfo: DuplicateInfo | null;
+  /** Whether replace operation is in progress */
+  isReplacing?: boolean;
+  /** Error message from replace operation */
+  error?: string | null;
 }
 
 /**
@@ -58,10 +67,14 @@ export function DuplicateDialog({
   onSkip,
   filename,
   duplicateInfo,
+  isReplacing = false,
+  error = null,
 }: DuplicateDialogProps) {
   const uploadedAgo = duplicateInfo?.uploaded_at
     ? formatDistanceToNow(new Date(duplicateInfo.uploaded_at), { addSuffix: true })
     : null;
+
+  const isArchived = duplicateInfo?.existing_status === 'archived';
 
   const formatFileSize = (bytes?: number | null): string => {
     if (!bytes) return '';
@@ -71,29 +84,68 @@ export function DuplicateDialog({
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open: boolean) => !open && onCancel()}>
+    <AlertDialog open={isOpen} onOpenChange={(open: boolean) => !open && !isReplacing && onCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>File Already Exists</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
-            <p>
-              A document named <span className="font-medium">{filename}</span> already exists in
-              this knowledge base.
-            </p>
-            {uploadedAgo && (
-              <p className="text-sm text-muted-foreground">
-                Uploaded {uploadedAgo}
-                {duplicateInfo?.file_size && ` (${formatFileSize(duplicateInfo.file_size)})`}
+          <AlertDialogTitle>Document Already Exists</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <p>
+                A document named <span className="font-medium">{filename}</span> already exists in
+                this knowledge base.
               </p>
-            )}
-            <p className="mt-4">
-              Would you like to replace the existing document or skip this file?
-            </p>
+
+              {/* Status badge */}
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-sm flex items-center gap-2">
+                  Status:{' '}
+                  <Badge variant={isArchived ? 'secondary' : 'default'}>
+                    {duplicateInfo?.existing_status || 'completed'}
+                  </Badge>
+                </p>
+                {uploadedAgo && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Uploaded {uploadedAgo}
+                    {duplicateInfo?.file_size && ` (${formatFileSize(duplicateInfo.file_size)})`}
+                  </p>
+                )}
+              </div>
+
+              {/* AC-6.9.7: Archived document restore note */}
+              {isArchived && (
+                <Alert>
+                  <InfoIcon className="h-4 w-4" />
+                  <AlertDescription>
+                    Replacing will restore this document to active status.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Error message */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <p>Would you like to replace the existing document or cancel the upload?</p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onSkip}>Skip</AlertDialogCancel>
-          <AlertDialogAction onClick={onReplace}>Replace</AlertDialogAction>
+          <AlertDialogCancel onClick={onSkip} disabled={isReplacing}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={onReplace} disabled={isReplacing}>
+            {isReplacing ? (
+              <>
+                <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                Replacing...
+              </>
+            ) : (
+              'Replace Existing'
+            )}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

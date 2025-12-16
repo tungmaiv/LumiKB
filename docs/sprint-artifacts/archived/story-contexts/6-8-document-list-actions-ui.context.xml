@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-8: Document List Archive/Clear Actions UI
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-8">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Document List Archive/Clear Actions UI</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>MEDIUM</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to archive completed documents and clear failed documents directly from the document list</iWant>
+      <soThat>I can manage document lifecycle without navigating away from the KB view</soThat>
+    </userStory>
+
+    <context>
+      This story extends the existing document list UI with lifecycle actions. The document
+      actions menu (three-dot menu) gains Archive and Clear options based on document status.
+      Archive is available for completed documents, Clear is available for failed documents.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.8.1">
+      <title>Archive action visible for completed documents</title>
+      <given>I am viewing a KB document list as owner or admin</given>
+      <and>a document has status "completed"</and>
+      <when>I click the document actions menu (three-dot)</when>
+      <then>I see an "Archive" option</then>
+    </criterion>
+
+    <criterion id="AC-6.8.2">
+      <title>Archive action triggers confirmation</title>
+      <given>I click Archive on a completed document</given>
+      <when>the confirmation dialog appears</when>
+      <then>I see message explaining document will be removed from search</then>
+      <and>I can confirm or cancel the action</and>
+    </criterion>
+
+    <criterion id="AC-6.8.3">
+      <title>Archive success updates UI</title>
+      <given>I confirm archiving a document</given>
+      <when>the operation succeeds</when>
+      <then>a success toast is shown</then>
+      <and>the document disappears from the active document list</and>
+      <and>the document count updates</and>
+    </criterion>
+
+    <criterion id="AC-6.8.4">
+      <title>Clear action visible for failed documents</title>
+      <given>I am viewing a KB document list as owner or admin</given>
+      <and>a document has status "failed"</and>
+      <when>I click the document actions menu</when>
+      <then>I see a "Clear" option</then>
+    </criterion>
+
+    <criterion id="AC-6.8.5">
+      <title>Clear action triggers confirmation</title>
+      <given>I click Clear on a failed document</given>
+      <when>the confirmation dialog appears</when>
+      <then>I see message explaining document will be permanently removed</then>
+      <and>I can confirm or cancel the action</and>
+    </criterion>
+
+    <criterion id="AC-6.8.6">
+      <title>Clear success updates UI</title>
+      <given>I confirm clearing a failed document</given>
+      <when>the operation succeeds</when>
+      <then>a success toast is shown</then>
+      <and>the document disappears from the document list</and>
+      <and>the document count updates</and>
+    </criterion>
+
+    <criterion id="AC-6.8.7">
+      <title>Actions hidden for non-owners/non-admins</title>
+      <given>I am a regular user (not owner or admin)</given>
+      <when>I view the document actions menu</when>
+      <then>I do not see Archive or Clear options</then>
+    </criterion>
+
+    <criterion id="AC-6.8.8">
+      <title>Actions hidden for inappropriate statuses</title>
+      <given>a document has status "pending" or "processing"</given>
+      <when>I view the document actions menu</when>
+      <then>neither Archive nor Clear options are visible</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="component" path="frontend/src/components/documents/document-actions-menu.tsx" existing="true">
+      <description>Document actions dropdown menu - extend with Archive/Clear</description>
+      <keyElements>
+        - Add Archive menu item (for completed status)
+        - Add Clear menu item (for failed status)
+        - Permission-based visibility
+        - Status-based visibility
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/documents/archive-confirmation-modal.tsx" new="true">
+      <description>Archive confirmation dialog</description>
+      <keyElements>
+        - Warning message about search exclusion
+        - Confirm/Cancel buttons
+        - Document name display
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/documents/clear-confirmation-modal.tsx" new="true">
+      <description>Clear failed document confirmation dialog</description>
+      <keyElements>
+        - Warning message about permanent deletion
+        - Confirm/Cancel buttons
+        - Document name display
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useDocumentLifecycle.ts" new="true">
+      <description>React Query mutations for document lifecycle actions</description>
+      <keyElements>
+        - useArchiveDocument mutation
+        - useClearDocument mutation
+        - Cache invalidation on success
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/documents/document-list.tsx" existing="true">
+      <description>Document list component - integrate lifecycle actions</description>
+      <keyElements>
+        - Pass archive/clear handlers to actions menu
+        - Handle optimistic updates
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <uiComponents>
+      <component name="DocumentActionsMenu" modify="true">
+        <newProps>
+          - canArchive: boolean (document.status === 'completed' && hasPermission)
+          - canClear: boolean (document.status === 'failed' && hasPermission)
+          - onArchive: () => void
+          - onClear: () => void
+        </newProps>
+        <newMenuItems>
+          - Archive (visible when canArchive)
+          - Clear (visible when canClear)
+        </newMenuItems>
+      </component>
+
+      <component name="ArchiveConfirmationModal">
+        <props>
+          - isOpen: boolean
+          - onClose: () => void
+          - onConfirm: () => void
+          - documentName: string
+          - isLoading: boolean
+        </props>
+      </component>
+
+      <component name="ClearConfirmationModal">
+        <props>
+          - isOpen: boolean
+          - onClose: () => void
+          - onConfirm: () => void
+          - documentName: string
+          - isLoading: boolean
+        </props>
+      </component>
+    </uiComponents>
+
+    <hooks>
+      <hook name="useDocumentLifecycle">
+        <returns>
+          - archiveDocument: UseMutationResult
+          - clearDocument: UseMutationResult
+        </returns>
+        <usage>
+          const { archiveDocument, clearDocument } = useDocumentLifecycle(kbId);
+          archiveDocument.mutate(docId);
+          clearDocument.mutate(docId);
+        </usage>
+      </hook>
+    </hooks>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-1" status="pending">
+      <name>Archive Document Backend</name>
+      <provides>POST /archive endpoint</provides>
+    </dependency>
+
+    <dependency type="story" id="6-4" status="pending">
+      <name>Clear Failed Document Backend</name>
+      <provides>DELETE /clear endpoint</provides>
+    </dependency>
+
+    <dependency type="existing" id="documents-panel">
+      <name>Documents Panel Component</name>
+      <provides>Existing document list with actions menu</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Component Tests" count="8">
+      <test>Archive option visible for completed documents when owner</test>
+      <test>Archive option hidden for non-completed documents</test>
+      <test>Archive option hidden for non-owners</test>
+      <test>Clear option visible for failed documents when owner</test>
+      <test>Clear option hidden for non-failed documents</test>
+      <test>Clear option hidden for non-owners</test>
+      <test>Archive confirmation modal displays correctly</test>
+      <test>Clear confirmation modal displays correctly</test>
+    </testCategory>
+
+    <testCategory name="E2E Tests" count="4">
+      <test>Archive completed document from document list</test>
+      <test>Clear failed document from document list</test>
+      <test>Verify archived document removed from list</test>
+      <test>Verify cleared document removed from list</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

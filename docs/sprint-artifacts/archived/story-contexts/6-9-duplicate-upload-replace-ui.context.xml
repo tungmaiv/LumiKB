@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-9: Duplicate Upload & Replace UI
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-9">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Duplicate Upload and Replace UI</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>MEDIUM</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to handle duplicate document uploads with clear options</iWant>
+      <soThat>I can choose to replace existing documents or cancel the upload</soThat>
+    </userStory>
+
+    <context>
+      When uploading a document with a name that already exists in the KB (completed or archived),
+      the user is presented with a modal explaining the conflict. They can choose to replace
+      the existing document (triggering the replace flow) or cancel the upload. Failed documents
+      with the same name are auto-cleared with a notification.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.9.1">
+      <title>Duplicate detection modal appears on 409</title>
+      <given>I upload a document</given>
+      <and>a document with the same name exists (completed or archived)</and>
+      <when>the upload returns 409 duplicate error</when>
+      <then>a duplicate detection modal appears</then>
+      <and>it shows the name of the existing document</and>
+      <and>it shows the status of the existing document (completed/archived)</and>
+    </criterion>
+
+    <criterion id="AC-6.9.2">
+      <title>Replace option in duplicate modal</title>
+      <given>I see the duplicate detection modal</given>
+      <when>I click "Replace Existing"</when>
+      <then>the replace API is called with the new file</then>
+      <and>on success, the modal closes</and>
+      <and>a success toast shows "Document replaced and queued for processing"</and>
+      <and>the document list refreshes</and>
+    </criterion>
+
+    <criterion id="AC-6.9.3">
+      <title>Cancel option in duplicate modal</title>
+      <given>I see the duplicate detection modal</given>
+      <when>I click "Cancel"</when>
+      <then>the modal closes</then>
+      <and>no upload or replace operation occurs</and>
+    </criterion>
+
+    <criterion id="AC-6.9.4">
+      <title>Auto-clear notification for failed duplicates</title>
+      <given>I upload a document</given>
+      <and>a failed document with the same name existed</and>
+      <when>the upload succeeds with auto_cleared_document_id in response</when>
+      <then>a toast notification shows "Previous failed upload was automatically cleared"</then>
+      <and>the new document appears in the list</and>
+    </criterion>
+
+    <criterion id="AC-6.9.5">
+      <title>Replace shows processing status</title>
+      <given>I confirm replacing a document</given>
+      <when>the replace operation is in progress</when>
+      <then>the modal shows a loading state</then>
+      <and>the Replace button is disabled</and>
+    </criterion>
+
+    <criterion id="AC-6.9.6">
+      <title>Replace error handling</title>
+      <given>I confirm replacing a document</given>
+      <and>the replace API fails (e.g., document now processing)</and>
+      <when>the error response is received</when>
+      <then>an error message is shown in the modal</then>
+      <and>I can retry or cancel</and>
+    </criterion>
+
+    <criterion id="AC-6.9.7">
+      <title>Archived document replace shows restore note</title>
+      <given>I see the duplicate detection modal</given>
+      <and>the existing document is archived</and>
+      <when>I view the modal content</when>
+      <then>I see a note that replacing will restore the document to active status</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="component" path="frontend/src/components/documents/duplicate-document-modal.tsx" new="true">
+      <description>Modal for handling duplicate document uploads</description>
+      <keyElements>
+        - Display existing document info
+        - Replace/Cancel buttons
+        - Loading state during replace
+        - Error display
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/documents/document-upload.tsx" existing="true">
+      <description>Document upload component - handle 409 response</description>
+      <keyElements>
+        - Intercept 409 duplicate response
+        - Open duplicate modal with conflict info
+        - Handle auto-clear notification
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useDocumentUpload.ts" existing="true">
+      <description>Upload hook - extend for duplicate handling</description>
+      <keyElements>
+        - Detect 409 response
+        - Extract duplicate info from response
+        - Support replace flow
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useDocumentLifecycle.ts" existing="true">
+      <description>Lifecycle hook - add replace mutation</description>
+      <keyElements>
+        - useReplaceDocument mutation
+        - File upload to replace endpoint
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents" existing="true">
+        <description>Upload document - returns 409 on duplicate</description>
+        <response code="409">
+          <field name="error" type="string">"duplicate_document"</field>
+          <field name="existing_document_id" type="uuid">ID of existing document</field>
+          <field name="existing_status" type="string">"completed" or "archived"</field>
+          <field name="message" type="string">User-friendly message</field>
+        </response>
+        <response code="201">
+          <field name="auto_cleared_document_id" type="uuid" optional="true">ID of auto-cleared failed doc</field>
+        </response>
+      </endpoint>
+
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/replace" existing="false">
+        <description>Replace existing document with new file</description>
+        <requestBody>multipart/form-data with file</requestBody>
+        <response code="200">
+          <field name="id" type="uuid">Same document ID</field>
+          <field name="status" type="string">"pending"</field>
+          <field name="message" type="string">Success message</field>
+        </response>
+      </endpoint>
+    </api>
+
+    <uiComponents>
+      <component name="DuplicateDocumentModal">
+        <props>
+          - isOpen: boolean
+          - onClose: () => void
+          - onReplace: () => void
+          - duplicateInfo: {
+              existingDocumentId: string
+              existingStatus: 'completed' | 'archived'
+              documentName: string
+            }
+          - file: File
+          - isReplacing: boolean
+          - error: string | null
+        </props>
+      </component>
+
+      <component name="DocumentUpload" modify="true">
+        <newState>
+          - duplicateModalOpen: boolean
+          - duplicateInfo: DuplicateInfo | null
+          - pendingFile: File | null
+        </newState>
+        <newBehavior>
+          - On 409 response, open duplicate modal
+          - On auto-clear response, show toast notification
+        </newBehavior>
+      </component>
+    </uiComponents>
+
+    <hooks>
+      <hook name="useDocumentLifecycle" modify="true">
+        <newMethod>
+          replaceDocument: UseMutationResult&lt;Document, Error, { docId: string, file: File }&gt;
+        </newMethod>
+      </hook>
+    </hooks>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-5" status="pending">
+      <name>Duplicate Detection Backend</name>
+      <provides>409 response with duplicate info</provides>
+    </dependency>
+
+    <dependency type="story" id="6-6" status="pending">
+      <name>Replace Document Backend</name>
+      <provides>POST /replace endpoint</provides>
+    </dependency>
+
+    <dependency type="existing" id="document-upload">
+      <name>Document Upload Component</name>
+      <provides>Existing upload UI to extend</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Component Tests" count="7">
+      <test>DuplicateDocumentModal renders with correct info</test>
+      <test>Replace button triggers onReplace callback</test>
+      <test>Cancel button closes modal</test>
+      <test>Loading state shown during replace</test>
+      <test>Error message displayed on replace failure</test>
+      <test>Archived status shows restore note</test>
+      <test>Auto-clear notification shown on upload success</test>
+    </testCategory>
+
+    <testCategory name="E2E Tests" count="5">
+      <test>Upload duplicate shows modal</test>
+      <test>Replace from duplicate modal succeeds</test>
+      <test>Cancel duplicate upload works</test>
+      <test>Auto-clear failed document on re-upload</test>
+      <test>Replace archived document restores to active</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

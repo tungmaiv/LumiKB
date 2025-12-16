@@ -66,9 +66,7 @@ async def test_log_generation_request_creates_audit_event(
 
 
 @pytest.mark.asyncio
-async def test_log_generation_complete_includes_metrics(
-    audit_service, mock_audit_repo
-):
+async def test_log_generation_complete_includes_metrics(audit_service, mock_audit_repo):
     """Test log_generation_complete includes all required metrics."""
     user_id = uuid.uuid4()
     kb_id = uuid.uuid4()
@@ -225,6 +223,72 @@ async def test_log_export_includes_file_size(audit_service, mock_audit_repo):
     assert details["citation_count"] == 15
     assert details["file_size_bytes"] == 245678
     assert details["related_request_id"] == related_request_id
+
+
+@pytest.mark.asyncio
+async def test_log_export_failed_includes_error_details(audit_service, mock_audit_repo):
+    """Test log_export_failed includes error message and format (AC-7.19.3)."""
+    user_id = uuid.uuid4()
+    draft_id = uuid.uuid4()
+    kb_id = uuid.uuid4()
+
+    with patch("app.services.audit_service.async_session_factory") as mock_session:
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__.return_value = mock_session_ctx
+        mock_session_ctx.__aexit__.return_value = None
+        mock_session.return_value = mock_session_ctx
+
+        with patch(
+            "app.services.audit_service.AuditRepository",
+            return_value=mock_audit_repo,
+        ):
+            await audit_service.log_export_failed(
+                user_id=user_id,
+                draft_id=draft_id,
+                export_format="pdf",
+                error_message="PDF generation failed: missing fonts",
+                kb_id=kb_id,
+            )
+
+    mock_audit_repo.create_event.assert_called_once()
+    call_args = mock_audit_repo.create_event.call_args
+    assert call_args.kwargs["action"] == "document.export_failed"
+    assert call_args.kwargs["resource_type"] == "document"
+    assert call_args.kwargs["resource_id"] == draft_id
+    details = call_args.kwargs["details"]
+    assert details["export_format"] == "pdf"
+    assert details["error"] == "PDF generation failed: missing fonts"
+    assert details["kb_id"] == str(kb_id)
+
+
+@pytest.mark.asyncio
+async def test_log_export_failed_truncates_long_errors(audit_service, mock_audit_repo):
+    """Test log_export_failed truncates error messages to 500 chars (AC-7.19.3)."""
+    user_id = uuid.uuid4()
+    draft_id = uuid.uuid4()
+    long_error = "e" * 1000  # 1000 character string
+
+    with patch("app.services.audit_service.async_session_factory") as mock_session:
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__.return_value = mock_session_ctx
+        mock_session_ctx.__aexit__.return_value = None
+        mock_session.return_value = mock_session_ctx
+
+        with patch(
+            "app.services.audit_service.AuditRepository",
+            return_value=mock_audit_repo,
+        ):
+            await audit_service.log_export_failed(
+                user_id=user_id,
+                draft_id=draft_id,
+                export_format="docx",
+                error_message=long_error,
+            )
+
+    call_args = mock_audit_repo.create_event.call_args
+    details = call_args.kwargs["details"]
+    assert len(details["error"]) == 500
+    assert details["error"] == "e" * 500
 
 
 @pytest.mark.asyncio

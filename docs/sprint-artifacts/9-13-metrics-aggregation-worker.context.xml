@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-13" title="Metrics Aggregation Worker" status="ready-for-dev">
+  <metadata>
+    <created>2025-12-15</created>
+    <epic>9</epic>
+    <phase>4 - Advanced Features</phase>
+    <points>5</points>
+    <priority>P2</priority>
+  </metadata>
+
+  <artifacts>
+    <documentation>
+      <doc path="docs/sprint-artifacts/9-13-metrics-aggregation-worker.md" type="story">
+        Primary story definition with acceptance criteria and implementation tasks
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" type="tech-spec">
+        Comprehensive technical specification with SQL aggregation patterns
+      </doc>
+      <doc path="docs/sprint-artifacts/9-10-document-timeline-ui.md" type="related-story">
+        Established step-specific metrics pattern and duration formatting
+      </doc>
+      <doc path="docs/testing-guideline.md" type="testing">
+        Testing standards for Celery tasks
+      </doc>
+    </documentation>
+
+    <existing-code>
+      <file path="backend/app/workers/celery_app.py" relevance="critical">
+        <description>
+          Celery application configuration with existing beat schedule.
+          New aggregation tasks must be added here.
+        </description>
+        <key-patterns>
+          <pattern name="beat_schedule" lines="50-65">
+            Existing beat schedule with crontab examples:
+            - cleanup-processed-outbox-events: crontab(hour=3, minute=0)
+            - process-outbox-events: 10.0 seconds interval
+          </pattern>
+          <pattern name="autodiscover_tasks" lines="68-74">
+            Tasks autodiscovered from worker modules - add metrics_aggregation_tasks
+          </pattern>
+        </key-patterns>
+      </file>
+
+      <file path="backend/app/models/observability.py" relevance="critical">
+        <description>
+          SQLAlchemy models including MetricsAggregate for storing pre-computed metrics
+        </description>
+        <key-models>
+          <model name="MetricsAggregate" lines="271-320">
+            Pre-aggregated metrics with:
+            - bucket: Time bucket start (hourly/daily)
+            - metric_type: Metric name
+            - dimensions: JSONB for groupings (kb_id, model, user_id)
+            - Statistical fields: count, sum_value, min_value, max_value, avg_value
+            - Percentiles: p50_value, p95_value, p99_value
+          </model>
+          <model name="Trace" lines="27-79">
+            Source data with: trace_id, timestamp, name, user_id, kb_id, status, duration_ms
+          </model>
+          <model name="Span" lines="82-141">
+            Source data with: span_id, trace_id, span_type, duration_ms, input_tokens, output_tokens, model
+          </model>
+          <model name="DocumentEvent" lines="216-268">
+            Source data with: document_id, event_type, status, duration_ms, chunk_count, token_count
+          </model>
+          <model name="ObsChatMessage" lines="144-213">
+            Source data with: role, latency_ms, input_tokens, output_tokens, model
+          </model>
+        </key-models>
+      </file>
+
+      <file path="backend/app/workers/outbox_tasks.py" relevance="medium">
+        <description>
+          Reference for existing scheduled task patterns in the project
+        </description>
+      </file>
+
+      <file path="backend/app/core/config.py" relevance="low">
+        <description>
+          Settings file - no new config needed for this story (uses existing patterns)
+        </description>
+      </file>
+    </existing-code>
+  </artifacts>
+
+  <interfaces>
+    <celery-task name="aggregate_observability_metrics">
+      <description>Main aggregation task run by Celery beat</description>
+      <signature>
+        <code><![CDATA[
+@shared_task
+def aggregate_observability_metrics(
+    granularity: str = 'hour',
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+) -> dict[str, int]:
+    """Aggregate observability metrics for the given time range.
+
+    Args:
+        granularity: 'hour', 'day', or 'week'
+        start_time: Start of aggregation period (default: previous hour)
+        end_time: End of aggregation period (default: current hour)
+
+    Returns:
+        Dict with count of aggregated records per metric type
+    """
+        ]]></code>
+      </signature>
+    </celery-task>
+
+    <sql-patterns>
+      <pattern name="percentile-computation">
+        <code><![CDATA[
+SELECT
+    date_trunc('hour', started_at) AS bucket_time,
+    'hour' AS granularity,
+    'trace.duration_ms' AS metric_name,
+    'operation_type' AS dimension_type,
+    operation_type AS dimension_value,
+    COUNT(*) AS count,
+    SUM(duration_ms) AS sum_value,
+    MIN(duration_ms) AS min_value,
+    MAX(duration_ms) AS max_value,
+    AVG(duration_ms) AS avg_value,
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms) AS p50_value,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_value,
+    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms) AS p99_value
+FROM observability.traces
+WHERE started_at >= %(start_time)s AND started_at < %(end_time)s
+  AND status = 'completed'
+GROUP BY date_trunc('hour', started_at), operation_type
+        ]]></code>
+      </pattern>
+      <pattern name="upsert-idempotency">
+        <code><![CDATA[
+ON CONFLICT (bucket_time, granularity, metric_name, dimension_type, dimension_value)
+DO UPDATE SET
+    count = EXCLUDED.count,
+    sum_value = EXCLUDED.sum_value,
+    min_value = EXCLUDED.min_value,
+    max_value = EXCLUDED.max_value,
+    avg_value = EXCLUDED.avg_value,
+    p50_value = EXCLUDED.p50_value,
+    p95_value = EXCLUDED.p95_value,
+    p99_value = EXCLUDED.p99_value;
+        ]]></code>
+      </pattern>
+    </sql-patterns>
+  </interfaces>
+
+  <metrics-specification>
+    <metric name="trace.count" source="traces" dimensions="operation_type">
+      <aggregations>count</aggregations>
+    </metric>
+    <metric name="trace.duration_ms" source="traces" dimensions="operation_type">
+      <aggregations>avg, p50, p95, p99</aggregations>
+    </metric>
+    <metric name="trace.tokens" source="traces" dimensions="operation_type">
+      <aggregations>sum, avg</aggregations>
+    </metric>
+    <metric name="trace.cost_usd" source="traces" dimensions="operation_type">
+      <aggregations>sum</aggregations>
+    </metric>
+    <metric name="llm.call_count" source="spans (type=llm)" dimensions="model">
+      <aggregations>count</aggregations>
+    </metric>
+    <metric name="llm.latency_ms" source="spans (type=llm)" dimensions="model">
+      <aggregations>avg, p50, p95, p99</aggregations>
+    </metric>
+    <metric name="llm.tokens" source="spans (type=llm)" dimensions="model">
+      <aggregations>sum</aggregations>
+    </metric>
+    <metric name="document.count" source="document_events" dimensions="event_type">
+      <aggregations>count</aggregations>
+    </metric>
+    <metric name="document.duration_ms" source="document_events" dimensions="event_type">
+      <aggregations>avg, p50, p95</aggregations>
+    </metric>
+    <metric name="chat.messages" source="chat_messages" dimensions="kb_id">
+      <aggregations>count</aggregations>
+    </metric>
+    <metric name="chat.response_time_ms" source="chat_messages" dimensions="kb_id">
+      <aggregations>avg, p95</aggregations>
+    </metric>
+  </metrics-specification>
+
+  <constraints>
+    <constraint type="pattern" name="idempotency">
+      Aggregation MUST be idempotent - re-running for the same time bucket should
+      update (not duplicate) existing records using UPSERT pattern.
+    </constraint>
+    <constraint type="schedule" name="beat-timing">
+      Hourly aggregation runs at 5 minutes past the hour to ensure previous hour's
+      data is fully committed. Daily aggregation runs at 1 AM UTC.
+    </constraint>
+    <constraint type="performance" name="non-blocking">
+      Aggregation task must not block the Celery beat scheduler.
+      Use async patterns where possible.
+    </constraint>
+    <constraint type="granularity" name="time-buckets">
+      Support hour, day, and week granularities.
+      Use date_trunc() for consistent bucket alignment.
+    </constraint>
+    <constraint type="monitoring" name="prometheus-metrics">
+      Export Prometheus metrics for aggregation job health:
+      - observability_aggregation_duration_seconds (histogram)
+      - observability_aggregation_records_processed (counter)
+      - observability_aggregation_last_success (gauge)
+      - observability_aggregation_errors_total (counter)
+    </constraint>
+  </constraints>
+
+  <dependencies>
+    <dependency type="story" id="9-1">
+      Observability Schema - metrics_aggregates hypertable must exist
+    </dependency>
+    <dependency type="story" id="9-2">
+      PostgreSQL Provider - raw trace/span data must be persisted
+    </dependency>
+    <dependency type="story" id="9-4">
+      Document Processing Instrumentation - document_events data populated
+    </dependency>
+    <dependency type="story" id="9-5">
+      Chat/RAG Flow Instrumentation - chat_messages data populated
+    </dependency>
+    <dependency type="story" id="9-6">
+      LiteLLM Integration Hooks - LLM spans with token data populated
+    </dependency>
+    <dependency type="infrastructure" name="celery-beat">
+      Celery beat scheduler must be running
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <test-file path="backend/tests/unit/test_metrics_aggregation.py" type="unit">
+      <test-cases>
+        <case name="test_hourly_aggregation_computes_correct_stats">
+          Verify count, sum, min, max, avg computed correctly
+        </case>
+        <case name="test_percentile_calculations">
+          Verify p50, p95, p99 computed correctly with test data
+        </case>
+        <case name="test_dimension_grouping">
+          Verify metrics grouped correctly by operation_type, model, kb_id
+        </case>
+        <case name="test_idempotency_updates_not_duplicates">
+          Run aggregation twice for same bucket, verify single record updated
+        </case>
+        <case name="test_time_bucket_alignment">
+          Verify date_trunc produces correct bucket boundaries
+        </case>
+        <case name="test_default_time_range_is_previous_hour">
+          Verify task defaults to previous hour when no params
+        </case>
+      </test-cases>
+    </test-file>
+    <test-file path="backend/tests/integration/test_metrics_aggregation_integration.py" type="integration">
+      <test-cases>
+        <case name="test_full_aggregation_with_real_data">
+          Integration test with actual trace/span/event data
+        </case>
+        <case name="test_backfill_processes_date_range">
+          Verify backfill command processes all hours in range
+        </case>
+        <case name="test_prometheus_metrics_exported">
+          Verify Prometheus metrics updated after aggregation
+        </case>
+      </test-cases>
+    </test-file>
+    <testing-patterns>
+      <pattern name="mock-datetime">
+        Use freezegun or mock datetime for deterministic bucket times
+      </pattern>
+      <pattern name="factory-patterns">
+        Use factories to create test trace/span/event data
+      </pattern>
+      <pattern name="verify-idempotency">
+        Run aggregation twice and assert record count unchanged
+      </pattern>
+    </testing-patterns>
+  </tests>
+
+  <source-tree>
+    <new-files>
+      <file>backend/app/workers/metrics_aggregation_tasks.py</file>
+      <file>backend/app/services/metrics_aggregation_service.py</file>
+      <file>backend/tests/unit/test_metrics_aggregation.py</file>
+      <file>backend/tests/integration/test_metrics_aggregation_integration.py</file>
+    </new-files>
+    <modified-files>
+      <file>backend/app/workers/celery_app.py</file>
+    </modified-files>
+  </source-tree>
+
+  <celery-beat-schedule>
+    <task name="aggregate-observability-metrics-hourly">
+      <code><![CDATA[
+'aggregate-observability-metrics-hourly': {
+    'task': 'app.workers.metrics_aggregation_tasks.aggregate_observability_metrics',
+    'schedule': crontab(minute=5),  # 5 minutes past every hour
+    'args': ('hour',),
+},
+      ]]></code>
+    </task>
+    <task name="aggregate-observability-metrics-daily">
+      <code><![CDATA[
+'aggregate-observability-metrics-daily': {
+    'task': 'app.workers.metrics_aggregation_tasks.aggregate_observability_metrics',
+    'schedule': crontab(hour=1, minute=0),  # 1 AM daily
+    'args': ('day',),
+},
+      ]]></code>
+    </task>
+  </celery-beat-schedule>
+
+  <acceptance-criteria-mapping>
+    <ac id="1" task="1">Celery beat task runs hourly</ac>
+    <ac id="2" task="2">Aggregates trace metrics into metrics_aggregates table</ac>
+    <ac id="3" task="3">Computes count, sum, min, max, avg per metric</ac>
+    <ac id="4" task="3">Calculates p50, p95, p99 percentiles for latencies</ac>
+    <ac id="5" task="4">Dimensions: by operation_type, by model, by kb, by user</ac>
+    <ac id="6" task="5">Handles hour, day, week granularities</ac>
+    <ac id="7" task="6">Idempotent: re-running for same bucket updates metrics</ac>
+    <ac id="8" task="7">Backfill capability for missed periods</ac>
+    <ac id="9" task="8">Prometheus metrics for aggregation job health</ac>
+    <ac id="10" task="10">Unit tests for aggregation logic</ac>
+  </acceptance-criteria-mapping>
+</story-context>

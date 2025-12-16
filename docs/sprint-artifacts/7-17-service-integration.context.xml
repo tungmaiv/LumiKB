@@ -1,0 +1,197 @@
+<story-context id="7-17-service-integration" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7.17</storyId>
+    <title>Service Integration</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-17-service-integration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>search and generation services to use KB-level configuration</iWant>
+    <soThat>each Knowledge Base behaves according to its settings</soThat>
+    <tasks>
+      <task id="1">Integrate KBConfigResolver with SearchService (resolve_retrieval_config)</task>
+      <task id="2">Integrate KBConfigResolver with GenerationService (resolve_generation_config, get_kb_system_prompt)</task>
+      <task id="3">Integrate KBConfigResolver with document workers (resolve_chunking_config)</task>
+      <task id="4">Add audit logging for effective config snapshot</task>
+      <task id="5">Update dependency injection for all services</task>
+      <task id="6">Unit tests for SearchService integration</task>
+      <task id="7">Unit tests for GenerationService integration</task>
+      <task id="8">Unit tests for Document worker integration</task>
+      <task id="9">Integration tests for full KB config flow</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="7.17.1">SearchService uses KB retrieval config: top_k, similarity_threshold, method</ac>
+    <ac id="7.17.2">GenerationService uses KB generation config: temperature, top_p, max_tokens</ac>
+    <ac id="7.17.3">GenerationService uses KB system_prompt instead of default</ac>
+    <ac id="7.17.4">Document worker uses KB chunking config: chunk_size, chunk_overlap, strategy</ac>
+    <ac id="7.17.5">Request overrides still take precedence over KB settings</ac>
+    <ac id="7.17.6">Audit log includes effective_config snapshot</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/7-17-service-integration.md">Story definition with integration examples</doc>
+      <doc path="docs/sprint-artifacts/7-13-kb-config-resolver-service.md">KBConfigResolver implementation (56/56 tests)</doc>
+      <doc path="docs/sprint-artifacts/7-12-kb-settings-schema.md">Backend schema definitions</doc>
+    </docs>
+    <code>
+      <file path="backend/app/services/kb_config_resolver.py" lines="66-98">
+        <description>KBConfigResolver with resolve_*_config methods - USE THESE</description>
+        <content><![CDATA[
+# Key methods to call in service integration:
+
+# In SearchService:
+resolver = KBConfigResolver(session, redis)
+retrieval_config = await resolver.resolve_retrieval_config(
+    kb_id=kb_id,
+    request_overrides={"top_k": request_top_k}  # optional
+)
+# Use: retrieval_config.top_k, .similarity_threshold, .method
+
+# In GenerationService:
+generation_config = await resolver.resolve_generation_config(
+    kb_id=kb_id,
+    request_overrides={"temperature": request_temp}  # optional
+)
+system_prompt = await resolver.get_kb_system_prompt(kb_id)
+# Use: generation_config.temperature, .top_p, .max_tokens
+
+# In Document Worker:
+chunking_config = await resolver.resolve_chunking_config(kb_id)
+# Use: chunking_config.chunk_size, .chunk_overlap, .strategy
+]]></content>
+      </file>
+      <file path="backend/app/services/search_service.py" lines="">
+        <description>SearchService - needs KBConfigResolver integration (1156 lines)</description>
+        <integrationPoints>
+          <point>Add KBConfigResolver to __init__ dependencies</point>
+          <point>Call resolve_retrieval_config() in search methods</point>
+          <point>Apply resolved top_k to Qdrant query limit</point>
+          <point>Apply resolved similarity_threshold as score filter</point>
+          <point>Apply resolved method (vector/hybrid/HyDE) logic</point>
+        </integrationPoints>
+      </file>
+      <file path="backend/app/services/generation_service.py" lines="">
+        <description>GenerationService - needs KBConfigResolver integration (674 lines)</description>
+        <integrationPoints>
+          <point>Add KBConfigResolver to __init__ dependencies</point>
+          <point>Call resolve_generation_config() before LLM call</point>
+          <point>Call get_kb_system_prompt() for system prompt</point>
+          <point>Apply resolved temperature, top_p, max_tokens to LiteLLM call</point>
+        </integrationPoints>
+      </file>
+      <file path="backend/app/workers/document_tasks.py" lines="288-438">
+        <description>Document processing task - needs chunking config integration</description>
+        <integrationPoints>
+          <point>Import KBConfigResolver</point>
+          <point>Call resolve_chunking_config() in _chunk_embed_index</point>
+          <point>Pass chunk_size, chunk_overlap, strategy to chunk_document()</point>
+        </integrationPoints>
+      </file>
+      <file path="backend/app/workers/parsing.py" lines="">
+        <description>Document parsing - may need chunking config parameters (400 lines)</description>
+      </file>
+      <file path="backend/app/services/audit_service.py" lines="">
+        <description>Audit service - add effective_config to log entries</description>
+      </file>
+      <file path="backend/app/schemas/kb_settings.py" lines="72-119">
+        <description>Config schemas: RetrievalConfig, GenerationConfig, ChunkingConfig</description>
+        <content><![CDATA[
+class ChunkingConfig(BaseModel):
+    strategy: ChunkingStrategy = Field(default=ChunkingStrategy.RECURSIVE)
+    chunk_size: int = Field(default=512, ge=100, le=2000)
+    chunk_overlap: int = Field(default=50, ge=0, le=500)
+
+class RetrievalConfig(BaseModel):
+    top_k: int = Field(default=10, ge=1, le=100)
+    similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    method: RetrievalMethod = Field(default=RetrievalMethod.VECTOR)
+    mmr_enabled: bool = Field(default=False)
+
+class GenerationConfig(BaseModel):
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    top_p: float = Field(default=0.9, ge=0.0, le=1.0)
+    max_tokens: int = Field(default=2048, ge=100, le=16000)
+]]></content>
+      </file>
+    </code>
+    <dependencies>
+      <dependency type="story">Story 7-13 (KBConfigResolver Service) - DONE - Provides resolve_*_config() methods</dependency>
+      <dependency type="story">Story 7-12 (KB Settings Schema) - DONE - Provides config Pydantic schemas</dependency>
+      <dependency type="internal">backend/app/services/kb_config_resolver.py</dependency>
+      <dependency type="internal">backend/app/schemas/kb_settings.py</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Request overrides MUST take precedence over KB settings (three-layer precedence)</constraint>
+    <constraint>KBConfigResolver uses Redis caching (5-minute TTL) - be aware of cache behavior</constraint>
+    <constraint>Celery workers run in sync context - use run_async() wrapper for resolver calls</constraint>
+    <constraint>Audit logging must capture effective_config AFTER resolution</constraint>
+    <constraint>Stories 7-14, 7-15, 7-16 (UI stories) can be developed in parallel</constraint>
+  </constraints>
+
+  <interfaces>
+    <services>
+      <service name="SearchService">
+        <modification>Add KBConfigResolver dependency to __init__</modification>
+        <modification>Call resolve_retrieval_config() with request_overrides</modification>
+        <modification>Use resolved config for Qdrant queries</modification>
+      </service>
+      <service name="GenerationService">
+        <modification>Add KBConfigResolver dependency to __init__</modification>
+        <modification>Call resolve_generation_config() with request_overrides</modification>
+        <modification>Call get_kb_system_prompt() for system prompt</modification>
+        <modification>Use resolved config for LiteLLM calls</modification>
+      </service>
+      <service name="DocumentWorker">
+        <modification>Call resolve_chunking_config() in _chunk_embed_index</modification>
+        <modification>Pass config to chunk_document()</modification>
+      </service>
+      <service name="AuditService">
+        <modification>Add effective_config field to audit log entries</modification>
+        <modification>Log config snapshot for search/generation operations</modification>
+      </service>
+    </services>
+    <dependencyInjection>
+      <factory name="get_kb_config_resolver">Returns KBConfigResolver instance</factory>
+      <update>Router dependencies for SearchService, GenerationService</update>
+      <update>Celery task dependencies for document workers</update>
+    </dependencyInjection>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Mock KBConfigResolver with specific return values</standard>
+      <standard>Verify services use resolved config values</standard>
+      <standard>Test request overrides take precedence</standard>
+      <standard>Use async fixtures for database tests</standard>
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_search_service_kb_config.py</location>
+      <location>backend/tests/unit/test_generation_service_kb_config.py</location>
+      <location>backend/tests/unit/test_document_worker_kb_config.py</location>
+      <location>backend/tests/integration/test_kb_config_integration.py</location>
+    </locations>
+    <ideas>
+      <test>SearchService uses KB retrieval config (top_k, threshold, method)</test>
+      <test>SearchService request override takes precedence</test>
+      <test>SearchService uses default config when KB has no custom settings</test>
+      <test>GenerationService uses KB generation config (temperature, top_p)</test>
+      <test>GenerationService uses KB system prompt</test>
+      <test>GenerationService request override takes precedence</test>
+      <test>GenerationService uses default prompt when KB has no custom prompt</test>
+      <test>Document worker uses KB chunking config (chunk_size, overlap, strategy)</test>
+      <test>Document worker uses default chunking when KB has no custom settings</test>
+      <test>Audit log includes effective_config snapshot</test>
+      <test>Full integration: create KB with custom settings, search, verify config used</test>
+    </ideas>
+  </tests>
+</story-context>

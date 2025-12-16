@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-1: Archive Document Backend
+  Generated: 2025-12-07
+
+  This document provides the dev agent with all necessary context to implement
+  the story. It includes relevant documentation excerpts, code references,
+  interface contracts, and constraints.
+-->
+<storyContext version="1.0" storyId="6-1">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Archive Document Backend</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to archive completed documents</iWant>
+      <soThat>they are removed from active search results while remaining recoverable</soThat>
+    </userStory>
+
+    <context>
+      Document archiving is a soft-delete mechanism that removes documents from active search
+      results without permanently deleting them. Archived documents can later be restored or
+      permanently purged. This story implements the backend API and storage layer operations
+      for archiving documents.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.1.1">
+      <title>Archive endpoint exists</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <when>I call POST /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/archive</when>
+      <then>I receive 200 OK</then>
+      <and>the document status changes from "completed" to "archived"</and>
+      <and>an audit log entry is created with action "document_archived"</and>
+      <validation>
+        - Integration test: Archive document → verify status change and audit log
+      </validation>
+    </criterion>
+
+    <criterion id="AC-6.1.2">
+      <title>Only completed documents can be archived</title>
+      <given>a document has status "pending", "processing", or "failed"</given>
+      <when>I attempt to archive it</when>
+      <then>I receive 400 Bad Request with message "Only completed documents can be archived"</then>
+      <validation>
+        - Integration test: Attempt archive on pending/processing/failed document → 400
+      </validation>
+    </criterion>
+
+    <criterion id="AC-6.1.3">
+      <title>Already archived document returns 400</title>
+      <given>a document is already archived</given>
+      <when>I attempt to archive it again</when>
+      <then>I receive 400 Bad Request with message "Document is already archived"</then>
+      <validation>
+        - Integration test: Archive already-archived document → 400
+      </validation>
+    </criterion>
+
+    <criterion id="AC-6.1.4">
+      <title>Qdrant vectors marked as archived</title>
+      <given>I archive a document</given>
+      <when>the operation completes</when>
+      <then>all Qdrant vectors for this document have payload status: "archived"</then>
+      <and>vectors are not deleted (soft-filter approach)</and>
+      <validation>
+        - Integration test: Archive document → verify Qdrant payload updated
+      </validation>
+    </criterion>
+
+    <criterion id="AC-6.1.5">
+      <title>Permission check enforced</title>
+      <given>I am not KB owner or admin</given>
+      <when>I attempt to archive a document</when>
+      <then>I receive 403 Forbidden</then>
+      <validation>
+        - Integration test: Non-owner/non-admin archive attempt → 403
+      </validation>
+    </criterion>
+
+    <criterion id="AC-6.1.6">
+      <title>Archived documents excluded from search</title>
+      <given>a document is archived</given>
+      <when>I perform semantic search on the KB</when>
+      <then>the archived document's chunks do not appear in results</then>
+      <validation>
+        - Integration test: Archive document → search → verify excluded from results
+      </validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <artifact type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-6.md">
+      <summary>Epic 6 technical specification covering document lifecycle management</summary>
+    </artifact>
+
+    <artifact type="epic-definition" path="docs/epics.md">
+      <summary>Epic 6 stories and acceptance criteria definition</summary>
+      <relevance>Contains all AC definitions for Epic 6 stories</relevance>
+    </artifact>
+  </artifacts>
+
+  <codeReferences>
+    <reference type="model" path="backend/app/models/document.py">
+      <description>Document SQLAlchemy model - needs archived_at field and status enum update</description>
+      <keyElements>
+        - DocumentStatus enum: add ARCHIVED status
+        - Document model: add archived_at TIMESTAMP field
+        - Status transitions
+      </keyElements>
+    </reference>
+
+    <reference type="schema" path="backend/app/schemas/document.py">
+      <description>Document Pydantic schemas for API responses</description>
+      <keyElements>
+        - DocumentResponse: add archived_at field
+        - DocumentStatus enum in schemas
+      </keyElements>
+    </reference>
+
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService - add archive_document method</description>
+      <keyElements>
+        - async def archive_document(doc_id, user): new method
+        - Permission check logic
+        - Status validation
+        - Qdrant payload update
+      </keyElements>
+    </reference>
+
+    <reference type="api" path="backend/app/api/v1/documents.py">
+      <description>Document API endpoints</description>
+      <keyElements>
+        - POST /documents/{doc_id}/archive: new endpoint
+        - Permission checking
+        - Error responses
+      </keyElements>
+    </reference>
+
+    <reference type="qdrant" path="backend/app/integrations/qdrant_client.py">
+      <description>Qdrant client - add payload update method</description>
+      <keyElements>
+        - set_payload method for updating status
+        - Filter by doc_id
+      </keyElements>
+    </reference>
+
+    <reference type="search" path="backend/app/services/search_service.py">
+      <description>Search service - update to exclude archived</description>
+      <keyElements>
+        - Add filter condition: status != "archived"
+        - Or filter: status == "completed"
+      </keyElements>
+    </reference>
+
+    <reference type="audit" path="backend/app/services/audit_service.py">
+      <description>Audit service for logging operations</description>
+      <keyElements>
+        - log_event method
+        - Action: "document_archived"
+        - Resource type: "document"
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/archive" new="true">
+        <description>Archive a completed document</description>
+        <authorization>KB owner or admin required</authorization>
+        <pathParams>
+          <param name="kb_id" type="uuid" required="true">Knowledge Base ID</param>
+          <param name="doc_id" type="uuid" required="true">Document ID</param>
+        </pathParams>
+        <response code="200">
+          <field name="id" type="uuid">Document ID</field>
+          <field name="name" type="string">Document name</field>
+          <field name="status" type="string">New status: "archived"</field>
+          <field name="archived_at" type="datetime">Timestamp of archival</field>
+        </response>
+        <errors>
+          <error code="400">Document status is not "completed" or already "archived"</error>
+          <error code="403">User is not KB owner or admin</error>
+          <error code="404">Document not found</error>
+        </errors>
+      </endpoint>
+    </api>
+
+    <database>
+      <migration required="true">
+        <description>Add archived_at column to documents table</description>
+        <sql>ALTER TABLE documents ADD COLUMN archived_at TIMESTAMP NULL;</sql>
+        <index>CREATE INDEX idx_documents_archived_at ON documents(archived_at) WHERE archived_at IS NOT NULL;</index>
+      </migration>
+
+      <statusEnum>
+        <value>pending</value>
+        <value>processing</value>
+        <value>completed</value>
+        <value>failed</value>
+        <value new="true">archived</value>
+      </statusEnum>
+    </database>
+
+    <qdrant>
+      <operation name="archive">
+        <description>Update payload to mark vectors as archived</description>
+        <code><![CDATA[
+await qdrant_client.set_payload(
+    collection_name=f"kb_{kb_id}",
+    payload={"status": "archived"},
+    points=Filter(
+        must=[FieldCondition(key="doc_id", match=MatchValue(value=str(doc_id)))]
+    )
+)
+        ]]></code>
+      </operation>
+
+      <operation name="searchFilter">
+        <description>Exclude archived documents from search</description>
+        <code><![CDATA[
+filter_conditions.append(
+    FieldCondition(
+        key="status",
+        match=MatchValue(value="completed")
+    )
+)
+        ]]></code>
+      </operation>
+    </qdrant>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="epic" id="2" status="completed">
+      <name>Document Management</name>
+      <provides>Documents table, DocumentService, document processing pipeline</provides>
+    </dependency>
+
+    <dependency type="epic" id="3" status="completed">
+      <name>Search</name>
+      <provides>Search service, Qdrant integration</provides>
+    </dependency>
+
+    <dependency type="epic" id="1" status="completed">
+      <name>Foundation</name>
+      <provides>Audit logging infrastructure</provides>
+    </dependency>
+  </dependencies>
+
+  <constraints>
+    <constraint type="security">
+      <description>Only KB owner or system admin can archive documents</description>
+      <implementation>Check user.is_admin OR kb.owner_id == user.id</implementation>
+    </constraint>
+
+    <constraint type="state">
+      <description>Only completed documents can be archived</description>
+      <implementation>Validate document.status == "completed" before archive</implementation>
+    </constraint>
+
+    <constraint type="storage">
+      <description>Qdrant vectors are NOT deleted - only payload updated</description>
+      <implementation>Use set_payload, not delete</implementation>
+    </constraint>
+
+    <constraint type="audit">
+      <description>All archive operations must be logged</description>
+      <implementation>Call audit_service.log_event after successful archive</implementation>
+    </constraint>
+  </constraints>
+
+  <tests>
+    <testCategory name="Backend Unit Tests" count="5">
+      <test>archive_document succeeds for completed document</test>
+      <test>archive_document raises error for non-completed document</test>
+      <test>archive_document raises error for already archived document</test>
+      <test>archive_document updates Qdrant payload</test>
+      <test>archive_document creates audit log entry</test>
+    </testCategory>
+
+    <testCategory name="Backend Integration Tests" count="6">
+      <test>POST /archive returns 200 for KB owner</test>
+      <test>POST /archive returns 200 for admin user</test>
+      <test>POST /archive returns 403 for non-owner/non-admin</test>
+      <test>POST /archive returns 400 for non-completed document</test>
+      <test>POST /archive returns 400 for already archived document</test>
+      <test>Archived document excluded from semantic search</test>
+    </testCategory>
+  </tests>
+
+  <implementationNotes>
+    <note category="database">
+      Create Alembic migration for archived_at column and status enum update
+    </note>
+    <note category="qdrant">
+      Ensure Qdrant payload includes "status" field during document processing
+    </note>
+    <note category="search">
+      Update search filter to only include status="completed" documents
+    </note>
+    <note category="error-handling">
+      Return clear error messages for state validation failures
+    </note>
+    <note category="permissions">
+      Reuse existing KB permission checking patterns from kb_service
+    </note>
+  </implementationNotes>
+
+</storyContext>

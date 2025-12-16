@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-12" title="Observability Dashboard Widgets" status="ready-for-dev">
+  <metadata>
+    <created>2025-12-15</created>
+    <epic>9</epic>
+    <phase>4 - Advanced Features</phase>
+    <points>5</points>
+    <priority>P1</priority>
+  </metadata>
+
+  <artifacts>
+    <documentation>
+      <doc path="docs/sprint-artifacts/9-12-observability-dashboard-widgets.md" type="story">
+        Primary story definition with acceptance criteria and implementation tasks
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" type="tech-spec">
+        Comprehensive technical specification with widget data structures
+      </doc>
+      <doc path="docs/sprint-artifacts/9-10-document-timeline-ui.md" type="related-story">
+        Established React Query polling pattern and status visualization
+      </doc>
+      <doc path="docs/testing-guideline.md" type="testing">
+        React Testing Library patterns for component tests
+      </doc>
+    </documentation>
+
+    <existing-code>
+      <file path="frontend/src/components/admin/stat-card.tsx" relevance="critical">
+        <description>
+          Existing stat card component with sparkline support using recharts.
+          This is the primary pattern to follow for widget cards.
+        </description>
+        <key-patterns>
+          <pattern name="StatCardProps" lines="12-20">
+            Interface: title, value, description, icon, trend (number[]), trendColor, onClick
+          </pattern>
+          <pattern name="sparkline" lines="31-60">
+            Uses recharts LineChart with ResponsiveContainer for sparkline trends
+          </pattern>
+          <pattern name="clickable-card" lines="33-37">
+            Hover effect and cursor-pointer for navigation on click
+          </pattern>
+        </key-patterns>
+      </file>
+
+      <file path="frontend/src/hooks/useAdminStats.ts" relevance="high">
+        <description>
+          Existing admin stats hook pattern to reference for data fetching
+        </description>
+      </file>
+
+      <file path="frontend/src/components/admin/traces/" relevance="medium">
+        <description>
+          Existing trace viewer components that widgets will link to
+        </description>
+      </file>
+
+      <file path="frontend/src/components/admin/documents/" relevance="medium">
+        <description>
+          Document timeline components that widgets will link to
+        </description>
+      </file>
+
+      <file path="frontend/src/components/admin/chat/" relevance="medium">
+        <description>
+          Chat history viewer that widgets will link to
+        </description>
+      </file>
+    </existing-code>
+  </artifacts>
+
+  <interfaces>
+    <api-endpoint path="GET /api/v1/observability/stats">
+      <description>Main stats endpoint consumed by all widgets</description>
+      <query-params>
+        <param name="period" type="string" values="hour|day|week|month">Time period for stats</param>
+      </query-params>
+      <response-structure>
+        <code><![CDATA[
+{
+  "llm_usage": {
+    "total_tokens": number,
+    "prompt_tokens": number,
+    "completion_tokens": number,
+    "total_cost_usd": number,
+    "by_model": [{ "model": string, "tokens": number, "cost": number }],
+    "trend": [{ "timestamp": string, "value": number }]
+  },
+  "processing_pipeline": {
+    "documents_processed": number,
+    "avg_processing_time_ms": number,
+    "error_rate": number,
+    "trend": [{ "timestamp": string, "value": number }]
+  },
+  "chat_activity": {
+    "message_count": number,
+    "active_session_count": number,
+    "avg_response_time_ms": number,
+    "trend": [{ "timestamp": string, "value": number }]
+  },
+  "system_health": {
+    "trace_success_rate": number,
+    "p95_latency_ms": number,
+    "error_count": number,
+    "trend": [{ "timestamp": string, "value": number }]
+  }
+}
+        ]]></code>
+      </response-structure>
+    </api-endpoint>
+
+    <widget-data-types>
+      <type name="LLMUsageData">
+        <code><![CDATA[
+interface LLMUsageData {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalCostUsd: number;
+  byModel: Array<{ model: string; tokens: number; cost: number }>;
+  trend: Array<{ timestamp: string; value: number }>;
+}
+        ]]></code>
+      </type>
+      <type name="ProcessingPipelineData">
+        <code><![CDATA[
+interface ProcessingPipelineData {
+  documentsProcessed: number;
+  avgProcessingTimeMs: number;
+  errorRate: number;
+  trend: Array<{ timestamp: string; value: number }>;
+}
+        ]]></code>
+      </type>
+      <type name="ChatActivityData">
+        <code><![CDATA[
+interface ChatActivityData {
+  messageCount: number;
+  activeSessionCount: number;
+  avgResponseTimeMs: number;
+  trend: Array<{ timestamp: string; value: number }>;
+}
+        ]]></code>
+      </type>
+      <type name="SystemHealthData">
+        <code><![CDATA[
+interface SystemHealthData {
+  traceSuccessRate: number;
+  p95LatencyMs: number;
+  errorCount: number;
+  trend: Array<{ timestamp: string; value: number }>;
+}
+        ]]></code>
+      </type>
+    </widget-data-types>
+  </interfaces>
+
+  <constraints>
+    <constraint type="pattern" name="parallel-fetching">
+      Widgets MUST load independently using React Query with separate query keys.
+      Each widget should show its own loading state, not block others.
+    </constraint>
+    <constraint type="pattern" name="auto-refresh">
+      Default 30-second refresh interval using React Query's refetchInterval.
+      Must be configurable and include manual refresh button.
+    </constraint>
+    <constraint type="pattern" name="responsive-grid">
+      2x2 grid layout on desktop, single column on mobile.
+      Use Tailwind CSS responsive classes (grid-cols-1 md:grid-cols-2).
+    </constraint>
+    <constraint type="navigation" name="click-navigation">
+      Widgets MUST be clickable and navigate to detailed views:
+      - LLM Usage → Trace viewer
+      - Processing Pipeline → Document timeline
+      - Chat Activity → Chat history viewer
+      - System Health → Trace viewer
+    </constraint>
+    <constraint type="accessibility" name="last-updated">
+      Show last updated timestamp and loading indicators for transparency.
+    </constraint>
+  </constraints>
+
+  <dependencies>
+    <dependency type="story" id="9-7">
+      Observability Admin API - provides GET /api/v1/observability/stats endpoint
+    </dependency>
+    <dependency type="story" id="9-1">
+      Observability Schema - TimescaleDB tables for aggregation queries
+    </dependency>
+    <dependency type="library" name="react-query">
+      @tanstack/react-query for parallel data fetching with caching
+    </dependency>
+    <dependency type="library" name="recharts">
+      Already installed - used by stat-card.tsx for sparklines
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <test-file path="frontend/src/components/admin/widgets/__tests__/llm-usage-widget.test.tsx" type="unit">
+      <test-cases>
+        <case name="test_renders_total_tokens">
+          Verify total tokens displayed correctly
+        </case>
+        <case name="test_renders_cost_in_usd">
+          Verify cost formatted with $ and decimal places
+        </case>
+        <case name="test_sparkline_renders">
+          Verify sparkline chart renders with trend data
+        </case>
+        <case name="test_click_navigates_to_traces">
+          Verify navigation to trace viewer on click
+        </case>
+      </test-cases>
+    </test-file>
+    <test-file path="frontend/src/components/admin/widgets/__tests__/processing-widget.test.tsx" type="unit">
+      <test-cases>
+        <case name="test_renders_document_count">
+          Verify documents processed count displayed
+        </case>
+        <case name="test_renders_error_rate_percentage">
+          Verify error rate shown as percentage
+        </case>
+        <case name="test_click_navigates_to_timeline">
+          Verify navigation to document timeline on click
+        </case>
+      </test-cases>
+    </test-file>
+    <test-file path="frontend/src/hooks/__tests__/useObservabilityStats.test.ts" type="unit">
+      <test-cases>
+        <case name="test_fetches_stats_for_period">
+          Verify API called with correct period parameter
+        </case>
+        <case name="test_auto_refresh_interval">
+          Verify refetchInterval set correctly
+        </case>
+        <case name="test_parallel_fetching">
+          Verify multiple widgets fetch independently
+        </case>
+      </test-cases>
+    </test-file>
+    <testing-patterns>
+      <pattern name="mock-api-responses">
+        Use MSW or mock fetch for API responses with all widget data
+      </pattern>
+      <pattern name="test-loading-states">
+        Verify skeleton loaders shown during loading
+      </pattern>
+      <pattern name="test-error-states">
+        Verify error display when API fails
+      </pattern>
+    </testing-patterns>
+  </tests>
+
+  <source-tree>
+    <new-files>
+      <file>frontend/src/components/admin/widgets/llm-usage-widget.tsx</file>
+      <file>frontend/src/components/admin/widgets/processing-widget.tsx</file>
+      <file>frontend/src/components/admin/widgets/chat-activity-widget.tsx</file>
+      <file>frontend/src/components/admin/widgets/system-health-widget.tsx</file>
+      <file>frontend/src/components/admin/observability-dashboard.tsx</file>
+      <file>frontend/src/hooks/useObservabilityStats.ts</file>
+      <file>frontend/src/app/(protected)/admin/observability/page.tsx</file>
+      <file>frontend/src/components/admin/widgets/__tests__/</file>
+    </new-files>
+    <modified-files>
+      <file>frontend/src/components/admin/index.ts</file>
+    </modified-files>
+  </source-tree>
+
+  <ui-patterns>
+    <pattern name="stat-card-reuse">
+      <description>
+        Extend existing StatCard component pattern with additional widget-specific content
+      </description>
+      <code><![CDATA[
+<Card className="cursor-pointer hover:bg-accent transition-colors" onClick={onClick}>
+  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <CardTitle className="text-sm font-medium">{title}</CardTitle>
+    <Icon className="h-4 w-4 text-muted-foreground" />
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold">{value}</div>
+    <p className="text-xs text-muted-foreground">{description}</p>
+    {/* Sparkline */}
+    <ResponsiveContainer width="100%" height={40}>
+      <LineChart data={trendData}>
+        <Line type="monotone" dataKey="value" stroke={trendColor} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  </CardContent>
+</Card>
+      ]]></code>
+    </pattern>
+    <pattern name="time-period-selector">
+      <description>
+        Shared component for selecting time period across all widgets
+      </description>
+      <code><![CDATA[
+<Select value={period} onValueChange={setPeriod}>
+  <SelectTrigger className="w-[120px]">
+    <SelectValue placeholder="Period" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="hour">Last Hour</SelectItem>
+    <SelectItem value="day">Last Day</SelectItem>
+    <SelectItem value="week">Last Week</SelectItem>
+    <SelectItem value="month">Last Month</SelectItem>
+  </SelectContent>
+</Select>
+      ]]></code>
+    </pattern>
+    <pattern name="react-query-polling">
+      <description>
+        Auto-refresh pattern from story 9-10 document timeline
+      </description>
+      <code><![CDATA[
+const { data, isLoading, error } = useQuery({
+  queryKey: ['observability-stats', period],
+  queryFn: () => api.get(`/observability/stats?period=${period}`),
+  refetchInterval: 30000, // 30 seconds
+});
+      ]]></code>
+    </pattern>
+  </ui-patterns>
+
+  <acceptance-criteria-mapping>
+    <ac id="1" task="1">LLM Usage widget displays total tokens, cost, breakdown by model</ac>
+    <ac id="2" task="2">Processing Pipeline widget shows documents processed, avg time, error rate</ac>
+    <ac id="3" task="3">Chat Activity widget shows messages today, active sessions, avg response time</ac>
+    <ac id="4" task="4">System Health widget shows trace success rate, p95 latency</ac>
+    <ac id="5" task="5">Time period selector (hour/day/week/month) for all widgets</ac>
+    <ac id="6" task="6">Auto-refresh every 30 seconds (configurable)</ac>
+    <ac id="7" task="9">Sparkline charts for trends</ac>
+    <ac id="8" task="1,2,3,4">Click widget to navigate to detailed view</ac>
+    <ac id="9" task="7">Widgets load independently (parallel fetching)</ac>
+    <ac id="10" task="10">Unit tests for widget components</ac>
+  </acceptance-criteria-mapping>
+</story-context>

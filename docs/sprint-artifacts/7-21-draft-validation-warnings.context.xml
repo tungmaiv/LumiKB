@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-21" title="Draft Validation Warnings">
+  <summary>
+    Add validation warnings to the DraftEditor that alert users when editing
+    may have orphaned citations or when content issues are detected.
+  </summary>
+
+  <key-files>
+    <file path="frontend/src/components/generation/draft-editor.tsx" purpose="Draft editing component">
+      <note>443 lines - uses contentEditable with DOMPurify sanitization</note>
+      <note>Lines 45-75: Citation marker rendering as non-editable spans</note>
+      <note>Lines 150-200: handleContentChange with content sanitization</note>
+      <note>Need to add citation validation on content change</note>
+    </file>
+    <file path="frontend/src/hooks/useDraftEditor.ts" purpose="Draft editor state management">
+      <note>Manages content, citations, autosave state</note>
+      <note>Could add validation state here or in dedicated hook</note>
+    </file>
+    <file path="frontend/src/components/ui/alert.tsx" purpose="Alert component for warnings">
+      <note>Use for displaying validation warnings in editor</note>
+    </file>
+    <file path="backend/app/api/v1/drafts.py" purpose="Draft validation on save">
+      <note>Lines 226-237: Citation marker validation in update_draft()</note>
+      <note>Validates citation_numbers matches markers_in_content</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="Backend Citation Validation">
+      <description>From drafts.py lines 226-237 - server-side validation</description>
+      <code><![CDATA[
+# Validate citation markers match citations
+citation_numbers = {c.number for c in request.citations}
+marker_regex = r"\[(\d+)\]"
+markers_in_content = {
+    int(m.group(1)) for m in re.finditer(marker_regex, request.content)
+}
+
+if citation_numbers != markers_in_content:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Citation markers {markers_in_content} do not match citation data {citation_numbers}",
+    )
+]]></code>
+    </pattern>
+    <pattern name="Content Change Handler">
+      <description>From draft-editor.tsx - where validation should hook in</description>
+      <code><![CDATA[
+const handleContentChange = useCallback(
+  (e: React.FormEvent<HTMLDivElement>) => {
+    const newContent = e.currentTarget.innerHTML;
+    // Sanitize content
+    const sanitized = DOMPurify.sanitize(newContent, {
+      ALLOWED_TAGS: ['span', 'br', 'p', 'div'],
+      ALLOWED_ATTR: ['class', 'data-citation-number', 'contenteditable'],
+    });
+    setContent(sanitized);
+    // TODO: Add validation here
+  },
+  [setContent]
+);
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="validation-types">
+      Validation warnings to implement:
+      1. Orphaned citations: Citation marker [n] exists but citation data deleted
+      2. Missing citations: Citation data exists but marker deleted from content
+      3. Broken citation sequence: Gaps in citation numbers (e.g., [1], [3] but no [2])
+      4. Empty content warning: Content too short after editing
+    </note>
+    <note type="ui-pattern">
+      Display warnings as:
+      - Yellow Alert component above/below editor
+      - Dismissable but re-appears on new validation error
+      - Non-blocking (allow save, but show warning)
+    </note>
+    <note type="performance">
+      Validation should be debounced (300-500ms) to avoid running on every keystroke.
+      Use useMemo for citation number extraction from content.
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.21.1" status="not-implemented">
+      <description>Orphaned citation warning displayed</description>
+      <implementation>Need to detect marker without matching citation data</implementation>
+    </criterion>
+    <criterion id="AC-7.21.2" status="not-implemented">
+      <description>Missing marker warning displayed</description>
+      <implementation>Need to detect citation data without matching marker</implementation>
+    </criterion>
+    <criterion id="AC-7.21.3" status="not-implemented">
+      <description>Warnings are non-blocking</description>
+      <implementation>User can still save despite warnings</implementation>
+    </criterion>
+    <criterion id="AC-7.21.4" status="not-implemented">
+      <description>Warnings dismissable</description>
+      <implementation>Add close button to alert, local dismissed state</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <suggested-implementation>
+    <code-snippet name="useDraftValidation hook">
+      <![CDATA[
+import { useMemo } from 'react';
+
+interface ValidationWarning {
+  type: 'orphaned_citation' | 'missing_marker' | 'broken_sequence' | 'empty_content';
+  message: string;
+  citationNumbers?: number[];
+}
+
+export function useDraftValidation(content: string, citations: Citation[]) {
+  const warnings = useMemo(() => {
+    const result: ValidationWarning[] = [];
+
+    // Extract marker numbers from content
+    const markerRegex = /\[(\d+)\]/g;
+    const markersInContent = new Set<number>();
+    let match;
+    while ((match = markerRegex.exec(content)) !== null) {
+      markersInContent.add(parseInt(match[1], 10));
+    }
+
+    // Citation numbers from data
+    const citationNumbers = new Set(citations.map(c => c.number));
+
+    // Check for orphaned markers (in content but not in data)
+    const orphaned = [...markersInContent].filter(n => !citationNumbers.has(n));
+    if (orphaned.length > 0) {
+      result.push({
+        type: 'orphaned_citation',
+        message: `Citation markers ${orphaned.join(', ')} have no matching source`,
+        citationNumbers: orphaned,
+      });
+    }
+
+    // Check for missing markers (in data but not in content)
+    const missing = [...citationNumbers].filter(n => !markersInContent.has(n));
+    if (missing.length > 0) {
+      result.push({
+        type: 'missing_marker',
+        message: `Citations ${missing.join(', ')} are defined but not referenced`,
+        citationNumbers: missing,
+      });
+    }
+
+    return result;
+  }, [content, citations]);
+
+  return { warnings, hasWarnings: warnings.length > 0 };
+}
+]]>
+    </code-snippet>
+  </suggested-implementation>
+
+  <dependencies>
+    <dependency story="4-6" status="completed">Draft editing infrastructure</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>useDraftValidation returns empty array when content matches citations</test>
+      <test>Detects orphaned citation marker [5] when only citations 1-4 exist</test>
+      <test>Detects missing marker when citation exists but not in content</test>
+      <test>Warning component renders with correct message</test>
+    </unit-tests>
+    <e2e-tests>
+      <test>Edit draft, delete citation marker, verify warning appears</test>
+      <test>Dismiss warning, verify it can be closed</test>
+      <test>Save with warning, verify save succeeds</test>
+    </e2e-tests>
+  </test-strategy>
+</story-context>

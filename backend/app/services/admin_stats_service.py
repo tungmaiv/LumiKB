@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis import get_redis_client
 from app.models.audit import AuditEvent
-from app.models.document import Document, DocumentStatus
+from app.models.document import Document
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.schemas.admin import (
@@ -95,9 +95,7 @@ class AdminStatsService:
         inactive_users = total_users - active_users
 
         # Knowledge base stats
-        total_kbs = (
-            await self.session.scalar(select(func.count(KnowledgeBase.id))) or 0
-        )
+        total_kbs = await self.session.scalar(select(func.count(KnowledgeBase.id))) or 0
         kb_status_counts = await self._count_by_status(
             KnowledgeBase, KnowledgeBase.status
         )
@@ -118,9 +116,7 @@ class AdminStatsService:
         searches_7d = await self._count_audit_events("search.query", days=7)
         searches_30d = await self._count_audit_events("search.query", days=30)
 
-        generations_24h = await self._count_audit_events(
-            "generation.request", hours=24
-        )
+        generations_24h = await self._count_audit_events("generation.request", hours=24)
         generations_7d = await self._count_audit_events("generation.request", days=7)
         generations_30d = await self._count_audit_events("generation.request", days=30)
 
@@ -165,12 +161,12 @@ class AdminStatsService:
         )
 
     async def _count_by_status(
-        self, model: type, status_column: any
+        self, _model: type, status_column: any
     ) -> dict[str, int]:
         """Count records grouped by status.
 
         Args:
-            model: SQLAlchemy model class.
+            _model: SQLAlchemy model class (unused, kept for interface compatibility).
             status_column: Status column to group by.
 
         Returns:
@@ -182,7 +178,7 @@ class AdminStatsService:
         counts = {}
         for status, count in result.all():
             # Handle enum values by using .value attribute if available
-            key = status.value if hasattr(status, 'value') else str(status)
+            key = status.value if hasattr(status, "value") else str(status)
             counts[key] = count
         return counts
 
@@ -248,7 +244,7 @@ class AdminStatsService:
         count_map = {}
         for row in rows:
             # row is a tuple (day, count) or Row object depending on SQLAlchemy version
-            if hasattr(row, 'day'):
+            if hasattr(row, "day"):
                 day_value = row.day
                 count_value = row.count
             else:
@@ -256,10 +252,7 @@ class AdminStatsService:
                 day_value, count_value = row
 
             # Extract date from datetime
-            if hasattr(day_value, 'date'):
-                date_key = day_value.date()
-            else:
-                date_key = day_value
+            date_key = day_value.date() if hasattr(day_value, "date") else day_value
 
             count_map[date_key] = count_value
 

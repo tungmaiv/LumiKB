@@ -95,7 +95,9 @@ class TestIndexDocument:
             embeddings=sample_embeddings,
         )
 
-        mock_qdrant_service.create_collection.assert_called_once_with(kb_id)
+        mock_qdrant_service.create_collection.assert_called_once_with(
+            kb_id=kb_id, vector_size=None
+        )
 
     @pytest.mark.asyncio
     async def test_index_document_empty_embeddings(self, mock_qdrant_service):
@@ -172,8 +174,8 @@ class TestPointCreation:
 
         assert len(points) == 2
 
-        # Check first point
-        assert points[0].id == "doc-abc-123_0"
+        # Check first point - ID should be a valid UUID
+        UUID(points[0].id)  # Raises ValueError if not valid UUID
         assert len(points[0].vector) == 1536
         assert points[0].payload["document_id"] == "doc-abc-123"
         assert points[0].payload["document_name"] == "test.pdf"
@@ -182,9 +184,10 @@ class TestPointCreation:
         assert points[0].payload["page_number"] == 1
         assert points[0].payload["section_header"] == "Introduction"
 
-        # Check second point
-        assert points[1].id == "doc-abc-123_1"
+        # Check second point - different UUID
+        UUID(points[1].id)  # Raises ValueError if not valid UUID
         assert points[1].payload["chunk_index"] == 1
+        assert points[0].id != points[1].id  # Different chunks have different IDs
 
     def test_point_id_format_deterministic(self):
         """Test that point IDs are deterministic for idempotency."""
@@ -203,8 +206,9 @@ class TestPointCreation:
         points1 = _create_points([embedding])
         points2 = _create_points([embedding])
 
-        # Same input should produce same point ID
-        assert points1[0].id == points2[0].id == "uuid-123_42"
+        # Same input should produce same point ID (deterministic UUID)
+        UUID(points1[0].id)  # Valid UUID
+        assert points1[0].id == points2[0].id  # Deterministic
 
 
 class TestOrphanCleanup:

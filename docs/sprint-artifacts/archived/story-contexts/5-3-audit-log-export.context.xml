@@ -1,0 +1,278 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>3</storyId>
+    <title>Audit Log Export</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-3-audit-log-export.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>to export filtered audit logs in CSV or JSON format</iWant>
+    <soThat>I can perform offline analysis, share with auditors, and meet compliance reporting requirements</soThat>
+    <tasks>
+      - Task 1: Implement Streaming Export API Endpoint (AC: #5.3.1, #5.3.3)
+      - Task 2: Extend AuditService with Streaming Methods (AC: #5.3.3)
+      - Task 3: Implement Export Audit Logging (AC: #5.3.2)
+      - Task 4: Implement CSV Export with Proper Escaping (AC: #5.3.4)
+      - Task 5: Implement PII Redaction for Export (AC: #5.3.5)
+      - Task 6: Implement Frontend Export UI (AC: #5.3.1)
+      - Task 7: Write Tests and Performance Validation (All ACs)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    - AC-5.3.1: Admin can export filtered audit logs in CSV or JSON format via streaming response
+    - AC-5.3.2: Export operation logs to audit.events with action_type="audit_export"
+    - AC-5.3.3: Export streams data incrementally (no full result set loaded into memory)
+    - AC-5.3.4: CSV export includes header row with column names matching AuditEvent model fields
+    - AC-5.3.5: Export respects same PII redaction rules as viewer (AC-5.2.3)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>Functional Requirements - Administration</section>
+        <snippet>FR49: Administrators can export audit logs for compliance reporting (SOC 2, GDPR, HIPAA requirements). FR48: Administrators can view audit logs with filters (user, action, date range). Audit & Compliance (FR53-58): System logs every document upload, search query, generation request, and user management action. Audit logs are immutable and tamper-evident.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/prd.md</path>
+        <title>LumiKB Product Requirements Document</title>
+        <section>Domain-Specific Requirements - FinTech/Banking Compliance</section>
+        <snippet>Compliance Matrix: SOC 2 Type II (audit logging, access controls), GDPR (data residency, right to deletion), PCI-DSS (data isolation, encryption, access logging), ISO 27001 (information security management). Audit Requirements: Every action logged with user, timestamp, resource, action type. Logs must be queryable for compliance reporting.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Security Architecture - Audit Schema</section>
+        <snippet>Audit Schema: CREATE TABLE audit.events (id UUID, timestamp TIMESTAMPTZ, user_id UUID, action VARCHAR(50), resource_type VARCHAR(50), resource_id UUID, details JSONB, ip_address INET). INSERT-only permissions for application. Indexes on timestamp, user_id, resource_type, resource_id for common queries. Retention Policy: Archive to MinIO after 90 days, delete from database after 1 year.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Implementation Patterns - Error Handling</section>
+        <snippet>Standardized error response format: {"error": {"code": "DOCUMENT_NOT_FOUND", "message": "...", "details": {...}, "request_id": "..."}. HTTP Status Codes: 400 - Validation errors, 401 - Authentication required, 403 - Permission denied, 404 - Resource not found, 422 - Business logic error, 500 - Internal server error, 503 - Service unavailable.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic Technical Specification: Administration & Polish</title>
+        <section>Acceptance Criteria - Story 5.3: Audit Log Export</section>
+        <snippet>AC-5.3.1: Admin can export filtered audit logs in CSV or JSON format via streaming response. AC-5.3.2: Export operation logs to audit.events with action_type="audit_export". AC-5.3.3: Export streams data incrementally (no full result set loaded into memory). AC-5.3.4: CSV export includes header row matching AuditEvent model fields. AC-5.3.5: Export respects same PII redaction rules as viewer.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic Technical Specification: Administration & Polish</title>
+        <section>Non-Functional Requirements - Security</section>
+        <snippet>Admin Access Control: All /api/v1/admin/* endpoints require is_superuser=True check. Audit Log Protection: Audit events table INSERT-only, no PII exposure in default view (GDPR compliance). Export format: Sanitize PII fields unless admin has explicit "export_pii" permission.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/5-2-audit-log-viewer.md</path>
+        <title>Story 5.2: Audit Log Viewer</title>
+        <section>Dev Notes - Architecture Patterns</section>
+        <snippet>Reuse Existing AuditService and Filter Logic: Story 5.2 created query_audit_logs() method with filter logic (_build_filtered_query() private method). REUSE this for export (DO NOT duplicate). PII Redaction Pattern: redact_pii() method applies privacy-by-default (IP masking to "XXX.XXX.XXX.XXX", sensitive fields removal from details JSON). REUSE for export - DO NOT reimplement. Admin API Patterns: Admin endpoints MUST use is_superuser=True check, return 403 Forbidden for non-admin users.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService</symbol>
+        <lines>existing</lines>
+        <reason>Story 5.2 created AuditService with query_audit_logs(), _build_filtered_query(), and redact_pii() methods. Story 5.3 EXTENDS this service with get_events_stream() and count_events() methods for export. CRITICAL: REUSE existing _build_filtered_query() and redact_pii() - DO NOT duplicate logic.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/admin.py</path>
+        <kind>api</kind>
+        <symbol>admin router</symbol>
+        <lines>existing</lines>
+        <reason>Story 5.2 created POST /audit/logs endpoint for viewing audit logs. Story 5.3 EXTENDS this file with POST /audit/export endpoint for exporting audit logs. Follows existing admin-only access control pattern (require_admin dependency).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/admin.py</path>
+        <kind>schema</kind>
+        <symbol>AuditLogFilters</symbol>
+        <lines>existing</lines>
+        <reason>Story 5.2 created AuditLogFilters schema for filtering audit logs (event_type, user_id, date_range, resource_type). Story 5.3 REUSES this schema in AuditExportRequest (format + filters).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/models/audit.py</path>
+        <kind>model</kind>
+        <symbol>AuditEvent</symbol>
+        <lines>existing</lines>
+        <reason>Story 1.7 created AuditEvent model with fields: id, timestamp, user_id, event_type, action, resource_type, resource_id, status, duration_ms, ip_address, details. Story 5.3 CSV export uses these field names for CSV header row (AC-5.3.4).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/core/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings</symbol>
+        <lines>existing</lines>
+        <reason>Contains pydantic-settings configuration. May need to reference database connection settings for audit.events queries.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/app/(protected)/admin/audit/page.tsx</path>
+        <kind>component</kind>
+        <symbol>AuditLogViewerPage</symbol>
+        <lines>existing</lines>
+        <reason>Story 5.2 created Audit Log Viewer page. Story 5.3 EXTENDS this page by adding Export button and ExportAuditLogsModal integration.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/admin/audit-log-filters.tsx</path>
+        <kind>component</kind>
+        <symbol>AuditLogFilters</symbol>
+        <lines>existing</lines>
+        <reason>Story 5.2 created filter component. Story 5.3 reuses filter state for export (export applies same filters as viewer).</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/types/audit.ts</path>
+        <kind>type</kind>
+        <symbol>AuditEvent, AuditLogFilter</symbol>
+        <lines>existing</lines>
+        <reason>Story 5.2 created TypeScript interfaces for audit events. Story 5.3 reuses these types for export modal props.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend>
+        <package name="fastapi" version="≥0.115.0" reason="Web framework for export API endpoint with StreamingResponse support" />
+        <package name="sqlalchemy" version="2.0.44" reason="Database ORM for audit.events queries with yield_per() for streaming" />
+        <package name="asyncpg" version="0.30.0" reason="Async PostgreSQL driver for efficient query execution" />
+        <package name="pydantic" version="≥2.7.0" reason="Request/response validation for AuditExportRequest schema" />
+        <package name="structlog" version="≥25.5.0" reason="Structured logging for export operations" />
+      </backend>
+      <frontend>
+        <package name="lucide-react" version="^0.554.0" reason="Icons for Download icon in Export button" />
+        <package name="date-fns" version="^4.1.0" reason="Date formatting for export filenames (audit-log-export-{timestamp}.csv)" />
+        <package name="react-hook-form" version="^7.66.1" reason="Form handling for export modal (format selection)" />
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - CRITICAL: REUSE existing _build_filtered_query() private method from Story 5.2 AuditService for filtering logic (DO NOT duplicate)
+    - CRITICAL: REUSE existing redact_pii() method from Story 5.2 for PII redaction (DO NOT reimplement)
+    - SECURITY: All /api/v1/admin/audit/export endpoint MUST require is_superuser=True check, return 403 Forbidden for non-admin users
+    - SECURITY: Export operations MUST be logged to audit.events with action_type="audit_export" (audit the auditors!)
+    - SECURITY: PII redaction MUST be applied by default unless admin has explicit "export_pii" permission (GDPR Article 25: privacy-by-default)
+    - PERFORMANCE: Export MUST stream data incrementally using SQLAlchemy yield_per() to avoid loading full result set into memory (AC-5.3.3)
+    - PERFORMANCE: Memory usage MUST remain < 100MB regardless of result set size (tested via performance test)
+    - PERFORMANCE: Time-to-first-byte (TTFB) MUST be < 2 seconds for perceived responsiveness
+    - PERFORMANCE: Query timeout MUST be 30 seconds (same as Story 5.2 viewer)
+    - DATABASE: Leverage existing B-tree indexes on audit.events table (timestamp, user_id, event_type, resource_type) for fast filtering
+    - ARCHITECTURE: Follow FastAPI StreamingResponse pattern with async generator functions (export_csv_stream, export_json_stream)
+    - ARCHITECTURE: Use Python csv.DictWriter for automatic CSV escaping (handles commas, quotes, newlines)
+    - ARCHITECTURE: CSV field order MUST match AuditEvent model field order: id, timestamp, user_id, user_email, event_type, action, resource_type, resource_id, status, duration_ms, ip_address, details (AC-5.3.4)
+    - TESTING: 8 backend unit tests required (CSV streaming, JSON streaming, escaping, PII redaction, count query)
+    - TESTING: 8 backend integration tests required (API endpoint, filters, streaming, audit logging, permissions, large dataset)
+    - TESTING: 5 frontend E2E tests required (CSV download, JSON download, file content validation, modal cancel, non-admin blocked)
+    - TESTING: Performance test MUST verify export of 100,000 records with memory usage < 100MB
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint>
+        <name>POST /api/v1/admin/audit/export</name>
+        <kind>REST endpoint with streaming response</kind>
+        <signature>
+          Request Body: { "format": "csv" | "json", "filters": AuditLogFilters }
+          Response: StreamingResponse (text/csv or application/json)
+          Headers: Content-Type: text/csv | application/json, Content-Disposition: attachment; filename="audit-log-export-{timestamp}.{ext}"
+        </signature>
+        <path>backend/app/api/v1/admin.py</path>
+      </endpoint>
+      <endpoint>
+        <name>export_csv_stream()</name>
+        <kind>Async generator function</kind>
+        <signature>
+          async def export_csv_stream(audit_service: AuditService, filters: dict, include_pii: bool) -> AsyncGenerator[str, None]:
+            # Yields CSV header row, then data rows in batches
+        </signature>
+        <path>backend/app/api/v1/admin.py</path>
+      </endpoint>
+      <endpoint>
+        <name>export_json_stream()</name>
+        <kind>Async generator function</kind>
+        <signature>
+          async def export_json_stream(audit_service: AuditService, filters: dict, include_pii: bool) -> AsyncGenerator[str, None]:
+            # Yields opening bracket, JSON objects with commas, closing bracket
+        </signature>
+        <path>backend/app/api/v1/admin.py</path>
+      </endpoint>
+      <endpoint>
+        <name>AuditService.get_events_stream()</name>
+        <kind>Async generator method</kind>
+        <signature>
+          async def get_events_stream(self, filters: dict, batch_size: int = 1000) -> AsyncGenerator[List[AuditEvent], None]:
+            # Uses SQLAlchemy yield_per() for server-side cursor pagination
+            # REUSES existing _build_filtered_query() for filter logic
+        </signature>
+        <path>backend/app/services/audit_service.py</path>
+      </endpoint>
+      <endpoint>
+        <name>AuditService.count_events()</name>
+        <kind>Async method</kind>
+        <signature>
+          async def count_events(self, filters: dict) -> int:
+            # Returns total count of events matching filters (for audit log metadata)
+            # REUSES existing _build_filtered_query() to build base query
+        </signature>
+        <path>backend/app/services/audit_service.py</path>
+      </endpoint>
+      <endpoint>
+        <name>ExportAuditLogsModal</name>
+        <kind>React component</kind>
+        <signature>
+          interface ExportAuditLogsModalProps {
+            open: boolean;
+            onClose: () => void;
+            filters: AuditLogFilters;
+            recordCount: number;
+          }
+          Displays format selection (CSV/JSON), filter summary, record count, Download button
+        </signature>
+        <path>frontend/src/components/admin/export-audit-logs-modal.tsx</path>
+      </endpoint>
+    </api>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing Framework: pytest (backend unit/integration), vitest + React Testing Library (frontend unit), Playwright (E2E)
+      Coverage Target: ≥90% for backend export logic, ≥85% for frontend components
+      Test Isolation: Each test uses fresh database fixtures, cleanup after execution
+      Real Services: Integration tests use real PostgreSQL audit.events table, no mocks
+      Performance Testing: Dedicated performance tests for memory usage and TTFB metrics
+    </standards>
+    <locations>
+      - backend/tests/unit/test_audit_export.py (NEW - 8 unit tests)
+      - backend/tests/integration/test_audit_export_api.py (NEW - 8 integration tests)
+      - frontend/src/components/admin/__tests__/export-audit-logs-modal.test.tsx (NEW - 3 unit tests)
+      - frontend/e2e/tests/admin/audit-export.spec.ts (NEW - 5 E2E tests)
+    </locations>
+    <ideas>
+      - test_export_csv_stream_header_and_rows: Verify CSV generator yields correct header and data rows with proper escaping
+      - test_export_json_stream_valid_array: Verify JSON generator yields valid JSON array structure with commas
+      - test_csv_escaping_commas_quotes_newlines: Verify csv.DictWriter handles edge cases (commas in text, quotes, newlines in JSON)
+      - test_pii_redaction_in_export: Verify redact_pii() called for non-PII admin, IP addresses masked, sensitive fields removed
+      - test_count_events_matches_query: Verify count_events() returns same count as filtered query (uses same _build_filtered_query())
+      - test_export_csv_api_streaming_response: POST /audit/export format=csv → verify StreamingResponse, Content-Type: text/csv, filename header
+      - test_export_json_api_streaming_response: POST /audit/export format=json → verify StreamingResponse, Content-Type: application/json
+      - test_export_with_filters: POST /audit/export with event_type, date_range filters → verify export respects filters
+      - test_export_audit_logging: POST /audit/export → verify audit.events contains new row with action_type="audit_export", includes format, filters, record_count, pii_redacted
+      - test_export_non_admin_403: Non-admin user POST /audit/export → verify 403 Forbidden
+      - test_export_large_dataset_memory: Export 100,000 records → verify memory usage < 100MB via psutil or Docker stats
+      - test_export_ttfb_performance: Measure time-to-first-byte for export → verify < 2 seconds
+      - test_export_modal_render: Render ExportAuditLogsModal with mock props → verify format radio buttons, filter summary, record count displayed
+      - test_export_button_click: Click "Download CSV" button → verify POST /audit/export called with correct format and filters
+      - test_download_trigger: Successful export response → verify browser download triggered (blob, object URL, <a> click)
+      - test_csv_download_e2e: Apply filters → click Export → select CSV → verify file downloads with correct headers and data
+      - test_json_download_e2e: Apply filters → click Export → select JSON → verify file downloads as valid JSON (parseable by JSON.parse())
+      - test_export_modal_cancel: Click Export → Cancel → verify modal closes without download
+      - test_non_admin_no_export_button: Login as non-admin user → verify Export button not visible in Audit Log Viewer
+      - test_export_file_content_validation: Download CSV → open in Python csv.reader → verify headers match AuditEvent fields, data rows parse correctly
+    </ideas>
+  </tests>
+</story-context>

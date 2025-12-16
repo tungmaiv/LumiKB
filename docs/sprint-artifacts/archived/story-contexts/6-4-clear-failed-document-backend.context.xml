@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-4: Clear Failed Document Backend
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-4">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Clear Failed Document Backend</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to clear failed documents</iWant>
+      <soThat>I can remove partial artifacts and retry document uploads cleanly</soThat>
+    </userStory>
+
+    <context>
+      Failed documents may leave partial artifacts in storage (incomplete vectors,
+      uploaded files, pending tasks). Clear removes all these artifacts so users
+      can re-upload the same document name without conflicts.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.4.1">
+      <title>Clear failed endpoint exists</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <when>I call DELETE /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/clear</when>
+      <then>I receive 200 OK</then>
+      <and>the failed document and all artifacts are removed</and>
+      <and>an audit log entry is created with action "document_cleared"</and>
+    </criterion>
+
+    <criterion id="AC-6.4.2">
+      <title>Only failed documents can be cleared</title>
+      <given>a document has status other than "failed"</given>
+      <when>I attempt to clear it</when>
+      <then>I receive 400 Bad Request with message "Only failed documents can be cleared"</then>
+    </criterion>
+
+    <criterion id="AC-6.4.3">
+      <title>All partial artifacts cleaned</title>
+      <given>I clear a failed document</given>
+      <when>the operation completes</when>
+      <then>the document row is deleted from PostgreSQL</then>
+      <and>any partial vectors are deleted from Qdrant</and>
+      <and>the file is deleted from MinIO (if exists)</and>
+      <and>any pending/failed Celery tasks are revoked</and>
+      <and>Redis keys related to the task are cleared</and>
+    </criterion>
+
+    <criterion id="AC-6.4.4">
+      <title>Permission check enforced</title>
+      <given>I am not KB owner or admin</given>
+      <when>I attempt to clear a failed document</when>
+      <then>I receive 403 Forbidden</then>
+    </criterion>
+
+    <criterion id="AC-6.4.5">
+      <title>Already processing document cannot be cleared</title>
+      <given>a document has status "processing"</given>
+      <when>I attempt to clear it</when>
+      <then>I receive 400 Bad Request with message "Cannot clear document while processing is in progress"</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService - add clear_failed_document method</description>
+      <keyElements>
+        - async def clear_failed_document(doc_id, user): new method
+        - Artifact cleanup logic (handles missing artifacts gracefully)
+        - Celery task revocation
+      </keyElements>
+    </reference>
+
+    <reference type="celery" path="backend/app/workers/celery_app.py">
+      <description>Celery app for task revocation</description>
+      <keyElements>
+        - app.control.revoke(task_id, terminate=True)
+        - AsyncResult for cleanup
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="DELETE" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/clear" new="true">
+        <description>Clear a failed document and all its partial artifacts</description>
+        <response code="200">
+          <field name="message" type="string">"Failed document cleared"</field>
+        </response>
+        <errors>
+          <error code="400">Document is not failed, or is processing</error>
+          <error code="403">Permission denied</error>
+          <error code="404">Document not found</error>
+        </errors>
+      </endpoint>
+    </api>
+
+    <artifactCleanup>
+      <note>Handle missing artifacts gracefully - don't fail if artifact doesn't exist</note>
+      <step order="1">Try delete Qdrant vectors (may not exist)</step>
+      <step order="2">Try delete MinIO file (may not exist)</step>
+      <step order="3">Revoke Celery tasks and clear Redis metadata</step>
+      <step order="4">Delete PostgreSQL record</step>
+    </artifactCleanup>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="epic" id="2" status="completed">
+      <name>Document Management</name>
+      <provides>Document model, processing pipeline</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Backend Integration Tests" count="5">
+      <test>DELETE /clear returns 200 for failed document</test>
+      <test>DELETE /clear returns 400 for non-failed document</test>
+      <test>DELETE /clear returns 400 for processing document</test>
+      <test>DELETE /clear returns 403 for non-owner</test>
+      <test>Clear removes all partial artifacts</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

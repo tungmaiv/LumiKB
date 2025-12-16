@@ -13,6 +13,8 @@ const mockResult: SearchResult = {
   sectionHeader: 'Introduction',
   updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
   citationNumbers: [1, 2],
+  charStart: 0,
+  charEnd: 100,
 };
 
 describe('SearchResultCard', () => {
@@ -20,6 +22,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -34,6 +37,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -47,6 +51,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -60,6 +65,7 @@ describe('SearchResultCard', () => {
     const { container } = render(
       <SearchResultCard
         result={{ ...mockResult, relevanceScore: 0.85 }}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -74,6 +80,7 @@ describe('SearchResultCard', () => {
     const { container } = render(
       <SearchResultCard
         result={{ ...mockResult, relevanceScore: 0.7 }}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -88,6 +95,7 @@ describe('SearchResultCard', () => {
     const { container } = render(
       <SearchResultCard
         result={{ ...mockResult, relevanceScore: 0.5 }}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -102,6 +110,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -116,6 +125,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -129,6 +139,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -144,6 +155,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={resultWithoutCitations}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -158,6 +170,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={onUseInDraft}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}
@@ -173,6 +186,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={onView}
         onFindSimilar={vi.fn()}
@@ -188,6 +202,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={onFindSimilar}
@@ -202,6 +217,7 @@ describe('SearchResultCard', () => {
     render(
       <SearchResultCard
         result={mockResult}
+        query="test query"
         onUseInDraft={vi.fn()}
         onView={vi.fn()}
         onFindSimilar={vi.fn()}

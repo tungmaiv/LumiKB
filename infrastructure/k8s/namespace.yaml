@@ -1,0 +1,9 @@
+# LumiKB Kubernetes Namespace
+# Story 7.4: Production Deployment Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lumikb
+  labels:
+    app.kubernetes.io/name: lumikb
+    app.kubernetes.io/part-of: lumikb

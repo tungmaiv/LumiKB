@@ -2,7 +2,6 @@
 
 import enum
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum, ForeignKey, Integer, String, Text
@@ -69,7 +68,12 @@ class Draft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     template_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[DraftStatus] = mapped_column(
-        Enum(DraftStatus, name="draft_status", create_type=False),
+        Enum(
+            DraftStatus,
+            name="draft_status",
+            create_type=False,
+            values_callable=lambda x: [m.value for m in x],  # Use lowercase values
+        ),
         server_default="streaming",
         nullable=False,
     )

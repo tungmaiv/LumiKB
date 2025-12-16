@@ -11,12 +11,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Save, X, Loader2, CheckCircle2, Undo2, Redo2, FileDown } from 'lucide-react';
+import { Save, X, Loader2, CheckCircle2, Undo2, Redo2, FileDown, MessageSquare } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDraftEditor } from '@/hooks/useDraftEditor';
 import { useDraftUndo } from '@/hooks/useDraftUndo';
 import { useExport, type ExportFormat } from '@/hooks/useExport';
+import { useFeedback } from '@/hooks/useFeedback';
+import { useCitationValidation, renumberCitations } from '@/hooks/useCitationValidation';
 import { ExportModal } from '@/components/generation/export-modal';
+import { FeedbackModal, type FeedbackType } from '@/components/generation/feedback-modal';
+import { RecoveryModal } from '@/components/generation/recovery-modal';
 import { VerificationDialog } from '@/components/generation/verification-dialog';
+import { CitationWarningBanner } from '@/components/generation/citation-warning-banner';
 import type { Draft } from '@/lib/api/drafts';
 
 interface DraftEditorProps {
@@ -28,6 +34,10 @@ interface DraftEditorProps {
   onSaveSuccess?: () => void;
   /** Callback when save fails */
   onSaveError?: (error: Error) => void;
+  /** Whether the draft is currently streaming (AC-7.20.5) */
+  isStreaming?: boolean;
+  /** Callback when a recovery action is selected (AC-7.20.5) */
+  onRecoveryAction?: (action: string) => void;
 }
 
 /**
@@ -53,11 +63,17 @@ export function DraftEditor({
   onClose,
   onSaveSuccess,
   onSaveError,
+  isStreaming = false,
+  onRecoveryAction,
 }: DraftEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(null);
+
+  // Feedback modal state (Story 7-20, AC-7.20.1)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   const {
     content,
@@ -89,11 +105,33 @@ export function DraftEditor({
     },
   });
 
+  // Feedback hook (Story 7-20, AC-7.20.3)
+  const {
+    handleSubmit: submitFeedback,
+    isSubmitting: isSubmittingFeedback,
+    alternatives,
+    resetAlternatives,
+  } = useFeedback(draft.id);
+
   // Undo/redo management (AC5)
   const { snapshot, canUndo, canRedo, undo, redo, recordSnapshot } = useDraftUndo(
     draft.content,
     draft.citations
   );
+
+  // Citation validation (Story 7-21, AC-7.21.1 - AC-7.21.5)
+  const {
+    warnings,
+    hasWarnings,
+    dismissWarning,
+  } = useCitationValidation(content, citations, { debounceMs: 500 });
+
+  // Handle auto-fix for unused citations (Story 7-21, AC-7.21.5)
+  const handleAutoFixCitations = useCallback((numbersToRemove: number[]) => {
+    const result = renumberCitations(content, citations, numbersToRemove);
+    setContent(result.content);
+    setCitations(result.citations);
+  }, [content, citations, setContent, setCitations]);
 
   // Track previous values for snapshot recording
   const prevContentRef = useRef(content);
@@ -202,6 +240,33 @@ export function DraftEditor({
     if (selectedFormat) {
       await handleExport(selectedFormat);
     }
+  };
+
+  // Feedback flow handlers (Story 7-20, AC-7.20.2 - AC-7.20.5)
+  const handleFeedbackClick = () => {
+    setShowFeedbackModal(true);
+  };
+
+  const handleFeedbackSubmit = async (feedbackType: FeedbackType, comments?: string) => {
+    const success = await submitFeedback(feedbackType, comments);
+    if (success) {
+      setShowFeedbackModal(false);
+      // Show recovery modal if alternatives are available (AC-7.20.4)
+      // The alternatives will be populated by useFeedback hook after submission
+      setShowRecoveryModal(true);
+    }
+  };
+
+  const handleRecoveryClose = () => {
+    setShowRecoveryModal(false);
+    resetAlternatives();
+  };
+
+  const handleRecoveryAction = (action: string) => {
+    setShowRecoveryModal(false);
+    resetAlternatives();
+    // Trigger parent's recovery action handler (AC-7.20.5)
+    onRecoveryAction?.(action);
   };
 
   // Handle content edits from contentEditable
@@ -341,6 +406,31 @@ export function DraftEditor({
             Export
           </Button>
 
+          {/* Feedback button - Story 7-20, AC-7.20.1 */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFeedbackClick}
+                    disabled={isStreaming || isSubmittingFeedback}
+                    data-testid="feedback-button"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Feedback
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {isStreaming && (
+                <TooltipContent>
+                  <p>Wait for generation to complete before providing feedback</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+
           {/* Close button */}
           <Button
             variant="ghost"
@@ -375,11 +465,38 @@ export function DraftEditor({
         }}
       />
 
+      {/* Feedback Modal - Story 7-20, AC-7.20.2 */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmit={handleFeedbackSubmit}
+        isSubmitting={isSubmittingFeedback}
+      />
+
+      {/* Recovery Modal - Story 7-20, AC-7.20.4 */}
+      <RecoveryModal
+        isOpen={showRecoveryModal && alternatives.length > 0}
+        onClose={handleRecoveryClose}
+        alternatives={alternatives}
+        onActionSelect={handleRecoveryAction}
+      />
+
       {/* 2-Panel Layout */}
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Panel: Editable Content */}
-        <div className="flex-1 border-r">
-          <ScrollArea className="h-full">
+        <div className="flex-1 border-r flex flex-col">
+          {/* Citation Validation Warnings - Story 7-21, AC-7.21.4 */}
+          {hasWarnings && (
+            <div className="p-4 pb-0">
+              <CitationWarningBanner
+                warnings={warnings}
+                onDismiss={dismissWarning}
+                onAutoFix={handleAutoFixCitations}
+                showAutoFix={true}
+              />
+            </div>
+          )}
+          <ScrollArea className="flex-1">
             <div
               ref={editorRef}
               contentEditable

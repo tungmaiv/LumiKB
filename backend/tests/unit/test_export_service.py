@@ -1,7 +1,5 @@
 """Unit tests for ExportService (Story 4.7, AC3-AC6)."""
 
-import re
-from datetime import datetime
 from unittest.mock import Mock
 
 import pytest

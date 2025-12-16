@@ -9,6 +9,7 @@ import nltk
 import structlog
 from nltk.stem.porter import PorterStemmer
 
+from app.core.config import settings
 from app.core.redis import RedisClient
 from app.integrations.litellm_client import acompletion
 from app.integrations.qdrant_client import QdrantService
@@ -220,13 +221,22 @@ Text: {chunk_text[:500]}...
 Explanation (1 sentence):"""
 
         try:
-            # Use acompletion from litellm_client
+            # Use acompletion from litellm_client with configured model
+            # Apply litellm_proxy/ prefix for calls through LiteLLM proxy
+            model_name = settings.llm_model
+            if not model_name.startswith("litellm_proxy/"):
+                if "/" in model_name:
+                    model_name = model_name.split("/", 1)[1]
+                model_name = f"litellm_proxy/{model_name}"
+
             response = await asyncio.wait_for(
                 acompletion(
-                    model="gpt-3.5-turbo",
+                    model=model_name,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=EXPLANATION_MAX_TOKENS,
                     temperature=EXPLANATION_TEMPERATURE,
+                    api_base=settings.litellm_url,
+                    api_key=settings.litellm_api_key,
                 ),
                 timeout=EXPLANATION_TIMEOUT,
             )
@@ -288,15 +298,16 @@ Explanation (1 sentence):"""
                 return []
 
             # Search for similar chunks in same KB
-            similar = await self.qdrant.client.search(
+            # NOTE: qdrant-client 1.16+ uses query_points instead of search
+            query_response = self.qdrant.client.query_points(
                 collection_name=collection_name,
-                query_vector=chunks[0].vector,
+                query=chunks[0].vector,
                 limit=limit + 1,  # +1 to exclude self
             )
 
             # Exclude original chunk and build response
             related = []
-            for result in similar:
+            for result in query_response.points:
                 if str(result.id) == chunk_id:
                     continue
 

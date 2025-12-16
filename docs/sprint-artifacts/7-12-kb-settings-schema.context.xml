@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 7-12-kb-settings-schema
+  Generated: 2025-12-09
+  Purpose: Provide dev agent with complete implementation context for KB Settings Schema & Pydantic Models
+-->
+<story-context story-id="7-12" epic="7" title="KB Settings Schema &amp; Pydantic Models">
+
+  <metadata>
+    <story-key>7-12-kb-settings-schema</story-key>
+    <status>drafted</status>
+    <story-points>5</story-points>
+    <prerequisites>
+      <story id="7-10" status="done">KB Model Configuration</story>
+      <story id="7-11" status="done">Navigation Restructure &amp; RBAC Default Groups</story>
+    </prerequisites>
+    <downstream-dependencies>
+      <story id="7-13">KBConfigResolver Service - depends on KBSettings schema</story>
+      <story id="7-14">KB Settings UI - General Panel - depends on schema structure</story>
+      <story id="7-16">KB Settings Presets - depends on preset field</story>
+      <story id="7-17">Service Integration - depends on config schemas</story>
+    </downstream-dependencies>
+  </metadata>
+
+  <story-statement>
+    As a developer, I want typed Pydantic schemas for KB-level configuration so that settings are validated at runtime and type-safe throughout the codebase.
+  </story-statement>
+
+  <acceptance-criteria>
+    <ac id="AC-7.12.1" schema="ChunkingConfig">
+      ChunkingConfig schema with strategy enum (fixed/recursive/semantic), chunk_size (100-2000), chunk_overlap (0-500), separators (list[str])
+    </ac>
+    <ac id="AC-7.12.2" schema="RetrievalConfig">
+      RetrievalConfig schema with top_k (1-100), similarity_threshold (0.0-1.0), method enum (vector/hybrid/hyde), mmr_enabled (bool), mmr_lambda (0.0-1.0), hybrid_alpha (0.0-1.0)
+    </ac>
+    <ac id="AC-7.12.3" schema="RerankingConfig">
+      RerankingConfig schema with enabled (bool), model (optional str), top_n (1-50)
+    </ac>
+    <ac id="AC-7.12.4" schema="GenerationConfig">
+      GenerationConfig schema with temperature (0.0-2.0), top_p (0.0-1.0), top_k (1-100), max_tokens (100-16000), frequency_penalty (-2.0-2.0), presence_penalty (-2.0-2.0), stop_sequences (list[str])
+    </ac>
+    <ac id="AC-7.12.5" schema="NERConfig">
+      NERConfig schema with enabled (bool), confidence_threshold (0.0-1.0), entity_types (list[str]), batch_size (1-100)
+    </ac>
+    <ac id="AC-7.12.6" schema="DocumentProcessingConfig">
+      DocumentProcessingConfig schema with ocr_enabled (bool), language_detection (bool), table_extraction (bool), image_extraction (bool)
+    </ac>
+    <ac id="AC-7.12.7" schema="KBPromptConfig">
+      KBPromptConfig schema with system_prompt (str, max 4000 chars), context_template (str), citation_style enum (inline/footnote/none), uncertainty_handling enum (acknowledge/refuse/best_effort), response_language (str)
+    </ac>
+    <ac id="AC-7.12.8" schema="EmbeddingConfig">
+      EmbeddingConfig schema with model_id (UUID, optional), batch_size (1-100), normalize (bool), truncation enum (start/end/none), max_length (128-16384), prefix_document (str, max 100 chars), prefix_query (str, max 100 chars), pooling_strategy enum (mean/cls/max/last)
+    </ac>
+    <ac id="AC-7.12.9" schema="KBSettings">
+      KBSettings composite schema aggregating all sub-configs (including EmbeddingConfig) with default factories and preset field for quick configuration
+    </ac>
+    <ac id="AC-7.12.10" feature="backwards-compatibility">
+      Backwards compatibility - existing KBs with empty {} settings parse with all defaults applied without errors
+    </ac>
+    <ac id="AC-7.12.11" feature="reindex-detection">
+      Re-indexing trigger detection - EmbeddingConfig changes (model_id, normalize, prefix_document, prefix_query, pooling_strategy) flag re-indexing required and return warning to user
+    </ac>
+  </acceptance-criteria>
+
+  <task-breakdown>
+    <task id="1" title="Create Enum Types" acs="1,2,7,8">
+      <subtask>1.1 Create backend/app/schemas/kb_settings.py file</subtask>
+      <subtask>1.2 Implement ChunkingStrategy enum (fixed, recursive, semantic)</subtask>
+      <subtask>1.3 Implement RetrievalMethod enum (vector, hybrid, hyde)</subtask>
+      <subtask>1.4 Implement CitationStyle enum (inline, footnote, none)</subtask>
+      <subtask>1.5 Implement UncertaintyHandling enum (acknowledge, refuse, best_effort)</subtask>
+      <subtask>1.6 Implement TruncationStrategy enum (start, end, none)</subtask>
+      <subtask>1.7 Implement PoolingStrategy enum (mean, cls, max, last)</subtask>
+    </task>
+    <task id="2" title="Create Sub-Config Schemas" acs="1-8">
+      <subtask>2.1 Implement ChunkingConfig with strategy, chunk_size (100-2000), chunk_overlap (0-500), separators</subtask>
+      <subtask>2.2 Implement RetrievalConfig with top_k, similarity_threshold, method, mmr_enabled, mmr_lambda, hybrid_alpha</subtask>
+      <subtask>2.3 Implement RerankingConfig with enabled, model (optional), top_n</subtask>
+      <subtask>2.4 Implement GenerationConfig with temperature, top_p, top_k, max_tokens, frequency_penalty, presence_penalty, stop_sequences</subtask>
+      <subtask>2.5 Implement NERConfig with enabled, confidence_threshold, entity_types, batch_size</subtask>
+      <subtask>2.6 Implement DocumentProcessingConfig with ocr_enabled, language_detection, table_extraction, image_extraction</subtask>
+      <subtask>2.7 Implement KBPromptConfig with system_prompt, context_template, citation_style, uncertainty_handling, response_language</subtask>
+      <subtask>2.8 Implement EmbeddingConfig with model_id, batch_size, normalize, truncation, max_length, prefix_document, prefix_query, pooling_strategy</subtask>
+    </task>
+    <task id="3" title="Create Composite KBSettings Schema" acs="9,10">
+      <subtask>3.1 Create KBSettings aggregating all sub-configs with Optional fields and default_factory</subtask>
+      <subtask>3.2 Add preset field (optional str) for quick configuration</subtask>
+      <subtask>3.3 Configure model_config for JSON serialization</subtask>
+      <subtask>3.4 Test backwards compatibility - empty {} parses without errors</subtask>
+      <subtask>3.5 Verify all defaults are sensible for production use</subtask>
+    </task>
+    <task id="4" title="Implement Re-indexing Detection Logic" acs="11">
+      <subtask>4.1 Add requires_reindex(previous: Optional[EmbeddingConfig]) method to EmbeddingConfig</subtask>
+      <subtask>4.2 Implement comparison for: model_id, normalize, prefix_document, prefix_query, pooling_strategy</subtask>
+      <subtask>4.3 Add get_reindex_warning() method returning user-friendly warning message</subtask>
+      <subtask>4.4 Add detect_reindex_fields(previous: Optional[EmbeddingConfig]) returning list of changed fields</subtask>
+    </task>
+    <task id="5" title="Unit Tests - Enum Types" acs="1,2,7,8">
+      <subtask>5.1 Create backend/tests/unit/test_kb_settings_schemas.py</subtask>
+      <subtask>5.2 Test all enum types have correct values</subtask>
+      <subtask>5.3 Test enum JSON serialization/deserialization</subtask>
+    </task>
+    <task id="6" title="Unit Tests - Sub-Config Validation" acs="1-8">
+      <subtask>6.1 Test ChunkingConfig valid ranges (chunk_size 100-2000, chunk_overlap 0-500)</subtask>
+      <subtask>6.2 Test ChunkingConfig invalid values raise ValidationError</subtask>
+      <subtask>6.3 Test ChunkingConfig separators as list[str]</subtask>
+      <subtask>6.4 Test RetrievalConfig valid ranges</subtask>
+      <subtask>6.5 Test RetrievalConfig invalid values raise ValidationError</subtask>
+      <subtask>6.6 Test RerankingConfig validation (top_n 1-50)</subtask>
+      <subtask>6.7 Test GenerationConfig valid ranges</subtask>
+      <subtask>6.8 Test GenerationConfig invalid values raise ValidationError</subtask>
+      <subtask>6.9 Test NERConfig validation</subtask>
+      <subtask>6.10 Test DocumentProcessingConfig booleans default correctly</subtask>
+      <subtask>6.11 Test KBPromptConfig system_prompt max 4000 chars enforced</subtask>
+      <subtask>6.12 Test KBPromptConfig prefix fields max 100 chars enforced</subtask>
+      <subtask>6.13 Test EmbeddingConfig valid ranges</subtask>
+      <subtask>6.14 Test EmbeddingConfig model_id accepts UUID or None</subtask>
+    </task>
+    <task id="7" title="Unit Tests - KBSettings Composite" acs="9,10">
+      <subtask>7.1 Test KBSettings instantiation with all defaults</subtask>
+      <subtask>7.2 Test KBSettings instantiation with partial overrides</subtask>
+      <subtask>7.3 Test KBSettings preset field accepts string</subtask>
+      <subtask>7.4 Test backwards compatibility: KBSettings.model_validate({}) succeeds</subtask>
+      <subtask>7.5 Test KBSettings JSON round-trip (model_dump to model_validate)</subtask>
+    </task>
+    <task id="8" title="Unit Tests - Re-indexing Detection" acs="11">
+      <subtask>8.1 Test requires_reindex returns False when no previous config</subtask>
+      <subtask>8.2 Test requires_reindex returns False when no re-index fields changed</subtask>
+      <subtask>8.3 Test requires_reindex returns True when model_id changes</subtask>
+      <subtask>8.4 Test requires_reindex returns True when normalize changes</subtask>
+      <subtask>8.5 Test requires_reindex returns True when prefix_document changes</subtask>
+      <subtask>8.6 Test requires_reindex returns True when prefix_query changes</subtask>
+      <subtask>8.7 Test requires_reindex returns True when pooling_strategy changes</subtask>
+      <subtask>8.8 Test detect_reindex_fields returns correct field list</subtask>
+      <subtask>8.9 Test get_reindex_warning returns user-friendly message</subtask>
+    </task>
+    <task id="9" title="Export and Integration" acs="9">
+      <subtask>9.1 Export all schemas from backend/app/schemas/__init__.py</subtask>
+      <subtask>9.2 Verify import compatibility with existing KB schemas</subtask>
+      <subtask>9.3 Run ruff linting and fix any issues</subtask>
+      <subtask>9.4 Run all unit tests and verify pass</subtask>
+    </task>
+  </task-breakdown>
+
+  <architecture-context>
+    <pattern name="Three-Layer Configuration">
+      <description>
+        Request params (highest) → KB settings → System defaults (lowest).
+        KBSettings stores only overrides (sparse storage).
+        Empty {} in JSONB means "use all system defaults".
+      </description>
+    </pattern>
+    <pattern name="Pydantic v2 Schema">
+      <description>
+        Use Field validators with ge, le, gt, lt for range constraints.
+        Use max_length for string limits.
+        Use str, Enum base class for string enums.
+        Use model_config = {"extra": "forbid"} for strict validation.
+      </description>
+    </pattern>
+    <pattern name="JSONB Storage">
+      <description>
+        KnowledgeBase.settings column stores KBSettings as JSONB.
+        Only non-default values are persisted.
+        Backwards compatible: {} parses to all defaults.
+      </description>
+    </pattern>
+  </architecture-context>
+
+  <existing-code-patterns>
+    <file path="backend/app/schemas/__init__.py" purpose="Export pattern for schemas">
+      <note>Follow existing export pattern: import from module, add to __all__ list</note>
+    </file>
+    <file path="backend/app/schemas/knowledge_base.py" purpose="Reference for KB-related schemas">
+      <note>Shows Field usage with ge/le validators, ConfigDict pattern, nested models</note>
+    </file>
+    <file path="backend/app/services/permission_service.py" purpose="Enum pattern reference">
+      <note>PermissionLevel uses IntEnum. For KB settings, use str, Enum for JSON-serializable enums.</note>
+    </file>
+    <file path="backend/tests/unit/test_kb_schemas.py" purpose="Test pattern reference">
+      <note>Shows boundary value testing, ValidationError assertions, pytest.mark.unit marker</note>
+    </file>
+  </existing-code-patterns>
+
+  <implementation-reference>
+    <code-example title="Enum Types Pattern">
+<![CDATA[
+from enum import Enum
+
+class ChunkingStrategy(str, Enum):
+    FIXED = "fixed"
+    RECURSIVE = "recursive"
+    SEMANTIC = "semantic"
+
+class RetrievalMethod(str, Enum):
+    VECTOR = "vector"
+    HYBRID = "hybrid"
+    HYDE = "hyde"
+
+class CitationStyle(str, Enum):
+    INLINE = "inline"
+    FOOTNOTE = "footnote"
+    NONE = "none"
+
+class UncertaintyHandling(str, Enum):
+    ACKNOWLEDGE = "acknowledge"
+    REFUSE = "refuse"
+    BEST_EFFORT = "best_effort"
+
+class TruncationStrategy(str, Enum):
+    START = "start"
+    END = "end"
+    NONE = "none"
+
+class PoolingStrategy(str, Enum):
+    MEAN = "mean"
+    CLS = "cls"
+    MAX = "max"
+    LAST = "last"
+]]>
+    </code-example>
+
+    <code-example title="ChunkingConfig Schema">
+<![CDATA[
+from pydantic import BaseModel, Field
+
+class ChunkingConfig(BaseModel):
+    """Configuration for document chunking."""
+
+    strategy: ChunkingStrategy = Field(default=ChunkingStrategy.RECURSIVE)
+    chunk_size: int = Field(default=512, ge=100, le=2000)
+    chunk_overlap: int = Field(default=50, ge=0, le=500)
+    separators: list[str] = Field(default_factory=lambda: ["\n\n", "\n", " ", ""])
+
+    model_config = {"extra": "forbid"}
+]]>
+    </code-example>
+
+    <code-example title="EmbeddingConfig with Re-indexing Detection">
+<![CDATA[
+from typing import Optional
+from uuid import UUID
+from pydantic import BaseModel, Field
+
+class EmbeddingConfig(BaseModel):
+    """Configuration for embedding generation."""
+
+    model_id: Optional[UUID] = Field(default=None)
+    batch_size: int = Field(default=32, ge=1, le=100)
+    normalize: bool = Field(default=True)
+    truncation: TruncationStrategy = Field(default=TruncationStrategy.END)
+    max_length: int = Field(default=512, ge=128, le=16384)
+    prefix_document: str = Field(default="", max_length=100)
+    prefix_query: str = Field(default="", max_length=100)
+    pooling_strategy: PoolingStrategy = Field(default=PoolingStrategy.MEAN)
+
+    model_config = {"extra": "forbid"}
+
+    # Re-indexing fields that invalidate existing vectors
+    REINDEX_FIELDS: ClassVar[set[str]] = {
+        "model_id", "normalize", "prefix_document", "prefix_query", "pooling_strategy"
+    }
+
+    def requires_reindex(self, previous: Optional["EmbeddingConfig"]) -> bool:
+        """Check if changes require document re-indexing."""
+        if previous is None:
+            return False
+        for field in self.REINDEX_FIELDS:
+            if getattr(self, field) != getattr(previous, field):
+                return True
+        return False
+
+    def detect_reindex_fields(self, previous: Optional["EmbeddingConfig"]) -> list[str]:
+        """Return list of changed fields that require re-indexing."""
+        if previous is None:
+            return []
+        return [f for f in self.REINDEX_FIELDS if getattr(self, f) != getattr(previous, f)]
+
+    def get_reindex_warning(self, changed_fields: list[str]) -> str:
+        """Generate user-friendly warning about re-indexing requirement."""
+        if not changed_fields:
+            return ""
+        return f"Changing {', '.join(changed_fields)} requires re-indexing all documents in this KB."
+]]>
+    </code-example>
+
+    <code-example title="KBSettings Composite Schema">
+<![CDATA[
+from typing import Optional
+
+class KBSettings(BaseModel):
+    """Complete KB-level configuration stored in settings JSONB."""
+
+    chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    reranking: RerankingConfig = Field(default_factory=RerankingConfig)
+    generation: GenerationConfig = Field(default_factory=GenerationConfig)
+    ner: NERConfig = Field(default_factory=NERConfig)
+    processing: DocumentProcessingConfig = Field(default_factory=DocumentProcessingConfig)
+    prompts: KBPromptConfig = Field(default_factory=KBPromptConfig)
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    preset: Optional[str] = Field(default=None, description="Preset name for audit reference")
+
+    model_config = {"extra": "forbid"}
+]]>
+    </code-example>
+
+    <code-example title="Unit Test Pattern">
+<![CDATA[
+import pytest
+from pydantic import ValidationError
+from app.schemas.kb_settings import ChunkingConfig, ChunkingStrategy
+
+pytestmark = pytest.mark.unit
+
+
+class TestChunkingConfig:
+    """Tests for ChunkingConfig schema validation."""
+
+    def test_default_values(self) -> None:
+        """Test ChunkingConfig with all defaults."""
+        config = ChunkingConfig()
+        assert config.strategy == ChunkingStrategy.RECURSIVE
+        assert config.chunk_size == 512
+        assert config.chunk_overlap == 50
+        assert config.separators == ["\n\n", "\n", " ", ""]
+
+    def test_chunk_size_min_boundary(self) -> None:
+        """Test chunk_size minimum value (100)."""
+        config = ChunkingConfig(chunk_size=100)
+        assert config.chunk_size == 100
+
+    def test_chunk_size_max_boundary(self) -> None:
+        """Test chunk_size maximum value (2000)."""
+        config = ChunkingConfig(chunk_size=2000)
+        assert config.chunk_size == 2000
+
+    def test_chunk_size_below_min_fails(self) -> None:
+        """Test chunk_size below minimum raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ChunkingConfig(chunk_size=99)
+        assert "greater than or equal to 100" in str(exc_info.value)
+
+    def test_chunk_size_above_max_fails(self) -> None:
+        """Test chunk_size above maximum raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ChunkingConfig(chunk_size=2001)
+        assert "less than or equal to 2000" in str(exc_info.value)
+]]>
+    </code-example>
+  </implementation-reference>
+
+  <testing-requirements>
+    <guideline>Use pytest fixtures for common setup</guideline>
+    <guideline>Test boundary values (exact limits like 100, 2000 for chunk_size)</guideline>
+    <guideline>Test invalid inputs raise ValidationError</guideline>
+    <guideline>Test JSON serialization round-trips (model_dump to model_validate)</guideline>
+    <guideline>Use @pytest.mark.unit decorator for unit tests</guideline>
+    <guideline>Follow existing test patterns in test_kb_schemas.py</guideline>
+    <expected-test-count>~40-50 unit tests covering all schemas and validation</expected-test-count>
+  </testing-requirements>
+
+  <file-structure>
+    <file action="create" path="backend/app/schemas/kb_settings.py">
+      Main schema file with all enums, sub-configs, and KBSettings composite
+    </file>
+    <file action="create" path="backend/tests/unit/test_kb_settings_schemas.py">
+      Unit tests for all KB settings schemas
+    </file>
+    <file action="modify" path="backend/app/schemas/__init__.py">
+      Add exports for KBSettings and all sub-config schemas
+    </file>
+  </file-structure>
+
+  <validation-commands>
+    <command purpose="Run unit tests">
+      cd backend &amp;&amp; source .venv/bin/activate &amp;&amp; pytest tests/unit/test_kb_settings_schemas.py -v
+    </command>
+    <command purpose="Run linting">
+      cd backend &amp;&amp; source .venv/bin/activate &amp;&amp; ruff check app/schemas/kb_settings.py
+    </command>
+    <command purpose="Run type checking">
+      cd backend &amp;&amp; source .venv/bin/activate &amp;&amp; mypy app/schemas/kb_settings.py
+    </command>
+    <command purpose="Test backwards compatibility">
+      python -c "from app.schemas.kb_settings import KBSettings; print(KBSettings.model_validate({}))"
+    </command>
+  </validation-commands>
+
+  <definition-of-done>
+    <criterion>All 11 ACs implemented and verified</criterion>
+    <criterion>All unit tests pass (Tasks 5-8)</criterion>
+    <criterion>ruff linting passes with no errors</criterion>
+    <criterion>Schemas exported from __init__.py</criterion>
+    <criterion>Backwards compatibility verified: KBSettings.model_validate({}) succeeds</criterion>
+    <criterion>Re-indexing detection works for all 5 fields</criterion>
+    <criterion>Code follows existing patterns in knowledge_base.py and test_kb_schemas.py</criterion>
+  </definition-of-done>
+
+  <source-references>
+    <reference path="docs/sprint-artifacts/7-12-kb-settings-schema.md">Story file with full ACs and tasks</reference>
+    <reference path="docs/sprint-artifacts/correct-course-kb-level-config.md">Primary source for Story 7.12 requirements</reference>
+    <reference path="docs/epics/epic-7-infrastructure.md">Epic breakdown with all ACs</reference>
+    <reference path="docs/sprint-artifacts/tech-spec-epic-7.md">Technical architecture</reference>
+    <reference path="docs/testing-guideline.md">Testing standards and patterns</reference>
+  </source-references>
+
+</story-context>

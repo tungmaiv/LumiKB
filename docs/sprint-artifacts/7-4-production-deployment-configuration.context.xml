@@ -1,0 +1,177 @@
+<story-context id="bmad/bmm/story-context/7-4" v="1.0">
+  <metadata>
+    <epicId>epic-7</epicId>
+    <storyId>7-4</storyId>
+    <title>Production Deployment Configuration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-4-production-deployment-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer</asA>
+    <iWant>production-ready Docker Compose configuration with proper security, health checks, and secrets management</iWant>
+    <soThat>the application can be deployed reliably in production environments</soThat>
+    <tasks>
+      <task id="1" title="Create docker-compose.prod.yml" acs="1,3">
+        <subtask>1.1 Copy docker-compose.yml as base, add production overrides</subtask>
+        <subtask>1.2 Add resource limits (CPU/memory) for all services</subtask>
+        <subtask>1.3 Configure restart policies (`unless-stopped` or `always`)</subtask>
+        <subtask>1.4 Add health checks for all services (postgres, redis, qdrant, api, worker, frontend)</subtask>
+        <subtask>1.5 Remove development-only mounts and settings</subtask>
+        <subtask>1.6 Configure log drivers (json-file with rotation)</subtask>
+      </task>
+      <task id="2" title="Implement Health/Ready Endpoints" acs="4">
+        <subtask>2.1 Create `/health` endpoint in FastAPI (basic liveness check)</subtask>
+        <subtask>2.2 Create `/ready` endpoint checking database, Redis, Qdrant connectivity</subtask>
+        <subtask>2.3 Add timeout handling for dependency checks (5s max)</subtask>
+        <subtask>2.4 Write integration tests for health endpoints</subtask>
+      </task>
+      <task id="3" title="Secrets Management" acs="3">
+        <subtask>3.1 Create `.env.prod.template` documenting all required environment variables</subtask>
+        <subtask>3.2 Ensure all secrets (DB password, JWT secret, API keys) from env vars</subtask>
+        <subtask>3.3 Add secrets validation on startup (fail fast if missing)</subtask>
+        <subtask>3.4 Document secrets rotation procedure</subtask>
+      </task>
+      <task id="4" title="Create Kubernetes Manifests (Optional)" acs="2">
+        <subtask>4.1 Create `infrastructure/k8s/` directory structure</subtask>
+        <subtask>4.2 Create Deployment manifests for api, worker, celery-beat, frontend</subtask>
+        <subtask>4.3 Create Service manifests with appropriate types (ClusterIP, LoadBalancer)</subtask>
+        <subtask>4.4 Create ConfigMaps and Secrets templates</subtask>
+        <subtask>4.5 Add liveness/readiness probes referencing health endpoints</subtask>
+        <subtask>4.6 Document kubectl apply order</subtask>
+      </task>
+      <task id="5" title="Production Documentation" acs="1,2,3,4">
+        <subtask>5.1 Create deployment runbook with step-by-step instructions</subtask>
+        <subtask>5.2 Document environment variable reference</subtask>
+        <subtask>5.3 Add troubleshooting guide for common deployment issues</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.4.1">docker-compose.prod.yml starts all services with production settings (resource limits, restart policies, health checks)</criterion>
+    <criterion id="AC-7.4.2">Optional Kubernetes manifests deploy all workloads (Deployments, Services, ConfigMaps, Secrets)</criterion>
+    <criterion id="AC-7.4.3">All secrets loaded from environment variables (no hardcoded credentials in configs)</criterion>
+    <criterion id="AC-7.4.4">`/health` and `/ready` endpoints available for orchestrator probes</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/sprint-artifacts/tech-spec-epic-7.md" relevance="high">
+        Epic 7 technical specification with production deployment requirements
+      </artifact>
+      <artifact path="docs/architecture.md" relevance="high">
+        Architecture document containing:
+        - Infrastructure Layer definitions
+        - Service dependencies and networking
+        - Docker Compose service configurations
+      </artifact>
+    </docs>
+    <code>
+      <artifact path="infrastructure/docker/docker-compose.yml" relevance="critical">
+        Development Docker Compose configuration (base for prod):
+        - postgres:16 service with volume mounts
+        - redis:7-alpine service
+        - minio:latest for object storage
+        - qdrant:latest for vector database
+        - litellm proxy on port 4000
+        - celery-worker and celery-beat services
+        - Network configuration (lumikb-network)
+        - Volume definitions
+      </artifact>
+      <artifact path="backend/app/main.py" relevance="high">
+        FastAPI application entry point:
+        - Router registration
+        - Lifespan management
+        - Health endpoint registration location
+      </artifact>
+      <artifact path="backend/app/core/config.py" relevance="high">
+        Settings class with environment variables:
+        - Database URL configuration
+        - Redis URL
+        - JWT secret
+        - API keys
+        - Environment variable loading patterns
+      </artifact>
+      <artifact path="backend/Dockerfile" relevance="high">
+        Backend Dockerfile for API image build
+      </artifact>
+      <artifact path="backend/Dockerfile.api" relevance="medium">
+        Specialized API Dockerfile (if exists)
+      </artifact>
+      <artifact path="backend/Dockerfile.worker" relevance="medium">
+        Specialized worker Dockerfile (if exists)
+      </artifact>
+    </code>
+    <dependencies>
+      <dependency name="docker-compose" version=">=2.0">Docker Compose v2 for orchestration</dependency>
+      <dependency name="asyncpg" version=">=0.30.0">Async PostgreSQL driver for health checks</dependency>
+      <dependency name="redis" version=">=7.1.0">Redis client for health checks</dependency>
+      <dependency name="qdrant-client" version=">=1.10.0">Qdrant client for health checks</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">All secrets must be loaded from environment variables only</constraint>
+    <constraint type="security">No hardcoded credentials in any configuration files</constraint>
+    <constraint type="performance">Health check timeout max 5 seconds</constraint>
+    <constraint type="reliability">All services must have restart policies configured</constraint>
+    <constraint type="observability">All services must have health checks for orchestration</constraint>
+    <constraint type="pattern">Liveness (`/health`) vs Readiness (`/ready`) separation</constraint>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/health">
+        Basic liveness check - returns 200 if service is running
+      </endpoint>
+      <endpoint method="GET" path="/ready">
+        Readiness check - returns 200 if all dependencies (DB, Redis, Qdrant) are accessible
+      </endpoint>
+    </api>
+    <services>
+      <service name="api" cpu="1.0" memory="1Gi" replicas="1-3">FastAPI backend</service>
+      <service name="worker" cpu="2.0" memory="2Gi" replicas="1-5">Celery worker</service>
+      <service name="celery-beat" cpu="0.25" memory="256Mi" replicas="1">Task scheduler</service>
+      <service name="frontend" cpu="0.5" memory="512Mi" replicas="1-2">Next.js frontend</service>
+      <service name="postgres" cpu="1.0" memory="2Gi" replicas="1">PostgreSQL database</service>
+      <service name="redis" cpu="0.5" memory="512Mi" replicas="1">Redis cache</service>
+      <service name="qdrant" cpu="2.0" memory="4Gi" replicas="1">Vector database</service>
+    </services>
+    <files>
+      <file path="infrastructure/docker/docker-compose.prod.yml">Production Docker Compose</file>
+      <file path="infrastructure/.env.prod.template">Production env template</file>
+      <file path="infrastructure/k8s/api-deployment.yaml">K8s API deployment (optional)</file>
+      <file path="infrastructure/k8s/worker-deployment.yaml">K8s worker deployment (optional)</file>
+      <file path="infrastructure/k8s/frontend-deployment.yaml">K8s frontend deployment (optional)</file>
+      <file path="infrastructure/k8s/services.yaml">K8s services (optional)</file>
+      <file path="infrastructure/k8s/configmaps-secrets.yaml">K8s config/secrets (optional)</file>
+    </files>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Integration tests: Health endpoint responses under normal and degraded conditions</standard>
+      <standard>Deployment test: docker-compose.prod.yml starts successfully</standard>
+      <standard>Secrets validation: Startup fails gracefully with missing secrets</standard>
+    </standards>
+    <locations>
+      <location>backend/tests/integration/test_health_api.py</location>
+      <location>backend/app/api/v1/health.py</location>
+      <location>infrastructure/docker/docker-compose.prod.yml</location>
+    </locations>
+    <ideas>
+      <idea>Test /health returns 200 when service is up</idea>
+      <idea>Test /ready returns 503 when database is unavailable</idea>
+      <idea>Test /ready returns 503 when Redis is unavailable</idea>
+      <idea>Test /ready returns 503 when Qdrant is unavailable</idea>
+      <idea>Test dependency check timeout handling (5s max)</idea>
+      <idea>Test docker-compose.prod.yml brings up all services</idea>
+      <idea>Test startup fails with missing required secrets</idea>
+      <idea>Test resource limits are applied correctly</idea>
+      <idea>Test log rotation works as configured</idea>
+    </ideas>
+  </tests>
+</story-context>

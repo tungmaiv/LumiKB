@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-22" title="SSE Reconnection">
+  <summary>
+    Implement automatic reconnection logic for Server-Sent Events (SSE) streams
+    used in chat and generation features, with exponential backoff and user feedback.
+  </summary>
+
+  <key-files>
+    <file path="frontend/src/hooks/useChatManagement.ts" purpose="Chat SSE management">
+      <note>266 lines - manages SSE streams for chat responses</note>
+      <note>Uses EventSource for SSE connection</note>
+      <note>No reconnection logic currently implemented</note>
+      <note>Lines 80-150: SSE connection setup in sendMessage()</note>
+    </file>
+    <file path="frontend/src/hooks/useGenerationStream.ts" purpose="Generation SSE management">
+      <note>Similar pattern to useChatManagement</note>
+      <note>Handles draft generation streaming</note>
+      <note>Also needs reconnection logic</note>
+    </file>
+    <file path="backend/app/api/v1/chat_stream.py" purpose="Chat SSE endpoint">
+      <note>Server-side SSE implementation using StreamingResponse</note>
+      <note>Need to ensure server supports reconnection with Last-Event-Id</note>
+    </file>
+    <file path="backend/app/api/v1/generate_stream.py" purpose="Generation SSE endpoint">
+      <note>Similar SSE pattern for document generation</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="Current SSE Connection">
+      <description>From useChatManagement.ts - basic EventSource usage without reconnection</description>
+      <code><![CDATA[
+const sendMessage = useCallback(async (content: string) => {
+  setIsStreaming(true);
+  setCurrentResponse("");
+
+  const eventSource = new EventSource(
+    `/api/v1/chat/stream?kb_id=${kbId}&message=${encodeURIComponent(content)}`
+  );
+
+  eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === "token") {
+      setCurrentResponse((prev) => prev + data.content);
+    } else if (data.type === "done") {
+      eventSource.close();
+      setIsStreaming(false);
+    }
+  };
+
+  eventSource.onerror = (error) => {
+    console.error("SSE error:", error);
+    eventSource.close();
+    setIsStreaming(false);
+    setError("Connection lost");
+    // No reconnection attempt!
+  };
+}, [kbId]);
+]]></code>
+    </pattern>
+    <pattern name="Exponential Backoff Reference">
+      <description>Standard exponential backoff pattern to implement</description>
+      <code><![CDATA[
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+const MAX_DELAY_MS = 30000;
+
+function getBackoffDelay(attempt: number): number {
+  const delay = Math.min(
+    BASE_DELAY_MS * Math.pow(2, attempt),
+    MAX_DELAY_MS
+  );
+  // Add jitter (±10%)
+  const jitter = delay * 0.1 * (Math.random() * 2 - 1);
+  return delay + jitter;
+}
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="reconnection-strategy">
+      1. On SSE error, don't immediately close
+      2. Check if error is recoverable (network error vs server error)
+      3. If recoverable, wait with exponential backoff
+      4. Reconnect with Last-Event-Id header to resume from last event
+      5. Show reconnecting indicator to user
+      6. After MAX_RETRIES, show permanent error
+    </note>
+    <note type="server-requirements">
+      Server-side changes may be needed:
+      - Support Last-Event-Id header for resume
+      - Include event IDs in SSE stream
+      - Handle mid-stream reconnection gracefully
+    </note>
+    <note type="user-feedback">
+      UI states to handle:
+      - "Connecting..." (initial)
+      - "Streaming..." (active)
+      - "Reconnecting..." (with attempt count)
+      - "Connection lost. Retrying in Xs..."
+      - "Failed to reconnect. Click to retry."
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.22.1" status="not-implemented">
+      <description>Auto-reconnect on connection loss</description>
+      <implementation>Need EventSource error handler with reconnection logic</implementation>
+    </criterion>
+    <criterion id="AC-7.22.2" status="not-implemented">
+      <description>Exponential backoff between retries</description>
+      <implementation>Implement getBackoffDelay with 2^n formula</implementation>
+    </criterion>
+    <criterion id="AC-7.22.3" status="not-implemented">
+      <description>User feedback during reconnection</description>
+      <implementation>Add reconnecting state and UI indicator</implementation>
+    </criterion>
+    <criterion id="AC-7.22.4" status="not-implemented">
+      <description>Max retry limit with manual retry option</description>
+      <implementation>After MAX_RETRIES, show retry button</implementation>
+    </criterion>
+    <criterion id="AC-7.22.5" status="needs-investigation">
+      <description>Resume from last event on reconnect</description>
+      <implementation>Requires server support for Last-Event-Id</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <suggested-implementation>
+    <code-snippet name="useSSEReconnection hook">
+      <![CDATA[
+import { useState, useCallback, useRef } from 'react';
+
+interface SSEReconnectionState {
+  status: 'idle' | 'connecting' | 'streaming' | 'reconnecting' | 'failed';
+  retryCount: number;
+  nextRetryIn: number | null;
+}
+
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+const MAX_DELAY_MS = 30000;
+
+export function useSSEReconnection(url: string, onMessage: (data: any) => void) {
+  const [state, setState] = useState<SSEReconnectionState>({
+    status: 'idle',
+    retryCount: 0,
+    nextRetryIn: null,
+  });
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const lastEventIdRef = useRef<string | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const getBackoffDelay = (attempt: number): number => {
+    const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
+    return delay + delay * 0.1 * (Math.random() * 2 - 1);
+  };
+
+  const connect = useCallback(() => {
+    setState(prev => ({ ...prev, status: 'connecting' }));
+
+    const fullUrl = lastEventIdRef.current
+      ? `${url}&lastEventId=${lastEventIdRef.current}`
+      : url;
+
+    const es = new EventSource(fullUrl);
+    eventSourceRef.current = es;
+
+    es.onopen = () => {
+      setState({ status: 'streaming', retryCount: 0, nextRetryIn: null });
+    };
+
+    es.onmessage = (event) => {
+      if (event.lastEventId) {
+        lastEventIdRef.current = event.lastEventId;
+      }
+      onMessage(JSON.parse(event.data));
+    };
+
+    es.onerror = () => {
+      es.close();
+      setState(prev => {
+        if (prev.retryCount >= MAX_RETRIES) {
+          return { status: 'failed', retryCount: prev.retryCount, nextRetryIn: null };
+        }
+        const delay = getBackoffDelay(prev.retryCount);
+        retryTimeoutRef.current = setTimeout(connect, delay);
+        return {
+          status: 'reconnecting',
+          retryCount: prev.retryCount + 1,
+          nextRetryIn: Math.round(delay / 1000),
+        };
+      });
+    };
+  }, [url, onMessage]);
+
+  const manualRetry = useCallback(() => {
+    setState({ status: 'idle', retryCount: 0, nextRetryIn: null });
+    connect();
+  }, [connect]);
+
+  const disconnect = useCallback(() => {
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    eventSourceRef.current?.close();
+    setState({ status: 'idle', retryCount: 0, nextRetryIn: null });
+  }, []);
+
+  return { state, connect, disconnect, manualRetry };
+}
+]]>
+    </code-snippet>
+  </suggested-implementation>
+
+  <dependencies>
+    <dependency story="4-2" status="completed">Chat streaming UI</dependency>
+    <dependency story="4-5" status="completed">Draft generation streaming</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>useSSEReconnection attempts reconnect on error</test>
+      <test>Backoff delay increases exponentially</test>
+      <test>State transitions correctly (idle→connecting→streaming→reconnecting→failed)</test>
+      <test>manualRetry resets retry count</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Simulate network drop, verify auto-reconnect</test>
+      <test>Verify reconnecting UI indicator shows retry count</test>
+      <test>After max retries, verify manual retry button appears</test>
+    </integration-tests>
+  </test-strategy>
+</story-context>

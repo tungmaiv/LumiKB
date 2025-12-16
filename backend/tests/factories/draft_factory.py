@@ -5,12 +5,10 @@ Override specific fields to make test intent explicit.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from faker import Faker
-
-from app.models.draft import DraftStatus
 
 fake = Faker()
 
@@ -38,8 +36,8 @@ def create_draft(**overrides: Any) -> dict:
         "status": "complete",  # Use string value, not enum
         "citations": [],
         "word_count": fake.random_int(min=100, max=1000),
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
     }
 
     # Apply overrides

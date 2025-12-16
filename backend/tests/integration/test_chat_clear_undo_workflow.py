@@ -111,7 +111,9 @@ async def test_clear_and_undo_workflow(
         f"/api/v1/chat/history?kb_id={kb_id}",
         cookies=authenticated_headers,
     )
-    assert history_response.status_code == 200
+    assert (
+        history_response.status_code == 200
+    ), f"History endpoint returned {history_response.status_code}: {history_response.text}"
     history_data = history_response.json()
     assert history_data["message_count"] == 4
     assert history_data["messages"] == test_history
@@ -231,10 +233,18 @@ async def test_kb_switching_preserves_conversations(
 
     # GIVEN: Conversations in both KBs
     kb_a_history = [
-        {"role": "user", "content": "KB-A question", "timestamp": "2025-11-28T10:00:00Z"}
+        {
+            "role": "user",
+            "content": "KB-A question",
+            "timestamp": "2025-11-28T10:00:00Z",
+        }
     ]
     kb_b_history = [
-        {"role": "user", "content": "KB-B question", "timestamp": "2025-11-28T10:05:00Z"}
+        {
+            "role": "user",
+            "content": "KB-B question",
+            "timestamp": "2025-11-28T10:05:00Z",
+        }
     ]
 
     await redis_client.setex(

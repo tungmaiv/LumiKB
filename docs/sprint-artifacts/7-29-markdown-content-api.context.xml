@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-29" title="Markdown Content API Endpoint (Backend)" epic="7">
+  <metadata>
+    <status>Draft</status>
+    <story-points>2</story-points>
+    <created>2025-12-11</created>
+    <generated>2025-12-11</generated>
+  </metadata>
+
+  <user-story>
+    <as-a>frontend developer</as-a>
+    <i-want-to>an API endpoint to retrieve the markdown content of a document</i-want-to>
+    <so-that>I can render it in the chunk viewer with precise highlighting</so-that>
+  </user-story>
+
+  <background>
+    <summary>
+      Story 7-28 implements markdown generation during document parsing. This story
+      exposes that markdown content via a REST API endpoint for the frontend to consume.
+      The endpoint enables the chunk viewer to display document content in a format
+      that supports accurate character-based highlighting using `char_start` and
+      `char_end` positions.
+    </summary>
+    <problem-statement>
+      The frontend chunk viewer needs access to the generated markdown content to
+      enable precise character-based highlighting, but there is currently no API
+      endpoint to retrieve it.
+    </problem-statement>
+    <solution-approach>
+      Create a new REST endpoint at `/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/markdown-content`
+      that returns the markdown content and generation timestamp from the parsed.json
+      file stored in MinIO.
+    </solution-approach>
+  </background>
+
+  <acceptance-criteria>
+    <criterion id="AC-7.29.1" title="Endpoint Implemented">
+      <given>a document has `markdown_content` in parsed.json</given>
+      <when>I call `GET /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/markdown-content`</when>
+      <then>I receive 200 with JSON body containing `markdown_content` and `generated_at`</then>
+      <implementation-notes>
+        - Add new route to `backend/app/api/v1/documents.py`
+        - Reuse existing document/KB access patterns
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.29.2" title="404 for Older Documents">
+      <given>a document was processed before markdown generation was added</given>
+      <when>I call the endpoint</when>
+      <then>I receive 404 with message "Markdown content not available for this document"</then>
+      <implementation-notes>
+        - Check if `markdown_content` field exists and is non-null in parsed.json
+        - Return 404 with clear error message
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.29.3" title="400 for Processing Documents">
+      <given>a document has status PROCESSING or PENDING</given>
+      <when>I call the endpoint</when>
+      <then>I receive 400 with message "Document is still processing"</then>
+      <implementation-notes>
+        - Check document status before attempting to read parsed content
+        - Return appropriate error for in-progress documents
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.29.4" title="Response Schema">
+      <given>markdown content is available</given>
+      <then>response includes:
+        - `markdown_content: string` (the full markdown text)
+        - `generated_at: datetime` (when markdown was generated)
+        - `document_id: UUID`
+      </then>
+      <implementation-notes>
+        <![CDATA[
+class MarkdownContentResponse(BaseModel):
+    """Response for markdown content endpoint."""
+    document_id: UUID
+    markdown_content: str
+    generated_at: datetime
+        ]]>
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.29.5" title="Permission Check">
+      <given>user does not have read access to the KB</given>
+      <when>they call the endpoint</when>
+      <then>they receive 403 Forbidden</then>
+      <implementation-notes>
+        - Reuse existing `get_kb_with_read_access` dependency
+        - Same permission model as other document endpoints
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.29.6" title="Integration Tests">
+      <given>integration tests for the endpoint exist</given>
+      <then>all success and error scenarios are covered:
+        - 200 with valid markdown content
+        - 404 for document without markdown
+        - 400 for processing document
+        - 403 for unauthorized access
+        - 404 for non-existent document/KB
+      </then>
+    </criterion>
+  </acceptance-criteria>
+
+  <technical-design>
+    <api-endpoint>
+      <method>GET</method>
+      <path>/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/markdown-content</path>
+      <handler>get_markdown_content</handler>
+      <responses>
+        <response status="200">Markdown content with metadata</response>
+        <response status="400">Document is still processing</response>
+        <response status="403">Forbidden - no read access</response>
+        <response status="404">Document or markdown not found</response>
+      </responses>
+    </api-endpoint>
+
+    <schema>
+      <![CDATA[
+# backend/app/schemas/document.py
+
+class MarkdownContentResponse(BaseModel):
+    """Response schema for document markdown content endpoint.
+
+    Story 7-29: Returns generated markdown for chunk viewer highlighting.
+    """
+    document_id: UUID
+    markdown_content: str = Field(..., description="Full document content in Markdown format")
+    generated_at: datetime = Field(..., description="When markdown was generated during parsing")
+      ]]>
+    </schema>
+
+    <endpoint-implementation>
+      <![CDATA[
+# backend/app/api/v1/documents.py
+
+@router.get(
+    "/{doc_id}/markdown-content",
+    response_model=MarkdownContentResponse,
+    responses={
+        400: {"description": "Document is still processing"},
+        403: {"description": "Forbidden - no read access"},
+        404: {"description": "Document or markdown not found"},
+    },
+)
+async def get_markdown_content(
+    kb_id: UUID,
+    doc_id: UUID,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(current_active_user),
+    minio: MinioClient = Depends(get_minio_client),
+) -> MarkdownContentResponse:
+    """Get markdown content for a document.
+
+    Used by chunk viewer for precise highlighting.
+    """
+    # 1. Verify KB access
+    kb = await get_kb_with_read_access(kb_id, current_user, db)
+
+    # 2. Get document
+    document = await get_document_or_404(db, kb_id, doc_id)
+
+    # 3. Check status
+    if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
+        raise HTTPException(
+            status_code=400,
+            detail="Document is still processing"
+        )
+
+    # 4. Read parsed content from MinIO
+    parsed_content = await read_parsed_json(minio, doc_id)
+
+    # 5. Check markdown availability
+    if not parsed_content or not parsed_content.get("markdown_content"):
+        raise HTTPException(
+            status_code=404,
+            detail="Markdown content not available for this document"
+        )
+
+    return MarkdownContentResponse(
+        document_id=doc_id,
+        markdown_content=parsed_content["markdown_content"],
+        generated_at=parsed_content.get("parsed_at", document.processing_completed_at),
+    )
+      ]]>
+    </endpoint-implementation>
+
+    <minio-access>
+      <![CDATA[
+async def read_parsed_json(minio: MinioClient, doc_id: UUID) -> dict | None:
+    """Read parsed.json from MinIO for a document."""
+    try:
+        bucket = "lumikb-documents"
+        object_name = f"{doc_id}.parsed.json"
+        data = await minio.get_object(bucket, object_name)
+        return json.loads(data)
+    except Exception:
+        return None
+      ]]>
+    </minio-access>
+  </technical-design>
+
+  <files-to-modify>
+    <file path="backend/app/schemas/document.py" action="modify">
+      Add `MarkdownContentResponse` schema
+    </file>
+    <file path="backend/app/api/v1/documents.py" action="modify">
+      Add `get_markdown_content` endpoint
+    </file>
+    <file path="backend/tests/integration/test_markdown_content_api.py" action="create">
+      New test file for endpoint integration tests
+    </file>
+  </files-to-modify>
+
+  <code-references>
+    <reference file="backend/app/schemas/document.py" lines="511-553">
+      <description>Existing document chunk schemas - similar pattern for new schema</description>
+      <code><![CDATA[
+class DocumentChunkResponse(BaseModel):
+    """Schema for a single document chunk from Qdrant.
+
+    AC-5.25.1: chunk_id, chunk_index, text, char_start, char_end, page_number, section_header
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    chunk_id: str = Field(..., description="Qdrant point ID (UUID)")
+    chunk_index: int = Field(..., description="Position in document (0-indexed)")
+    text: str = Field(..., description="Chunk text content")
+    char_start: int = Field(..., description="Start character offset in document")
+    char_end: int = Field(..., description="End character offset in document")
+    page_number: int | None = Field(None, description="Page number if PDF")
+    section_header: str | None = Field(None, description="Section header if available")
+    score: float | None = Field(None, description="Search relevance score (if search query)")
+      ]]></code>
+    </reference>
+
+    <reference file="backend/app/schemas/document.py" lines="544-553">
+      <description>DocumentContentResponse - similar response pattern</description>
+      <code><![CDATA[
+class DocumentContentResponse(BaseModel):
+    """Response for document content endpoint.
+
+    AC-5.25.4: Returns full text, mime_type, and optional HTML for DOCX.
+    """
+
+    text: str = Field(..., description="Full document text content")
+    mime_type: str = Field(..., description="Document MIME type")
+    html: str | None = Field(None, description="HTML rendering for DOCX documents")
+      ]]></code>
+    </reference>
+
+    <reference file="backend/app/api/v1/documents.py" description="Document API router - add new endpoint here">
+      Pattern for existing document endpoints with KB access checks
+    </reference>
+
+    <reference file="backend/app/workers/parsed_content_storage.py" description="Existing MinIO storage functions">
+      load_parsed_content function pattern for reading parsed.json
+    </reference>
+  </code-references>
+
+  <dependencies>
+    <prerequisite>Story 7-28 (Markdown Generation from DOCX/PDF)</prerequisite>
+    <blocked-by>Story 7-28 must be completed for markdown content to exist</blocked-by>
+    <blocks>Story 7-30 (Enhanced Markdown Viewer with Highlighting)</blocks>
+  </dependencies>
+
+  <test-plan>
+    <unit-tests>
+      <test name="test_markdown_content_response_schema">Schema validation - all fields properly typed</test>
+      <test name="test_markdown_content_response_serialization">JSON serialization - datetime serialized correctly</test>
+    </unit-tests>
+
+    <integration-tests>
+      <test name="test_get_markdown_content_success">Valid document with markdown returns 200 with markdown_content</test>
+      <test name="test_get_markdown_content_no_markdown">Document without markdown returns 404 with clear message</test>
+      <test name="test_get_markdown_content_processing">Document still processing returns 400 with "still processing"</test>
+      <test name="test_get_markdown_content_no_access">User lacks KB access returns 403 Forbidden</test>
+      <test name="test_get_markdown_content_not_found">Document doesn't exist returns 404 Not Found</test>
+      <test name="test_get_markdown_content_kb_not_found">KB doesn't exist returns 404 Not Found</test>
+    </integration-tests>
+  </test-plan>
+
+  <definition-of-done>
+    <item>`MarkdownContentResponse` schema added to schemas/document.py</item>
+    <item>GET endpoint implemented at `/documents/{doc_id}/markdown-content`</item>
+    <item>200 response with markdown content and metadata</item>
+    <item>404 response for documents without markdown</item>
+    <item>400 response for processing documents</item>
+    <item>403 response for unauthorized access</item>
+    <item>Integration tests pass for all scenarios</item>
+    <item>Code review approved</item>
+    <item>Ruff lint/format passes</item>
+  </definition-of-done>
+
+  <notes>
+    <note>This story focuses only on the API endpoint</note>
+    <note>Frontend consumption is in Story 7-30</note>
+    <note>Endpoint is cache-friendly (markdown is immutable once generated)</note>
+    <note>Consider adding ETag/Last-Modified headers for caching (optional enhancement)</note>
+    <note>Keep response lightweight - only markdown content and metadata</note>
+  </notes>
+</story-context>

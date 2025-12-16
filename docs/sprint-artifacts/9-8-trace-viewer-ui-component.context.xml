@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-id>9-8</story-id>
+    <story-name>Trace Viewer UI Component</story-name>
+    <epic-id>9</epic-id>
+    <epic-name>Hybrid Observability Platform</epic-name>
+    <phase>Phase 3: API & UI</phase>
+    <story-type>frontend</story-type>
+    <priority>high</priority>
+    <estimated-complexity>medium</estimated-complexity>
+  </metadata>
+
+  <story-summary>
+    Create a React component for viewing distributed traces with a waterfall visualization
+    showing all spans, their timing, and type-specific metrics. This enables system administrators
+    to debug and analyze request flows across the system to identify performance bottlenecks and errors.
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC1">Trace list view displays operation type, status, duration, user, and timestamp</criterion>
+    <criterion id="AC2">Filtering controls for operation type (document_processing, chat, search), status (completed, failed), and date range</criterion>
+    <criterion id="AC3">Click trace row to view detail panel (slide-out or modal)</criterion>
+    <criterion id="AC4">Trace detail shows timeline of spans in waterfall view with duration bars</criterion>
+    <criterion id="AC5">Span details show type-specific metrics (LLM: model/tokens/cost, DB: query/rows, External: URL/status)</criterion>
+    <criterion id="AC6">Error spans highlighted in red with error message displayed</criterion>
+    <criterion id="AC7">LLM spans prominently show model name, token counts (input/output), and cost (if available)</criterion>
+    <criterion id="AC8">Responsive design for admin dashboard integration (works on desktop and tablet)</criterion>
+    <criterion id="AC9">Loading states (skeleton) and error handling (toast notifications)</criterion>
+    <criterion id="AC10">Unit tests for component rendering and user interactions</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" status="pending">Create trace list component (AC: #1, #2)</task>
+    <task id="2" status="pending">Create filter controls component (AC: #2)</task>
+    <task id="3" status="pending">Create trace detail panel (AC: #3, #4)</task>
+    <task id="4" status="pending">Create waterfall timeline visualization (AC: #4)</task>
+    <task id="5" status="pending">Create span detail component (AC: #5, #6, #7)</task>
+    <task id="6" status="pending">Create custom hooks for trace data (AC: #9)</task>
+    <task id="7" status="pending">Create main trace viewer page (AC: #8)</task>
+    <task id="8" status="pending">Implement loading and error states (AC: #9)</task>
+    <task id="9" status="pending">Write unit tests (AC: #10)</task>
+  </tasks>
+
+  <dependencies>
+    <dependency type="story" required="true">
+      <id>9-7</id>
+      <name>Observability Admin API</name>
+      <reason>Provides REST endpoints: GET /traces, GET /traces/{trace_id}</reason>
+    </dependency>
+    <dependency type="story" required="true">
+      <id>9-1</id>
+      <name>Observability Schema and Models</name>
+      <reason>Defines Trace and Span database models with TimescaleDB</reason>
+    </dependency>
+    <dependency type="library" required="true">
+      <name>@tanstack/react-query</name>
+      <version>^5.0.0</version>
+      <reason>Server state management for data fetching</reason>
+    </dependency>
+    <dependency type="library" required="true">
+      <name>lucide-react</name>
+      <reason>Icon library for status indicators</reason>
+    </dependency>
+    <dependency type="component" required="true">
+      <path>frontend/src/components/ui/table.tsx</path>
+      <reason>Base table component from shadcn/ui</reason>
+    </dependency>
+    <dependency type="component" required="true">
+      <path>frontend/src/components/ui/badge.tsx</path>
+      <reason>Status badge component</reason>
+    </dependency>
+  </dependencies>
+
+  <technical-context>
+    <architecture-pattern>
+      <name>Component Composition</name>
+      <description>Small, focused components composed together for maintainability</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Custom Hooks Pattern</name>
+      <description>Data fetching encapsulated in hooks (useTraces, useTraceDetail)</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>TanStack Query</name>
+      <description>For server state management with caching and revalidation</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Slide-Out Panel Pattern</name>
+      <description>Detail view opens in slide-out panel from right side</description>
+    </architecture-pattern>
+
+    <key-decisions>
+      <decision>
+        <topic>Waterfall Visualization</topic>
+        <choice>CSS-based with percentage widths</choice>
+        <rationale>Simpler than canvas/SVG, maintains accessibility, easier to style</rationale>
+      </decision>
+      <decision>
+        <topic>Span Positioning</topic>
+        <choice>Calculate percentage positions from relative_start_ms / totalDuration</choice>
+        <rationale>Accurate proportional representation of timing</rationale>
+      </decision>
+      <decision>
+        <topic>Status Colors</topic>
+        <choice>Green=completed, Red=failed, Yellow=running, Gray=pending</choice>
+        <rationale>Consistent with existing admin UI patterns</rationale>
+      </decision>
+      <decision>
+        <topic>Lazy Loading</topic>
+        <choice>Trace detail fetched on-demand when trace selected</choice>
+        <rationale>Reduces initial load time, only fetch what's needed</rationale>
+      </decision>
+    </key-decisions>
+
+    <api-endpoints>
+      <endpoint method="GET" path="/api/v1/observability/traces">
+        <description>List traces with filters and pagination</description>
+        <params>operation_type, status, user_id, start_date, end_date, skip, limit</params>
+        <response>TraceListResponse with items[], total, skip, limit</response>
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/observability/traces/{trace_id}">
+        <description>Get trace detail with all child spans</description>
+        <response>TraceDetailResponse with spans ordered by start_time</response>
+      </endpoint>
+    </api-endpoints>
+
+    <data-types>
+      <type name="TraceListItem">
+        <field name="trace_id" type="string">W3C Trace ID (32-hex)</field>
+        <field name="operation_type" type="string">document_processing, chat, search</field>
+        <field name="status" type="string">pending, running, completed, failed</field>
+        <field name="user_id" type="string | null">User UUID</field>
+        <field name="started_at" type="datetime">ISO timestamp</field>
+        <field name="duration_ms" type="number | null">Total duration in ms</field>
+        <field name="span_count" type="number">Number of child spans</field>
+      </type>
+      <type name="SpanDetail">
+        <field name="span_id" type="string">W3C Span ID (16-hex)</field>
+        <field name="parent_span_id" type="string | null">Parent span reference</field>
+        <field name="name" type="string">Span operation name</field>
+        <field name="span_type" type="string">llm, db, external, internal</field>
+        <field name="status" type="string">Span status</field>
+        <field name="started_at" type="datetime">Start timestamp</field>
+        <field name="duration_ms" type="number | null">Duration in ms</field>
+        <field name="metadata" type="object | null">Type-specific metrics</field>
+      </type>
+    </data-types>
+  </technical-context>
+
+  <source-tree-components>
+    <new-files>
+      <file path="frontend/src/app/(protected)/admin/traces/page.tsx" purpose="Main trace viewer page" />
+      <file path="frontend/src/components/admin/traces/trace-list.tsx" purpose="Trace list table component" />
+      <file path="frontend/src/components/admin/traces/trace-filters.tsx" purpose="Filter controls component" />
+      <file path="frontend/src/components/admin/traces/trace-detail-panel.tsx" purpose="Slide-out detail panel" />
+      <file path="frontend/src/components/admin/traces/waterfall-timeline.tsx" purpose="Waterfall visualization" />
+      <file path="frontend/src/components/admin/traces/span-detail.tsx" purpose="Span detail card" />
+      <file path="frontend/src/components/admin/traces/__tests__/trace-list.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/components/admin/traces/__tests__/waterfall-timeline.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/components/admin/traces/__tests__/span-detail.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/hooks/useTraces.ts" purpose="Data fetching hooks" />
+    </new-files>
+    <modified-files>
+      <file path="frontend/src/app/(protected)/admin/page.tsx" change="Add link to traces viewer" />
+    </modified-files>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="TanStack Query Hook">
+      <source-file>frontend/src/hooks/useAdminStats.ts</source-file>
+      <description>Pattern for admin data fetching with stale time and error handling</description>
+      <example><![CDATA[
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+
+export function useTraces(options: UseTracesOptions = {}) {
+  return useQuery({
+    queryKey: ["traces", options],
+    queryFn: () => api.get("/observability/traces", { params: options }),
+    staleTime: 30_000, // 30 seconds
+  });
+}
+
+export function useTraceDetail(traceId: string | null) {
+  return useQuery({
+    queryKey: ["trace", traceId],
+    queryFn: () => api.get(`/observability/traces/${traceId}`),
+    enabled: !!traceId,
+    staleTime: 60_000, // 1 minute
+  });
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Data Table Component">
+      <source-file>frontend/src/components/admin/stat-card.tsx</source-file>
+      <description>Pattern for admin dashboard data display with shadcn/ui</description>
+      <example><![CDATA[
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+
+export function TraceList({ traces, selectedTraceId, onSelectTrace }: TraceListProps) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Operation</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Duration</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {traces.map((trace) => (
+          <TableRow
+            key={trace.trace_id}
+            className={cn(selectedTraceId === trace.trace_id && "bg-muted")}
+            onClick={() => onSelectTrace(trace.trace_id)}
+          >
+            <TableCell>{trace.operation_type}</TableCell>
+            <TableCell><StatusBadge status={trace.status} /></TableCell>
+            <TableCell>{formatDuration(trace.duration_ms)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Status Badge Component">
+      <description>Color-coded status badges used throughout admin UI</description>
+      <example><![CDATA[
+function StatusBadge({ status }: { status: string }) {
+  const variants: Record<string, string> = {
+    completed: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
+    running: "bg-yellow-100 text-yellow-800",
+    pending: "bg-gray-100 text-gray-800",
+  };
+
+  return (
+    <Badge className={variants[status] || variants.pending}>
+      {status}
+    </Badge>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Waterfall Timeline">
+      <description>CSS-based waterfall visualization with percentage positioning</description>
+      <example><![CDATA[
+export function WaterfallTimeline({ spans, totalDuration }: WaterfallTimelineProps) {
+  const getBarStyle = (span: SpanDetail) => {
+    const startPercent = (span.relative_start_ms / totalDuration) * 100;
+    const widthPercent = ((span.duration_ms || 0) / totalDuration) * 100;
+    return {
+      left: `${startPercent}%`,
+      width: `${Math.max(widthPercent, 1)}%`, // Minimum 1% width for visibility
+    };
+  };
+
+  return (
+    <div className="space-y-1">
+      <TimeScaleHeader totalDuration={totalDuration} />
+      {spans.map((span) => (
+        <div key={span.span_id} className="flex items-center h-8">
+          <div className="w-48 truncate text-sm">{span.name}</div>
+          <div className="flex-1 relative h-6 bg-muted rounded">
+            <div
+              className={cn(
+                "absolute h-full rounded",
+                span.status === "failed" ? "bg-destructive" : "bg-primary"
+              )}
+              style={getBarStyle(span)}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+      ]]></example>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <implementation-notes>
+    <note priority="high">
+      Use TanStack Query for all API calls with appropriate staleTime (30s for list, 60s for detail)
+    </note>
+    <note priority="high">
+      Waterfall bars should have minimum 1% width for visibility of very short spans
+    </note>
+    <note priority="medium">
+      Span nesting: indent child spans under parent using parent_span_id relationship
+    </note>
+    <note priority="medium">
+      Time scale header should show appropriate intervals based on total duration (ms, s, min)
+    </note>
+    <note priority="medium">
+      LLM span metadata: display model, input_tokens, output_tokens, cost_usd prominently
+    </note>
+    <note priority="low">
+      Consider adding keyboard navigation (arrow keys) for trace list
+    </note>
+    <note priority="low">
+      Mobile responsive: full-screen detail panel instead of slide-out on small screens
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test>TraceList renders traces correctly with all columns</test>
+      <test>TraceFilters apply filters correctly via callback</test>
+      <test>WaterfallTimeline positions spans correctly based on timing</test>
+      <test>SpanDetail renders type-specific metrics for LLM/DB/External spans</test>
+      <test>Error span highlighting displays red styling and error message</test>
+      <test>Loading states display skeleton components correctly</test>
+      <test>Click interactions open detail panel with correct trace</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Full page renders with mock API data</test>
+      <test>Filter changes trigger API refetch</test>
+      <test>Trace selection loads detail panel</test>
+    </integration-tests>
+    <mocking-strategy>
+      Mock API responses using MSW or Jest mocks for all API endpoints
+    </mocking-strategy>
+  </testing-requirements>
+
+  <references>
+    <reference type="story-file">docs/sprint-artifacts/9-8-trace-viewer-ui-component.md</reference>
+    <reference type="tech-spec">docs/sprint-artifacts/tech-spec-epic-9-observability.md</reference>
+    <reference type="epic">docs/epics/epic-9-observability.md</reference>
+    <reference type="dependency">docs/sprint-artifacts/9-7-observability-admin-api.md</reference>
+    <reference type="pattern">frontend/src/hooks/useAdminStats.ts</reference>
+    <reference type="pattern">frontend/src/components/admin/stat-card.tsx</reference>
+  </references>
+</story-context>

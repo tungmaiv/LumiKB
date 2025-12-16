@@ -1,0 +1,501 @@
+<story-context id="7-11-navigation-restructure-rbac-default-groups" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7-11</storyId>
+    <title>Navigation Restructure with RBAC Default Groups</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-11-navigation-restructure-rbac-default-groups.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>a restructured navigation with separate Operations and Admin menus, and three default user groups (Users, Operators, Administrators) with cumulative permissions</iWant>
+    <soThat>users see appropriate UI elements based on their role, and permission management is simplified through a clear hierarchical group system</soThat>
+    <tasks>
+      <task id="1" title="Database Schema Updates">
+        <subtask>1.1: Add permission_level column to groups table (integer, 1-3)</subtask>
+        <subtask>1.2: Add is_system boolean column to groups table (default false)</subtask>
+        <subtask>1.3: Create Alembic migration for schema changes</subtask>
+        <subtask>1.4: Create seed migration for default groups (Users=1, Operators=2, Administrators=3)</subtask>
+        <subtask>1.5: Add auto-assignment logic in user registration to add new users to "Users" group</subtask>
+        <acceptanceCriteria>AC-7.11.7, AC-7.11.11, AC-7.11.20</acceptanceCriteria>
+      </task>
+      <task id="2" title="Backend Permission Service">
+        <subtask>2.1: Create PermissionLevel enum (USER=1, OPERATOR=2, ADMINISTRATOR=3)</subtask>
+        <subtask>2.2: Create PermissionService with get_user_permission_level(user) method</subtask>
+        <subtask>2.3: Implement cumulative permission check: user_max_level >= required_level</subtask>
+        <subtask>2.4: Create @require_permission(level) decorator for endpoints</subtask>
+        <subtask>2.5: Add "last admin" safety check in group membership mutations</subtask>
+        <subtask>2.6: Update GroupService to prevent deletion of system groups</subtask>
+        <subtask>2.7: Write unit tests for PermissionService (15 tests minimum)</subtask>
+        <acceptanceCriteria>AC-7.11.11, AC-7.11.12, AC-7.11.13, AC-7.11.14, AC-7.11.15, AC-7.11.19, AC-7.11.20</acceptanceCriteria>
+      </task>
+      <task id="3" title="Backend Route Protection">
+        <subtask>3.1: Apply @require_permission(OPERATOR) to document upload/delete endpoints</subtask>
+        <subtask>3.2: Apply @require_permission(OPERATOR) to KB create endpoint</subtask>
+        <subtask>3.3: Apply @require_permission(ADMINISTRATOR) to KB delete endpoint</subtask>
+        <subtask>3.4: Apply @require_permission(OPERATOR) to all /operations/* routes</subtask>
+        <subtask>3.5: Apply @require_permission(ADMINISTRATOR) to all /admin/* routes</subtask>
+        <subtask>3.6: Write integration tests for route protection (12 tests minimum)</subtask>
+        <acceptanceCriteria>AC-7.11.12, AC-7.11.14, AC-7.11.16, AC-7.11.17, AC-7.11.18</acceptanceCriteria>
+      </task>
+      <task id="4" title="Frontend Navigation Restructure">
+        <subtask>4.1: Create OperationsDropdown component with menu items</subtask>
+        <subtask>4.2: Create AdminDropdown component with menu items</subtask>
+        <subtask>4.3: Update Header component to conditionally render dropdowns based on permission level</subtask>
+        <subtask>4.4: Add permission level to user context/auth state</subtask>
+        <subtask>4.5: Create usePermissionLevel() hook</subtask>
+        <subtask>4.6: Write component tests for dropdowns (8 tests minimum)</subtask>
+        <acceptanceCriteria>AC-7.11.1, AC-7.11.2, AC-7.11.3, AC-7.11.4, AC-7.11.5</acceptanceCriteria>
+      </task>
+      <task id="5" title="Hub Dashboards">
+        <subtask>5.1: Create /operations route with OperationsDashboard page</subtask>
+        <subtask>5.2: Create card grid layout for Operations hub (Audit, Queue, KB Stats)</subtask>
+        <subtask>5.3: Update /admin route with AdminDashboard hub layout</subtask>
+        <subtask>5.4: Create card grid layout for Admin hub (Users, Groups, Perms, Config, Models)</subtask>
+        <subtask>5.5: Add live stat counts on hub cards</subtask>
+        <acceptanceCriteria>AC-7.11.6</acceptanceCriteria>
+      </task>
+      <task id="6" title="UI Permission Gating">
+        <subtask>6.1: Hide upload button for Users (permission_level &lt; 2)</subtask>
+        <subtask>6.2: Hide "Create KB" button for Users</subtask>
+        <subtask>6.3: Hide "Delete KB" option for Operators (permission_level &lt; 3)</subtask>
+        <subtask>6.4: Add PermissionGate component for declarative permission checks</subtask>
+        <subtask>6.5: Write tests for permission-gated UI elements (6 tests minimum)</subtask>
+        <acceptanceCriteria>AC-7.11.12, AC-7.11.13</acceptanceCriteria>
+      </task>
+      <task id="7" title="Frontend Route Guards">
+        <subtask>7.1: Create OperatorGuard HOC/component for /operations/* routes</subtask>
+        <subtask>7.2: Create AdminGuard HOC/component for /admin/* routes</subtask>
+        <subtask>7.3: Implement redirect to dashboard with toast message on 403</subtask>
+        <subtask>7.4: Update existing route protection to use permission levels</subtask>
+        <acceptanceCriteria>AC-7.11.16, AC-7.11.17, AC-7.11.18</acceptanceCriteria>
+      </task>
+      <task id="8" title="Group Management UI Updates">
+        <subtask>8.1: Add "System" badge to default groups in Groups list</subtask>
+        <subtask>8.2: Disable delete button for system groups with tooltip explanation</subtask>
+        <subtask>8.3: Show permission level indicator (User/Operator/Admin) in group list</subtask>
+        <subtask>8.4: Add "Auto-assigned on registration" note for Users group</subtask>
+        <acceptanceCriteria>AC-7.11.8, AC-7.11.9, AC-7.11.10</acceptanceCriteria>
+      </task>
+      <task id="9" title="Route Migration (Non-breaking)">
+        <subtask>9.1: Create new route structure: /operations/audit, /operations/queue, /operations/kb-stats</subtask>
+        <subtask>9.2: Add redirects from old routes (/admin/audit -> /operations/audit, etc.)</subtask>
+        <subtask>9.3: Update all internal links to use new routes</subtask>
+        <subtask>9.4: Update navigation tests</subtask>
+        <acceptanceCriteria>Navigation Architecture</acceptanceCriteria>
+      </task>
+      <task id="10" title="Testing and Documentation">
+        <subtask>10.1: Write E2E tests for navigation visibility by role (6 tests)</subtask>
+        <subtask>10.2: Write E2E tests for route protection (6 tests)</subtask>
+        <subtask>10.3: Update user documentation with new navigation structure</subtask>
+        <subtask>10.4: Document permission matrix in README or docs</subtask>
+        <acceptanceCriteria>All ACs</acceptanceCriteria>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <section title="Navigation Restructure">
+      <ac id="AC-7.11.1">Given the application header, When an Administrator views it, Then they see two dropdown menus: "Operations" and "Admin"</ac>
+      <ac id="AC-7.11.2">Given an Operator user, When they view the header, Then they see only the "Operations" dropdown (no "Admin" menu)</ac>
+      <ac id="AC-7.11.3">Given a basic User, When they view the header, Then they see neither Operations nor Admin menus (only Search)</ac>
+      <ac id="AC-7.11.4">Given the Operations dropdown, When opened, Then it displays: Operations Dashboard (hub), Audit Logs, Processing Queue, KB Statistics</ac>
+      <ac id="AC-7.11.5">Given the Admin dropdown, When opened, Then it displays: Admin Dashboard (hub), Users, Groups, KB Permissions, System Config, Model Registry</ac>
+      <ac id="AC-7.11.6">Given clicking "Operations Dashboard" or "Admin Dashboard", When the page loads, Then it shows a card-based hub with links to all sub-sections</ac>
+    </section>
+    <section title="Default Groups">
+      <ac id="AC-7.11.7">Given a fresh installation, When the database is seeded, Then three system groups exist: "Users" (level 1), "Operators" (level 2), "Administrators" (level 3)</ac>
+      <ac id="AC-7.11.8">Given system default groups, When an admin attempts to delete them, Then the operation is blocked with error "Cannot delete system groups"</ac>
+      <ac id="AC-7.11.9">Given system default groups, When an admin edits membership, Then members can be added/removed normally</ac>
+      <ac id="AC-7.11.10">Given a new user registration, When the account is created, Then the user is automatically added to the "Users" group</ac>
+    </section>
+    <section title="Permission Hierarchy (Cumulative)">
+      <ac id="AC-7.11.11">Given permission levels (User=1, Operator=2, Admin=3), When checking permissions, Then higher levels inherit all lower-level permissions</ac>
+      <ac id="AC-7.11.12">Given a User (level 1), When they try to upload documents, Then the upload button is hidden and API returns 403</ac>
+      <ac id="AC-7.11.13">Given an Operator (level 2), When they access the application, Then they can upload/delete documents, create KBs, and view Operations menu</ac>
+      <ac id="AC-7.11.14">Given an Operator (level 2), When they try to delete a Knowledge Base, Then the operation is blocked (Admin only)</ac>
+      <ac id="AC-7.11.15">Given an Administrator (level 3), When they access the application, Then they have full access including KB deletion and Admin menu</ac>
+    </section>
+    <section title="Route Protection">
+      <ac id="AC-7.11.16">Given a User accessing /operations/* routes, When the page loads, Then they are redirected with 403 Forbidden</ac>
+      <ac id="AC-7.11.17">Given an Operator accessing /admin/* routes, When the page loads, Then they are redirected with 403 Forbidden</ac>
+      <ac id="AC-7.11.18">Given an Administrator, When accessing any route, Then access is granted</ac>
+    </section>
+    <section title="Safety Guards">
+      <ac id="AC-7.11.19">Given the last Administrator in the system, When attempting to remove themselves from Administrators group, Then the operation is blocked with error "Cannot remove the last administrator"</ac>
+      <ac id="AC-7.11.20">Given a user in multiple groups, When checking their permission level, Then the MAX permission_level across all groups is used</ac>
+    </section>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact type="prd" path="docs/prd.md">Product Requirements Document - Overall product requirements</artifact>
+      <artifact type="architecture" path="docs/architecture.md">System Architecture - PostgreSQL, Qdrant, FastAPI, Next.js stack</artifact>
+      <artifact type="techSpec" path="docs/sprint-artifacts/tech-spec-epic-7.md">Epic 7 Technical Specification</artifact>
+      <artifact type="epic" path="docs/epics/epic-7-infrastructure.md">Epic 7 Stories and Requirements</artifact>
+      <artifact type="brainstorm" path="docs/sprint-artifacts/brainstorm-7-11-navigation-rbac.md">Party-mode brainstorm session outcomes</artifact>
+      <artifact type="existingStory" path="docs/sprint-artifacts/5-17-main-navigation.md">Story 5-17: Main Navigation (existing implementation)</artifact>
+      <artifact type="existingStory" path="docs/sprint-artifacts/5-19-group-management.md">Story 5-19: Group Management (existing implementation)</artifact>
+      <artifact type="testingGuideline" path="docs/testing-guideline.md">Testing standards and patterns</artifact>
+    </docs>
+    <code>
+      <section title="Backend - Models">
+        <file path="backend/app/models/group.py" description="Group and UserGroup SQLAlchemy models - NEEDS MODIFICATION: Add permission_level (int), is_system (bool) columns">
+          <existingColumns>id, name, description, is_active, created_at, updated_at</existingColumns>
+          <relationships>user_groups, kb_permissions</relationships>
+          <note>UserGroup is junction table for user-group membership with (user_id, group_id) composite primary key</note>
+        </file>
+        <file path="backend/app/models/user.py" description="User model with FastAPI-Users - READ ONLY for context">
+          <columns>id, email, hashed_password, is_active, is_superuser, is_verified, created_at, updated_at, onboarding_completed, last_active</columns>
+          <relationships>knowledge_bases, drafts, kb_permissions, user_groups</relationships>
+          <note>is_superuser is current admin flag - will be replaced by permission_level from groups</note>
+        </file>
+        <file path="backend/app/models/permission.py" description="KB Permission model with PermissionLevel enum (READ/WRITE/ADMIN) - different from new permission_level enum">
+          <note>This is for KB-level permissions, NOT system-level permission tiers. Keep distinct.</note>
+        </file>
+      </section>
+      <section title="Backend - Services">
+        <file path="backend/app/services/group_service.py" description="Group CRUD service - NEEDS MODIFICATION: Add system group protection, get_user_permission_level">
+          <methods>list_groups, get_group, create_group, update_group, delete_group, add_members, remove_member</methods>
+          <note>delete_group must check is_system flag, remove_member must check "last admin" safety</note>
+        </file>
+        <file path="backend/app/services/permission_service.py" description="NEW FILE: PermissionService for permission level checks">
+          <requiredMethods>get_user_permission_level(user), check_permission(user, required_level)</requiredMethods>
+          <pattern>Query user's groups, aggregate MAX(permission_level), compare to required level</pattern>
+        </file>
+      </section>
+      <section title="Backend - Schemas">
+        <file path="backend/app/schemas/group.py" description="Group Pydantic schemas - NEEDS MODIFICATION: Add permission_level, is_system to GroupRead">
+          <existingSchemas>GroupBase, GroupCreate, GroupUpdate, GroupMemberRead, GroupRead, GroupWithMembers, PaginatedGroupResponse</existingSchemas>
+        </file>
+        <file path="backend/app/schemas/permission.py" description="KB Permission schemas - READ ONLY, different domain">
+          <note>Includes PermissionLevel enum for KB access (READ/WRITE/ADMIN), not for system roles</note>
+        </file>
+        <file path="backend/app/schemas/user.py" description="User schemas - NEEDS MODIFICATION: Add permission_level to UserRead response">
+          <note>Backend should compute and return user's effective permission_level in /users/me response</note>
+        </file>
+      </section>
+      <section title="Backend - API Routes">
+        <file path="backend/app/api/v1/groups.py" description="Group management API - NEEDS MODIFICATION: Block deletion of system groups">
+          <routes>GET/POST /admin/groups, GET/PATCH/DELETE /admin/groups/{id}, POST/DELETE members</routes>
+          <note>All routes currently require current_superuser - will need permission decorator</note>
+        </file>
+        <file path="backend/app/core/auth.py" description="Auth dependencies - NEEDS MODIFICATION: Add require_permission decorator">
+          <existingDependencies>current_user, current_superuser</existingDependencies>
+          <newDependencies>require_operator, require_admin (or single require_permission(level))</newDependencies>
+        </file>
+        <file path="backend/app/api/v1/documents.py" description="Document API - NEEDS MODIFICATION: Apply @require_permission(OPERATOR) to upload/delete">
+          <note>Upload and delete endpoints need OPERATOR level protection</note>
+        </file>
+        <file path="backend/app/api/v1/knowledge_bases.py" description="KB API - NEEDS MODIFICATION: create=OPERATOR, delete=ADMINISTRATOR">
+          <note>Create KB needs OPERATOR, Delete KB needs ADMINISTRATOR</note>
+        </file>
+      </section>
+      <section title="Frontend - Components">
+        <file path="frontend/src/components/layout/main-nav.tsx" description="Current navigation component - NEEDS REFACTORING: Replace with dropdown pattern">
+          <currentStructure>NavLink components, coreLinks array, adminLinks array, showAdminMenu toggle</currentStructure>
+          <currentGating>isAdmin = user?.is_superuser === true</currentGating>
+          <newStructure>OperationsDropdown (level>=2), AdminDropdown (level>=3)</newStructure>
+        </file>
+        <file path="frontend/src/components/layout/operations-dropdown.tsx" description="NEW FILE: Operations menu dropdown">
+          <items>Operations Dashboard, Audit Logs, Processing Queue, KB Statistics</items>
+          <visibility>permission_level >= 2</visibility>
+        </file>
+        <file path="frontend/src/components/layout/admin-dropdown.tsx" description="NEW FILE: Admin menu dropdown">
+          <items>Admin Dashboard, Users, Groups, KB Permissions, System Config, Model Registry</items>
+          <visibility>permission_level >= 3</visibility>
+        </file>
+        <file path="frontend/src/components/auth/admin-guard.tsx" description="Existing admin guard - NEEDS MODIFICATION: Convert to PermissionGuard">
+          <currentLogic>Check is_superuser, redirect to /dashboard if not admin</currentLogic>
+          <newLogic>Check permission_level >= required_level parameter</newLogic>
+        </file>
+        <file path="frontend/src/components/auth/operator-guard.tsx" description="NEW FILE: Route guard for /operations/* routes">
+          <requiredLevel>2</requiredLevel>
+        </file>
+        <file path="frontend/src/components/auth/permission-gate.tsx" description="NEW FILE: Declarative UI permission gating">
+          <usage>&lt;PermissionGate level={2}&gt;{children}&lt;/PermissionGate&gt;</usage>
+        </file>
+      </section>
+      <section title="Frontend - Hooks and State">
+        <file path="frontend/src/lib/stores/auth-store.ts" description="Zustand auth store - context only">
+          <state>user: UserRead | null, isLoading, isAuthenticated, error</state>
+          <note>UserRead type needs permission_level field</note>
+        </file>
+        <file path="frontend/src/hooks/usePermissionLevel.ts" description="NEW FILE: Hook to get current user's permission level">
+          <returns>{ permissionLevel: number, isUser: boolean, isOperator: boolean, isAdmin: boolean }</returns>
+        </file>
+      </section>
+      <section title="Frontend - Types">
+        <file path="frontend/src/types/user.ts" description="User types - NEEDS MODIFICATION: Add permission_level">
+          <currentFields>id, email, is_active, is_superuser, is_verified, created_at, onboarding_completed, last_active</currentFields>
+          <newField>permission_level: number (1-3)</newField>
+        </file>
+        <file path="frontend/src/types/group.ts" description="Group types - NEEDS MODIFICATION: Add permission_level, is_system">
+          <currentFields>id, name, description, is_active, member_count, created_at, updated_at</currentFields>
+          <newFields>permission_level: number, is_system: boolean</newFields>
+        </file>
+      </section>
+      <section title="Frontend - Pages">
+        <file path="frontend/src/app/(protected)/operations" description="NEW DIRECTORY: Operations routes">
+          <pages>page.tsx (hub), audit/page.tsx, queue/page.tsx, kb-stats/page.tsx</pages>
+        </file>
+        <file path="frontend/src/app/(protected)/admin/page.tsx" description="Existing admin page - UPDATE: Convert to hub dashboard">
+          <currentState>Overview with stat cards</currentState>
+          <newState>Hub with card links to Users, Groups, KB Perms, Config, Models</newState>
+        </file>
+      </section>
+    </code>
+    <dependencies>
+      <backend>
+        <dependency>SQLAlchemy (existing) - ORM for database models</dependency>
+        <dependency>Alembic (existing) - Database migrations</dependency>
+        <dependency>FastAPI (existing) - API framework with dependency injection</dependency>
+        <dependency>FastAPI-Users (existing) - User authentication</dependency>
+        <dependency>Structlog (existing) - Logging</dependency>
+      </backend>
+      <frontend>
+        <dependency>React (existing) - UI framework</dependency>
+        <dependency>Next.js (existing) - App routing and SSR</dependency>
+        <dependency>Zustand (existing) - State management</dependency>
+        <dependency>Radix UI (existing) - Dropdown menu primitives</dependency>
+        <dependency>Lucide React (existing) - Icons</dependency>
+        <dependency>Tailwind CSS (existing) - Styling</dependency>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="backward-compatibility">
+      Existing is_superuser=true users must retain admin access during/after migration.
+      Must create migration that assigns existing superusers to Administrators group.
+    </constraint>
+    <constraint type="data-integrity">
+      System groups (is_system=true) cannot be deleted - must block at both service and API level.
+      Last administrator safety check must prevent accidental lockout.
+    </constraint>
+    <constraint type="route-migration">
+      Old routes (/admin/audit, /admin/queue, /admin/kb-stats) must redirect to new locations.
+      Bookmarks and deep links must continue to work.
+    </constraint>
+    <constraint type="api-contract">
+      New permission_level field in UserRead response must be non-breaking addition.
+      Existing API clients should continue to work without changes.
+    </constraint>
+    <constraint type="performance">
+      Permission checks should be efficient - consider caching user's permission level in session.
+      MAX aggregation query should be indexed for fast lookup.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="api">
+      <endpoint method="GET" path="/api/v1/users/me" change="Add permission_level field to response">
+        <response>UserRead with new permission_level: number field</response>
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/admin/groups" change="Add permission_level, is_system to response">
+        <response>GroupRead with permission_level: number, is_system: boolean</response>
+      </endpoint>
+      <endpoint method="DELETE" path="/api/v1/admin/groups/{id}" change="Block deletion of system groups">
+        <error code="400">Cannot delete system groups</error>
+      </endpoint>
+      <endpoint method="DELETE" path="/api/v1/admin/groups/{id}/members/{user_id}" change="Block last admin removal">
+        <error code="400">Cannot remove the last administrator</error>
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/auth/register" change="Auto-assign new users to Users group">
+        <sideEffect>Create UserGroup record for Users group</sideEffect>
+      </endpoint>
+    </interface>
+    <interface type="component">
+      <component name="MainNav" change="Replace with OperationsDropdown + AdminDropdown">
+        <props>className?: string</props>
+        <internalState>Uses usePermissionLevel() hook for visibility</internalState>
+      </component>
+      <component name="OperationsDropdown" new="true">
+        <visibility>permission_level >= 2</visibility>
+        <items>Operations Dashboard, Audit Logs, Processing Queue, KB Statistics</items>
+      </component>
+      <component name="AdminDropdown" new="true">
+        <visibility>permission_level >= 3</visibility>
+        <items>Admin Dashboard, Users, Groups, KB Permissions, System Config, Model Registry</items>
+      </component>
+      <component name="OperatorGuard" new="true">
+        <requiredLevel>2</requiredLevel>
+        <fallback>Redirect to /dashboard with toast</fallback>
+      </component>
+      <component name="PermissionGate" new="true">
+        <props>level: number, children: ReactNode, fallback?: ReactNode</props>
+        <behavior>Render children if user.permission_level >= level, else fallback</behavior>
+      </component>
+    </interface>
+    <interface type="hook">
+      <hook name="usePermissionLevel" new="true">
+        <returns>{ permissionLevel: number | null, isLoading: boolean, isUser: boolean, isOperator: boolean, isAdmin: boolean }</returns>
+        <source>Reads from useUser() in auth-store, extracts permission_level</source>
+      </hook>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Backend unit tests: pytest with async fixtures, 80%+ coverage</standard>
+      <standard>Backend integration tests: Real database via testcontainers, test API endpoints</standard>
+      <standard>Frontend unit tests: Vitest + React Testing Library</standard>
+      <standard>Frontend E2E tests: Playwright for navigation and route protection</standard>
+      <standard>Mock external services (LiteLLM, Qdrant) in tests</standard>
+    </standards>
+    <locations>
+      <location path="backend/tests/unit/test_permission_service.py">NEW: Unit tests for PermissionService (15 tests)</location>
+      <location path="backend/tests/integration/test_permission_routes.py">NEW: Integration tests for route protection (12 tests)</location>
+      <location path="frontend/src/components/layout/__tests__/operations-dropdown.test.tsx">NEW: Component tests for OperationsDropdown</location>
+      <location path="frontend/src/components/layout/__tests__/admin-dropdown.test.tsx">NEW: Component tests for AdminDropdown</location>
+      <location path="frontend/src/hooks/__tests__/usePermissionLevel.test.ts">NEW: Hook tests</location>
+      <location path="frontend/e2e/tests/navigation/permission-visibility.spec.ts">NEW: E2E tests for navigation visibility by role (6 tests)</location>
+      <location path="frontend/e2e/tests/navigation/route-protection.spec.ts">NEW: E2E tests for route protection (6 tests)</location>
+    </locations>
+    <ideas>
+      <testIdea ac="AC-7.11.1">Test that Admin user sees both Operations and Admin dropdowns</testIdea>
+      <testIdea ac="AC-7.11.2">Test that Operator user sees only Operations dropdown</testIdea>
+      <testIdea ac="AC-7.11.3">Test that basic User sees no dropdowns (just Search)</testIdea>
+      <testIdea ac="AC-7.11.7">Test database seed creates 3 system groups with correct permission levels</testIdea>
+      <testIdea ac="AC-7.11.8">Test DELETE /admin/groups/{system_group_id} returns 400</testIdea>
+      <testIdea ac="AC-7.11.10">Test POST /auth/register creates UserGroup for Users group</testIdea>
+      <testIdea ac="AC-7.11.12">Test User cannot upload documents (UI hidden + API 403)</testIdea>
+      <testIdea ac="AC-7.11.14">Test Operator cannot delete KB (UI hidden + API 403)</testIdea>
+      <testIdea ac="AC-7.11.16">Test User accessing /operations/* gets 403 redirect</testIdea>
+      <testIdea ac="AC-7.11.17">Test Operator accessing /admin/* gets 403 redirect</testIdea>
+      <testIdea ac="AC-7.11.19">Test last admin cannot be removed from Administrators group</testIdea>
+      <testIdea ac="AC-7.11.20">Test user in multiple groups gets MAX permission level</testIdea>
+    </ideas>
+  </tests>
+
+  <permissionMatrix>
+    <header>
+      <col>Capability</col>
+      <col level="1">User (1)</col>
+      <col level="2">Operator (2)</col>
+      <col level="3">Admin (3)</col>
+    </header>
+    <row>
+      <capability>Search and Chat</capability>
+      <level1>YES</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>View Documents</capability>
+      <level1>YES</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Generate Documents</capability>
+      <level1>YES</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Upload Documents</capability>
+      <level1>NO</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Delete Documents</capability>
+      <level1>NO</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Create Knowledge Base</capability>
+      <level1>NO</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Delete Knowledge Base</capability>
+      <level1>NO</level1>
+      <level2>NO</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Operations Menu</capability>
+      <level1>NO</level1>
+      <level2>YES</level2>
+      <level3>YES</level3>
+    </row>
+    <row>
+      <capability>Admin Menu</capability>
+      <level1>NO</level1>
+      <level2>NO</level2>
+      <level3>YES</level3>
+    </row>
+  </permissionMatrix>
+
+  <routeStructure>
+    <section name="operations" requiredLevel="2">
+      <route path="/operations" page="OperationsDashboard" description="Hub with cards linking to sub-pages"/>
+      <route path="/operations/audit" page="AuditLogsPage" redirect="/admin/audit"/>
+      <route path="/operations/queue" page="ProcessingQueuePage" redirect="/admin/queue"/>
+      <route path="/operations/kb-stats" page="KBStatisticsPage" redirect="/admin/kb-stats"/>
+    </section>
+    <section name="admin" requiredLevel="3">
+      <route path="/admin" page="AdminDashboard" description="Hub with cards linking to sub-pages"/>
+      <route path="/admin/users" page="UserManagementPage"/>
+      <route path="/admin/groups" page="GroupManagementPage"/>
+      <route path="/admin/kb-permissions" page="KBPermissionsPage"/>
+      <route path="/admin/config" page="SystemConfigPage"/>
+      <route path="/admin/models" page="ModelRegistryPage"/>
+    </section>
+  </routeStructure>
+
+  <migrationPlan>
+    <step order="1" title="Database Schema Migration">
+      <action>Add permission_level (INTEGER, nullable initially) to groups table</action>
+      <action>Add is_system (BOOLEAN, default false) to groups table</action>
+      <migration>alembic revision -m "add_permission_level_and_is_system_to_groups"</migration>
+    </step>
+    <step order="2" title="Seed Default Groups">
+      <action>Create three groups: Users (level=1, is_system=true), Operators (level=2, is_system=true), Administrators (level=3, is_system=true)</action>
+      <action>Assign all existing is_superuser=true users to Administrators group</action>
+      <action>Assign all existing non-superuser users to Users group</action>
+      <migration>Data migration in same Alembic revision or separate seed script</migration>
+    </step>
+    <step order="3" title="Make permission_level Non-nullable">
+      <action>Set default permission_level=1 for any groups without it</action>
+      <action>Alter column to NOT NULL</action>
+    </step>
+    <step order="4" title="Backend Permission Service">
+      <action>Create PermissionService with get_user_permission_level</action>
+      <action>Create @require_permission decorator</action>
+      <action>Add permission_level to /users/me response</action>
+    </step>
+    <step order="5" title="Apply Route Protection">
+      <action>Add @require_permission decorators to endpoints</action>
+      <action>Update GroupService to block system group deletion</action>
+      <action>Add last admin safety check</action>
+    </step>
+    <step order="6" title="Frontend Permission Integration">
+      <action>Update UserRead type with permission_level</action>
+      <action>Create usePermissionLevel hook</action>
+      <action>Create PermissionGate component</action>
+    </step>
+    <step order="7" title="Navigation Restructure">
+      <action>Create OperationsDropdown and AdminDropdown components</action>
+      <action>Update Header to use dropdowns based on permission level</action>
+      <action>Create hub dashboards for /operations and update /admin</action>
+    </step>
+    <step order="8" title="Route Migration">
+      <action>Create /operations/* routes</action>
+      <action>Add redirects from old /admin/* paths</action>
+      <action>Update OperatorGuard and AdminGuard</action>
+    </step>
+    <step order="9" title="Testing and Documentation">
+      <action>Write all unit and integration tests</action>
+      <action>Write E2E tests for navigation and route protection</action>
+      <action>Update documentation</action>
+    </step>
+  </migrationPlan>
+</story-context>

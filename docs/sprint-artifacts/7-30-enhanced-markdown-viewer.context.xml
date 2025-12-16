@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-30" title="Enhanced Markdown Viewer with Highlighting (Frontend)" epic="7">
+  <metadata>
+    <status>Draft</status>
+    <story-points>3</story-points>
+    <created>2025-12-11</created>
+    <generated>2025-12-11</generated>
+  </metadata>
+
+  <user-story>
+    <as-a>user viewing document chunks</as-a>
+    <i-want-to>precise chunk highlighting in the markdown viewer</i-want-to>
+    <so-that>I can see exactly which text corresponds to each chunk</so-that>
+  </user-story>
+
+  <background>
+    <summary>
+      Currently, the chunk viewer has position accuracy issues with PDF and DOCX documents.
+      Stories 7-28 and 7-29 provide markdown content for all documents. This story implements
+      the frontend viewer that consumes that markdown and applies accurate character-based
+      highlighting using char_start and char_end positions.
+    </summary>
+    <problem-statement>
+      The existing viewers (PDF, DOCX) cannot provide precise character-level highlighting.
+      PDF only supports page-level navigation. DOCX uses imprecise scroll ratio calculations.
+      A unified markdown-based viewer would enable accurate highlighting across all document types.
+    </problem-statement>
+    <solution-approach>
+      Create a new EnhancedMarkdownViewer component that:
+      1. Fetches markdown content via useMarkdownContent hook
+      2. Applies character-based highlighting using char_start/char_end
+      3. Auto-scrolls to highlighted text
+      4. Falls back gracefully to original viewers when markdown unavailable
+    </solution-approach>
+  </background>
+
+  <acceptance-criteria>
+    <criterion id="AC-7.30.1" title="Fetch Markdown Content">
+      <given>I open Document Chunk Viewer for a document</given>
+      <when>markdown content is available</when>
+      <then>the viewer fetches markdown from /markdown-content endpoint</then>
+      <implementation-notes>
+        - Create useMarkdownContent hook for data fetching
+        - Handle loading, error, and success states
+        - Return fallback indicator when markdown unavailable
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.30.2" title="Precise Highlighting">
+      <given>I select a chunk in the chunk list</given>
+      <when>the chunk has char_start and char_end positions</when>
+      <then>exactly those characters are highlighted in the markdown view</then>
+      <implementation-notes>
+        - Use character offset positions from chunk metadata
+        - Split markdown content into highlighted/non-highlighted spans
+        - Handle edge cases: overlapping chunks, empty chunks
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.30.3" title="Highlight Styling">
+      <given>a chunk is highlighted</given>
+      <then>highlight uses visible background color (bg-yellow-200)</then>
+      <and>view auto-scrolls to bring highlighted text into viewport</and>
+      <implementation-notes>
+        - Use Tailwind bg-yellow-200 or similar for highlight
+        - Add dark:bg-yellow-800 for dark mode support
+        - Use scrollIntoView({ behavior: 'smooth', block: 'center' })
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.30.4" title="Graceful Fallback">
+      <given>markdown content is not available (404)</given>
+      <then>viewer shows original format viewer (PDF/DOCX)</then>
+      <and>user sees subtle message "Precise highlighting not available"</and>
+      <implementation-notes>
+        - Check useMarkdownContent hook response
+        - Fall back to existing viewer components
+        - Show non-intrusive info message
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.30.5" title="Loading State">
+      <given>markdown content is being fetched</given>
+      <then>viewer shows loading spinner/skeleton</then>
+      <implementation-notes>
+        - Use existing Skeleton component from shadcn/ui
+        - Match loading state styling with other viewers
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.30.6" title="Unit Tests">
+      <given>highlighting logic tests exist</given>
+      <then>tests cover: highlight positioning, scroll behavior, fallback scenarios</then>
+    </criterion>
+  </acceptance-criteria>
+
+  <technical-design>
+    <hook-design>
+      <![CDATA[
+// frontend/src/hooks/useMarkdownContent.ts
+
+import { useQuery } from '@tanstack/react-query';
+
+interface MarkdownContentResponse {
+  document_id: string;
+  markdown_content: string;
+  generated_at: string;
+}
+
+interface UseMarkdownContentOptions {
+  kbId: string;
+  documentId: string;
+  enabled?: boolean;
+}
+
+export function useMarkdownContent({ kbId, documentId, enabled = true }: UseMarkdownContentOptions) {
+  return useQuery<MarkdownContentResponse | null>({
+    queryKey: ['markdown-content', kbId, documentId],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/v1/knowledge-bases/${kbId}/documents/${documentId}/markdown-content`,
+        { credentials: 'include' }
+      );
+
+      if (response.status === 404) {
+        return null; // Markdown not available
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch markdown content');
+      }
+
+      return response.json();
+    },
+    enabled,
+    staleTime: Infinity, // Markdown content is immutable
+    retry: false, // Don't retry 404s
+  });
+}
+      ]]>
+    </hook-design>
+
+    <component-design>
+      <![CDATA[
+// frontend/src/components/documents/chunk-viewer/viewers/enhanced-markdown-viewer.tsx
+
+import { useRef, useEffect, useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import ReactMarkdown from 'react-markdown';
+
+interface EnhancedMarkdownViewerProps {
+  content: string;
+  highlightRange?: {
+    start: number;
+    end: number;
+  };
+}
+
+export function EnhancedMarkdownViewer({ content, highlightRange }: EnhancedMarkdownViewerProps) {
+  const highlightRef = useRef<HTMLSpanElement>(null);
+
+  // Scroll highlighted text into view
+  useEffect(() => {
+    if (highlightRange && highlightRef.current) {
+      highlightRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [highlightRange]);
+
+  // Split content into segments with highlight
+  const segments = useMemo(() => {
+    if (!highlightRange) {
+      return [{ text: content, highlighted: false }];
+    }
+
+    const { start, end } = highlightRange;
+    const segments = [];
+
+    if (start > 0) {
+      segments.push({ text: content.slice(0, start), highlighted: false });
+    }
+
+    segments.push({ text: content.slice(start, end), highlighted: true });
+
+    if (end < content.length) {
+      segments.push({ text: content.slice(end), highlighted: false });
+    }
+
+    return segments;
+  }, [content, highlightRange]);
+
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none p-4 overflow-auto">
+      {segments.map((segment, index) =>
+        segment.highlighted ? (
+          <span
+            key={index}
+            ref={highlightRef}
+            className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5"
+          >
+            {segment.text}
+          </span>
+        ) : (
+          <ReactMarkdown key={index}>{segment.text}</ReactMarkdown>
+        )
+      )}
+    </div>
+  );
+}
+      ]]>
+    </component-design>
+
+    <integration-pattern>
+      <![CDATA[
+// In chunks/page.tsx
+
+const { data: markdownData, isLoading: markdownLoading, isError } = useMarkdownContent({
+  kbId,
+  documentId,
+  enabled: !!documentId,
+});
+
+// In render:
+{markdownLoading && <Skeleton className="h-full w-full" />}
+
+{markdownData ? (
+  <EnhancedMarkdownViewer
+    content={markdownData.markdown_content}
+    highlightRange={selectedChunk ? {
+      start: selectedChunk.char_start,
+      end: selectedChunk.char_end,
+    } : undefined}
+  />
+) : (
+  // Fallback to original viewer
+  <DocumentViewer document={document} />
+)}
+      ]]>
+    </integration-pattern>
+  </technical-design>
+
+  <files-to-modify>
+    <file path="frontend/src/hooks/useMarkdownContent.ts" action="create">
+      New hook for fetching markdown content from API
+    </file>
+    <file path="frontend/src/components/documents/chunk-viewer/viewers/enhanced-markdown-viewer.tsx" action="create">
+      New enhanced viewer component with character-based highlighting
+    </file>
+    <file path="frontend/src/app/(protected)/documents/[id]/chunks/page.tsx" action="modify">
+      Integrate enhanced viewer with fallback logic
+    </file>
+    <file path="frontend/src/components/documents/chunk-viewer/index.tsx" action="modify">
+      Add viewer selection logic
+    </file>
+    <file path="frontend/src/hooks/__tests__/useMarkdownContent.test.ts" action="create">
+      Unit tests for hook
+    </file>
+    <file path="frontend/src/components/documents/chunk-viewer/viewers/__tests__/enhanced-markdown-viewer.test.tsx" action="create">
+      Component tests
+    </file>
+  </files-to-modify>
+
+  <code-references>
+    <reference file="frontend/src/components/documents/chunk-viewer/viewers/text-viewer.tsx" lines="1-197">
+      <description>Reference implementation for character-based highlighting - adapt this pattern</description>
+      <code><![CDATA[
+interface TextViewerProps {
+  content: string | null;
+  highlightRange?: { start: number; end: number } | null;
+  showLineNumbers?: boolean;
+  isLoading?: boolean;
+  error?: string | null;
+}
+
+export function TextViewer({
+  content,
+  highlightRange,
+  showLineNumbers = true,
+  isLoading = false,
+  error = null,
+}: TextViewerProps) {
+  const highlightRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (highlightRange && highlightRef.current) {
+      highlightRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [highlightRange]);
+  // ... segmentation logic for highlighting
+}
+      ]]></code>
+    </reference>
+
+    <reference file="frontend/src/app/(protected)/documents/[id]/chunks/page.tsx" lines="1-50">
+      <description>Chunk viewer page - integration point for markdown viewer</description>
+      <code><![CDATA[
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+// Integration pattern for viewer selection based on document type and markdown availability
+      ]]></code>
+    </reference>
+
+    <reference file="frontend/src/components/documents/chunk-viewer/viewers/text-viewer.tsx" lines="40-80">
+      <description>Highlighting segment logic - reuse for markdown viewer</description>
+      <code><![CDATA[
+// Segment content for highlighting
+const segments = useMemo(() => {
+  if (!content || !highlightRange) {
+    return content ? [{ text: content, highlighted: false }] : [];
+  }
+
+  const { start, end } = highlightRange;
+  const result: { text: string; highlighted: boolean }[] = [];
+
+  if (start > 0) {
+    result.push({ text: content.slice(0, start), highlighted: false });
+  }
+  result.push({ text: content.slice(start, end), highlighted: true });
+  if (end < content.length) {
+    result.push({ text: content.slice(end), highlighted: false });
+  }
+
+  return result;
+}, [content, highlightRange]);
+      ]]></code>
+    </reference>
+  </code-references>
+
+  <dependencies>
+    <prerequisite>Story 7-29 (Markdown Content API Endpoint)</prerequisite>
+    <blocked-by>Story 7-29 must be completed for API to exist</blocked-by>
+    <blocks>Story 7-31 (View Mode Toggle for Chunk Viewer)</blocks>
+  </dependencies>
+
+  <test-plan>
+    <unit-tests>
+      <test name="test_useMarkdownContent_success">Successful fetch returns markdown data</test>
+      <test name="test_useMarkdownContent_404">Markdown not available returns null</test>
+      <test name="test_useMarkdownContent_error">API error throws error</test>
+      <test name="test_highlight_positioning">Highlight range applied creates correct spans</test>
+      <test name="test_highlight_scroll">Auto-scroll on highlight calls scrollIntoView</test>
+      <test name="test_fallback_display">No markdown available shows original viewer</test>
+    </unit-tests>
+
+    <e2e-tests>
+      <test name="test_chunk_viewer_markdown_mode">Open viewer with markdown doc renders with highlight</test>
+      <test name="test_chunk_selection_highlighting">Select chunk in list highlights text in viewer</test>
+      <test name="test_fallback_to_original">Open viewer with old doc shows original viewer with message</test>
+    </e2e-tests>
+  </test-plan>
+
+  <definition-of-done>
+    <item>useMarkdownContent hook implemented and tested</item>
+    <item>EnhancedMarkdownViewer component implemented</item>
+    <item>Character-based highlighting working with char_start/char_end</item>
+    <item>Auto-scroll to highlighted text working</item>
+    <item>Graceful fallback to original viewer for older documents</item>
+    <item>Loading skeleton displayed during fetch</item>
+    <item>Dark mode support for highlight styling</item>
+    <item>Unit tests pass with coverage >= 80%</item>
+    <item>Code review approved</item>
+    <item>ESLint/TypeScript checks pass</item>
+  </definition-of-done>
+
+  <notes>
+    <note>Reuse highlighting logic from existing TextViewer component</note>
+    <note>ReactMarkdown rendering may need adjustment for inline highlights</note>
+    <note>Consider code syntax highlighting with react-syntax-highlighter (optional)</note>
+    <note>The viewer should handle very large documents efficiently (virtualization if needed)</note>
+    <note>Story 7-31 will add the toggle between Original/Markdown views</note>
+  </notes>
+</story-context>

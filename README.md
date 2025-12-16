@@ -1,5 +1,9 @@
 # LumiKB
 
+[![PR Validation](https://github.com/tungmv/lumikb/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/tungmv/lumikb/actions/workflows/pr-validation.yml)
+[![Docker Build](https://github.com/tungmv/lumikb/actions/workflows/docker-build.yml/badge.svg)](https://github.com/tungmv/lumikb/actions/workflows/docker-build.yml)
+[![codecov](https://codecov.io/gh/tungmv/lumikb/graph/badge.svg)](https://codecov.io/gh/tungmv/lumikb)
+
 Enterprise RAG-powered knowledge management platform built on a citation-first architecture.
 
 ## Overview
@@ -25,7 +29,7 @@ lumikb/
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS 4, Zustand
 - **Database**: PostgreSQL 16, Qdrant (vectors), Redis (cache/queue)
 - **Storage**: MinIO (S3-compatible)
-- **LLM**: LiteLLM Proxy
+- **LLM**: LiteLLM Proxy, Ollama (local models with GPU support)
 
 ## Quick Start
 
@@ -34,6 +38,25 @@ lumikb/
 - Python 3.11
 - Node.js 20+
 - Docker & Docker Compose
+- [Ollama](https://ollama.ai/) (for local LLM/embeddings)
+
+### Ollama Setup (Required for Document Processing)
+
+Ollama runs on the host machine (Docker Desktop doesn't support GPU passthrough):
+
+```bash
+# Install Ollama (if not installed)
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Start Ollama server
+ollama serve
+
+# Pull required models
+ollama pull nomic-embed-text  # Embedding model (768 dimensions)
+ollama pull gemma3:4b         # Default generation model
+```
+
+> **Note:** Ollama must be running before starting Docker services. The LiteLLM container connects to host Ollama via `host.docker.internal:11434`.
 
 ### Development Setup
 
@@ -236,6 +259,7 @@ All services expose health check endpoints:
 | PostgreSQL | `pg_isready` | 5432 |
 | MinIO | `/minio/health/live` | 9000 |
 | LiteLLM | `/health/readiness` | 4000 |
+| Ollama | `/api/tags` | 11434 (host) |
 
 ## License
 

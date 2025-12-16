@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context version="1.0">
+  <metadata>
+    <story-id>7-13</story-id>
+    <story-title>KBConfigResolver Service</story-title>
+    <epic>Epic 7: Infrastructure and DevOps</epic>
+    <status>ready-for-dev</status>
+    <created-date>2025-12-09</created-date>
+    <context-generated>2025-12-09</context-generated>
+  </metadata>
+
+  <story-summary>
+    Create a configuration resolver service that implements three-layer configuration
+    precedence: Request params (highest) → KB-level settings → System defaults (lowest).
+    The service provides methods to resolve individual parameters, full generation/retrieval/chunking
+    configs, KB system prompts, and includes Redis caching with 5-minute TTL.
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC-7.13.1" description="Resolve single parameter (request wins)">
+      Given I call resolve_param("temperature", request_value=0.5, kb_settings, system_default=0.7)
+      Then it returns 0.5 (request wins)
+    </criterion>
+    <criterion id="AC-7.13.2" description="Fallback to KB setting">
+      Given I call resolve_param("temperature", request_value=None, kb_settings={temperature: 0.3}, system_default=0.7)
+      Then it returns 0.3 (KB wins)
+    </criterion>
+    <criterion id="AC-7.13.3" description="Fallback to system default">
+      Given I call resolve_param("temperature", request_value=None, kb_settings={}, system_default=0.7)
+      Then it returns 0.7 (system default)
+    </criterion>
+    <criterion id="AC-7.13.4" description="Resolve full generation config">
+      Given I call resolve_generation_config(kb_id, request_overrides)
+      Then it returns merged GenerationConfig with correct precedence
+    </criterion>
+    <criterion id="AC-7.13.5" description="Resolve full retrieval config">
+      Given I call resolve_retrieval_config(kb_id, request_overrides)
+      Then it returns merged RetrievalConfig with correct precedence
+    </criterion>
+    <criterion id="AC-7.13.6" description="Resolve chunking config">
+      Given I call resolve_chunking_config(kb_id)
+      Then it returns ChunkingConfig from KB or system defaults
+    </criterion>
+    <criterion id="AC-7.13.7" description="Get KB system prompt">
+      Given I call get_kb_system_prompt(kb_id)
+      When KB has custom system_prompt in prompts config
+      Then it returns the KB's system_prompt
+      Else it returns system default prompt
+    </criterion>
+    <criterion id="AC-7.13.8" description="Cache KB settings">
+      Given multiple requests for same KB
+      Then KB settings are cached (Redis, 5min TTL)
+      And cache invalidated on KB settings update
+    </criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" description="Create KBConfigResolver class (AC: 1,2,3)">
+      <subtask>Create backend/app/services/kb_config_resolver.py</subtask>
+      <subtask>Implement resolve_param() with three-layer precedence</subtask>
+      <subtask>Add type hints for generic parameter resolution</subtask>
+    </task>
+    <task id="2" description="Implement config resolution methods (AC: 4,5,6)">
+      <subtask>Implement resolve_generation_config() returning GenerationConfig</subtask>
+      <subtask>Implement resolve_retrieval_config() returning RetrievalConfig</subtask>
+      <subtask>Implement resolve_chunking_config() returning ChunkingConfig</subtask>
+      <subtask>Load KB settings from database via KBService</subtask>
+    </task>
+    <task id="3" description="Implement prompt resolution (AC: 7)">
+      <subtask>Implement get_kb_system_prompt() method</subtask>
+      <subtask>Return KB prompt if set, otherwise system default</subtask>
+      <subtask>Handle missing/empty prompt configs gracefully</subtask>
+    </task>
+    <task id="4" description="Implement Redis caching (AC: 8)">
+      <subtask>Add _get_kb_settings_cached() with 5min TTL</subtask>
+      <subtask>Implement cache key pattern: kb_settings:{kb_id}</subtask>
+      <subtask>Add invalidate_kb_settings_cache() method</subtask>
+      <subtask>Wire invalidation to KB settings update flow</subtask>
+    </task>
+    <task id="5" description="Service integration and exports">
+      <subtask>Export KBConfigResolver from backend/app/services/__init__.py</subtask>
+      <subtask>Add dependency injection pattern</subtask>
+      <subtask>Inject ConfigService and KBService dependencies</subtask>
+    </task>
+    <task id="6" description="Unit tests">
+      <subtask>Create backend/tests/unit/test_kb_config_resolver.py</subtask>
+      <subtask>Test all three precedence levels (request > KB > system)</subtask>
+      <subtask>Test each resolve method with various scenarios</subtask>
+      <subtask>Test caching behavior with mock Redis</subtask>
+      <subtask>Test cache invalidation</subtask>
+    </task>
+    <task id="7" description="Integration tests">
+      <subtask>Create backend/tests/integration/test_kb_config_resolver_api.py</subtask>
+      <subtask>Test resolver with real KB from database</subtask>
+      <subtask>Test end-to-end config resolution flow</subtask>
+    </task>
+  </tasks>
+
+  <architecture>
+    <pattern name="Three-Layer Configuration Resolution">
+      <description>
+        Configuration values are resolved with the following precedence:
+        1. Request Parameters (highest priority) - values passed in API calls
+        2. KB-Level Settings (KnowledgeBase.settings JSONB) - per-KB customization
+        3. System Defaults (ConfigService / LLM Model defaults) - global fallbacks
+
+        Resolution: First non-null value wins.
+      </description>
+      <diagram>
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONFIGURATION RESOLUTION                      │
+│                                                                  │
+│  Request Parameters (highest priority)                          │
+│         ↓ if null                                                │
+│  KB-Level Settings (KnowledgeBase.settings JSONB)               │
+│         ↓ if null                                                │
+│  System Defaults (ConfigService / LLM Model defaults)           │
+│                                                                  │
+│  Resolution: First non-null value wins                          │
+└─────────────────────────────────────────────────────────────────┘
+      </diagram>
+    </pattern>
+
+    <pattern name="Service Dependencies">
+      <description>
+        KBConfigResolver uses dependency injection with:
+        - KBService: Load KB settings from database
+        - ConfigService: Get system default configurations
+        - Redis: Cache KB settings with TTL
+      </description>
+    </pattern>
+
+    <pattern name="Redis Caching Strategy">
+      <description>
+        - Key pattern: kb_settings:{kb_id}
+        - TTL: 300 seconds (5 minutes) - matches ConfigService.CACHE_TTL
+        - Serialization: JSON (Pydantic models serialize cleanly)
+        - Invalidation: Call invalidate_kb_settings_cache(kb_id) on PUT /settings
+      </description>
+    </pattern>
+  </architecture>
+
+  <existing-code>
+    <file path="backend/app/schemas/kb_settings.py" relevance="critical">
+      <purpose>Contains all Pydantic schemas for KB-level configuration - REUSE these</purpose>
+      <key-exports>
+        <export name="ChunkingConfig">Chunking configuration with strategy, chunk_size, chunk_overlap</export>
+        <export name="RetrievalConfig">Retrieval configuration with top_k, similarity_threshold, method</export>
+        <export name="GenerationConfig">Generation configuration with temperature, top_p, max_tokens</export>
+        <export name="KBPromptConfig">Prompt configuration with system_prompt, citation_style</export>
+        <export name="KBSettings">Composite schema aggregating all sub-configurations</export>
+        <export name="ChunkingStrategy">Enum: FIXED, RECURSIVE, SEMANTIC</export>
+        <export name="RetrievalMethod">Enum: VECTOR, HYBRID, HYDE</export>
+      </key-exports>
+      <usage-note>
+        Import these schemas directly - do not recreate. All use model_config = {"extra": "forbid"}
+        for strict validation. Empty {} settings parse with all defaults applied.
+      </usage-note>
+    </file>
+
+    <file path="backend/app/services/kb_service.py" relevance="high">
+      <purpose>KBService for KB CRUD operations - inject as dependency</purpose>
+      <key-methods>
+        <method name="get(kb_id, session)">Get KB by ID, returns KnowledgeBase or None</method>
+        <method name="check_permission(kb_id, user_id, level, session)">Check user permission on KB</method>
+      </key-methods>
+      <usage-note>
+        KBService.__init__(self, session: AsyncSession) - requires async session.
+        Use to load KB.settings JSONB field for configuration resolution.
+      </usage-note>
+    </file>
+
+    <file path="backend/app/services/config_service.py" relevance="high">
+      <purpose>ConfigService for system-level configuration - follow caching patterns</purpose>
+      <key-constants>
+        <constant name="CACHE_TTL">300 (5 minutes) - use same TTL for KB settings cache</constant>
+        <constant name="LLM_CONFIG_CACHE_TTL">30 seconds - for hot-reload config</constant>
+      </key-constants>
+      <key-methods>
+        <method name="get_all_settings()">Get all system settings</method>
+        <method name="_invalidate_llm_config_cache()">Pattern for cache invalidation</method>
+      </key-methods>
+      <usage-note>
+        Follow the caching patterns established here. Use setex for TTL-based caching.
+        Consider pub/sub for cross-instance invalidation if needed.
+      </usage-note>
+    </file>
+
+    <file path="backend/app/core/redis.py" relevance="high">
+      <purpose>Redis client utilities for caching</purpose>
+      <key-exports>
+        <export name="RedisClient">Singleton class with get_client() async method</export>
+        <export name="get_redis_client()">Dependency function for FastAPI injection</export>
+      </key-exports>
+      <patterns>
+        <pattern>Use setex(key, ttl, value) for TTL-based storage</pattern>
+        <pattern>Use get/delete for simple key operations</pattern>
+        <pattern>Key prefix pattern: SESSION_PREFIX = "session:"</pattern>
+      </patterns>
+    </file>
+
+    <file path="backend/app/models/knowledge_base.py" relevance="medium">
+      <purpose>KnowledgeBase SQLAlchemy model with settings JSONB field</purpose>
+      <key-fields>
+        <field name="settings" type="JSONB">Stores KB-level configuration as JSON</field>
+      </key-fields>
+    </file>
+  </existing-code>
+
+  <implementation-reference>
+    <code-sample name="KBConfigResolver Class Structure">
+      <description>Suggested implementation approach from story</description>
+      <code language="python"><![CDATA[
+from typing import Any, TypeVar
+from uuid import UUID
+
+from app.schemas.kb_settings import (
+    ChunkingConfig,
+    GenerationConfig,
+    KBSettings,
+    RetrievalConfig,
+)
+from app.services.config_service import ConfigService
+from app.services.kb_service import KBService
+
+T = TypeVar("T")
+
+
+class KBConfigResolver:
+    """Resolves configuration with request → KB → system precedence."""
+
+    CACHE_TTL = 300  # 5 minutes, same as ConfigService
+    CACHE_KEY_PREFIX = "kb_settings:"
+
+    def __init__(
+        self,
+        kb_service: KBService,
+        config_service: ConfigService,
+        redis: "redis.Redis",
+    ):
+        self._kb_service = kb_service
+        self._config_service = config_service
+        self._redis = redis
+
+    def resolve_param(
+        self,
+        param_name: str,
+        request_value: T | None,
+        kb_settings: dict[str, Any],
+        system_default: T,
+    ) -> T:
+        """Resolve single parameter with precedence."""
+        if request_value is not None:
+            return request_value
+        kb_value = kb_settings.get(param_name)
+        if kb_value is not None:
+            return kb_value
+        return system_default
+
+    async def resolve_generation_config(
+        self,
+        kb_id: UUID,
+        request_overrides: dict[str, Any] | None = None,
+    ) -> GenerationConfig:
+        """Merge request → KB → system for generation settings."""
+        ...
+
+    async def resolve_retrieval_config(
+        self,
+        kb_id: UUID,
+        request_overrides: dict[str, Any] | None = None,
+    ) -> RetrievalConfig:
+        """Merge request → KB → system for retrieval settings."""
+        ...
+
+    async def resolve_chunking_config(self, kb_id: UUID) -> ChunkingConfig:
+        """Get chunking config from KB or system defaults."""
+        ...
+
+    async def get_kb_system_prompt(self, kb_id: UUID) -> str:
+        """Get KB's custom system prompt or system default."""
+        ...
+
+    async def _get_kb_settings_cached(self, kb_id: UUID) -> KBSettings:
+        """Load KB settings with Redis caching."""
+        cache_key = f"{self.CACHE_KEY_PREFIX}{kb_id}"
+        # Check cache first
+        cached = await self._redis.get(cache_key)
+        if cached:
+            return KBSettings.model_validate_json(cached)
+        # Load from database
+        kb = await self._kb_service.get(kb_id, self._kb_service._session)
+        settings = KBSettings.model_validate(kb.settings or {})
+        # Cache for 5 minutes
+        await self._redis.setex(cache_key, self.CACHE_TTL, settings.model_dump_json())
+        return settings
+
+    async def invalidate_kb_settings_cache(self, kb_id: UUID) -> None:
+        """Invalidate cached KB settings."""
+        cache_key = f"{self.CACHE_KEY_PREFIX}{kb_id}"
+        await self._redis.delete(cache_key)
+]]></code>
+    </code-sample>
+  </implementation-reference>
+
+  <dependencies>
+    <python-packages>
+      <package name="pydantic" version=">=2.7.0,<3.0.0">Schema validation for config classes</package>
+      <package name="redis" version=">=7.1.0,<8.0.0">Caching with TTL support</package>
+      <package name="sqlalchemy[asyncio]" version=">=2.0.44,<3.0.0">Async database access</package>
+    </python-packages>
+
+    <internal-dependencies>
+      <dependency path="app.schemas.kb_settings">All KB config schemas</dependency>
+      <dependency path="app.services.kb_service.KBService">KB CRUD operations</dependency>
+      <dependency path="app.services.config_service.ConfigService">System defaults</dependency>
+      <dependency path="app.core.redis.get_redis_client">Redis dependency</dependency>
+    </internal-dependencies>
+  </dependencies>
+
+  <testing-guidance>
+    <strategy>
+      Follow patterns from testing-guideline.md and test_kb_settings_schemas.py (138 tests).
+      Use pytest fixtures for common setup, mock external dependencies in unit tests.
+    </strategy>
+
+    <unit-tests path="backend/tests/unit/test_kb_config_resolver.py">
+      <test-case name="test_resolve_param_request_wins">
+        Test that request value takes precedence over KB and system defaults (AC-7.13.1)
+      </test-case>
+      <test-case name="test_resolve_param_kb_wins">
+        Test that KB setting wins when request is None (AC-7.13.2)
+      </test-case>
+      <test-case name="test_resolve_param_system_default">
+        Test fallback to system default when both request and KB are None (AC-7.13.3)
+      </test-case>
+      <test-case name="test_resolve_generation_config_merges_correctly">
+        Test full generation config resolution with mixed sources (AC-7.13.4)
+      </test-case>
+      <test-case name="test_resolve_retrieval_config_merges_correctly">
+        Test full retrieval config resolution (AC-7.13.5)
+      </test-case>
+      <test-case name="test_resolve_chunking_config_from_kb">
+        Test chunking config from KB settings (AC-7.13.6)
+      </test-case>
+      <test-case name="test_get_kb_system_prompt_custom">
+        Test returning KB's custom system prompt (AC-7.13.7)
+      </test-case>
+      <test-case name="test_get_kb_system_prompt_default">
+        Test returning system default when KB has no prompt (AC-7.13.7)
+      </test-case>
+      <test-case name="test_cache_hit_returns_cached_settings">
+        Test that cached settings are returned on cache hit (AC-7.13.8)
+      </test-case>
+      <test-case name="test_cache_miss_loads_from_database">
+        Test that cache miss loads from DB and caches result (AC-7.13.8)
+      </test-case>
+      <test-case name="test_invalidate_cache_removes_key">
+        Test cache invalidation removes the cached entry (AC-7.13.8)
+      </test-case>
+    </unit-tests>
+
+    <integration-tests path="backend/tests/integration/test_kb_config_resolver_api.py">
+      <test-case name="test_resolver_with_real_kb">
+        Test resolver with actual KB from database
+      </test-case>
+      <test-case name="test_end_to_end_config_resolution">
+        Test full flow: create KB, set settings, resolve config
+      </test-case>
+    </integration-tests>
+
+    <mocking-patterns>
+      <pattern name="Mock Redis Client">
+        <code language="python"><![CDATA[
+@pytest.fixture
+def mock_redis():
+    """Create mock Redis client."""
+    redis = AsyncMock()
+    redis.get = AsyncMock(return_value=None)  # Cache miss by default
+    redis.setex = AsyncMock()
+    redis.delete = AsyncMock()
+    return redis
+]]></code>
+      </pattern>
+      <pattern name="Mock KBService">
+        <code language="python"><![CDATA[
+@pytest.fixture
+def mock_kb_service(mock_session):
+    """Create mock KBService."""
+    service = MagicMock(spec=KBService)
+    service._session = mock_session
+    service.get = AsyncMock(return_value=sample_kb)
+    return service
+]]></code>
+      </pattern>
+    </mocking-patterns>
+
+    <pytest-markers>
+      <marker name="unit">Fast tests without external dependencies (&lt;5s each)</marker>
+      <marker name="integration">Tests requiring testcontainers (PostgreSQL, Redis)</marker>
+    </pytest-markers>
+  </testing-guidance>
+
+  <file-structure>
+    <new-files>
+      <file path="backend/app/services/kb_config_resolver.py">Main service implementation</file>
+      <file path="backend/tests/unit/test_kb_config_resolver.py">Unit tests</file>
+      <file path="backend/tests/integration/test_kb_config_resolver_api.py">Integration tests</file>
+    </new-files>
+    <modified-files>
+      <file path="backend/app/services/__init__.py">Export KBConfigResolver</file>
+    </modified-files>
+  </file-structure>
+
+  <definition-of-done>
+    <item>All 8 acceptance criteria implemented and tested</item>
+    <item>Unit tests cover all three precedence levels</item>
+    <item>Integration tests verify end-to-end flow</item>
+    <item>Redis caching with 5-minute TTL working</item>
+    <item>Cache invalidation wired to KB settings updates</item>
+    <item>Service exported from services/__init__.py</item>
+    <item>Code passes ruff check and ruff format</item>
+    <item>All existing tests still pass</item>
+  </definition-of-done>
+
+  <references>
+    <reference type="story" path="docs/sprint-artifacts/7-13-kb-config-resolver-service.md">Story specification</reference>
+    <reference type="requirements" path="docs/sprint-artifacts/correct-course-kb-level-config.md">Primary requirements source</reference>
+    <reference type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-7.md">Epic 7 technical specification</reference>
+    <reference type="previous-story" path="docs/sprint-artifacts/7-12-kb-settings-schema.md">Story 7.12 - KB Settings schemas (done)</reference>
+    <reference type="testing" path="docs/testing-guideline.md">Testing standards and patterns</reference>
+    <reference type="test-example" path="backend/tests/unit/test_kb_settings_schemas.py">Test patterns from Story 7.12</reference>
+  </references>
+</story-context>

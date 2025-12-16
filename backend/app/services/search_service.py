@@ -1,4 +1,8 @@
-"""Search service for semantic search and answer synthesis."""
+"""Search service for semantic search and answer synthesis.
+
+Story 7-7: AsyncQdrantClient Migration (AC-7.7.3)
+Story 7-17: Service Integration with KB-level configuration (AC-7.17.1, AC-7.17.5)
+"""
 
 import hashlib
 import json
@@ -6,16 +10,20 @@ import re
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
+from uuid import UUID
 
+import redis.asyncio as redis
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.logging import get_logger
-from app.core.redis import RedisClient
-from app.integrations.litellm_client import embedding_client
+from app.core.redis import RedisClient, get_redis_client
+from app.integrations.litellm_client import LiteLLMEmbeddingClient, embedding_client
 from app.integrations.qdrant_client import qdrant_service
+from app.models.kb_access_log import AccessType
 from app.schemas.citation import Citation
+from app.schemas.kb_settings import RetrievalConfig
 from app.schemas.search import (
     QuickSearchResponse,
     QuickSearchResult,
@@ -32,6 +40,8 @@ from app.schemas.sse import (
 )
 from app.services.audit_service import AuditService, get_audit_service
 from app.services.citation_service import CitationService
+from app.services.kb_config_resolver import KBConfigResolver
+from app.services.kb_recommendation_service import KBRecommendationService
 from app.services.kb_service import KBPermissionService, get_kb_permission_service
 
 logger = get_logger()
@@ -58,31 +68,109 @@ Sources will be provided below with their numbers."""
 class SearchService:
     """Service for semantic search operations.
 
+    Story 7-17: Integrates KBConfigResolver for KB-level retrieval configuration.
+
     Orchestrates the search pipeline:
     1. Permission check
-    2. Query embedding generation (with Redis caching)
-    3. Qdrant vector search
-    4. Metadata assembly
-    5. Audit logging (async)
+    2. KB config resolution (AC-7.17.1)
+    3. Query embedding generation (with Redis caching)
+    4. Qdrant vector search with KB-specific top_k, similarity_threshold
+    5. Metadata assembly
+    6. Audit logging (async) with effective_config (AC-7.17.6)
     """
 
     def __init__(
         self,
         permission_service: KBPermissionService,
         audit_service: AuditService,
+        kb_config_resolver: KBConfigResolver | None = None,
         citation_service: CitationService | None = None,
+        kb_recommendation_service: KBRecommendationService | None = None,
     ):
         """Initialize search service.
 
         Args:
             permission_service: Permission service for access checks
             audit_service: Audit service for logging
+            kb_config_resolver: Config resolver for KB-level settings (Story 7-17)
             citation_service: Citation service for extracting citations (default: new instance)
+            kb_recommendation_service: KB recommendation service for logging access (optional)
         """
         self.permission_service = permission_service
         self.audit_service = audit_service
+        self.kb_config_resolver = kb_config_resolver
         self.citation_service = citation_service or CitationService()
-        self.qdrant_client = qdrant_service.client
+        self.kb_recommendation_service = kb_recommendation_service
+        # Story 7-7: Use qdrant_service directly for async methods (AC-7.7.3)
+        self.qdrant_service = qdrant_service
+
+    async def _resolve_retrieval_config(
+        self,
+        kb_id: str,
+        request_limit: int | None = None,
+        request_similarity_threshold: float | None = None,
+    ) -> RetrievalConfig:
+        """Resolve retrieval config for a KB with request overrides.
+
+        Story 7-17 (AC-7.17.1, AC-7.17.5): Implements three-layer precedence:
+        Request params → KB settings → System defaults.
+
+        Args:
+            kb_id: Knowledge base ID
+            request_limit: Request-level override for top_k
+            request_similarity_threshold: Request-level override for similarity_threshold
+
+        Returns:
+            RetrievalConfig with resolved values
+        """
+        if self.kb_config_resolver is None:
+            # Fallback to schema defaults if no resolver configured
+            # Use RetrievalConfig() defaults instead of hardcoded values
+            defaults = RetrievalConfig()
+            return RetrievalConfig(
+                top_k=request_limit if request_limit is not None else defaults.top_k,
+                similarity_threshold=request_similarity_threshold
+                if request_similarity_threshold is not None
+                else defaults.similarity_threshold,
+                method=defaults.method,
+                mmr_enabled=defaults.mmr_enabled,
+                mmr_lambda=defaults.mmr_lambda,
+                hybrid_alpha=defaults.hybrid_alpha,
+            )
+
+        try:
+            # Build request overrides dict (only include non-None values)
+            overrides: dict[str, Any] = {}
+            if request_limit is not None:
+                overrides["top_k"] = request_limit
+            if request_similarity_threshold is not None:
+                overrides["similarity_threshold"] = request_similarity_threshold
+
+            # Resolve config with KB settings and request overrides
+            config = await self.kb_config_resolver.resolve_retrieval_config(
+                kb_id=UUID(kb_id) if isinstance(kb_id, str) else kb_id,
+                request_overrides=overrides if overrides else None,
+            )
+            return config
+        except Exception as e:
+            # Log warning and fallback to schema defaults on resolver error
+            # Use RetrievalConfig() defaults instead of hardcoded values
+            logger.warning(
+                "kb_config_resolution_failed",
+                kb_id=kb_id,
+                error=str(e),
+            )
+            defaults = RetrievalConfig()
+            return RetrievalConfig(
+                top_k=request_limit if request_limit is not None else defaults.top_k,
+                similarity_threshold=request_similarity_threshold
+                if request_similarity_threshold is not None
+                else defaults.similarity_threshold,
+                method=defaults.method,
+                mmr_enabled=defaults.mmr_enabled,
+                mmr_lambda=defaults.mmr_lambda,
+                hybrid_alpha=defaults.hybrid_alpha,
+            )
 
     async def search(
         self,
@@ -120,16 +208,19 @@ class SearchService:
         kb_ids: list[str] | None,
         user_id: str,
         limit: int = 10,
+        similarity_threshold: float | None = None,
     ) -> SearchResponse:
         """Execute non-streaming search (backward compatible).
 
-        This is the original search implementation from Stories 3.1, 3.2.
+        Story 7-17 (AC-7.17.1, AC-7.17.5, AC-7.17.6): Uses KB-level retrieval config
+        with request override precedence.
 
         Args:
             query: Natural language search query
             kb_ids: List of KB IDs to search, or None for all permitted KBs
             user_id: User ID for permission checks
-            limit: Maximum number of results
+            limit: Maximum number of results (request override for top_k)
+            similarity_threshold: Minimum similarity score (request override)
 
         Returns:
             SearchResponse with complete results
@@ -139,6 +230,7 @@ class SearchService:
             ConnectionError: If Qdrant or LiteLLM unavailable
         """
         start_time = time.time()
+        effective_config: dict[str, Any] | None = None
 
         try:
             # Get permitted KBs if not specified
@@ -155,8 +247,55 @@ class SearchService:
                 if not has_access:
                     raise PermissionError("Knowledge Base not found")
 
-            # Generate query embedding
-            embedding = await self._embed_query(query)
+            # Story 7-17 (AC-7.17.1): Resolve retrieval config from first KB
+            # When searching multiple KBs, use first KB's config as baseline
+            # Request overrides always take precedence (AC-7.17.5)
+            retrieval_config = await self._resolve_retrieval_config(
+                kb_id=kb_ids[0] if kb_ids else "",
+                request_limit=limit
+                if limit != 10
+                else None,  # Only override if non-default
+                request_similarity_threshold=similarity_threshold,
+            )
+
+            # Store effective config for audit logging (AC-7.17.6)
+            effective_config = {
+                "top_k": retrieval_config.top_k,
+                "similarity_threshold": retrieval_config.similarity_threshold,
+                "method": retrieval_config.method.value
+                if hasattr(retrieval_config.method, "value")
+                else str(retrieval_config.method),
+                "mmr_enabled": retrieval_config.mmr_enabled,
+            }
+
+            # Resolve KB embedding model (use first KB's model for consistency)
+            # This ensures query embedding dimensions match indexed vectors
+            embedding_model_config = None
+            if self.kb_config_resolver and kb_ids:
+                try:
+                    embedding_model_config = (
+                        await self.kb_config_resolver.get_kb_embedding_model(
+                            UUID(kb_ids[0]) if isinstance(kb_ids[0], str) else kb_ids[0]
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "kb_embedding_model_resolution_failed",
+                        kb_id=kb_ids[0],
+                        error=str(e),
+                    )
+
+            # Generate query embedding with KB-specific model
+            if embedding_model_config:
+                embedding = await self._embed_query(
+                    query,
+                    model_id=embedding_model_config.model_id,
+                    provider=embedding_model_config.provider,
+                    api_endpoint=embedding_model_config.api_endpoint,
+                )
+                effective_config["embedding_model"] = embedding_model_config.model_id
+            else:
+                embedding = await self._embed_query(query)
 
             # Fetch KB names for display (graceful fallback)
             try:
@@ -165,9 +304,13 @@ class SearchService:
                 logger.warning("kb_name_fetch_failed", error=str(e))
                 kb_name_map = {}
 
-            # Search Qdrant collections
+            # Search Qdrant collections with resolved config
             chunks = await self._search_collections(
-                embedding, kb_ids, limit, kb_name_map
+                embedding,
+                kb_ids,
+                limit=retrieval_config.top_k,
+                kb_name_map=kb_name_map,
+                similarity_threshold=retrieval_config.similarity_threshold,
             )
 
             # Assemble response
@@ -232,7 +375,7 @@ class SearchService:
                 ),
             )
 
-            # Log search query (async, non-blocking)
+            # Log search query (async, non-blocking) - Story 5.14, 7.17
             latency_ms = int((time.time() - start_time) * 1000)
             await self.audit_service.log_search(
                 user_id=user_id,
@@ -240,7 +383,32 @@ class SearchService:
                 kb_ids=kb_ids,
                 result_count=len(results),
                 latency_ms=latency_ms,
+                search_type="semantic",
+                status="success",
+                effective_config=effective_config,  # Story 7-17 (AC-7.17.6)
             )
+
+            # Log KB access for recommendations (fire-and-forget, Story 5.8)
+            if self.kb_recommendation_service and kb_ids:
+                from uuid import UUID as UUIDType
+
+                for kb_id in kb_ids:
+                    try:
+                        kb_uuid = UUIDType(kb_id) if isinstance(kb_id, str) else kb_id
+                        await self.kb_recommendation_service.log_kb_access(
+                            user_id=UUIDType(user_id)
+                            if isinstance(user_id, str)
+                            else user_id,
+                            kb_id=kb_uuid,
+                            access_type=AccessType.SEARCH,
+                        )
+                    except Exception as e:
+                        # Fire-and-forget - don't fail search on logging error
+                        logger.warning(
+                            "kb_access_log_failed",
+                            kb_id=str(kb_id),
+                            error=str(e),
+                        )
 
             logger.info(
                 "search_completed",
@@ -260,11 +428,24 @@ class SearchService:
             logger.error("search_failed", error=str(e), query=query[:100])
             raise
 
-    async def _embed_query(self, query: str) -> list[float]:
+    async def _embed_query(
+        self,
+        query: str,
+        model_id: str | None = None,
+        provider: str | None = None,
+        api_endpoint: str | None = None,
+    ) -> list[float]:
         """Generate query embedding with Redis caching.
+
+        Uses KB-specific embedding model if provided, otherwise falls back
+        to the system default. This ensures vector dimensions match between
+        document indexing and query embedding.
 
         Args:
             query: Query text
+            model_id: LiteLLM model identifier (e.g., 'mxbai-embed-large:latest')
+            provider: Model provider (e.g., 'ollama') for direct API routing
+            api_endpoint: Custom API endpoint if not using LiteLLM proxy
 
         Returns:
             Embedding vector
@@ -272,28 +453,60 @@ class SearchService:
         Raises:
             ConnectionError: If LiteLLM unavailable after retries
         """
-        # Check Redis cache
+        # Check Redis cache - include model_id in cache key to avoid cross-model collisions
         redis = await RedisClient.get_client()
-        cache_key = f"embedding:{hashlib.sha256(query.encode()).hexdigest()}"
+        cache_suffix = f":{model_id}" if model_id else ""
+        cache_key = (
+            f"embedding:{hashlib.sha256(query.encode()).hexdigest()}{cache_suffix}"
+        )
 
         cached = await redis.get(cache_key)
         if cached:
-            logger.debug("embedding_cache_hit", query_length=len(query))
+            logger.debug(
+                "embedding_cache_hit",
+                query_length=len(query),
+                model_id=model_id or "default",
+            )
             return json.loads(cached)
 
         # Generate embedding via LiteLLM with retry logic
         try:
-            embeddings = await embedding_client.get_embeddings([query])
+            if model_id:
+                # Use KB-specific embedding model
+                client = LiteLLMEmbeddingClient(
+                    model=model_id,
+                    provider=provider,
+                    api_base=api_endpoint,
+                )
+                logger.debug(
+                    "using_kb_embedding_model",
+                    model_id=model_id,
+                    provider=provider,
+                )
+                embeddings = await client.get_embeddings([query])
+            else:
+                # Use default embedding client
+                embeddings = await embedding_client.get_embeddings([query])
+
             embedding = embeddings[0]
 
             # Cache for 1 hour
             await redis.setex(cache_key, 3600, json.dumps(embedding))
 
-            logger.debug("embedding_generated", query_length=len(query))
+            logger.debug(
+                "embedding_generated",
+                query_length=len(query),
+                model_id=model_id or "default",
+                dimensions=len(embedding),
+            )
             return embedding
 
         except Exception as e:
-            logger.error("embedding_failed", error=str(e))
+            logger.error(
+                "embedding_failed",
+                error=str(e),
+                model_id=model_id or "default",
+            )
             raise ConnectionError(f"Embedding service unavailable: {str(e)}") from e
 
     async def _get_kb_names(self, kb_ids: list[str]) -> dict[str, str]:
@@ -324,14 +537,18 @@ class SearchService:
         kb_ids: list[str],
         limit: int,
         kb_name_map: dict[str, str] | None = None,
+        similarity_threshold: float = 0.0,
     ) -> list[dict[str, Any]]:
-        """Search Qdrant collections in parallel (Story 3.6).
+        """Search Qdrant collections in parallel (Story 3.6, Story 7-17).
+
+        Story 7-17 (AC-7.17.1): Uses KB-level similarity_threshold for filtering.
 
         Args:
             embedding: Query embedding vector
             kb_ids: List of KB IDs to search
             limit: Max results per KB
             kb_name_map: Optional mapping of kb_id -> kb_name for display (default: Unknown for all)
+            similarity_threshold: Minimum similarity score filter (AC-7.17.1)
 
         Returns:
             List of matching chunks with metadata including kb_name
@@ -342,28 +559,53 @@ class SearchService:
         if kb_name_map is None:
             kb_name_map = {}
         try:
-            import asyncio
+            import asyncio  # Needed for asyncio.gather
+
+            # Ensure Qdrant connection is healthy (auto-reset if stale after Docker restart)
+            await self.qdrant_service.ensure_connection()
 
             # Define async search function for single collection
             async def search_single_kb(kb_id: str) -> list[dict[str, Any]]:
+                from qdrant_client.http import models as qdrant_models
+
                 collection_name = f"kb_{kb_id}"
 
-                # Qdrant client's search is sync, run in thread pool
-                search_results = await asyncio.to_thread(
-                    self.qdrant_client.search,
+                # AC: Exclude archived documents from search results (Story 6-1)
+                # Filter points where archived is not true (archived=false or null/missing)
+                archive_filter = qdrant_models.Filter(
+                    must_not=[
+                        qdrant_models.FieldCondition(
+                            key="archived",
+                            match=qdrant_models.MatchValue(value=True),
+                        )
+                    ]
+                )
+
+                # Story 7-7: Use native async query_points method (AC-7.7.3)
+                # Story 7-17: Apply similarity_threshold via score_threshold (AC-7.17.1)
+                # NOTE: qdrant-client 1.16+ uses query_points instead of search
+                query_response = await self.qdrant_service.query_points(
                     collection_name=collection_name,
-                    query_vector=embedding,
+                    query=embedding,
+                    query_filter=archive_filter,
                     limit=limit,
                     with_payload=True,
+                    score_threshold=similarity_threshold
+                    if similarity_threshold > 0
+                    else None,
                 )
 
                 # Extract and enrich results with KB metadata
+                # query_points returns QueryResponse with .points attribute
                 chunks = []
-                for result in search_results:
+                for result in query_response.points:
+                    # Clamp score to [0, 1] range - cosine similarity can be negative
+                    # for dissimilar vectors, but relevance scores should be non-negative
+                    score = max(0.0, min(1.0, result.score))
                     chunk = {
                         "kb_id": kb_id,
                         "kb_name": kb_name_map.get(kb_id, "Unknown"),
-                        "score": result.score,
+                        "score": score,
                         **result.payload,
                     }
                     chunks.append(chunk)
@@ -523,6 +765,7 @@ class SearchService:
             PermissionError: If user lacks READ access
         """
         start_time = time.time()
+        effective_config: dict[str, Any] | None = None
 
         try:
             # Permission checks
@@ -541,8 +784,53 @@ class SearchService:
             # Status: searching (AC2)
             yield StatusEvent(content="Searching knowledge bases...")
 
-            # Generate embedding
-            embedding = await self._embed_query(query)
+            # Story 7-17 (AC-7.17.1): Resolve retrieval config from first KB
+            # When searching multiple KBs, use first KB's config as baseline
+            # Request overrides always take precedence (AC-7.17.5)
+            retrieval_config = await self._resolve_retrieval_config(
+                kb_id=kb_ids[0] if kb_ids else "",
+                request_limit=limit
+                if limit != 10
+                else None,  # Only override if non-default
+            )
+
+            # Store effective config for audit logging (AC-7.17.6)
+            effective_config = {
+                "top_k": retrieval_config.top_k,
+                "similarity_threshold": retrieval_config.similarity_threshold,
+                "method": retrieval_config.method.value
+                if hasattr(retrieval_config.method, "value")
+                else str(retrieval_config.method),
+                "mmr_enabled": retrieval_config.mmr_enabled,
+            }
+
+            # Resolve KB embedding model (use first KB's model for consistency)
+            embedding_model_config = None
+            if self.kb_config_resolver and kb_ids:
+                try:
+                    embedding_model_config = (
+                        await self.kb_config_resolver.get_kb_embedding_model(
+                            UUID(kb_ids[0]) if isinstance(kb_ids[0], str) else kb_ids[0]
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "kb_embedding_model_resolution_failed",
+                        kb_id=kb_ids[0],
+                        error=str(e),
+                    )
+
+            # Generate embedding with KB-specific model
+            if embedding_model_config:
+                embedding = await self._embed_query(
+                    query,
+                    model_id=embedding_model_config.model_id,
+                    provider=embedding_model_config.provider,
+                    api_endpoint=embedding_model_config.api_endpoint,
+                )
+                effective_config["embedding_model"] = embedding_model_config.model_id
+            else:
+                embedding = await self._embed_query(query)
 
             # Fetch KB names (graceful fallback)
             try:
@@ -551,9 +839,13 @@ class SearchService:
                 logger.warning("kb_name_fetch_failed", error=str(e))
                 kb_name_map = {}
 
-            # Search collections
+            # Search collections with resolved KB config (Story 7-17)
             chunks = await self._search_collections(
-                embedding, kb_ids, limit, kb_name_map
+                embedding,
+                kb_ids,
+                limit=retrieval_config.top_k,
+                kb_name_map=kb_name_map,
+                similarity_threshold=retrieval_config.similarity_threshold,
             )
 
             # Assemble results
@@ -618,7 +910,7 @@ class SearchService:
             # Emit done event (AC5)
             yield DoneEvent(confidence=confidence, result_count=len(results))
 
-            # Background audit logging (async, non-blocking)
+            # Background audit logging (async, non-blocking) - Story 5.14, 7.17
             latency_ms = int((time.time() - start_time) * 1000)
             await self.audit_service.log_search(
                 user_id=user_id,
@@ -626,7 +918,32 @@ class SearchService:
                 kb_ids=kb_ids,
                 result_count=len(results),
                 latency_ms=latency_ms,
+                search_type="semantic",
+                status="success",
+                effective_config=effective_config,  # Story 7-17 (AC-7.17.6)
             )
+
+            # Log KB access for recommendations (fire-and-forget, Story 5.8)
+            if self.kb_recommendation_service and kb_ids:
+                from uuid import UUID as UUIDType
+
+                for kb_id in kb_ids:
+                    try:
+                        kb_uuid = UUIDType(kb_id) if isinstance(kb_id, str) else kb_id
+                        await self.kb_recommendation_service.log_kb_access(
+                            user_id=UUIDType(user_id)
+                            if isinstance(user_id, str)
+                            else user_id,
+                            kb_id=kb_uuid,
+                            access_type=AccessType.SEARCH,
+                        )
+                    except Exception as e:
+                        # Fire-and-forget - don't fail search on logging error
+                        logger.warning(
+                            "kb_access_log_failed",
+                            kb_id=str(kb_id),
+                            error=str(e),
+                        )
 
             logger.info(
                 "search_stream_completed",
@@ -751,8 +1068,40 @@ class SearchService:
             if not target_kb_ids:
                 raise PermissionError("No permitted Knowledge Bases found")
 
-            # 2. Generate embedding (with caching)
-            embedding = await self._embed_query(query)
+            # Story 7-17: Resolve retrieval config from first KB for quick search
+            retrieval_config = await self._resolve_retrieval_config(
+                kb_id=target_kb_ids[0],
+                request_limit=5,  # Quick search always returns 5 results
+            )
+
+            # Resolve KB embedding model (use first KB's model for consistency)
+            embedding_model_config = None
+            if self.kb_config_resolver and target_kb_ids:
+                try:
+                    embedding_model_config = (
+                        await self.kb_config_resolver.get_kb_embedding_model(
+                            UUID(target_kb_ids[0])
+                            if isinstance(target_kb_ids[0], str)
+                            else target_kb_ids[0]
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "kb_embedding_model_resolution_failed",
+                        kb_id=target_kb_ids[0],
+                        error=str(e),
+                    )
+
+            # 2. Generate embedding (with caching) using KB-specific model
+            if embedding_model_config:
+                embedding = await self._embed_query(
+                    query,
+                    model_id=embedding_model_config.model_id,
+                    provider=embedding_model_config.provider,
+                    api_endpoint=embedding_model_config.api_endpoint,
+                )
+            else:
+                embedding = await self._embed_query(query)
 
             # Fetch KB names for display (graceful fallback)
             try:
@@ -761,9 +1110,13 @@ class SearchService:
                 logger.warning("kb_name_fetch_failed", error=str(e))
                 kb_name_map = {}
 
-            # 3. Search collections (top 5 only for quick search)
+            # 3. Search collections with KB-level similarity_threshold (Story 7-17)
             chunks = await self._search_collections(
-                embedding, target_kb_ids, limit=5, kb_name_map=kb_name_map
+                embedding,
+                target_kb_ids,
+                limit=5,  # Quick search always returns 5 results
+                kb_name_map=kb_name_map,
+                similarity_threshold=retrieval_config.similarity_threshold,
             )
 
             # 4. Build lightweight results
@@ -783,6 +1136,17 @@ class SearchService:
 
             response_time_ms = int((time.time() - start_time) * 1000)
 
+            # Log quick search (async, non-blocking) - Story 5.14
+            await self.audit_service.log_search(
+                user_id=user_id,
+                query=query,
+                kb_ids=target_kb_ids,
+                result_count=len(results),
+                latency_ms=response_time_ms,
+                search_type="quick",
+                status="success",
+            )
+
             logger.info(
                 "quick_search_complete",
                 result_count=len(results),
@@ -797,7 +1161,50 @@ class SearchService:
                 response_time_ms=response_time_ms,
             )
 
+        except PermissionError:
+            # Log failed search (AC4) - Story 5.14
+            latency_ms = int((time.time() - start_time) * 1000)
+            await self.audit_service.log_search(
+                user_id=user_id,
+                query=query,
+                kb_ids=kb_ids or [],
+                result_count=0,
+                latency_ms=latency_ms,
+                search_type="quick",
+                status="failed",
+                error_message="Knowledge Base not found or access denied",
+                error_type="access_denied",
+            )
+            raise
+        except ConnectionError as e:
+            # Log failed search (AC4) - Story 5.14
+            latency_ms = int((time.time() - start_time) * 1000)
+            await self.audit_service.log_search(
+                user_id=user_id,
+                query=query,
+                kb_ids=kb_ids or [],
+                result_count=0,
+                latency_ms=latency_ms,
+                search_type="quick",
+                status="failed",
+                error_message=str(e),
+                error_type="internal_error",
+            )
+            raise
         except Exception as e:
+            # Log failed search (AC4) - Story 5.14
+            latency_ms = int((time.time() - start_time) * 1000)
+            await self.audit_service.log_search(
+                user_id=user_id,
+                query=query,
+                kb_ids=kb_ids or [],
+                result_count=0,
+                latency_ms=latency_ms,
+                search_type="quick",
+                status="failed",
+                error_message=str(e),
+                error_type="internal_error",
+            )
             logger.error(
                 "quick_search_failed",
                 query=query,
@@ -863,11 +1270,12 @@ class SearchService:
                 raise PermissionError("No permitted Knowledge Bases found")
 
             # Try to retrieve chunk from each permitted KB collection
+            # Story 7-7: Use native async retrieve method (AC-7.7.3)
             original_chunk = None
             for kb_id in target_kb_ids:
                 collection_name = f"kb_{kb_id}"
                 try:
-                    points = self.qdrant_client.retrieve(
+                    points = await self.qdrant_service.retrieve(
                         collection_name=collection_name,
                         ids=[chunk_id],
                         with_vectors=True,
@@ -892,6 +1300,12 @@ class SearchService:
                 "document_name", "Unknown Document"
             )
 
+            # Story 7-17: Resolve retrieval config from first KB for similar search
+            retrieval_config = await self._resolve_retrieval_config(
+                kb_id=target_kb_ids[0],
+                request_limit=limit + 1,  # +1 to account for filtering original
+            )
+
             # Fetch KB names for display
             try:
                 kb_name_map = await self._get_kb_names(target_kb_ids)
@@ -899,9 +1313,13 @@ class SearchService:
                 logger.warning("kb_name_fetch_failed", error=str(e))
                 kb_name_map = {}
 
-            # 4. Search using chunk's embedding (request limit+1 to account for filtering original)
+            # 4. Search using chunk's embedding with KB-level similarity_threshold (Story 7-17)
             chunks = await self._search_collections(
-                embedding, target_kb_ids, limit=limit + 1, kb_name_map=kb_name_map
+                embedding,
+                target_kb_ids,
+                limit=limit + 1,  # +1 to account for filtering original
+                kb_name_map=kb_name_map,
+                similarity_threshold=retrieval_config.similarity_threshold,
             )
 
             # 5. Exclude original chunk from results (AC5)
@@ -970,7 +1388,7 @@ class SearchService:
                 ),
             )
 
-            # Log similar search (async, non-blocking)
+            # Log similar search (async, non-blocking) - Story 5.14
             latency_ms = int((time.time() - start_time) * 1000)
             await self.audit_service.log_search(
                 user_id=user_id,
@@ -978,6 +1396,8 @@ class SearchService:
                 kb_ids=target_kb_ids,
                 result_count=len(results),
                 latency_ms=latency_ms,
+                search_type="similar",
+                status="success",
             )
 
             logger.info(
@@ -1007,18 +1427,29 @@ class SearchService:
             raise
 
 
-def get_search_service(
+async def get_search_service(
     audit_service: AuditService = Depends(get_audit_service),
     session: AsyncSession = Depends(get_async_session),
+    redis_client: redis.Redis = Depends(get_redis_client),
 ) -> SearchService:
     """Dependency injection for SearchService.
+
+    Story 7-17: Now includes KBConfigResolver for KB-level configuration.
 
     Args:
         audit_service: Audit service dependency
         session: Database session dependency
+        redis_client: Redis client for config caching
 
     Returns:
-        SearchService instance
+        SearchService instance with KB config resolver (Story 7-17)
     """
     permission_service = get_kb_permission_service(session)
-    return SearchService(permission_service, audit_service)
+    kb_recommendation_service = KBRecommendationService(session)
+    kb_config_resolver = KBConfigResolver(session, redis_client)
+    return SearchService(
+        permission_service,
+        audit_service,
+        kb_config_resolver=kb_config_resolver,
+        kb_recommendation_service=kb_recommendation_service,
+    )

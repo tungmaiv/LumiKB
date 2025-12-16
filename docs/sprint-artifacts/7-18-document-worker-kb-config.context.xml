@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-18" title="Document Worker KB Config Integration">
+  <summary>
+    Integrate KBConfigResolver with Celery document processing tasks to use KB-specific
+    chunking and embedding configuration, completing AC-7.17.4 from Story 7-17.
+  </summary>
+
+  <key-files>
+    <file path="backend/app/services/kb_config_resolver.py" purpose="Config resolution service">
+      <note>Already has resolve_chunking_config() returning ChunkingConfig with chunk_size, chunk_overlap</note>
+      <note>Uses 3-layer resolution: KB settings → System config → Hardcoded defaults</note>
+      <note>Caches KB settings in Redis with 5-minute TTL</note>
+    </file>
+    <file path="backend/app/workers/document_tasks.py" purpose="Celery document processing">
+      <note>Lines 233-281: _get_kb_chunking_config() already implemented, fetches KB-specific settings</note>
+      <note>Lines 284-336: _get_kb_embedding_config() returns EmbeddingConfig for KB model</note>
+      <note>Lines 383-393: Already uses KB config in _chunk_embed_index()</note>
+      <note>DISCOVERY: Much of 7-18 may already be implemented in document_tasks.py</note>
+    </file>
+    <file path="backend/app/workers/parsing.py" purpose="Document parsing utilities">
+      <note>Handles PDF, DOCX, Markdown, plain text parsing</note>
+      <note>Does NOT currently use KBConfigResolver - parsing is format-based, not config-based</note>
+    </file>
+    <file path="backend/app/workers/embedding.py" purpose="Embedding generation">
+      <note>Already supports EmbeddingConfig parameter in generate_embeddings()</note>
+      <note>EmbeddingConfig NamedTuple: model_id, dimensions, api_endpoint</note>
+    </file>
+    <file path="backend/tests/unit/test_kb_config_resolver.py" purpose="Existing resolver tests">
+      <note>Extend with tests for chunking config resolution in worker context</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="KB Config Resolution in Workers">
+      <description>From document_tasks.py lines 233-281 - already implemented</description>
+      <code><![CDATA[
+async def _get_kb_chunking_config(kb_id: UUID) -> tuple[int, int]:
+    """Fetch KB's chunking configuration for document processing."""
+    from app.models.knowledge_base import KnowledgeBase
+    from app.schemas.kb_settings import KBSettings
+
+    async with celery_session_factory() as session:
+        result = await session.execute(
+            select(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+        )
+        kb = result.scalar_one_or_none()
+
+        if not kb or not kb.settings:
+            logger.debug("kb_no_chunking_config", kb_id=str(kb_id), using_defaults=True)
+            return settings.chunk_size, settings.chunk_overlap
+
+        try:
+            kb_settings = KBSettings.model_validate(kb.settings)
+            chunk_size = kb_settings.chunking.chunk_size
+            chunk_overlap = kb_settings.chunking.chunk_overlap
+
+            logger.info(
+                "kb_chunking_config_loaded",
+                kb_id=str(kb_id),
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+            return chunk_size, chunk_overlap
+        except Exception as e:
+            logger.warning("kb_chunking_config_parse_error", kb_id=str(kb_id), error=str(e))
+            return settings.chunk_size, settings.chunk_overlap
+]]></code>
+    </pattern>
+    <pattern name="Embedding Config Usage">
+      <description>KB-specific embedding model config from document_tasks.py lines 380-393</description>
+      <code><![CDATA[
+# Story 7-10 (AC-7.10.8): Fetch KB embedding configuration
+embedding_config = await _get_kb_embedding_config(kb_id)
+
+# Story 7-17 (AC-7.17.4): Fetch KB chunking configuration
+chunk_size, chunk_overlap = await _get_kb_chunking_config(kb_id)
+
+logger.info(
+    "chunk_embed_index_started",
+    document_id=doc_id,
+    kb_id=str(kb_id),
+    embedding_model=embedding_config.model_id if embedding_config else "default",
+    chunk_size=chunk_size,
+    chunk_overlap=chunk_overlap,
+)
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="discovery">
+      Document worker KB config integration is ALREADY IMPLEMENTED in document_tasks.py.
+      The _get_kb_chunking_config() and _get_kb_embedding_config() functions exist and are used.
+      Story 7-18 may need to be re-scoped to:
+      1. Add audit logging for config source (AC-7.18.4)
+      2. Add unit tests for existing implementation (AC-7.18.6)
+      3. Verify graceful fallback behavior (AC-7.18.5)
+    </note>
+    <note type="architecture">
+      Current implementation directly queries KnowledgeBase model instead of using KBConfigResolver.
+      Consider refactoring to use KBConfigResolver for consistency with SearchService/GenerationService.
+    </note>
+    <note type="testing">
+      Need to add unit tests mocking celery_session_factory() and KBSettings validation.
+      Integration test should verify KB with custom chunk_size produces different chunk count.
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-7.18.1" status="partially-implemented">
+      <description>KBConfigResolver Integration in Document Tasks</description>
+      <implementation>_get_kb_chunking_config() exists but doesn't use KBConfigResolver service</implementation>
+    </criterion>
+    <criterion id="AC-7.18.2" status="implemented">
+      <description>Chunk Size Configuration Applied</description>
+      <implementation>_chunk_embed_index() passes chunk_size/chunk_overlap to chunk_document()</implementation>
+    </criterion>
+    <criterion id="AC-7.18.3" status="implemented">
+      <description>Embedding Model Selection</description>
+      <implementation>_get_kb_embedding_config() returns EmbeddingConfig, passed to generate_embeddings()</implementation>
+    </criterion>
+    <criterion id="AC-7.18.4" status="not-implemented">
+      <description>Config Resolution Logging</description>
+      <implementation>Logging exists but needs audit service integration for config source tracking</implementation>
+    </criterion>
+    <criterion id="AC-7.18.5" status="implemented">
+      <description>Graceful Fallback on Config Errors</description>
+      <implementation>try/except blocks with logger.warning and system defaults fallback</implementation>
+    </criterion>
+    <criterion id="AC-7.18.6" status="not-implemented">
+      <description>Unit Test Coverage</description>
+      <implementation>Need to add unit tests for _get_kb_chunking_config and _get_kb_embedding_config</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <dependency story="7-17" status="completed">KBConfigResolver service</dependency>
+    <dependency story="7-13" status="completed">KBConfigResolver base implementation</dependency>
+    <dependency story="7-10" status="completed">KB embedding model configuration</dependency>
+  </dependencies>
+
+  <test-strategy>
+    <unit-tests>
+      <test>Mock celery_session_factory to test _get_kb_chunking_config with/without KB settings</test>
+      <test>Mock KBSettings.model_validate to test config parse error fallback</test>
+      <test>Test _get_kb_embedding_config returns None when KB has no embedding model</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Create KB with custom chunk_size=1000, upload document, verify chunk count differs from default</test>
+      <test>Create KB with custom embedding model, verify model_id logged in processing</test>
+    </integration-tests>
+  </test-strategy>
+</story-context>

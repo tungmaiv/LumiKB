@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="5-25" title="Document Chunk Viewer - Backend API" generated="2025-12-07">
+
+  <summary>
+    Backend API endpoints for retrieving document chunks from Qdrant and streaming
+    original document content from MinIO. Enables the frontend Document Chunk Viewer
+    to display chunks alongside source documents for citation verification.
+  </summary>
+
+  <objectives>
+    <objective id="1">Create GET /api/v1/documents/{id}/chunks endpoint with search and pagination</objective>
+    <objective id="2">Create GET /api/v1/documents/{id}/content endpoint for streaming original files</objective>
+    <objective id="3">Optionally support DOCX to HTML conversion for easier frontend rendering</objective>
+    <objective id="4">Enforce document access permissions on all endpoints</objective>
+  </objectives>
+
+  <acceptance-criteria>
+    <criterion id="AC-5.25.1">Chunk retrieval returns chunks with char_start, char_end, page_number, paragraph_index</criterion>
+    <criterion id="AC-5.25.2">Search query filters chunks by text content (case-insensitive)</criterion>
+    <criterion id="AC-5.25.3">Pagination with skip/limit supports large documents (500+ chunks)</criterion>
+    <criterion id="AC-5.25.4">Content endpoint streams original file with correct Content-Type headers</criterion>
+    <criterion id="AC-5.25.5">DOCX can optionally be converted to HTML using mammoth</criterion>
+    <criterion id="AC-5.25.6">403 for unauthorized access, 404 for missing documents</criterion>
+  </acceptance-criteria>
+
+  <technical-context>
+    <architecture>
+      <component name="ChunkService" path="backend/app/services/chunk_service.py" status="new">
+        Queries Qdrant for document chunks with search and pagination
+      </component>
+      <component name="DocumentService" path="backend/app/services/document_service.py" status="extend">
+        Add convert_docx_to_html method and content streaming
+      </component>
+      <component name="Documents API" path="backend/app/api/v1/documents.py" status="extend">
+        Add /chunks and /content endpoints
+      </component>
+    </architecture>
+
+    <existing-code>
+      <file path="backend/app/workers/embedding.py" relevance="high" lines="30-50">
+        Current chunking stores: chunk_index, chunk_text, char_start, char_end, page_number in Qdrant payloads
+      </file>
+      <file path="backend/app/integrations/qdrant_client.py" relevance="high" lines="1-50">
+        Existing Qdrant client with scroll() method for retrieving points by filter
+      </file>
+      <file path="backend/app/integrations/minio_client.py" relevance="high" lines="214-250">
+        Existing MinIO client with download_file() and download_file_stream() methods
+      </file>
+      <file path="backend/app/services/document_service.py" relevance="high" lines="61,786">
+        Existing document service with permission checks and file retrieval
+      </file>
+      <file path="backend/app/workers/chunking.py" relevance="medium" lines="24-67">
+        DocumentChunk dataclass defines chunk structure
+      </file>
+    </existing-code>
+
+    <data-models>
+      <model name="DocumentChunk" type="response-schema">
+        <field name="chunk_index" type="int" description="Position in sequence (0-indexed)" />
+        <field name="chunk_text" type="str" description="Full text content of chunk" />
+        <field name="char_start" type="int" description="Starting character offset in source" />
+        <field name="char_end" type="int" description="Ending character offset in source" />
+        <field name="page_number" type="int|null" description="Page number (PDF only)" />
+        <field name="paragraph_index" type="int|null" description="Paragraph index (DOCX/MD)" />
+      </model>
+      <model name="DocumentChunksResponse" type="response-schema">
+        <field name="document_id" type="UUID" />
+        <field name="chunks" type="list[DocumentChunk]" />
+        <field name="total" type="int" />
+        <field name="skip" type="int" />
+        <field name="limit" type="int" />
+      </model>
+    </data-models>
+
+    <dependencies>
+      <dependency name="mammoth" version=">=1.6.0" purpose="DOCX to HTML conversion" optional="true" />
+    </dependencies>
+  </technical-context>
+
+  <api-contracts>
+    <endpoint method="GET" path="/api/v1/documents/{document_id}/chunks">
+      <description>Retrieve chunks for a document with optional search and pagination</description>
+      <parameters>
+        <param name="document_id" type="UUID" location="path" required="true" />
+        <param name="search" type="string" location="query" required="false" description="Filter chunks by text content" />
+        <param name="skip" type="int" location="query" required="false" default="0" />
+        <param name="limit" type="int" location="query" required="false" default="100" max="500" />
+      </parameters>
+      <response status="200" type="DocumentChunksResponse" />
+      <response status="403" description="User lacks READ access to KB" />
+      <response status="404" description="Document not found" />
+    </endpoint>
+
+    <endpoint method="GET" path="/api/v1/documents/{document_id}/content">
+      <description>Stream original document content from MinIO</description>
+      <parameters>
+        <param name="document_id" type="UUID" location="path" required="true" />
+        <param name="format" type="string" location="query" required="false" description="Optional: 'html' for DOCX conversion" />
+      </parameters>
+      <response status="200" type="StreamingResponse" headers="Content-Type, Content-Disposition, Content-Length" />
+      <response status="403" description="User lacks READ access to KB" />
+      <response status="404" description="Document not found" />
+    </endpoint>
+  </api-contracts>
+
+  <test-requirements>
+    <unit-tests>
+      <test name="test_chunk_schema_validation">Verify DocumentChunk and DocumentChunksResponse schema</test>
+      <test name="test_chunk_service_get_chunks">ChunkService returns chunks from Qdrant</test>
+      <test name="test_chunk_service_search_filter">ChunkService filters by search term</test>
+      <test name="test_chunk_service_pagination">ChunkService paginates correctly with skip/limit</test>
+      <test name="test_content_headers_set_correctly">Content endpoint sets correct HTTP headers</test>
+    </unit-tests>
+    <integration-tests>
+      <test name="test_get_chunks_returns_metadata">Upload doc → process → GET chunks → verify structure</test>
+      <test name="test_search_chunks_filters_correctly">Search chunks → verify only matching returned</test>
+      <test name="test_pagination_works">Verify skip/limit with large document</test>
+      <test name="test_content_streams_pdf">GET content for PDF → verify binary integrity</test>
+      <test name="test_content_streams_docx">GET content for DOCX → verify binary integrity</test>
+      <test name="test_content_streams_markdown">GET content for MD → verify text content</test>
+      <test name="test_docx_html_conversion">GET content?format=html → verify HTML output</test>
+      <test name="test_permission_403_unauthorized">Non-member gets 403</test>
+      <test name="test_404_missing_document">Invalid document_id returns 404</test>
+    </integration-tests>
+  </test-requirements>
+
+  <tasks>
+    <task id="1" ac="5.25.1">Create chunk schema - DocumentChunk and DocumentChunksResponse schemas with unit test</task>
+    <task id="2" ac="5.25.1,5.25.2,5.25.3">Implement ChunkService - Qdrant query, search filtering, pagination with 4 unit tests</task>
+    <task id="3" ac="5.25.1,5.25.2,5.25.3,5.25.6">Add GET /documents/{id}/chunks endpoint with permission checks and 3 integration tests</task>
+    <task id="4" ac="5.25.4,5.25.6">Add GET /documents/{id}/content endpoint for MinIO streaming with 3 integration tests</task>
+    <task id="5" ac="5.25.5">Add DOCX to HTML conversion using mammoth (optional) with 1 integration test</task>
+    <task id="6" ac="5.25.6">Permission and error handling tests - 403/404 scenarios with 2 integration tests</task>
+  </tasks>
+
+  <implementation-notes>
+    <note priority="high">
+      Existing Qdrant payloads already contain char_start, char_end, page_number - no migration needed
+    </note>
+    <note priority="high">
+      Use Qdrant scroll() method with document_id filter, not search() - we want ALL chunks
+    </note>
+    <note priority="medium">
+      Search filtering is done client-side after Qdrant scroll (acceptable for &lt;10K chunks per doc)
+    </note>
+    <note priority="medium">
+      DOCX HTML conversion is optional - frontend may use client-side docx-preview instead
+    </note>
+    <note priority="low">
+      Consider caching converted HTML in MinIO if conversion is slow
+    </note>
+  </implementation-notes>
+
+  <related-stories>
+    <story id="5-26" relation="blocks">Document Chunk Viewer - Frontend UI</story>
+    <story id="2-4" relation="depends-on">Document Storage in MinIO (existing)</story>
+    <story id="2-5" relation="depends-on">Document Processing Pipeline (existing)</story>
+  </related-stories>
+
+</story-context>

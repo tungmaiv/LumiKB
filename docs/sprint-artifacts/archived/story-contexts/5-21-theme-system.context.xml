@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 5-21 Theme System
+  Generated: 2025-12-06
+  Status: DONE (retroactive documentation)
+
+  This context file documents the implementation of Story 5.21
+  for reference and traceability purposes.
+-->
+<story-context story-id="5-21" title="Theme System" status="done">
+
+  <metadata>
+    <created>2025-12-06</created>
+    <story-file>docs/sprint-artifacts/5-21-theme-system.md</story-file>
+    <epic>Epic 5 - Administration &amp; Polish</epic>
+    <priority>LOW</priority>
+    <points>1</points>
+    <owner>Amelia (Dev)</owner>
+    <completed-date>2025-12-05</completed-date>
+  </metadata>
+
+  <summary>
+    Implemented a theme system with 5 color options (Light, Dark, Light Blue,
+    Dark Navy, System) accessible via a submenu in the user avatar dropdown.
+    Theme preference persists in localStorage via Zustand persist middleware.
+  </summary>
+
+  <acceptance-criteria-verification>
+    <ac id="5.21.1" title="Five Theme Options Available" status="PASSED">
+      <evidence>
+        <file path="frontend/src/lib/stores/theme-store.ts" lines="6-12">
+          THEMES constant defines all 5 options with value, label, description
+        </file>
+        <file path="frontend/src/app/globals.css" lines="157-265">
+          CSS variables for .light-blue (lines 157-207) and .dark-navy (lines 211-265)
+        </file>
+      </evidence>
+    </ac>
+
+    <ac id="5.21.2" title="Theme Selector Submenu Implemented" status="PASSED">
+      <evidence>
+        <file path="frontend/src/components/layout/user-menu.tsx" lines="69-91">
+          DropdownMenuSub with Palette icon, THEMES.map(), checkmark indicator
+        </file>
+        <file path="frontend/src/components/layout/user-menu.tsx" lines="4">
+          Palette and Check icons imported from lucide-react
+        </file>
+        <file path="frontend/src/components/layout/user-menu.tsx" lines="79">
+          setTheme(t.value) for immediate theme application
+        </file>
+      </evidence>
+    </ac>
+
+    <ac id="5.21.3" title="Theme Persistence Works" status="PASSED">
+      <evidence>
+        <file path="frontend/src/lib/stores/theme-store.ts" lines="40-67">
+          Zustand persist middleware with name: 'lumikb-theme'
+        </file>
+        <file path="frontend/src/lib/stores/theme-store.ts" lines="60-64">
+          onRehydrateStorage callback reapplies theme on page load
+        </file>
+      </evidence>
+    </ac>
+
+    <ac id="5.21.4" title="All UI Components Theme-Consistent" status="PASSED">
+      <evidence>
+        <file path="frontend/src/app/globals.css" lines="157-265">
+          Complete CSS variable set for both new themes including:
+          --background, --foreground, --card, --card-foreground,
+          --primary, --primary-foreground, --secondary, --secondary-foreground,
+          --muted, --muted-foreground, --accent, --accent-foreground,
+          --destructive, --destructive-foreground, --border, --input, --ring
+        </file>
+        <notes>
+          All shadcn/ui components use CSS variables, ensuring consistent theming.
+          Manual verification confirmed no white/mismatched boxes.
+        </notes>
+      </evidence>
+    </ac>
+  </acceptance-criteria-verification>
+
+  <implementation-files>
+    <file path="frontend/src/lib/stores/theme-store.ts" status="modified" relevance="HIGH">
+      <description>Zustand theme store with 5-theme support and persistence</description>
+      <key-elements>
+        <element name="Theme type" lines="4">Union type with 5 theme values</element>
+        <element name="THEMES constant" lines="6-12">Array of theme objects for UI</element>
+        <element name="getSystemTheme()" lines="25-28">OS preference detection</element>
+        <element name="applyTheme()" lines="30-38">CSS class application logic</element>
+        <element name="useThemeStore" lines="40-67">Zustand store with persist</element>
+      </key-elements>
+    </file>
+
+    <file path="frontend/src/components/layout/user-menu.tsx" status="modified" relevance="HIGH">
+      <description>User avatar dropdown with theme selector submenu</description>
+      <key-elements>
+        <element name="DropdownMenuSub imports" lines="15-18">Submenu components</element>
+        <element name="THEMES import" lines="21">Theme options for rendering</element>
+        <element name="Theme submenu" lines="69-91">Theme selector with checkmark</element>
+      </key-elements>
+    </file>
+
+    <file path="frontend/src/app/globals.css" status="modified" relevance="HIGH">
+      <description>CSS variables for Light Blue and Dark Navy themes</description>
+      <key-elements>
+        <element name=".light-blue class" lines="157-207">Sky blue theme CSS variables</element>
+        <element name=".dark-navy class" lines="211-265">Deep navy theme CSS variables</element>
+      </key-elements>
+    </file>
+  </implementation-files>
+
+  <technical-patterns>
+    <pattern name="CSS Variables Theming">
+      All themes use CSS custom properties (variables) defined on the root element.
+      This allows shadcn/ui components to automatically adapt without individual styling.
+    </pattern>
+
+    <pattern name="Zustand Persist">
+      Theme preference stored in localStorage under key 'lumikb-theme'.
+      onRehydrateStorage ensures theme is applied before React hydration completes.
+    </pattern>
+
+    <pattern name="System Theme Detection">
+      Uses window.matchMedia('(prefers-color-scheme: dark)') to detect OS preference.
+      Falls back to 'light' for SSR/initial render.
+    </pattern>
+
+    <pattern name="Theme Class Management">
+      applyTheme() removes all theme classes before adding new one to prevent conflicts.
+      Classes: 'light', 'dark', 'light-blue', 'dark-navy'
+    </pattern>
+  </technical-patterns>
+
+  <testing-notes>
+    <note type="manual">
+      All testing performed manually as this is a UX polish feature.
+      No automated tests required or implemented.
+    </note>
+    <test-cases>
+      <case>Select each theme → UI updates immediately</case>
+      <case>Refresh page → Theme persists from localStorage</case>
+      <case>New tab → Theme persists</case>
+      <case>System theme → Follows OS dark/light preference</case>
+      <case>All components → No white/mismatched boxes</case>
+      <case>Text contrast → Readable in all themes</case>
+    </test-cases>
+  </testing-notes>
+
+  <dependencies>
+    <dependency type="library" name="zustand" version="^4.x">State management with persist middleware</dependency>
+    <dependency type="library" name="lucide-react" version="^0.x">Palette and Check icons</dependency>
+    <dependency type="component" name="shadcn/ui DropdownMenu">Submenu components</dependency>
+  </dependencies>
+
+  <references>
+    <reference type="epic" path="docs/epics.md" lines="3047-3109">Story 5.21 definition</reference>
+    <reference type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-5.md" lines="1253-1261">AC specifications</reference>
+    <reference type="sprint-status" path="docs/sprint-artifacts/sprint-status.yaml" lines="124">Story status entry</reference>
+  </references>
+
+</story-context>

@@ -1,9 +1,9 @@
 # Epic Technical Specification: Administration & Polish
 
-Date: 2025-11-30
+Date: 2025-12-05
 Author: Tung Vu
 Epic ID: epic-5
-Status: Draft
+Status: Draft (Updated)
 
 ---
 
@@ -13,7 +13,9 @@ Epic 5 completes the LumiKB MVP by delivering critical administration capabiliti
 
 1. **Integration Completion (Story 5.0)**: Make Epic 3 & 4 features accessible to users through UI navigation (CRITICAL)
 2. **Administration Dashboard**: Provide administrators with system management, audit logging, and monitoring capabilities (FR47-52, FR58)
-3. **Technical Debt & Infrastructure**: Docker E2E testing infrastructure, ATDD test hardening, and polish items
+3. **User & Group Management**: Admin UI for managing users, groups, and KB permissions (Stories 5.18-5.20)
+4. **Technical Debt & Infrastructure**: Docker E2E testing infrastructure, ATDD test hardening, and polish items
+5. **User Experience Polish**: Theme system, onboarding wizard, smart KB suggestions (Stories 5.7-5.9, 5.21)
 
 The epic addresses a critical discovery: while Epic 3 (Semantic Search) and Epic 4 (Chat & Generation) are fully implemented with high code quality and comprehensive test coverage, users cannot access these features through normal UI navigation. Story 5.0 resolves this immediately, followed by Docker-based E2E testing infrastructure (Story 5.16) to prevent similar issues in the future.
 
@@ -40,6 +42,12 @@ The epic addresses a critical discovery: while Epic 3 (Semantic Search) and Epic
 - Onboarding wizard for first-time users (FR8a-c)
 - Smart KB suggestions based on usage patterns (FR12b)
 - Recent KBs list and UX refinements (FR12c-d)
+- Theme system with multiple color themes (Story 5.21)
+
+**User & Group Management (FR5, FR6, FR7)**
+- User management UI for admin CRUD operations (Story 5.18)
+- Group management with membership administration (Story 5.19)
+- Role and KB permission management UI for users/groups (Story 5.20)
 
 **Technical Debt & Infrastructure**
 - Docker E2E testing infrastructure with all services (HIGH)
@@ -103,12 +111,60 @@ Epic 5 builds on the established architecture with no new infrastructure compone
 | **ChatPageComponent** | Wire chat UI into accessible route | User input, conversation state | Chat interface with streaming responses | Story 5.0 |
 | **DashboardNavComponent** | Navigation cards for Search/Chat | Feature availability flags | Navigation cards with routes | Story 5.0 |
 | **DockerE2EInfrastructure** | Full-stack E2E testing environment | docker-compose.e2e.yml, test fixtures | Containerized test environment | Story 5.16 |
+| **UserManagementPage** | Admin UI for user CRUD operations | User list, create/edit forms | Paginated user table, modals | Story 5.18 |
+| **useUsers** | React Query hook for user data | API calls, pagination state | User list, mutations | Story 5.18 |
+| **GroupService** | Group CRUD operations, membership management | Group data, user assignments | Group entities, member lists | Story 5.19 |
+| **GroupManagementPage** | Admin UI for group management | Group list, membership | Paginated group table, member modals | Story 5.19 |
+| **useGroups** | React Query hook for group data | API calls, pagination state | Group list, mutations | Story 5.19 |
+| **KBPermissionService (Extended)** | KB permissions for users AND groups | User/group IDs, KB IDs, permission levels | Permission assignments, effective permissions | Story 5.20 |
+| **KBPermissionsTab** | UI component for KB permission management | User/group permissions | Permission tables, add/edit modals | Story 5.20 |
+| **ThemeStore (Extended)** | Zustand store for theme management | Theme selection | Applied theme class, persisted preference | Story 5.21 |
+| **ThemeSelector** | User menu submenu for theme selection | Current theme, available themes | Theme list with checkmark indicator | Story 5.21 |
 
 ### Data Models and Contracts
 
-**No New Database Schema Changes Required**
+**New Database Schema (Stories 5.19, 5.20)**
 
-Epic 5 primarily extends existing models and services. Key data structures:
+Epic 5 introduces new database tables for group management and extends KB permissions:
+
+**Groups Table (Story 5.19)**
+```sql
+CREATE TABLE groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE user_groups (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (user_id, group_id)
+);
+```
+
+**KB Group Permissions Table (Story 5.20)**
+```sql
+CREATE TABLE kb_group_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    knowledge_base_id UUID REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+    permission_level VARCHAR(20) NOT NULL, -- 'read', 'write', 'admin'
+    created_at TIMESTAMP DEFAULT NOW(),
+    created_by UUID REFERENCES users(id),
+    UNIQUE (knowledge_base_id, group_id)
+);
+```
+
+**Existing Models Extended**
+- `User`: Existing model (from Story 1.6), no changes
+- `KnowledgeBase`: Existing model, no changes
+- `KBPermission`: Existing model, extended to work with groups
+
+**Key Data Structures:**
 
 **Admin Statistics Response**
 ```typescript
@@ -187,6 +243,69 @@ interface OnboardingState {
 - `Document`: Existing model, no changes
 - `AuditEvent`: Existing model from Story 1.7, no changes
 
+**Group Model (Story 5.19)**
+```python
+class Group(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    member_count: int
+    created_at: datetime
+    updated_at: datetime
+
+class GroupCreate(BaseModel):
+    name: str
+    description: str | None = None
+
+class GroupUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    is_active: bool | None = None
+
+class GroupMember(BaseModel):
+    user_id: UUID
+    email: str
+    is_active: bool
+    joined_at: datetime
+```
+
+**KB Permission Models (Story 5.20 - Extended)**
+```python
+class KBPermissionResponse(BaseModel):
+    user_permissions: list[UserKBPermission]
+    group_permissions: list[GroupKBPermission]
+
+class UserKBPermission(BaseModel):
+    user_id: UUID
+    email: str
+    permission_level: str  # 'read', 'write', 'admin'
+    is_direct: bool  # True if direct assignment, False if via group
+
+class GroupKBPermission(BaseModel):
+    group_id: UUID
+    group_name: str
+    permission_level: str
+
+class AddKBPermissionRequest(BaseModel):
+    user_id: UUID | None = None  # Mutually exclusive with group_id
+    group_id: UUID | None = None
+    permission_level: str  # 'read', 'write', 'admin'
+```
+
+**Theme Type (Story 5.21)**
+```typescript
+type Theme = 'light' | 'dark' | 'light-blue' | 'dark-navy' | 'system';
+
+const THEMES = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'light-blue', label: 'Light Blue', icon: Sun },
+  { value: 'dark-navy', label: 'Dark Navy', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+];
+```
+
 ### APIs and Interfaces
 
 **New Admin Endpoints** (all require admin role)
@@ -224,6 +343,60 @@ Response: ConfigValue
 # Story 5.6 - KB Statistics (Admin View)
 GET /api/v1/admin/knowledge-bases/{kb_id}/stats
 Response: KBDetailedStats
+
+# Story 5.18 - User Management (uses existing endpoints from Story 1.6)
+GET /api/v1/admin/users
+Query: page, page_size, search, sort_by, sort_order
+Response: PaginatedResponse[User]
+
+POST /api/v1/admin/users
+Body: { email: str, password: str, is_superuser: bool }
+Response: User
+
+PATCH /api/v1/admin/users/{user_id}
+Body: { is_active: bool, is_superuser: bool }
+Response: User
+
+# Story 5.19 - Group Management
+GET /api/v1/admin/groups
+Query: page, page_size, search
+Response: PaginatedResponse[Group]
+
+POST /api/v1/admin/groups
+Body: GroupCreate
+Response: Group
+
+PATCH /api/v1/admin/groups/{group_id}
+Body: GroupUpdate
+Response: Group
+
+DELETE /api/v1/admin/groups/{group_id}
+Response: { success: bool }
+
+GET /api/v1/admin/groups/{group_id}/members
+Response: list[GroupMember]
+
+POST /api/v1/admin/groups/{group_id}/members
+Body: { user_ids: list[UUID] }
+Response: { added: int }
+
+DELETE /api/v1/admin/groups/{group_id}/members/{user_id}
+Response: { success: bool }
+
+# Story 5.20 - KB Permission Management (Extended)
+GET /api/v1/knowledge-bases/{kb_id}/permissions
+Response: KBPermissionResponse
+
+POST /api/v1/knowledge-bases/{kb_id}/permissions
+Body: AddKBPermissionRequest
+Response: { success: bool }
+
+PATCH /api/v1/knowledge-bases/{kb_id}/permissions/{permission_id}
+Body: { permission_level: str }
+Response: { success: bool }
+
+DELETE /api/v1/knowledge-bases/{kb_id}/permissions/{permission_id}
+Response: { success: bool }
 ```
 
 **New User Endpoints**
@@ -261,6 +434,18 @@ Response: list[KnowledgeBase]
 /app/(protected)/admin/queue -> QueueMonitor
 /app/(protected)/admin/config -> SystemConfig
 /app/(protected)/admin/kb/{id}/stats -> KBStatsDetail
+
+// Story 5.18 - User Management
+/app/(protected)/admin/users -> UserManagementPage
+  Uses: UserTable, CreateUserModal, EditUserModal, useUsers hook
+
+// Story 5.19 - Group Management
+/app/(protected)/admin/groups -> GroupManagementPage
+  Uses: GroupTable, GroupModal, GroupMembershipModal, useGroups hook
+
+// Story 5.20 - KB Permissions
+/app/(protected)/kb/{id}/permissions -> KBPermissionsTab (tab within KB detail)
+  Uses: PermissionTable, AddPermissionModal, useKBPermissions hook
 ```
 
 ### Workflows and Sequencing
@@ -369,6 +554,103 @@ Response: list[KnowledgeBase]
    - docker-compose up → seed → playwright test → docker-compose down
 ```
 
+**Story 5.18: User Management Workflow**
+```
+1. Admin navigates to /admin/users
+   - AdminGuard verifies is_superuser=true
+   - useUsers hook fetches paginated user list
+
+2. User List Display
+   - UserTable renders with columns: Email, Status, Role, Created, Last Active
+   - Pagination controls (20 per page)
+   - Search/filter by email
+   - Sort by any column
+
+3. Create User Flow
+   - Click "Add User" → CreateUserModal opens
+   - Form: Email, Password, Confirm Password, Is Admin
+   - Submit → POST /api/v1/admin/users
+   - Success → Toast + refresh list
+   - Error → Inline validation messages
+
+4. Edit User Flow
+   - Click edit action on row → EditUserModal opens
+   - Display: Email (read-only), Status toggle, Role dropdown
+   - Submit → PATCH /api/v1/admin/users/{user_id}
+   - Prevent self-deactivation (warning if own account)
+   - All changes logged to audit.events
+```
+
+**Story 5.19: Group Management Workflow**
+```
+1. Admin navigates to /admin/groups
+   - AdminGuard verifies is_superuser=true
+   - useGroups hook fetches paginated group list
+
+2. Group List Display
+   - GroupTable renders with: Name, Description, Member Count, Created
+   - Search by group name
+   - Click row → Expand to show member list
+
+3. Create/Edit Group Flow
+   - Click "Create Group" or edit action → GroupModal opens
+   - Form: Name (required, unique), Description (optional)
+   - Submit → POST or PATCH /api/v1/admin/groups
+   - Validation prevents duplicate group names
+
+4. Manage Members Flow
+   - Click "Manage Members" on group → GroupMembershipModal opens
+   - Display current members with remove action
+   - "Add Members" → User picker with search
+   - Add/remove → POST/DELETE /api/v1/admin/groups/{id}/members
+   - All changes logged to audit.events
+```
+
+**Story 5.20: KB Permission Management Workflow**
+```
+1. Admin navigates to KB detail → Permissions tab
+   - useKBPermissions hook fetches permissions
+   - Displays User Permissions and Group Permissions sections
+
+2. View Effective Permissions
+   - User permissions: Direct assignments
+   - Group permissions: Inherited via group membership
+   - Display "via [Group Name]" for inherited permissions
+
+3. Add Permission Flow
+   - Click "Add User/Group Permission" → AddPermissionModal opens
+   - Entity picker: User email autocomplete OR Group dropdown
+   - Permission level dropdown: Read, Write, Admin
+   - Validation prevents duplicate assignments
+   - Submit → POST /api/v1/knowledge-bases/{kb_id}/permissions
+
+4. Edit/Remove Permission Flow
+   - Click edit on row → Change permission level
+   - Click remove → Delete permission
+   - Warning if removing last Admin permission
+   - All changes logged to audit.events
+```
+
+**Story 5.21: Theme System Workflow**
+```
+1. User opens user menu (avatar dropdown)
+   - Theme submenu displays with palette icon
+
+2. View Theme Options
+   - 5 options: Light, Dark, Light Blue, Dark Navy, System
+   - Current theme shows checkmark indicator
+
+3. Select Theme
+   - Click theme option → Immediately applies
+   - ThemeStore updates state, applies CSS class to html element
+   - Preference persisted to localStorage via Zustand persist
+
+4. Theme Persistence
+   - On page load, ThemeStore hydrates from localStorage
+   - System theme follows OS preference (prefers-color-scheme)
+   - All UI components use theme CSS variables for consistency
+```
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -400,6 +682,26 @@ Response: list[KnowledgeBase]
 - KB recommendations: < 300ms (pre-computed scores, cached)
 - Recent KBs: < 100ms (simple query with LIMIT 5)
 
+**User Management (Story 5.18)**
+- User list query: < 200ms (indexed on email, is_active, created_at)
+- Create/edit user: < 300ms (single table write)
+- Pagination: 20 users per page, efficient LIMIT/OFFSET
+
+**Group Management (Story 5.19)**
+- Group list query: < 200ms (with member count aggregation)
+- Membership operations: < 100ms (junction table operations)
+- Member search: < 200ms (autocomplete via indexed email)
+
+**KB Permission Management (Story 5.20)**
+- Permission list query: < 300ms (joins user and group tables)
+- Permission check (authorization): < 50ms (cached effective permissions)
+- Add/remove permission: < 100ms (single table operations)
+
+**Theme System (Story 5.21)**
+- Theme switch: < 16ms (single DOM class change, CSS variable swap)
+- Theme persistence: < 10ms (localStorage write)
+- Theme hydration: < 50ms (on page load)
+
 ### Security
 
 **Admin Access Control**
@@ -425,6 +727,28 @@ Response: list[KnowledgeBase]
 - Isolated test database (never touches production data)
 - Test fixtures use synthetic data (no real user information)
 - Docker network isolation prevents accidental external access
+
+**User Management Security (Story 5.18)**
+- All user management endpoints require `is_superuser=True`
+- Password hashing via bcrypt (existing infrastructure)
+- Cannot deactivate own admin account (prevented in UI and API)
+- User creation/modification logged to audit.events
+
+**Group Management Security (Story 5.19)**
+- All group management endpoints require `is_superuser=True`
+- Group membership changes logged to audit.events
+- Soft delete for groups (preserve audit trail)
+
+**KB Permission Security (Story 5.20)**
+- Permission changes require KB admin role OR is_superuser
+- Group-based permissions inherit to all group members
+- Direct user permissions override group permissions
+- Cannot remove last admin permission (safety check)
+- All permission changes logged to audit.events
+
+**Theme System Security (Story 5.21)**
+- No security implications (client-side only, localStorage)
+- Theme preference not synced to server (no PII)
 
 **Existing Security Maintained**
 - TLS 1.3 for all API communication (from Epic 1)
@@ -613,6 +937,28 @@ npm install recharts  # For Story 5.1 sparkline charts
 **Story 5.14: Search Audit Logging**
 - Existing: `AuditService` (from Story 1.7), `SearchService` (from Epic 3)
 - Integration: Call `audit_service.log_event()` from search endpoints
+
+**Story 5.18: User Management UI**
+- Existing: Backend user endpoints from Story 1.6 (`GET/POST/PATCH /api/v1/admin/users`)
+- Frontend: React Query, shadcn/ui, Zod validation, AdminGuard component
+- Depends on: Story 5.17 (Main Navigation)
+
+**Story 5.19: Group Management**
+- Backend: New migration for `groups` and `user_groups` tables
+- Backend: GroupService, group API endpoints
+- Frontend: React Query, shadcn/ui components
+- Depends on: Story 5.18 (User Management UI)
+
+**Story 5.20: KB Permission Management UI**
+- Backend: New migration for `kb_group_permissions` table
+- Backend: Extend KBPermissionService for group support
+- Frontend: KBPermissionsTab, AddPermissionModal components
+- Depends on: Story 5.19 (Group Management), Story 2.2 (KB Permissions Backend)
+
+**Story 5.21: Theme System**
+- Frontend: CSS variables in globals.css, ThemeStore (Zustand)
+- Frontend: user-menu.tsx DropdownMenuSub for theme selector
+- No backend dependencies
 
 ## Acceptance Criteria (Authoritative)
 
@@ -856,6 +1202,167 @@ npm install recharts  # For Story 5.1 sparkline charts
 
 ---
 
+### Story 5.18: User Management UI
+
+**AC-5.18.1**: Admin navigates to `/admin/users` and sees paginated table with columns: Email, Status (badge), Role, Created date, Last active date. Supports sort/filter by email, 20 users per page.
+
+**AC-5.18.2**: "Add User" button opens modal with Email, Password, Confirm Password, Is Admin checkbox. POST to `/api/v1/admin/users` on submit. Success shows toast and refreshes list. Error shows inline validation.
+
+**AC-5.18.3**: Edit action on user row opens modal with Email (read-only), Status toggle, Role dropdown. PATCH to `/api/v1/admin/users/{user_id}` on save. Cannot deactivate own account (warning displayed).
+
+**AC-5.18.4**: Status toggle updates badge immediately (optimistic UI). API updates `is_active` field. Deactivated users cannot login. Action logged to audit.events.
+
+**AC-5.18.5**: Admin navigation shows "Users" link in admin section. Active state shown when on users page.
+
+**AC-5.18.6**: Non-admin users redirected to `/dashboard` with error message when accessing `/admin/users`. API returns 403 Forbidden.
+
+---
+
+### Story 5.19: Group Management
+
+**AC-5.19.1**: Migration creates `groups` table (id, name, description, is_active, created_at, updated_at) and `user_groups` junction table (user_id, group_id, created_at). API endpoints exist for CRUD and membership management.
+
+**AC-5.19.2**: Admin navigates to `/admin/groups` and sees table with: Name, Description, Member count, Created date. Search by group name. Click row expands to show member list.
+
+**AC-5.19.3**: Create/Edit modal has Name (required, unique) and Description (optional). Validation prevents duplicate group names. Success refreshes list.
+
+**AC-5.19.4**: "Manage Members" shows current members with remove action. "Add Members" opens user picker with email search. Add/remove updates immediately. Changes logged to audit.events.
+
+**AC-5.19.5**: Admin navigation shows "Groups" link. Clicking navigates to `/admin/groups`.
+
+**AC-5.19.6**: Non-admin users receive 403 Forbidden when accessing group endpoints.
+
+---
+
+### Story 5.20: Role & KB Permission Management UI
+
+**AC-5.20.1**: KB detail page has "Permissions" tab showing two sections: User Permissions table and Group Permissions table. Each row shows Entity (email/group name) and Permission Level (Read/Write/Admin).
+
+**AC-5.20.2**: "Add User/Group Permission" opens modal with entity picker (user email autocomplete OR group dropdown) and permission level dropdown. Validation prevents duplicates. Success adds row to table.
+
+**AC-5.20.3**: Edit on permission row allows changing level. Remove button deletes permission. Warning if removing last Admin permission. Changes saved via API and logged to audit.
+
+**AC-5.20.4**: User's effective permissions show both direct and inherited (via group) permissions. Inherited permissions display "via [Group Name]" indicator. Direct permissions override group permissions.
+
+**AC-5.20.5**: POST `/api/v1/knowledge-bases/{kb_id}/permissions` accepts `user_id` OR `group_id` (mutually exclusive). GET returns both user and group permissions. Permission checks consider group membership.
+
+**AC-5.20.6**: "Permissions" tab visible in KB detail admin navigation.
+
+---
+
+### Story 5.21: Theme System
+
+**AC-5.21.1**: User menu shows 5 theme options: Light (default), Dark, Light Blue (sky blue tones), Dark Navy (deep navy), System (OS preference). Each theme has consistent CSS variables for all UI components.
+
+**AC-5.21.2**: User avatar dropdown contains "Theme" submenu with palette icon. Shows all 5 options. Current theme has checkmark indicator. Selecting theme applies immediately.
+
+**AC-5.21.3**: Selected theme persisted in localStorage via Zustand persist. Preserved on page refresh and return visits.
+
+**AC-5.21.4**: All components (cards, tables, modals, popovers, sidebar) use theme colors. No white/mismatched boxes on colored backgrounds. Text maintains readable contrast.
+
+---
+
+### Stories 5.22-5.24: Late-Added Requirements (2025-12-06)
+
+The following stories were added to Epic 5 via the correct-course workflow. Full technical specifications are maintained in their respective story files:
+
+| Story | Title | Story File | Key Technical Notes |
+|-------|-------|------------|---------------------|
+| **5.22** | Document Tags | [5-22-document-tags.md](./5-22-document-tags.md) | Tags stored in `documents.metadata.tags` JSONB array (no migration). PATCH `/documents/{id}/tags` endpoint. Reuses KB tags UI pattern. |
+| **5.23** | Document Processing Progress | [5-23-document-processing-progress.md](./5-23-document-processing-progress.md) | New `processing_steps` JSONB column (migration required). New "Processing" tab in dashboard (ADMIN/WRITE only). 10-second auto-refresh via React Query. |
+| **5.24** | KB Dashboard Filtering & Pagination | [5-24-kb-dashboard-filtering.md](./5-24-kb-dashboard-filtering.md) | Filter bar with search/type/status/tags/date. Filter state in URL query params. Default 50 items/page. Follows Story 5-2 audit log patterns. |
+
+**Dependencies:**
+- Story 5-22 blocks Story 5-24 (tag filtering requires tags feature)
+- Story 5-23 is prioritized first (most valuable for debugging uploads)
+
+---
+
+### Stories 5.25-5.26: Document Chunk Viewer (2025-12-07)
+
+The Document Chunk Viewer feature enables users to verify AI citations by viewing original documents alongside extracted text chunks. Full technical specifications are maintained in their respective story files:
+
+| Story | Title | Story File | Key Technical Notes |
+|-------|-------|------------|---------------------|
+| **5.25** | Document Chunk Viewer - Backend API | [5-25-document-chunk-viewer-backend.md](./5-25-document-chunk-viewer-backend.md) | New ChunkService queries Qdrant for chunks with `char_start`, `char_end`, `page_number` metadata. GET `/documents/{id}/chunks` with search/pagination. GET `/documents/{id}/content` streams files from MinIO. Optional DOCX→HTML via mammoth. |
+| **5.26** | Document Chunk Viewer - Frontend UI | [5-26-document-chunk-viewer-frontend.md](./5-26-document-chunk-viewer-frontend.md) | Split-pane viewer with react-resizable-panels. Format-specific viewers: react-pdf (PDF), docx-preview (DOCX), react-markdown (MD), pre (TXT). Virtual scroll via @tanstack/react-virtual for 1000+ chunks. Debounced search (300ms). |
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      Document Detail Modal                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │  [Details Tab]    [View & Chunks Tab] ← NEW                         ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+│  ┌──────────────────────────────┬──────────────────────────────────────┐│
+│  │      Document Viewer         │         Chunk Sidebar               ││
+│  │      (60% width)             │         (40% width)                 ││
+│  │                              │  ┌─────────────────────────────────┐││
+│  │  ┌────────────────────────┐  │  │ 🔍 Search chunks...             │││
+│  │  │ PDF/DOCX/MD/TXT Viewer │  │  └─────────────────────────────────┘││
+│  │  │                        │  │  📊 42 chunks found                 ││
+│  │  │ ████████████████████   │  │                                     ││
+│  │  │ ████ HIGHLIGHTED ████  │  │  ┌─────────────────────────────────┐││
+│  │  │ ████████████████████   │  │  │ Chunk 1        char 0-512  [▼] │││
+│  │  │                        │  │  │ Lorem ipsum dolor sit amet...  │││
+│  │  │                        │  │  └─────────────────────────────────┘││
+│  │  │                        │  │  ┌─────────────────────────────────┐││
+│  │  │                        │  │  │ Chunk 2 ★     char 513-1024    │││
+│  │  │                        │  │  │ Full chunk text displayed      │││
+│  │  │                        │  │  │ when expanded with highlight   │││
+│  │  └────────────────────────┘  │  │                     [↑ less]   │││
+│  │                              │  └─────────────────────────────────┘││
+│  └──────────────────────────────┴──────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**New Backend Components:**
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| ChunkService | `backend/app/services/chunk_service.py` | Queries Qdrant for document chunks with search and pagination |
+| Chunk Schemas | `backend/app/schemas/chunk.py` | `DocumentChunk`, `DocumentChunksResponse` Pydantic models |
+
+**New Frontend Components:**
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| DocumentChunkViewer | `frontend/src/components/documents/document-chunk-viewer/index.tsx` | Main split-pane container |
+| ChunkSidebar | `frontend/src/components/documents/document-chunk-viewer/chunk-sidebar.tsx` | Search box, count, virtual-scroll list |
+| ChunkItem | `frontend/src/components/documents/document-chunk-viewer/chunk-item.tsx` | Expandable chunk preview |
+| PDFViewer | `frontend/src/components/documents/document-chunk-viewer/viewers/pdf-viewer.tsx` | react-pdf with text layer highlighting |
+| DOCXViewer | `frontend/src/components/documents/document-chunk-viewer/viewers/docx-viewer.tsx` | docx-preview with paragraph highlighting |
+| MarkdownViewer | `frontend/src/components/documents/document-chunk-viewer/viewers/markdown-viewer.tsx` | react-markdown with character highlighting |
+| TextViewer | `frontend/src/components/documents/document-chunk-viewer/viewers/text-viewer.tsx` | Pre-formatted text with character highlighting |
+| useDocumentChunks | `frontend/src/hooks/useDocumentChunks.ts` | React Query hook for chunks |
+| useDocumentContent | `frontend/src/hooks/useDocumentContent.ts` | React Query hook for document blob |
+
+**New API Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/documents/{document_id}/chunks` | Retrieve chunks with optional search and pagination |
+| GET | `/api/v1/documents/{document_id}/content` | Stream original document from MinIO |
+
+**New Dependencies:**
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| react-pdf | ^9.1.0 | PDF rendering with text layer |
+| pdfjs-dist | ^4.0.0 | PDF.js worker for react-pdf |
+| docx-preview | ^0.3.2 | Client-side DOCX rendering |
+| react-markdown | ^9.0.0 | Markdown rendering |
+| react-resizable-panels | ^2.0.0 | Split-pane layout |
+| @tanstack/react-virtual | ^3.0.0 | Virtual scroll for chunk list |
+| mammoth | >=1.6.0 | DOCX to HTML conversion (backend, optional) |
+
+**Dependencies:**
+- Story 5-25 blocks Story 5-26 (backend API required for frontend)
+- No database migrations required (existing Qdrant payloads have all metadata)
+
+---
+
 ### Cross-Cutting Acceptance Criteria
 
 **AC-X.1**: All admin endpoints require `is_superuser=True`; non-admin users receive 403 Forbidden.
@@ -977,6 +1484,50 @@ This table traces each Acceptance Criterion back to PRD Functional Requirements,
 | AC-5.16.3 | N/A (Tech Debt) | Test Strategy → E2E Tests | playwright.config.ts baseURL=`http://frontend:3000` | E2E: Run Playwright → verify tests connect to frontend service |
 | AC-5.16.4 | N/A (Tech Debt) | Test Strategy → E2E Tests | 15-20 E2E tests covering Epic 3 & 4 user journeys | E2E: Run all E2E tests → verify login, upload, search, chat, export |
 | AC-5.16.5 | N/A (Tech Debt) | Test Strategy → CI/CD | GitHub Actions workflow, E2E test job with docker-compose | CI: Run E2E on PR → verify failures block merge |
+| **Story 5.18: User Management UI** |
+| AC-5.18.1 | FR5 | Detailed Design → Frontend Routes (Story 5.18) | UserManagementPage, UserTable, useUsers hook | Integration: GET `/admin/users` → verify paginated user list |
+| AC-5.18.2 | FR5 | Detailed Design → APIs (Story 5.18) | CreateUserModal, POST `/api/v1/admin/users` | Unit: Submit form → verify API call, toast notification |
+| AC-5.18.3 | FR5 | Detailed Design → APIs (Story 5.18) | EditUserModal, PATCH `/api/v1/admin/users/{id}` | Unit: Edit user → verify API call, self-deactivation warning |
+| AC-5.18.4 | FR5, FR56 | NFR Security (User Management) | UserTable status toggle, AuditService | Integration: Toggle status → verify `is_active` updated, audit logged |
+| AC-5.18.5 | FR5 | Detailed Design → Frontend Routes (Story 5.18) | main-nav.tsx with "Users" link | E2E: Click Users nav → verify `/admin/users` route |
+| AC-5.18.6 | FR5 | NFR Security (Admin Access Control) | AdminGuard, require_admin dependency | Integration: Non-admin → verify 403 Forbidden |
+| **Story 5.19: Group Management** |
+| AC-5.19.1 | FR6 | Detailed Design → Data Models (Groups) | Group, user_groups tables, alembic migration | Integration: Run migration → verify tables created, API endpoints work |
+| AC-5.19.2 | FR6 | Detailed Design → Frontend Routes (Story 5.19) | GroupManagementPage, GroupTable, useGroups hook | Integration: GET `/admin/groups` → verify list with member counts |
+| AC-5.19.3 | FR6 | Detailed Design → APIs (Story 5.19) | GroupModal, POST/PATCH `/api/v1/admin/groups` | Unit: Create/edit group → verify unique name validation |
+| AC-5.19.4 | FR6, FR56 | Detailed Design → APIs (Story 5.19) | GroupMembershipModal, POST/DELETE membership endpoints | Integration: Add/remove member → verify member list updated, audit logged |
+| AC-5.19.5 | FR6 | Detailed Design → Frontend Routes (Story 5.19) | main-nav.tsx with "Groups" link | E2E: Click Groups nav → verify `/admin/groups` route |
+| AC-5.19.6 | FR6 | NFR Security (Admin Access Control) | require_admin dependency on all group endpoints | Integration: Non-admin → verify 403 Forbidden |
+| **Story 5.20: KB Permission Management** |
+| AC-5.20.1 | FR6, FR7 | Detailed Design → Frontend Routes (Story 5.20) | KBPermissionsTab, PermissionTable components | E2E: View KB → click Permissions tab → verify user/group tables |
+| AC-5.20.2 | FR6, FR7 | Detailed Design → APIs (Story 5.20) | AddPermissionModal, POST `/kb/{id}/permissions` | Unit: Add permission → verify entity picker, level dropdown |
+| AC-5.20.3 | FR6, FR7, FR56 | Detailed Design → APIs (Story 5.20) | Permission edit/delete, AuditService | Integration: Edit/remove permission → verify changes, audit logged |
+| AC-5.20.4 | FR6, FR7 | Detailed Design → Services (KBPermissionService) | Effective permissions display, group inheritance | Integration: User in group with KB access → verify "via [Group]" indicator |
+| AC-5.20.5 | FR6, FR7 | Detailed Design → APIs (Story 5.20) | POST endpoint accepts user_id XOR group_id | Integration: POST with both → verify 400, POST with one → verify success |
+| AC-5.20.6 | FR6, FR7 | Detailed Design → Frontend Routes (Story 5.20) | KB detail navigation includes Permissions tab | E2E: View KB detail → verify Permissions tab visible to admins |
+| **Story 5.21: Theme System** |
+| AC-5.21.1 | N/A (UX Polish) | Detailed Design → Data Models (Theme Type) | globals.css with 5 theme classes, CSS variables | Manual: Apply each theme → verify consistent styling |
+| AC-5.21.2 | N/A (UX Polish) | Detailed Design → Frontend Routes | ThemeSelector in user-menu.tsx, DropdownMenuSub | Unit: Open user menu → verify theme submenu with 5 options |
+| AC-5.21.3 | N/A (UX Polish) | Detailed Design → Services (ThemeStore) | Zustand store with persist middleware | Unit: Select theme → refresh page → verify theme preserved |
+| AC-5.21.4 | N/A (UX Polish) | NFR Performance (Theme System) | All shadcn/ui components using CSS variables | E2E: Apply each theme → verify no mismatched colors in UI |
+| **Story 5.25: Document Chunk Viewer - Backend API** |
+| AC-5.25.1 | FR8c (Citations) | Detailed Design → Services (ChunkService) | ChunkService.get_document_chunks(), GET `/documents/{id}/chunks` | Integration: Upload doc → process → GET chunks → verify metadata (chunk_index, char_start, char_end, page_number) |
+| AC-5.25.2 | FR8c (Citations) | Detailed Design → APIs (Documents) | ChunkService search filtering, case-insensitive | Integration: GET chunks?search=keyword → verify only matching chunks returned |
+| AC-5.25.3 | FR8c (Citations) | Detailed Design → APIs (Documents) | ChunkService pagination, skip/limit params | Integration: GET chunks?skip=0&limit=50 → verify pagination with 500+ chunks |
+| AC-5.25.4 | FR8c (Citations) | Detailed Design → APIs (Documents) | GET `/documents/{id}/content`, MinIO streaming | Integration: GET content → verify binary integrity, correct Content-Type |
+| AC-5.25.5 | FR8c (Citations) | Detailed Design → Services (DocumentService) | mammoth DOCX→HTML conversion | Integration: GET content?format=html → verify valid HTML structure |
+| AC-5.25.6 | FR7 (Permissions) | NFR Security (KB Permissions) | KB READ permission check on chunk/content endpoints | Integration: Non-member GET chunks → verify 403; missing doc → 404 |
+| **Story 5.26: Document Chunk Viewer - Frontend UI** |
+| AC-5.26.1 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | DocumentDetailModal tabs, "View & Chunks" tab | E2E: Open document → click "View & Chunks" tab → verify viewer loads |
+| AC-5.26.2 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | react-resizable-panels, DocumentChunkViewer | Unit: Render viewer → verify 60/40 split-pane, resize handle |
+| AC-5.26.3 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | ChunkSidebar with search, count, virtual scroll | Unit: Render sidebar → verify search box, count, scrollable list |
+| AC-5.26.4 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | ChunkItem expand/collapse behavior | Unit: Click chunk → verify full text; click collapse → verify 3-line preview |
+| AC-5.26.5 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | useDebounce for search input, 300ms delay | Unit: Type in search → verify 300ms debounce before filter |
+| AC-5.26.6 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | PDFViewer with react-pdf, page navigation, text layer | E2E: View PDF → select chunk → verify page scroll and highlight |
+| AC-5.26.7 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | DOCXViewer with docx-preview, paragraph highlighting | E2E: View DOCX → select chunk → verify paragraph highlight |
+| AC-5.26.8 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | MarkdownViewer with react-markdown, char highlighting | E2E: View MD → select chunk → verify character range highlight |
+| AC-5.26.9 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | TextViewer with pre-formatted display, char highlighting | E2E: View TXT → select chunk → verify character range highlight |
+| AC-5.26.10 | FR8c (Citations) | Detailed Design → Frontend Routes (Story 5.26) | Loading skeletons, error states, empty states | Unit: Test loading/error/empty states → verify appropriate UI |
 | **Cross-Cutting Criteria** |
 | AC-X.1 | FR47-52 | NFR Security (Admin Access Control) | All `/api/v1/admin/*` endpoints, `require_admin` dependency | Integration: Non-admin GET any admin endpoint → verify 403 |
 | AC-X.2 | FR8a-c | System Architecture Alignment | All Epic 5 features inherit citation-first architecture | E2E: Search → Generate → verify citations in draft |
@@ -1051,6 +1602,34 @@ This table traces each Acceptance Criterion back to PRD Functional Requirements,
   - Never show wizard to users with `onboarding_completed=true`
   - Consider user feedback for future iterations
 
+**RISK-5.7: Group Permission Inheritance May Create Complex Authorization Scenarios**
+- **Description**: When users belong to multiple groups with different permission levels for the same KB, determining effective permission may be complex.
+- **Likelihood**: Medium
+- **Impact**: Medium (could lead to unexpected access or denial)
+- **Mitigation**:
+  - Implement "highest permission wins" rule for group inheritance
+  - Direct user permissions always override group permissions
+  - Display "via [Group Name]" indicator for inherited permissions (AC-5.20.4)
+  - Log all permission checks for debugging
+
+**RISK-5.8: User Management Self-Deactivation Prevention May Be Bypassed**
+- **Description**: Admin could attempt to deactivate their own account through API directly, bypassing UI protection.
+- **Likelihood**: Low
+- **Impact**: Medium (admin locked out)
+- **Mitigation**:
+  - Implement server-side check preventing self-deactivation
+  - Return 400 error with clear message if attempted
+  - UI also prevents this action (AC-5.18.3)
+
+**RISK-5.9: Theme CSS Variables May Not Cover All Components**
+- **Description**: Some third-party or custom components may not use CSS variables, causing color mismatches with theme changes.
+- **Likelihood**: Low
+- **Impact**: Low (visual inconsistency)
+- **Mitigation**:
+  - Audit all components during Story 5.21 implementation
+  - Document any components requiring manual theming
+  - Test all themes against all pages before marking complete
+
 ### Assumptions
 
 **ASSUMPTION-5.1: Epic 3 & 4 Backend Services Are Production-Ready**
@@ -1087,6 +1666,26 @@ This table traces each Acceptance Criterion back to PRD Functional Requirements,
 - Smart KB suggestions (Story 5.8) use simple scoring (recent_access_count, search_relevance, shared_access) rather than ML-based recommendations.
 - Validation: User feedback on recommendation quality.
 - Fallback: Enhance algorithm in future epic if recommendations are poor.
+
+**ASSUMPTION-5.8: Backend User Management Endpoints Already Exist**
+- Story 5.18 assumes backend user management endpoints (GET/POST/PATCH `/api/v1/admin/users`) were implemented in Story 1.6.
+- Validation: Verify endpoints exist and match expected request/response schemas.
+- Fallback: Create missing endpoints as sub-tasks of Story 5.18.
+
+**ASSUMPTION-5.9: Group-Based Permissions Use Highest Permission Wins**
+- When a user belongs to multiple groups with different KB permissions, the highest permission level applies.
+- Validation: Test multi-group scenarios during Story 5.20.
+- Fallback: Document behavior clearly; refine if user feedback indicates confusion.
+
+**ASSUMPTION-5.10: Theme System Uses Client-Side Only Storage**
+- Theme preferences stored in localStorage (not synced to server).
+- Validation: Verify theme persists across sessions.
+- Fallback: Add server-side user preference storage if cross-device sync is needed.
+
+**ASSUMPTION-5.11: Story 5.21 Theme System Is Already Complete**
+- Story 5.21 is marked DONE in epics.md, indicating implementation is complete.
+- Validation: Verify all ACs are satisfied by existing code.
+- Impact: If not complete, add remaining work to sprint backlog.
 
 ### Open Questions
 
@@ -1154,6 +1753,33 @@ This table traces each Acceptance Criterion back to PRD Functional Requirements,
   - Option C: Delete logs older than 1 year
 - **Recommendation**: Defer to future epic. Document in admin documentation that logs are retained indefinitely for MVP.
 
+**QUESTION-5.8: Should Group Management Support Nested Groups?**
+- **Context**: Story 5.19 creates flat groups. Should groups be nestable (group can contain groups)?
+- **Impact**: High (significantly increases complexity)
+- **Decision Needed By**: Story 5.19 planning
+- **Options**:
+  - Option A: Flat groups only (simpler, covers 80% use cases)
+  - Option B: Nested groups with inheritance
+- **Recommendation**: Option A for MVP. Nested groups add significant complexity; revisit in future if enterprise customers require it.
+
+**QUESTION-5.9: Should KB Permissions Support Time-Based Expiration?**
+- **Context**: Story 5.20 creates persistent KB permissions. Should permissions support expiration dates (e.g., contractor access)?
+- **Impact**: Medium (adds UI and backend complexity)
+- **Decision Needed By**: Story 5.20 planning
+- **Options**:
+  - Option A: No expiration (simpler, admin manually revokes)
+  - Option B: Optional expiration date field
+- **Recommendation**: Option A for MVP. Document that admin must manually revoke temporary access.
+
+**QUESTION-5.10: How Many Themes Are Sufficient for Story 5.21?**
+- **Context**: Story 5.21 adds Light Blue and Dark Navy themes. Should more themes be added?
+- **Impact**: Low (UX polish)
+- **Decision Needed By**: Story 5.21 implementation
+- **Options**:
+  - Option A: 5 themes (Light, Dark, Light Blue, Dark Navy, System) as specified
+  - Option B: Allow user-customizable themes (advanced feature)
+- **Recommendation**: Option A. 5 themes provide variety without overwhelming users. User-customizable themes deferred to future.
+
 ## Test Strategy Summary
 
 Epic 5 employs a comprehensive testing strategy across unit, integration, and E2E test levels. The strategy emphasizes transitioning existing ATDD tests to green (Stories 5.12, 5.15), establishing Docker-based E2E infrastructure (Story 5.16), and ensuring new admin/user features have adequate test coverage.
@@ -1162,10 +1788,10 @@ Epic 5 employs a comprehensive testing strategy across unit, integration, and E2
 
 | Test Level | Framework | Target Coverage | Stories |
 |------------|-----------|----------------|---------|
-| **Unit Tests** | pytest (backend), vitest (frontend) | ≥90% for new code | 5.1-5.11 |
-| **Integration Tests** | pytest + httpx (backend), vitest + RTL (frontend) | 100% of ACs covered | 5.1-5.9, 5.12, 5.14, 5.15 |
-| **E2E Tests** | Playwright + Docker Compose | 15-20 critical user journeys | 5.0, 5.16 |
-| **Manual Tests** | Smoke tests, exploratory testing | Story 5.0 smoke tests (4 journeys) | 5.0 |
+| **Unit Tests** | pytest (backend), vitest (frontend) | ≥90% for new code | 5.1-5.11, 5.18-5.21 |
+| **Integration Tests** | pytest + httpx (backend), vitest + RTL (frontend) | 100% of ACs covered | 5.1-5.9, 5.12, 5.14, 5.15, 5.18-5.20 |
+| **E2E Tests** | Playwright + Docker Compose | 15-20 critical user journeys | 5.0, 5.16, 5.18-5.20 |
+| **Manual Tests** | Smoke tests, exploratory testing | Story 5.0 smoke tests (4 journeys), theme verification | 5.0, 5.21 |
 
 ---
 
@@ -1497,6 +2123,253 @@ Epic 5 employs a comprehensive testing strategy across unit, integration, and E2
 
 ---
 
+#### **Story 5.18: User Management UI**
+
+**Test Approach**: Unit + Integration + E2E testing
+
+**Unit Tests** (Backend):
+- `test_user_management.py`:
+  - `test_list_users_paginated()` → Verify pagination, sorting, filtering
+  - `test_create_user_validation()` → Verify email, password validation
+  - `test_prevent_self_deactivation()` → Verify 400 error for self-deactivation
+  - `test_admin_only_access()` → Verify 403 for non-admin users
+
+**Unit Tests** (Frontend):
+- `user-table.test.tsx`:
+  - Render with mock users → Verify columns, sorting, filtering
+  - Click edit → Verify modal opens with user data
+- `create-user-modal.test.tsx`:
+  - Submit valid form → Verify API call, success toast
+  - Submit invalid form → Verify inline validation errors
+- `edit-user-modal.test.tsx`:
+  - Toggle status → Verify API call, optimistic UI update
+  - Edit own account → Verify deactivation warning
+
+**Integration Tests**:
+- `test_user_management_api.py`:
+  - POST `/api/v1/admin/users` with valid data → Verify 201, user created
+  - PATCH `/api/v1/admin/users/{id}` → Verify status/role updated
+  - Non-admin user → Verify 403 Forbidden
+
+**E2E Tests**:
+- `admin-users.spec.ts`:
+  - Login as admin → Navigate to `/admin/users` → Verify user list
+  - Create new user → Verify appears in list
+  - Edit user status → Verify toggle works
+
+**Acceptance**:
+- All unit tests pass (≥90% coverage)
+- Integration tests cover all ACs
+- E2E tests verify happy path
+
+---
+
+#### **Story 5.19: Group Management**
+
+**Test Approach**: Unit + Integration + E2E testing
+
+**Unit Tests** (Backend):
+- `test_group_service.py`:
+  - `test_create_group()` → Verify group created, member count initialized
+  - `test_update_group()` → Verify name/description update
+  - `test_unique_group_name()` → Verify 400 for duplicate names
+  - `test_add_remove_members()` → Verify membership operations
+  - `test_soft_delete_group()` → Verify is_active=false, not hard deleted
+
+**Unit Tests** (Frontend):
+- `group-table.test.tsx`:
+  - Render with mock groups → Verify columns, member count
+  - Click row → Verify member list expands
+- `group-modal.test.tsx`:
+  - Submit valid form → Verify API call
+  - Duplicate name → Verify validation error
+- `group-membership-modal.test.tsx`:
+  - Add member → Verify user added to list
+  - Remove member → Verify user removed from list
+
+**Integration Tests**:
+- `test_group_api.py`:
+  - POST `/api/v1/admin/groups` → Verify 201, group created
+  - POST `/api/v1/admin/groups/{id}/members` → Verify members added
+  - DELETE `/api/v1/admin/groups/{id}/members/{user_id}` → Verify member removed
+  - Non-admin user → Verify 403 Forbidden
+
+**E2E Tests**:
+- `admin-groups.spec.ts`:
+  - Login as admin → Navigate to `/admin/groups` → Verify group list
+  - Create group → Add members → Verify member count updates
+
+**Acceptance**:
+- All unit tests pass (≥90% coverage)
+- Migration creates tables correctly
+- All ACs covered by tests
+
+---
+
+#### **Story 5.20: KB Permission Management UI**
+
+**Test Approach**: Unit + Integration + E2E testing
+
+**Unit Tests** (Backend):
+- `test_kb_permission_service.py`:
+  - `test_add_user_permission()` → Verify direct permission created
+  - `test_add_group_permission()` → Verify group permission created
+  - `test_effective_permissions()` → Verify group inheritance logic
+  - `test_highest_permission_wins()` → Verify multi-group resolution
+  - `test_direct_overrides_group()` → Verify direct permissions take precedence
+  - `test_prevent_duplicate()` → Verify 400 for duplicate permission
+
+**Unit Tests** (Frontend):
+- `kb-permissions-tab.test.tsx`:
+  - Render with mock permissions → Verify user/group tables
+  - Verify "via [Group Name]" indicator for inherited permissions
+- `add-permission-modal.test.tsx`:
+  - Select user → Verify user picker works
+  - Select group → Verify group dropdown works
+  - Duplicate permission → Verify validation error
+
+**Integration Tests**:
+- `test_kb_permission_api.py`:
+  - POST `/kb/{id}/permissions` with user_id → Verify user permission created
+  - POST `/kb/{id}/permissions` with group_id → Verify group permission created
+  - POST with both user_id and group_id → Verify 400 error
+  - GET permissions → Verify both user and group permissions returned
+  - Permission check for user in group → Verify access granted
+
+**E2E Tests**:
+- `kb-permissions.spec.ts`:
+  - Admin views KB → Clicks Permissions tab → Verifies tables
+  - Add user permission → Verify appears in table
+  - Add group permission → Verify appears in table
+
+**Acceptance**:
+- All unit tests pass (≥90% coverage)
+- Group permission inheritance works correctly
+- All ACs covered by tests
+
+---
+
+#### **Story 5.21: Theme System**
+
+**Test Approach**: Unit + Manual testing
+
+**Unit Tests** (Frontend):
+- `theme-selector.test.tsx`:
+  - Render submenu → Verify 5 theme options
+  - Click theme → Verify theme applied immediately
+  - Verify checkmark on current theme
+- `theme-store.test.ts`:
+  - Select theme → Verify localStorage persisted
+  - Refresh page → Verify theme hydrated from localStorage
+  - System theme → Verify follows OS preference
+
+**Manual Tests**:
+- Apply each theme → Verify all components styled correctly
+- Check all pages → Verify no white/mismatched boxes
+- Test contrast → Verify text readable on all backgrounds
+
+**Accessibility Tests**:
+- Run axe-core on each theme → Verify WCAG color contrast requirements met
+
+**Acceptance**:
+- All unit tests pass
+- Manual verification of all 5 themes
+- No color contrast violations
+
+---
+
+#### **Story 5.25: Document Chunk Viewer - Backend API**
+
+**Test Approach**: Unit + Integration testing
+
+**Unit Tests** (Backend):
+- `test_chunk_service.py`:
+  - `test_get_document_chunks()` → Query Qdrant, verify chunk structure
+  - `test_search_filter()` → Verify case-insensitive text filtering
+  - `test_pagination()` → Verify skip/limit logic with large datasets
+  - `test_sort_by_chunk_index()` → Verify chunks sorted correctly
+- `test_chunk_schemas.py`:
+  - Validate `DocumentChunk` schema with all fields
+  - Validate `DocumentChunksResponse` schema
+
+**Integration Tests**:
+- `test_document_chunks_api.py`:
+  - GET `/documents/{id}/chunks` → Verify chunk metadata returned
+  - GET with `?search=keyword` → Verify filtering works
+  - GET with `?skip=0&limit=50` → Verify pagination
+  - Non-member user → Verify 403 Forbidden
+  - Missing document → Verify 404 Not Found
+- `test_document_content_api.py`:
+  - GET `/documents/{id}/content` for PDF → Verify binary streaming
+  - GET `/documents/{id}/content` for DOCX → Verify binary streaming
+  - GET `/documents/{id}/content` for MD/TXT → Verify text streaming
+  - GET with `?format=html` for DOCX → Verify HTML conversion
+
+**Acceptance**:
+- All 5 unit tests pass
+- All 9 integration tests pass
+- No Ruff linting errors
+
+---
+
+#### **Story 5.26: Document Chunk Viewer - Frontend UI**
+
+**Test Approach**: Unit + E2E testing
+
+**Unit Tests** (Frontend):
+- `document-chunk-viewer.test.tsx`:
+  - Render split-pane layout → Verify 60/40 panels
+  - Resize panels → Verify resize handle works
+  - Test responsive stacking on mobile viewport
+- `chunk-sidebar.test.tsx`:
+  - Render search box → Verify input accepts text
+  - Render chunk count → Verify correct count displayed
+  - Test virtual scroll → Verify smooth scroll with 1000 items
+- `chunk-item.test.tsx`:
+  - Collapsed state → Verify 3-line preview with ellipsis
+  - Expanded state → Verify full text displayed
+  - Click expand/collapse → Verify toggle behavior
+  - Accordion behavior → Verify only one expanded at a time
+- `search-debounce.test.tsx`:
+  - Type in search → Verify 300ms debounce delay
+- `pdf-viewer.test.tsx`:
+  - Render PDF document → Verify react-pdf canvas
+  - Page navigation → Verify prev/next buttons
+  - Highlight on chunk select → Verify text layer highlight
+- `docx-viewer.test.tsx`:
+  - Render DOCX document → Verify docx-preview output
+  - Highlight paragraph on chunk select
+- `markdown-viewer.test.tsx`:
+  - Render Markdown → Verify react-markdown output
+  - Highlight character range on chunk select
+- `text-viewer.test.tsx`:
+  - Render plain text → Verify pre-formatted display
+  - Highlight character range on chunk select
+- `use-document-chunks.test.tsx`:
+  - Hook fetches chunks → Verify React Query behavior
+  - Hook filters by search → Verify filtering logic
+- `use-document-content.test.tsx`:
+  - Hook fetches blob → Verify blob URL created
+  - Hook cleans up → Verify blob URL revoked on unmount
+- `loading-error-empty-states.test.tsx`:
+  - Loading state → Verify skeleton displayed
+  - Error state → Verify error message with retry button
+  - Empty state → Verify "no chunks" message
+
+**E2E Tests**:
+- `document-chunk-viewer.spec.ts`:
+  - Upload PDF → View chunks → Click chunk → Verify page highlight
+  - Upload DOCX → View chunks → Click chunk → Verify paragraph highlight
+  - Open viewer → Search chunks → Verify filtered results
+  - Click chunk → Expand → Click collapse → Verify toggle
+
+**Acceptance**:
+- All 28 unit tests pass (≥90% coverage)
+- All 4 E2E tests pass
+- Virtual scroll performs smoothly with 1000+ chunks
+
+---
+
 ### Test Execution Plan
 
 #### **Phase 1: New Feature Tests (Stories 5.1-5.9)**
@@ -1518,6 +2391,21 @@ Epic 5 employs a comprehensive testing strategy across unit, integration, and E2
 - **Duration**: 3-4 days
 - **Approach**: Build docker-compose.e2e.yml, seed data, write E2E tests, integrate with CI
 - **Acceptance**: 15-20 E2E tests pass in CI, tests run on every PR
+
+#### **Phase 5: User & Group Management Tests (Stories 5.18-5.20)**
+- **Duration**: Parallel with story implementation (2-4 days per story)
+- **Approach**: TDD for backend services, component tests for frontend
+- **Acceptance**: All ACs covered by tests, group permission inheritance verified
+
+#### **Phase 6: Theme System Verification (Story 5.21)**
+- **Duration**: 0.5 days (already DONE, verification only)
+- **Approach**: Verify existing implementation, add missing unit tests if needed
+- **Acceptance**: Theme selector works, localStorage persistence works, no color mismatches
+
+#### **Phase 7: Document Chunk Viewer (Stories 5.25-5.26)**
+- **Duration**: 3-4 days (Story 5.25: 1 day, Story 5.26: 2-3 days)
+- **Approach**: Backend-first development, then frontend implementation
+- **Acceptance**: All 14 backend tests pass, all 32 frontend tests pass, E2E viewer workflows functional
 
 ---
 
@@ -1576,10 +2464,11 @@ jobs:
 ### Success Criteria
 
 **Epic 5 Test Strategy Success** requires:
-1. ✅ All 93 acceptance criteria have corresponding tests (unit, integration, or E2E)
+1. ✅ All 109 acceptance criteria have corresponding tests (unit, integration, or E2E) — updated from 93 with Stories 5.25-5.26
 2. ✅ All 78 ATDD tests (31 Epic 3 + 47 Epic 4) transition to green (0 skipped/xfail)
 3. ✅ 15-20 E2E tests pass in Docker-based CI/CD environment
 4. ✅ Test coverage ≥90% for all new Epic 5 code
 5. ✅ All accessibility tests pass (WCAG 2.1 AA compliance)
 6. ✅ CI/CD pipeline runs all tests on every PR, blocks merge on failure
 7. ✅ No critical bugs found during test transition (or bugs documented as hotfixes)
+8. ✅ Document Chunk Viewer: 14 backend tests + 32 frontend tests pass (Stories 5.25-5.26)

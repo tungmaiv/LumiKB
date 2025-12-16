@@ -1,9 +1,10 @@
 /**
  * Draft Selection Panel Tests (Story 3.8)
+ * Updated for Epic 4 (Story 4.4) - GenerationModal integration
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DraftSelectionPanel } from '../draft-selection-panel';
 import { useDraftStore, type DraftResult } from '@/lib/stores/draft-store';
 import { toast } from 'sonner';
@@ -12,20 +13,31 @@ import { toast } from 'sonner';
 vi.mock('@/lib/stores/draft-store');
 vi.mock('sonner');
 
-// Mock store type
-type MockDraftStore = {
-  selectedResults: DraftResult[];
-  clearAll: () => void;
-};
+// Mock GenerationModal to avoid complex dependency chain
+vi.mock('@/components/chat/generation-modal', () => ({
+  GenerationModal: ({ open }: { open: boolean }) => (
+    open ? <div data-testid="generation-modal">Modal Open</div> : null
+  ),
+}));
+
+// Mock API call
+vi.mock('@/lib/api/generation', () => ({
+  generateDocument: vi.fn(),
+}));
+
+// Cast useDraftStore to mockable function
+const mockUseDraftStore = useDraftStore as unknown as ReturnType<typeof vi.fn>;
 
 describe('DraftSelectionPanel', () => {
+  const defaultKbId = 'kb-test-1';
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders when there are selected results', () => {
     // Arrange
-    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
+    mockUseDraftStore.mockReturnValue({
       selectedResults: [
         {
           chunkId: '1',
@@ -41,7 +53,7 @@ describe('DraftSelectionPanel', () => {
     });
 
     // Act
-    render(<DraftSelectionPanel />);
+    render(<DraftSelectionPanel kbId={defaultKbId} />);
 
     // Assert
     expect(screen.getByTestId('draft-selection-panel')).toBeInTheDocument();
@@ -50,13 +62,13 @@ describe('DraftSelectionPanel', () => {
 
   it('hides when there are no selected results', () => {
     // Arrange
-    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
+    mockUseDraftStore.mockReturnValue({
       selectedResults: [],
       clearAll: vi.fn(),
     });
 
     // Act
-    const { container } = render(<DraftSelectionPanel />);
+    const { container } = render(<DraftSelectionPanel kbId={defaultKbId} />);
 
     // Assert
     expect(container.firstChild).toBeNull();
@@ -64,17 +76,17 @@ describe('DraftSelectionPanel', () => {
 
   it('displays correct count for multiple results', () => {
     // Arrange
-    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
+    mockUseDraftStore.mockReturnValue({
       selectedResults: [
-        { chunkId: '1', documentName: 'Doc 1' /* other fields */ },
-        { chunkId: '2', documentName: 'Doc 2' /* other fields */ },
-        { chunkId: '3', documentName: 'Doc 3' /* other fields */ },
-      ],
+        { chunkId: '1', documentName: 'Doc 1' },
+        { chunkId: '2', documentName: 'Doc 2' },
+        { chunkId: '3', documentName: 'Doc 3' },
+      ] as DraftResult[],
       clearAll: vi.fn(),
     });
 
     // Act
-    render(<DraftSelectionPanel />);
+    render(<DraftSelectionPanel kbId={defaultKbId} />);
 
     // Assert
     expect(screen.getByText(/3 results selected for draft/i)).toBeInTheDocument();
@@ -83,13 +95,13 @@ describe('DraftSelectionPanel', () => {
   it('calls clearAll when Clear All button clicked', () => {
     // Arrange
     const clearAllMock = vi.fn();
-    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
-      selectedResults: [{ chunkId: '1' /* other fields */ }],
+    mockUseDraftStore.mockReturnValue({
+      selectedResults: [{ chunkId: '1' }] as DraftResult[],
       clearAll: clearAllMock,
     });
 
     // Act
-    render(<DraftSelectionPanel />);
+    render(<DraftSelectionPanel kbId={defaultKbId} />);
     const clearButton = screen.getByRole('button', { name: /clear all/i });
     fireEvent.click(clearButton);
 
@@ -98,24 +110,19 @@ describe('DraftSelectionPanel', () => {
     expect(toast.success).toHaveBeenCalledWith('Draft selections cleared', expect.any(Object));
   });
 
-  it('shows placeholder toast when Start Draft clicked', () => {
+  it('opens generation modal when Start Draft clicked (Epic 4 integration)', () => {
     // Arrange
-    (useDraftStore as unknown as Mock<[], MockDraftStore>).mockReturnValue({
-      selectedResults: [{ chunkId: '1' /* other fields */ }],
+    mockUseDraftStore.mockReturnValue({
+      selectedResults: [{ chunkId: '1' }] as DraftResult[],
       clearAll: vi.fn(),
     });
 
     // Act
-    render(<DraftSelectionPanel />);
+    render(<DraftSelectionPanel kbId={defaultKbId} />);
     const startButton = screen.getByRole('button', { name: /start draft/i });
     fireEvent.click(startButton);
 
-    // Assert
-    expect(toast.info).toHaveBeenCalledWith(
-      'Draft generation coming in Epic 4!',
-      expect.objectContaining({
-        duration: 4000,
-      })
-    );
+    // Assert - Modal should now be open
+    expect(screen.getByTestId('generation-modal')).toBeInTheDocument();
   });
 });

@@ -1,0 +1,15 @@
+# Grafana Data Source Provisioning
+# Story 7.5: Monitoring and Observability (AC-7.5.2)
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST

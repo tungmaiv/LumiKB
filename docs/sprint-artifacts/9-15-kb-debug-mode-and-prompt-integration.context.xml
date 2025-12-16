@@ -1,0 +1,801 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-15" title="KB Debug Mode &amp; Prompt Configuration Integration" generated="2025-12-16">
+
+  <!-- ============================================================== -->
+  <!-- STORY OVERVIEW -->
+  <!-- ============================================================== -->
+  <story-overview>
+    <epic>Epic 9: Hybrid Observability Platform</epic>
+    <points>8</points>
+    <priority>P1</priority>
+    <status>drafted</status>
+
+    <summary>
+      Add debug_mode field to KB Settings that enables RAG pipeline telemetry in chat responses.
+      Fix the bug where KB-level prompt configuration (system_prompt, citation_style,
+      response_language, uncertainty_handling) is stored but IGNORED during chat generation.
+    </summary>
+
+    <business-value>
+      - Fix bug: KB prompt config currently stored but not applied
+      - Enable per-KB troubleshooting without admin dashboard access
+      - Provide transparency into how answers are generated
+      - Support data-driven parameter optimization
+    </business-value>
+  </story-overview>
+
+  <!-- ============================================================== -->
+  <!-- ACCEPTANCE CRITERIA -->
+  <!-- ============================================================== -->
+  <acceptance-criteria>
+    <group name="Schema &amp; Configuration">
+      <ac id="AC-9.15.1">debug_mode: bool = False field exists in KBSettings schema</ac>
+      <ac id="AC-9.15.2">KB Settings UI (General Panel) includes "Debug Mode" checkbox</ac>
+      <ac id="AC-9.15.3">Architecture docs updated with debug_mode field documentation</ac>
+    </group>
+
+    <group name="KB Prompt Configuration Integration">
+      <ac id="AC-9.15.4">ConversationService._build_prompt() uses KB system_prompt instead of hardcoded constant</ac>
+      <ac id="AC-9.15.5">System prompt supports variable interpolation: {kb_name}, {context}, {query}</ac>
+      <ac id="AC-9.15.6">If KB system_prompt is empty, fallback to system default (DEFAULT_SYSTEM_PROMPT)</ac>
+      <ac id="AC-9.15.7">citation_style affects LLM instruction in system prompt (inline/footnote/none)</ac>
+      <ac id="AC-9.15.8">response_language instruction appended to system prompt when not "en"</ac>
+      <ac id="AC-9.15.9">uncertainty_handling affects LLM behavior when confidence is low</ac>
+    </group>
+
+    <group name="Debug Mode Output">
+      <ac id="AC-9.15.10">When debug_mode=true, streaming response includes type: "debug" SSE event</ac>
+      <ac id="AC-9.15.11">Debug event contains: kb_params, chunks_retrieved, timing</ac>
+      <ac id="AC-9.15.12">Debug event emitted BEFORE first token event in stream</ac>
+      <ac id="AC-9.15.13">Non-streaming send_message() includes debug_info in response when enabled</ac>
+    </group>
+
+    <group name="Frontend Debug Display">
+      <ac id="AC-9.15.14">Chat UI shows collapsible "Debug Info" panel when debug data received</ac>
+      <ac id="AC-9.15.15">Debug panel shows KB parameters in formatted table</ac>
+      <ac id="AC-9.15.16">Debug panel shows retrieved chunks with similarity scores (expandable)</ac>
+      <ac id="AC-9.15.17">Debug panel shows timing breakdown (retrieval_ms, context_assembly_ms)</ac>
+      <ac id="AC-9.15.18">Debug info only visible to users with KB admin/edit permissions</ac>
+    </group>
+
+    <group name="Testing">
+      <ac id="AC-9.15.19">Unit tests for KB prompt config resolution in ConversationService</ac>
+      <ac id="AC-9.15.20">Unit tests for debug_mode event generation</ac>
+      <ac id="AC-9.15.21">Integration test: KB with custom system_prompt produces different response</ac>
+      <ac id="AC-9.15.22">Integration test: debug_mode=true returns debug events in stream</ac>
+      <ac id="AC-9.15.23">E2E test: Debug panel renders when debug data received</ac>
+    </group>
+  </acceptance-criteria>
+
+  <!-- ============================================================== -->
+  <!-- PRD REQUIREMENTS TRACEABILITY -->
+  <!-- ============================================================== -->
+  <prd-traceability>
+    <requirement id="FR126" description="Debug mode field in KB settings" acs="AC-9.15.1, AC-9.15.2"/>
+    <requirement id="FR127" description="Debug event includes kb_params" acs="AC-9.15.11"/>
+    <requirement id="FR128" description="Debug event includes chunks_retrieved" acs="AC-9.15.11"/>
+    <requirement id="FR129" description="Debug event includes timing" acs="AC-9.15.11"/>
+    <requirement id="FR130" description="Permission check for debug display" acs="AC-9.15.18"/>
+    <requirement id="FR103a" description="KB system_prompt used in _build_prompt()" acs="AC-9.15.4"/>
+    <requirement id="FR103b" description="citation_style instruction in prompt" acs="AC-9.15.7"/>
+    <requirement id="FR103c" description="response_language instruction in prompt" acs="AC-9.15.8"/>
+    <requirement id="FR103d" description="uncertainty_handling instruction in prompt" acs="AC-9.15.9"/>
+  </prd-traceability>
+
+  <!-- ============================================================== -->
+  <!-- CORE BUG TO FIX -->
+  <!-- ============================================================== -->
+  <bug-analysis>
+    <title>KB Prompt Configuration Ignored</title>
+    <description>
+      The ConversationService uses a hardcoded CHAT_SYSTEM_PROMPT constant instead of
+      calling KBConfigResolver.get_kb_system_prompt(). The KBPromptConfig fields
+      (system_prompt, citation_style, response_language, uncertainty_handling) are
+      stored in KB settings but never applied during chat generation.
+    </description>
+
+    <root-cause>
+      In conversation_service.py line 660, _build_prompt() hardcodes:
+      messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+
+      The method get_kb_system_prompt() exists in kb_config_resolver.py (lines 264-283)
+      but is NEVER called.
+    </root-cause>
+
+    <fix-approach>
+      1. Remove hardcoded CHAT_SYSTEM_PROMPT constant (lines 37-53)
+      2. Modify _build_prompt() to accept KBPromptConfig parameter
+      3. Call self._kb_config_resolver.get_kb_system_prompt() or resolve full prompt config
+      4. Apply citation_style, response_language, uncertainty_handling as prompt instructions
+    </fix-approach>
+  </bug-analysis>
+
+  <!-- ============================================================== -->
+  <!-- SOURCE FILES TO MODIFY -->
+  <!-- ============================================================== -->
+  <source-files>
+
+    <file path="backend/app/schemas/kb_settings.py" action="MODIFY" priority="1">
+      <description>Add debug_mode field to KBSettings schema</description>
+      <current-state>
+        KBSettings class (lines 239-266) aggregates all sub-configs but is MISSING debug_mode field.
+        KBPromptConfig (lines 144-155) already has: system_prompt, citation_style,
+        uncertainty_handling, response_language fields.
+      </current-state>
+      <change-required>
+        Add to KBSettings class after line 264:
+        ```python
+        debug_mode: bool = Field(
+            default=False,
+            description="When enabled, chat responses include RAG pipeline telemetry"
+        )
+        ```
+      </change-required>
+      <related-acs>AC-9.15.1</related-acs>
+    </file>
+
+    <file path="backend/app/services/conversation_service.py" action="MODIFY" priority="1">
+      <description>Replace hardcoded prompt with KB-resolved prompt, add debug event emission</description>
+      <current-state>
+        - Lines 37-53: Hardcoded CHAT_SYSTEM_PROMPT constant
+        - Line 660: _build_prompt() uses hardcoded prompt: messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+        - Has _kb_config_resolver attribute but doesn't call get_kb_system_prompt()
+        - _build_prompt() signature: def _build_prompt(self, history, message, chunks)
+      </current-state>
+      <changes-required>
+        1. Remove CHAT_SYSTEM_PROMPT constant (lines 37-53)
+        2. Import DEFAULT_SYSTEM_PROMPT from kb_config_resolver
+        3. Modify _build_prompt() signature to accept kb_prompt_config: KBPromptConfig
+        4. Resolve KB system prompt with fallback to DEFAULT_SYSTEM_PROMPT
+        5. Append citation_style instruction based on CitationStyle enum
+        6. Append response_language instruction when not "en"
+        7. Append uncertainty_handling instruction based on UncertaintyHandling enum
+        8. Add _emit_debug_event() method for SSE debug events
+        9. Collect timing data (retrieval_ms, context_assembly_ms) during RAG pipeline
+        10. Emit debug event BEFORE first token when debug_mode=true
+      </changes-required>
+      <related-acs>AC-9.15.4, AC-9.15.5, AC-9.15.6, AC-9.15.7, AC-9.15.8, AC-9.15.9, AC-9.15.10, AC-9.15.11, AC-9.15.12, AC-9.15.13</related-acs>
+    </file>
+
+    <file path="backend/app/services/kb_config_resolver.py" action="REFERENCE" priority="2">
+      <description>Reference for existing resolver methods - may need minor additions</description>
+      <current-state>
+        - DEFAULT_SYSTEM_PROMPT constant (lines 47-51)
+        - get_kb_system_prompt() method (lines 264-283) EXISTS but NOT called
+        - _get_kb_settings_cached() method for cached settings retrieval
+        - Three-layer precedence: Request params -> KB settings -> System defaults
+      </current-state>
+      <usage>
+        Call get_kb_system_prompt() from ConversationService._build_prompt().
+        May need to add resolve_prompt_config() method that returns full KBPromptConfig
+        with all fields (system_prompt, citation_style, response_language, uncertainty_handling).
+      </usage>
+    </file>
+
+    <file path="backend/app/api/v1/chat_stream.py" action="MODIFY" priority="2">
+      <description>Handle debug SSE events in streaming endpoint</description>
+      <current-state>
+        - generate_sse_events() handles: status, token, citation, retrieval_complete, done, error
+        - SSE format: yield f"data: {json.dumps(event)}\n\n"
+        - Tracks metrics: citation_count, source_doc_ids, output_word_count, confidence_score
+      </current-state>
+      <changes-required>
+        1. Handle new event type "debug" in generate_sse_events()
+        2. Pass debug_mode flag through to ConversationService
+        3. Debug event should contain: kb_params, chunks_retrieved, timing
+      </changes-required>
+      <related-acs>AC-9.15.10, AC-9.15.11, AC-9.15.12</related-acs>
+    </file>
+
+    <file path="backend/app/schemas/chat.py" action="MODIFY" priority="2">
+      <description>Add DebugInfo schema for debug event data</description>
+      <current-state>
+        - ChatRequest: kb_id, message, conversation_id (optional)
+        - ChatResponse: response, citations, conversation_id, confidence
+      </current-state>
+      <changes-required>
+        Add DebugInfo schema:
+        ```python
+        class ChunkDebugInfo(BaseModel):
+            preview: str  # First 100 chars
+            similarity_score: float
+            document_name: str
+            page_number: int | None = None
+
+        class DebugInfo(BaseModel):
+            kb_params: dict[str, Any]  # system_prompt_preview, citation_style, etc.
+            chunks_retrieved: list[ChunkDebugInfo]
+            timing: dict[str, int]  # retrieval_ms, context_assembly_ms
+        ```
+        Add debug_info: DebugInfo | None to ChatResponse for non-streaming
+      </changes-required>
+      <related-acs>AC-9.15.11, AC-9.15.13</related-acs>
+    </file>
+
+    <file path="frontend/src/components/kb/settings/general-panel.tsx" action="MODIFY" priority="3">
+      <description>Add Debug Mode checkbox to KB Settings General Panel</description>
+      <current-state>
+        - 184 lines with ChunkingSection, RetrievalSection, GenerationSection
+        - Uses handleNestedChange pattern for updating nested config fields
+        - Has reset-to-defaults patterns to follow
+      </current-state>
+      <changes-required>
+        Add Debug Mode section/checkbox:
+        ```tsx
+        // Add Debug Mode checkbox
+        <FormField label="Debug Mode">
+          <Checkbox
+            checked={settings.debug_mode ?? false}
+            onCheckedChange={(checked) =>
+              onChange({ ...settings, debug_mode: checked as boolean })
+            }
+          />
+          <FormDescription>
+            When enabled, chat responses include RAG pipeline telemetry for troubleshooting
+          </FormDescription>
+        </FormField>
+        ```
+      </changes-required>
+      <related-acs>AC-9.15.2</related-acs>
+    </file>
+
+    <file path="frontend/src/components/chat/debug-info-panel.tsx" action="CREATE" priority="3">
+      <description>New component for displaying debug info in chat</description>
+      <changes-required>
+        Create collapsible panel component:
+        - Collapsible/expandable toggle
+        - KB Parameters table (system_prompt preview, citation_style, response_language, uncertainty_handling)
+        - Retrieved chunks list with similarity scores (expandable items)
+        - Timing metrics display (retrieval_ms, context_assembly_ms)
+        - Permission check: only show for KB admin/edit users
+      </changes-required>
+      <related-acs>AC-9.15.14, AC-9.15.15, AC-9.15.16, AC-9.15.17, AC-9.15.18</related-acs>
+    </file>
+
+    <file path="frontend/src/components/chat/chat-message.tsx" action="MODIFY" priority="3">
+      <description>Integrate DebugInfoPanel into chat messages</description>
+      <current-state>
+        - 188 lines handling message display with citations
+        - Renders UserMessage and AssistantMessage components
+        - Has citation marker rendering logic
+      </current-state>
+      <changes-required>
+        - Import and conditionally render DebugInfoPanel when debug data present
+        - Pass debug info from SSE event to panel component
+        - Check user permissions before showing debug panel
+      </changes-required>
+      <related-acs>AC-9.15.14</related-acs>
+    </file>
+
+  </source-files>
+
+  <!-- ============================================================== -->
+  <!-- TEST FILES TO CREATE -->
+  <!-- ============================================================== -->
+  <test-files>
+
+    <file path="backend/tests/unit/test_conversation_prompt_config.py" action="CREATE">
+      <description>Unit tests for KB prompt config resolution in ConversationService</description>
+      <test-cases>
+        <case id="test_build_prompt_uses_kb_system_prompt">
+          Test _build_prompt() uses KB system_prompt when provided
+        </case>
+        <case id="test_build_prompt_fallback_to_default">
+          Test fallback to DEFAULT_SYSTEM_PROMPT when KB prompt empty
+        </case>
+        <case id="test_citation_style_inline_instruction">
+          Test citation_style=inline adds "[n] notation" instruction
+        </case>
+        <case id="test_citation_style_footnote_instruction">
+          Test citation_style=footnote adds footnote instruction
+        </case>
+        <case id="test_citation_style_none_no_instruction">
+          Test citation_style=none adds no citation instruction
+        </case>
+        <case id="test_response_language_non_en">
+          Test response_language != "en" adds language instruction
+        </case>
+        <case id="test_uncertainty_handling_refuse">
+          Test uncertainty_handling=refuse adds decline instruction
+        </case>
+        <case id="test_uncertainty_handling_best_effort">
+          Test uncertainty_handling=best_effort adds best effort instruction
+        </case>
+        <case id="test_variable_interpolation">
+          Test {kb_name}, {context}, {query} interpolation in system prompt
+        </case>
+      </test-cases>
+      <related-acs>AC-9.15.19</related-acs>
+    </file>
+
+    <file path="backend/tests/unit/test_debug_event_generation.py" action="CREATE">
+      <description>Unit tests for debug_mode event generation</description>
+      <test-cases>
+        <case id="test_debug_event_contains_kb_params">
+          Test debug event includes kb_params with expected fields
+        </case>
+        <case id="test_debug_event_contains_chunks">
+          Test debug event includes chunks_retrieved with scores
+        </case>
+        <case id="test_debug_event_contains_timing">
+          Test debug event includes timing metrics
+        </case>
+        <case id="test_debug_event_emitted_before_tokens">
+          Test debug event is emitted before first token event
+        </case>
+        <case id="test_no_debug_event_when_disabled">
+          Test no debug event when debug_mode=false
+        </case>
+      </test-cases>
+      <related-acs>AC-9.15.20</related-acs>
+    </file>
+
+    <file path="backend/tests/integration/test_debug_mode_integration.py" action="CREATE">
+      <description>Integration tests for debug mode flow</description>
+      <test-cases>
+        <case id="test_custom_system_prompt_affects_response">
+          Test KB with custom system_prompt produces different LLM response
+        </case>
+        <case id="test_debug_mode_returns_debug_event">
+          Test debug_mode=true returns debug SSE event in stream
+        </case>
+        <case id="test_debug_event_has_valid_chunks">
+          Test debug event contains valid chunk data with scores
+        </case>
+        <case id="test_debug_event_has_timing_metrics">
+          Test debug event contains retrieval_ms and context_assembly_ms
+        </case>
+        <case id="test_non_streaming_includes_debug_info">
+          Test non-streaming response includes debug_info when enabled
+        </case>
+      </test-cases>
+      <related-acs>AC-9.15.21, AC-9.15.22</related-acs>
+    </file>
+
+    <file path="frontend/e2e/tests/chat/debug-panel.spec.ts" action="CREATE">
+      <description>E2E tests for debug panel UI</description>
+      <test-cases>
+        <case id="test_debug_panel_renders_when_debug_enabled">
+          Test debug panel renders when KB has debug_mode enabled
+        </case>
+        <case id="test_debug_panel_shows_kb_params">
+          Test debug panel displays KB parameters correctly
+        </case>
+        <case id="test_debug_panel_shows_chunks">
+          Test debug panel shows retrieved chunks with scores
+        </case>
+        <case id="test_debug_panel_hidden_without_permission">
+          Test debug panel hidden for users without KB edit permission
+        </case>
+        <case id="test_debug_panel_collapsible">
+          Test debug panel expand/collapse functionality
+        </case>
+      </test-cases>
+      <related-acs>AC-9.15.23</related-acs>
+    </file>
+
+  </test-files>
+
+  <!-- ============================================================== -->
+  <!-- EXISTING CODE PATTERNS -->
+  <!-- ============================================================== -->
+  <code-patterns>
+
+    <pattern name="SSE Event Format" source="backend/app/api/v1/chat_stream.py">
+      <description>Server-Sent Events format for streaming responses</description>
+      <example>
+        <![CDATA[
+# Event types: status, token, citation, retrieval_complete, done, error
+# Format: yield f"data: {json.dumps(event)}\n\n"
+
+# Example events:
+{"type": "status", "content": "Searching..."}
+{"type": "token", "content": "word"}
+{"type": "citation", "data": {"index": 1, "document_id": "...", "title": "..."}}
+{"type": "retrieval_complete", "chunks_retrieved": 5}
+{"type": "done", "confidence": 0.87, "conversation_id": "conv-xxx"}
+{"type": "error", "message": "..."}
+
+# NEW debug event (to be added):
+{"type": "debug", "kb_params": {...}, "chunks_retrieved": [...], "timing": {...}}
+        ]]>
+      </example>
+    </pattern>
+
+    <pattern name="KBSettings Schema Structure" source="backend/app/schemas/kb_settings.py">
+      <description>Composite KB settings with sub-config sections</description>
+      <example>
+        <![CDATA[
+class KBSettings(BaseModel):
+    chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    reranking: RerankingConfig = Field(default_factory=RerankingConfig)
+    generation: GenerationConfig = Field(default_factory=GenerationConfig)
+    ner: NERConfig = Field(default_factory=NERConfig)
+    processing: DocumentProcessingConfig = Field(default_factory=DocumentProcessingConfig)
+    prompts: KBPromptConfig = Field(default_factory=KBPromptConfig)
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    preset: str | None = Field(default=None)
+    # ADD: debug_mode: bool = Field(default=False, description="...")
+
+    model_config = {"extra": "forbid"}
+        ]]>
+      </example>
+    </pattern>
+
+    <pattern name="KBPromptConfig Fields" source="backend/app/schemas/kb_settings.py:144-155">
+      <description>Already-existing prompt configuration fields</description>
+      <example>
+        <![CDATA[
+class KBPromptConfig(BaseModel):
+    system_prompt: str = Field(default="", max_length=4000)
+    context_template: str = Field(default="")
+    citation_style: CitationStyle = Field(default=CitationStyle.INLINE)  # inline/footnote/none
+    uncertainty_handling: UncertaintyHandling = Field(default=UncertaintyHandling.ACKNOWLEDGE)  # acknowledge/refuse/best_effort
+    response_language: str = Field(default="en")
+        ]]>
+      </example>
+    </pattern>
+
+    <pattern name="KBConfigResolver Usage" source="backend/app/services/kb_config_resolver.py">
+      <description>Three-layer config resolution with caching</description>
+      <example>
+        <![CDATA[
+# DEFAULT_SYSTEM_PROMPT constant (lines 47-51)
+DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant..."
+
+# get_kb_system_prompt() method (lines 264-283) - EXISTS but NOT called!
+async def get_kb_system_prompt(self, kb_id: UUID) -> str:
+    kb_settings = await self._get_kb_settings_cached(kb_id)
+    kb_prompt = kb_settings.prompts.system_prompt
+    if kb_prompt and kb_prompt.strip():
+        return kb_prompt
+    return DEFAULT_SYSTEM_PROMPT
+        ]]>
+      </example>
+    </pattern>
+
+    <pattern name="Unit Test Pattern" source="backend/tests/unit/test_conversation_service.py">
+      <description>Pytest pattern for ConversationService tests</description>
+      <example>
+        <![CDATA[
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
+@pytest.fixture
+def mock_search_service():
+    return MagicMock(spec=SearchService)
+
+@pytest.fixture
+def conversation_service(mock_search_service):
+    return ConversationService(mock_search_service)
+
+class TestBuildPrompt:
+    """Tests for _build_prompt method."""
+
+    @pytest.mark.asyncio
+    async def test_build_prompt_with_kb_config(self, conversation_service):
+        # Arrange
+        kb_prompt_config = KBPromptConfig(system_prompt="Custom prompt")
+        # Act
+        result = conversation_service._build_prompt(...)
+        # Assert
+        assert "Custom prompt" in result[0]["content"]
+        ]]>
+      </example>
+    </pattern>
+
+    <pattern name="Frontend Settings Panel" source="frontend/src/components/kb/settings/general-panel.tsx">
+      <description>KB Settings UI pattern with nested change handlers</description>
+      <example>
+        <![CDATA[
+interface GeneralPanelProps {
+  settings: KBSettings;
+  onChange: (settings: KBSettings) => void;
+}
+
+export function GeneralPanel({ settings, onChange }: GeneralPanelProps) {
+  const handleNestedChange = <K extends keyof KBSettings>(
+    section: K,
+    field: keyof KBSettings[K],
+    value: unknown
+  ) => {
+    onChange({
+      ...settings,
+      [section]: {
+        ...settings[section],
+        [field]: value,
+      },
+    });
+  };
+
+  // Add checkbox pattern:
+  // <Checkbox
+  //   checked={settings.debug_mode ?? false}
+  //   onCheckedChange={(checked) => onChange({ ...settings, debug_mode: checked as boolean })}
+  // />
+}
+        ]]>
+      </example>
+    </pattern>
+
+  </code-patterns>
+
+  <!-- ============================================================== -->
+  <!-- DEPENDENCIES -->
+  <!-- ============================================================== -->
+  <dependencies>
+    <story id="9-1" title="Observability Schema &amp; Models" status="Done" type="prerequisite">
+      Provides timing collection infrastructure used for debug metrics
+    </story>
+    <story id="7-12" title="KB Settings Schema" status="Done" type="prerequisite">
+      Base KBSettings schema that debug_mode field will be added to
+    </story>
+    <story id="7-13" title="KBConfigResolver Service" status="Done" type="prerequisite">
+      Config resolution service with get_kb_system_prompt() method
+    </story>
+    <story id="7-14" title="KB Settings UI General" status="Done" type="prerequisite">
+      UI panel where Debug Mode checkbox will be added
+    </story>
+  </dependencies>
+
+  <!-- ============================================================== -->
+  <!-- TECHNICAL DESIGN -->
+  <!-- ============================================================== -->
+  <technical-design>
+
+    <component name="Debug Event Schema">
+      <description>Pydantic schema for debug SSE event data</description>
+      <schema>
+        <![CDATA[
+class ChunkDebugInfo(BaseModel):
+    preview: str = Field(description="First 100 chars of chunk text")
+    similarity_score: float = Field(ge=0.0, le=1.0)
+    document_name: str
+    page_number: int | None = None
+
+class KBParamsDebugInfo(BaseModel):
+    system_prompt_preview: str = Field(description="First 100 chars of system prompt")
+    citation_style: str
+    response_language: str
+    uncertainty_handling: str
+
+class TimingDebugInfo(BaseModel):
+    retrieval_ms: int
+    context_assembly_ms: int
+
+class DebugInfo(BaseModel):
+    kb_params: KBParamsDebugInfo
+    chunks_retrieved: list[ChunkDebugInfo]
+    timing: TimingDebugInfo
+        ]]>
+      </schema>
+    </component>
+
+    <component name="Prompt Building Logic">
+      <description>Updated _build_prompt() implementation</description>
+      <pseudocode>
+        <![CDATA[
+async def _build_prompt(
+    self,
+    history: list[dict],
+    message: str,
+    chunks: list[SearchResultSchema],
+    kb_prompt_config: KBPromptConfig,
+    kb_name: str = "",
+) -> list[dict[str, str]]:
+    # 1. Get base system prompt (KB or default)
+    system_prompt = kb_prompt_config.system_prompt.strip()
+    if not system_prompt:
+        system_prompt = DEFAULT_SYSTEM_PROMPT
+
+    # 2. Variable interpolation
+    context_text = self._format_context(chunks)
+    system_prompt = system_prompt.replace("{kb_name}", kb_name)
+    system_prompt = system_prompt.replace("{context}", context_text)
+    system_prompt = system_prompt.replace("{query}", message)
+
+    # 3. Citation style instruction
+    if kb_prompt_config.citation_style == CitationStyle.INLINE:
+        system_prompt += "\n\nAlways cite sources using [n] notation inline."
+    elif kb_prompt_config.citation_style == CitationStyle.FOOTNOTE:
+        system_prompt += "\n\nAdd footnotes for citations at the end of your response."
+    # CitationStyle.NONE: no instruction added
+
+    # 4. Response language instruction
+    if kb_prompt_config.response_language != "en":
+        lang = kb_prompt_config.response_language
+        system_prompt += f"\n\nRespond in {lang}."
+
+    # 5. Uncertainty handling instruction
+    if kb_prompt_config.uncertainty_handling == UncertaintyHandling.REFUSE:
+        system_prompt += "\n\nIf you cannot find relevant information in the sources, decline to answer."
+    elif kb_prompt_config.uncertainty_handling == UncertaintyHandling.BEST_EFFORT:
+        system_prompt += "\n\nIf information is limited, provide your best effort while noting limitations."
+    # UncertaintyHandling.ACKNOWLEDGE: use existing acknowledgment behavior
+
+    # 6. Build messages
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": message})
+
+    return messages
+        ]]>
+      </pseudocode>
+    </component>
+
+    <component name="Debug Event Emission">
+      <description>Debug event generation in streaming flow</description>
+      <pseudocode>
+        <![CDATA[
+async def send_message_stream(..., debug_mode: bool = False):
+    # Timing starts
+    retrieval_start = time.time()
+
+    # Retrieve chunks
+    chunks = await self._search_service.search(...)
+    retrieval_ms = int((time.time() - retrieval_start) * 1000)
+
+    # Context assembly timing
+    context_start = time.time()
+    messages = await self._build_prompt(history, message, chunks, kb_prompt_config)
+    context_assembly_ms = int((time.time() - context_start) * 1000)
+
+    # Emit debug event BEFORE first token (if enabled)
+    if debug_mode:
+        debug_event = {
+            "type": "debug",
+            "kb_params": {
+                "system_prompt_preview": kb_prompt_config.system_prompt[:100] + "..." if len(kb_prompt_config.system_prompt) > 100 else kb_prompt_config.system_prompt,
+                "citation_style": kb_prompt_config.citation_style.value,
+                "response_language": kb_prompt_config.response_language,
+                "uncertainty_handling": kb_prompt_config.uncertainty_handling.value,
+            },
+            "chunks_retrieved": [
+                {
+                    "preview": chunk.content[:100] + "..." if len(chunk.content) > 100 else chunk.content,
+                    "similarity_score": chunk.score,
+                    "document_name": chunk.document_name,
+                    "page_number": chunk.page_number,
+                }
+                for chunk in chunks
+            ],
+            "timing": {
+                "retrieval_ms": retrieval_ms,
+                "context_assembly_ms": context_assembly_ms,
+            },
+        }
+        yield debug_event
+
+    # Then emit token events...
+        ]]>
+      </pseudocode>
+    </component>
+
+  </technical-design>
+
+  <!-- ============================================================== -->
+  <!-- TESTING GUIDELINES -->
+  <!-- ============================================================== -->
+  <testing-guidelines>
+    <unit-tests>
+      <guideline>Use pytest with fixtures for ConversationService tests</guideline>
+      <guideline>Mock KBConfigResolver to control prompt config values</guideline>
+      <guideline>Test each citation_style, response_language, uncertainty_handling variation</guideline>
+      <guideline>Test variable interpolation ({kb_name}, {context}, {query})</guideline>
+      <guideline>Test empty system_prompt falls back to DEFAULT_SYSTEM_PROMPT</guideline>
+    </unit-tests>
+
+    <integration-tests>
+      <guideline>Use TestClient with test database (existing conftest.py patterns)</guideline>
+      <guideline>Create KB with debug_mode=true and custom system_prompt</guideline>
+      <guideline>Verify debug SSE event appears before token events</guideline>
+      <guideline>Verify chunk scores and timing metrics are present</guideline>
+      <guideline>Mock LiteLLM to avoid actual API calls</guideline>
+    </integration-tests>
+
+    <e2e-tests>
+      <guideline>Use Playwright following existing e2e patterns</guideline>
+      <guideline>Test requires seeded KB with debug_mode enabled</guideline>
+      <guideline>Verify debug panel visibility and collapse behavior</guideline>
+      <guideline>Test permission check (admin vs regular user)</guideline>
+    </e2e-tests>
+  </testing-guidelines>
+
+  <!-- ============================================================== -->
+  <!-- OUT OF SCOPE -->
+  <!-- ============================================================== -->
+  <out-of-scope>
+    <item>Debug mode for document processing pipeline (covered by Story 9-4)</item>
+    <item>Admin-only trace viewer (covered by Story 9-8)</item>
+    <item>Persistent debug log storage (use observability traces from Stories 9-1, 9-2)</item>
+    <item>Debug mode for non-chat operations</item>
+  </out-of-scope>
+
+  <!-- ============================================================== -->
+  <!-- IMPLEMENTATION TASKS -->
+  <!-- ============================================================== -->
+  <tasks>
+    <task id="1" title="Add debug_mode Field to KB Settings Schema" acs="AC-9.15.1, AC-9.15.3">
+      <subtask>1.1 Add debug_mode: bool = Field(default=False, ...) to KBSettings in kb_settings.py</subtask>
+      <subtask>1.2 Update architecture docs with debug_mode field documentation</subtask>
+      <subtask>1.3 Add unit test for debug_mode field in test_kb_settings_schemas.py</subtask>
+    </task>
+
+    <task id="2" title="Integrate KB Prompt Configuration in ConversationService" acs="AC-9.15.4, AC-9.15.5, AC-9.15.6, AC-9.15.7, AC-9.15.8, AC-9.15.9">
+      <subtask>2.1 Remove hardcoded CHAT_SYSTEM_PROMPT constant (lines 37-53)</subtask>
+      <subtask>2.2 Import DEFAULT_SYSTEM_PROMPT from kb_config_resolver</subtask>
+      <subtask>2.3 Modify _build_prompt() signature to accept KBPromptConfig parameter</subtask>
+      <subtask>2.4 Implement KB system prompt resolution with fallback to DEFAULT_SYSTEM_PROMPT</subtask>
+      <subtask>2.5 Add variable interpolation for {kb_name}, {context}, {query}</subtask>
+      <subtask>2.6 Add citation_style instruction logic (inline/footnote/none)</subtask>
+      <subtask>2.7 Add response_language instruction when language != "en"</subtask>
+      <subtask>2.8 Add uncertainty_handling instruction (acknowledge/refuse/best_effort)</subtask>
+    </task>
+
+    <task id="3" title="Implement Debug Mode Event Emission" acs="AC-9.15.10, AC-9.15.11, AC-9.15.12, AC-9.15.13">
+      <subtask>3.1 Create DebugInfo Pydantic schema in schemas/chat.py</subtask>
+      <subtask>3.2 Collect debug data (kb_params, chunks with scores, timing) during RAG pipeline</subtask>
+      <subtask>3.3 Add _emit_debug_event() method to emit SSE type: "debug" event</subtask>
+      <subtask>3.4 Call debug event emission BEFORE first token in stream_response()</subtask>
+      <subtask>3.5 Add debug_info field to non-streaming response schema</subtask>
+    </task>
+
+    <task id="4" title="Frontend KB Settings UI - Debug Mode Checkbox" acs="AC-9.15.2">
+      <subtask>4.1 Add "Debug Mode" checkbox to KB Settings General Panel component</subtask>
+      <subtask>4.2 Connect checkbox to settings.debug_mode field via form state</subtask>
+      <subtask>4.3 Add tooltip explaining what debug mode does</subtask>
+    </task>
+
+    <task id="5" title="Frontend Chat UI - Debug Panel Component" acs="AC-9.15.14, AC-9.15.15, AC-9.15.16, AC-9.15.17, AC-9.15.18">
+      <subtask>5.1 Create DebugInfoPanel component in frontend/src/components/chat/</subtask>
+      <subtask>5.2 Implement collapsible panel with expand/collapse toggle</subtask>
+      <subtask>5.3 Display KB parameters in formatted table</subtask>
+      <subtask>5.4 Display retrieved chunks with similarity scores (expandable list)</subtask>
+      <subtask>5.5 Display timing metrics (retrieval_ms, context_assembly_ms)</subtask>
+      <subtask>5.6 Add permission check - only show for KB admin/edit users</subtask>
+      <subtask>5.7 Integrate panel into chat message component when debug data present</subtask>
+    </task>
+
+    <task id="6" title="Unit Tests - KB Prompt Config Resolution" acs="AC-9.15.19, AC-9.15.20">
+      <subtask>6.1 Create test file test_conversation_prompt_config.py</subtask>
+      <subtask>6.2 Test _build_prompt() uses KB system_prompt when provided</subtask>
+      <subtask>6.3 Test fallback to DEFAULT_SYSTEM_PROMPT when KB prompt empty</subtask>
+      <subtask>6.4 Test citation_style instruction variations (inline/footnote/none)</subtask>
+      <subtask>6.5 Test response_language instruction when not "en"</subtask>
+      <subtask>6.6 Test uncertainty_handling instruction variations</subtask>
+      <subtask>6.7 Test debug event generation includes all required fields</subtask>
+    </task>
+
+    <task id="7" title="Integration Tests - Debug Mode Flow" acs="AC-9.15.21, AC-9.15.22">
+      <subtask>7.1 Create test file test_debug_mode_integration.py</subtask>
+      <subtask>7.2 Test KB with custom system_prompt affects LLM response content</subtask>
+      <subtask>7.3 Test debug_mode=true returns debug SSE event before tokens</subtask>
+      <subtask>7.4 Test debug event contains valid chunks with scores</subtask>
+      <subtask>7.5 Test debug event contains timing metrics</subtask>
+    </task>
+
+    <task id="8" title="E2E Tests - Debug Panel UI" acs="AC-9.15.23">
+      <subtask>8.1 Create Playwright test debug-panel.spec.ts</subtask>
+      <subtask>8.2 Test debug panel renders when KB has debug_mode enabled</subtask>
+      <subtask>8.3 Test debug panel shows KB parameters correctly</subtask>
+      <subtask>8.4 Test debug panel shows retrieved chunks</subtask>
+      <subtask>8.5 Test debug panel hidden for users without KB edit permission</subtask>
+    </task>
+  </tasks>
+
+  <!-- ============================================================== -->
+  <!-- DEFINITION OF DONE -->
+  <!-- ============================================================== -->
+  <definition-of-done>
+    <criterion>All 23 acceptance criteria pass</criterion>
+    <criterion>Unit test coverage >= 80% for new code</criterion>
+    <criterion>Integration tests pass</criterion>
+    <criterion>E2E tests pass</criterion>
+    <criterion>Documentation updated (architecture.md)</criterion>
+    <criterion>Code review approved</criterion>
+    <criterion>No regression in existing chat functionality</criterion>
+    <criterion>Ruff linting passes</criterion>
+  </definition-of-done>
+
+</story-context>

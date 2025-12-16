@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-4" title="Document Processing Instrumentation" generated="2025-12-15">
+  <story-definition>
+    <summary>
+      Instrument the document processing pipeline (upload/parse/chunk/embed/index) with observability traces and spans
+      to enable performance monitoring and bottleneck identification.
+    </summary>
+    <acceptance-criteria>
+      <criterion id="AC1">Document processing trace starts when process_document Celery task begins</criterion>
+      <criterion id="AC2">Each processing step creates a child span with step-specific metrics</criterion>
+      <criterion id="AC3">Parse span records: file_type, file_size_bytes, extracted_chars, page_count, section_count, duration_ms</criterion>
+      <criterion id="AC4">Chunk span records: chunk_count, chunk_size_config, chunk_overlap_config, total_tokens, duration_ms</criterion>
+      <criterion id="AC5">Embed span records: embedding_model, dimensions, batch_count, total_tokens_used, duration_ms</criterion>
+      <criterion id="AC6">Index span records: qdrant_collection, vectors_indexed, duration_ms</criterion>
+      <criterion id="AC7">Error spans capture step name, error type, and error message without stack traces</criterion>
+      <criterion id="AC8">Document events logged via log_document_event() for each step transition</criterion>
+      <criterion id="AC9">Processing pipeline failures properly end the trace with status="failed"</criterion>
+      <criterion id="AC10">Unit tests verify span creation for each processing step</criterion>
+      <criterion id="AC11">Integration test demonstrates end-to-end document processing trace with all steps</criterion>
+    </acceptance-criteria>
+  </story-definition>
+
+  <source-files>
+    <file path="backend/app/workers/document_tasks.py" purpose="Primary file to instrument">
+      <description>
+        Celery task file containing process_document() which orchestrates the full document processing pipeline.
+        This is the main file to modify for observability instrumentation.
+      </description>
+      <key-sections>
+        <section name="run_async" lines="48-55">
+          Helper to run async coroutines in Celery sync context. Observability calls will use this pattern.
+        </section>
+        <section name="_update_step_status" lines="107-188">
+          Existing step tracking for document.processing_steps - instrumentation should complement this.
+        </section>
+        <section name="_chunk_embed_index" lines="341-504">
+          Combines chunk, embed, and index steps. Each step already has _mark_step_in_progress/_mark_step_complete.
+          Need to add observability spans around each operation.
+        </section>
+        <section name="process_document" lines="507-857">
+          Main Celery task entry point. Orchestrates: status update -> download -> parse -> chunk_embed_index -> complete.
+          Trace should start here and end in the try/except/finally blocks.
+        </section>
+      </key-sections>
+      <instrumentation-points>
+        <point name="trace_init" location="process_document:start">
+          Start trace with name="document.processing", kb_id=document.kb_id, user_id=document.created_by
+        </point>
+        <point name="upload_span" location="lines 600-641">
+          Span around MinIO download and checksum validation
+        </point>
+        <point name="parse_span" location="lines 644-718">
+          Span around parse_document() call with extracted metrics
+        </point>
+        <point name="chunk_span" location="_chunk_embed_index:407-430">
+          Span around chunk_document() call
+        </point>
+        <point name="embed_span" location="_chunk_embed_index:432-452">
+          Span around generate_embeddings() call
+        </point>
+        <point name="index_span" location="_chunk_embed_index:470-494">
+          Span around index_document() call
+        </point>
+        <point name="trace_end_success" location="lines 733-747">
+          End trace with status="completed" after successful processing
+        </point>
+        <point name="trace_end_failure" location="lines 765-818">
+          End trace with status="failed" in exception handlers
+        </point>
+      </instrumentation-points>
+    </file>
+
+    <file path="backend/app/services/observability_service.py" purpose="Observability API to use">
+      <description>
+        ObservabilityService provides the API for creating traces, spans, and logging events.
+        Document processing will use start_trace(), span() context manager, log_document_event(), and end_trace().
+      </description>
+      <key-classes>
+        <class name="TraceContext" lines="78-126">
+          Container for trace context (trace_id, span_id, user_id, kb_id). Created by start_trace().
+          Has child_context() for nested spans.
+        </class>
+        <class name="ObservabilityService" lines="707-1119">
+          Singleton service with provider fan-out. Key methods:
+          - get_instance(): Get singleton
+          - start_trace(): Create trace, returns TraceContext
+          - end_trace(): Complete trace with status
+          - span(): Async context manager for automatic timing
+          - log_document_event(): Log document processing events
+        </class>
+      </key-classes>
+      <usage-pattern>
+        <code><![CDATA[
+# Get singleton
+obs = ObservabilityService.get_instance()
+
+# Start trace
+ctx = await obs.start_trace(
+    name="document.processing",
+    kb_id=document.kb_id,
+    user_id=document.created_by,
+    metadata={"document_id": doc_id},
+)
+
+# Use span context manager
+async with obs.span(ctx, "parse", "document") as span_id:
+    parsed = parse_document(local_path, mime_type)
+
+# Log document event
+await obs.log_document_event(
+    ctx=ctx,
+    document_id=UUID(doc_id),
+    event_type="parse",
+    status="completed",
+    duration_ms=duration,
+)
+
+# End trace
+await obs.end_trace(ctx, status="completed")
+        ]]></code>
+      </usage-pattern>
+    </file>
+
+    <file path="backend/app/models/observability.py" purpose="Database models reference">
+      <description>
+        SQLAlchemy models for observability data. Document processing will create:
+        - Trace records (one per document processing job)
+        - Span records (one per step: upload, parse, chunk, embed, index)
+        - DocumentEvent records (one per step transition)
+      </description>
+      <relevant-models>
+        <model name="Trace" lines="27-80">
+          Fields: trace_id (32 hex), timestamp, name, user_id, kb_id, status, duration_ms, attributes
+        </model>
+        <model name="Span" lines="82-141">
+          Fields: span_id (16 hex), trace_id, parent_span_id, timestamp, name, span_type, duration_ms, status, error_message, attributes
+        </model>
+        <model name="DocumentEvent" lines="216-268">
+          Fields: trace_id, document_id, kb_id, event_type, status, duration_ms, chunk_count, token_count, error_message
+        </model>
+      </relevant-models>
+    </file>
+  </source-files>
+
+  <architecture-patterns>
+    <pattern name="Celery Async Context">
+      Use run_async() wrapper for observability calls since Celery tasks are sync.
+      All observability methods are async but process_document is sync.
+      <example><![CDATA[
+# Existing pattern in document_tasks.py
+run_async(_update_document_status(...))
+
+# Same pattern for observability
+ctx = run_async(obs.start_trace(...))
+run_async(obs.end_trace(ctx, status="completed"))
+      ]]></example>
+    </pattern>
+    <pattern name="Fire-and-Forget">
+      Observability calls should never block document processing.
+      All provider calls are wrapped in try/except in ObservabilityService.
+    </pattern>
+    <pattern name="Context Propagation">
+      Pass TraceContext through all pipeline steps.
+      Use ctx.child_context(span_id) for nested spans if needed.
+    </pattern>
+    <pattern name="Span Hierarchy">
+      Root trace -> step spans (upload -> parse -> chunk -> embed -> index)
+      Each span is a direct child of the trace (not nested within each other).
+    </pattern>
+  </architecture-patterns>
+
+  <implementation-notes>
+    <note title="Span Types">
+      Use span_type="document" for all document processing spans.
+      This distinguishes from "llm", "retrieval", "generation" types used elsewhere.
+    </note>
+    <note title="Metrics Priority">
+      Focus on timing (duration_ms) and counts (chunks, tokens, vectors).
+      These are the most useful for identifying bottlenecks.
+    </note>
+    <note title="Error Isolation">
+      Step failures captured in span without stopping trace until final end.
+      Always call end_trace() even on failure - just set status="failed".
+    </note>
+    <note title="No Stack Traces">
+      Error messages only - stack traces too verbose for telemetry.
+      Use error_message=str(e), not full traceback.
+    </note>
+    <note title="Existing Step Tracking">
+      Keep existing _mark_step_in_progress/_mark_step_complete calls.
+      They update document.processing_steps for UI display.
+      Observability adds trace/span data for monitoring.
+    </note>
+  </implementation-notes>
+
+  <testing-patterns>
+    <unit-tests>
+      <test name="test_trace_initialization">
+        Mock ObservabilityService.get_instance() and verify start_trace called with correct args.
+      </test>
+      <test name="test_step_spans_created">
+        For each step (upload, parse, chunk, embed, index), verify span() context manager used.
+      </test>
+      <test name="test_document_events_logged">
+        Verify log_document_event() called for each step with correct event_type and status.
+      </test>
+      <test name="test_error_handling_ends_span">
+        Simulate error in a step, verify span ends with status="failed" and error_message.
+      </test>
+      <test name="test_trace_ends_on_failure">
+        Simulate pipeline failure, verify end_trace() called with status="failed".
+      </test>
+    </unit-tests>
+    <integration-tests>
+      <test name="test_full_document_trace">
+        Process a mock document and verify:
+        - Trace record created in obs_traces table
+        - 5 span records created (upload, parse, chunk, embed, index)
+        - DocumentEvent records for each step
+        - Proper parent-child relationships
+      </test>
+      <test name="test_failure_trace">
+        Trigger a parsing failure and verify:
+        - Trace ends with status="failed"
+        - Failed step has error_message
+        - Subsequent steps not executed
+      </test>
+    </integration-tests>
+  </testing-patterns>
+
+  <file-changes>
+    <change file="backend/app/workers/document_tasks.py" type="modify">
+      Add imports for ObservabilityService, TraceContext.
+      Instrument process_document() with trace and spans.
+    </change>
+    <change file="backend/tests/unit/test_document_observability.py" type="create">
+      Unit tests for document processing instrumentation.
+    </change>
+    <change file="backend/tests/integration/test_document_trace_flow.py" type="create">
+      Integration tests verifying end-to-end trace creation.
+    </change>
+  </file-changes>
+
+  <dependencies>
+    <dependency story="9-1">Observability schema and models</dependency>
+    <dependency story="9-2">PostgreSQL provider implementation</dependency>
+    <dependency story="9-3">TraceContext and ObservabilityService core</dependency>
+  </dependencies>
+</story-context>

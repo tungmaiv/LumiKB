@@ -26,6 +26,27 @@ class DocumentStatus(str, enum.Enum):
     ARCHIVED = "ARCHIVED"
 
 
+class ProcessingStep(str, enum.Enum):
+    """Document processing pipeline steps."""
+
+    UPLOAD = "upload"
+    PARSE = "parse"
+    CHUNK = "chunk"
+    EMBED = "embed"
+    INDEX = "index"
+    COMPLETE = "complete"
+
+
+class StepStatus(str, enum.Enum):
+    """Status of individual processing steps."""
+
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    ERROR = "error"
+    SKIPPED = "skipped"
+
+
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """Document model for files in a Knowledge Base.
 
@@ -94,6 +115,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     version_number: Mapped[int] = mapped_column(
         Integer,
         server_default="1",
@@ -103,6 +128,28 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSONB,
         server_default="[]",
         nullable=True,
+    )
+    # Processing step tracking (Story 5-23)
+    processing_steps: Mapped[dict] = mapped_column(
+        JSONB,
+        server_default="{}",
+        nullable=False,
+    )
+    current_step: Mapped[str] = mapped_column(
+        String(20),
+        server_default="upload",
+        nullable=False,
+    )
+    step_errors: Mapped[dict] = mapped_column(
+        JSONB,
+        server_default="{}",
+        nullable=False,
+    )
+    # Document tags (Story 5-22)
+    tags: Mapped[list[str]] = mapped_column(
+        JSONB,
+        server_default="[]",
+        nullable=False,
     )
 
     # Relationships

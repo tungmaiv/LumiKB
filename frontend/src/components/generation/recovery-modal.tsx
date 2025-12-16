@@ -37,7 +37,7 @@ export function RecoveryModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lightbulb className="h-5 w-5 text-blue-500" />
-            Let's try something different
+            Let&apos;s try something different
           </DialogTitle>
           <DialogDescription>
             Based on your feedback, here are some options to improve your draft:

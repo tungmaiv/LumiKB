@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 5-22: Document Tags
+  Generated: 2025-12-06
+
+  This document provides the dev agent with all necessary context to implement
+  the story. It includes relevant documentation excerpts, code references,
+  interface contracts, and constraints.
+-->
+<storyContext version="1.0" storyId="5-22">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Document Tags</storyTitle>
+    <epicId>5</epicId>
+    <epicName>Administration and Polish</epicName>
+    <priority>MEDIUM</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-06</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>knowledge base user with ADMIN or WRITE permission</asA>
+      <iWant>to add tags to documents</iWant>
+      <soThat>I can categorize, organize, and filter documents more effectively</soThat>
+    </userStory>
+
+    <context>
+      LumiKB already has a robust tagging system for Knowledge Bases. This story extends
+      the same pattern to documents, enabling document organization, enhanced filtering,
+      and improved search. Document tags will be stored in the existing documents.metadata
+      JSONB column, making this a low-risk schema change.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.22.1">
+      <title>Users can add tags during document upload</title>
+      <given>I am a user with ADMIN or WRITE permission on a KB</given>
+      <when>I upload a document</when>
+      <then>I see an optional "Tags" input field</then>
+      <and>I can enter tags (comma or Enter to add)</and>
+      <and>A maximum of 10 tags can be added per document</and>
+      <and>Each tag is limited to 50 characters</and>
+      <and>Tags are saved to the document's metadata upon successful upload</and>
+      <validation>
+        - Integration test: Upload document with tags → verify tags in metadata
+        - Unit test: Tag input component validates 10-tag limit
+        - E2E test: Upload flow includes tag input → verify tags saved
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.22.2">
+      <title>Tags are displayed in document list</title>
+      <given>I am viewing the KB dashboard document list</given>
+      <when>Documents have tags</when>
+      <then>Tags are displayed as badges next to each document</then>
+      <and>Tags are truncated if more than 3 (show "+N more")</and>
+      <and>Hovering/clicking "+N more" shows all tags</and>
+      <validation>
+        - Unit test: Document list item renders tags
+        - E2E test: Verify tags display in dashboard
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.22.3">
+      <title>Users with ADMIN/WRITE can edit document tags</title>
+      <given>I am viewing a document in the dashboard</given>
+      <and>I have ADMIN or WRITE permission on the KB</and>
+      <when>I click the "Edit tags" button/icon</when>
+      <then>A modal opens showing current tags</then>
+      <and>I can add/remove tags</and>
+      <and>Changes are saved when I click "Save"</and>
+      <and>The document list refreshes to show updated tags</and>
+      <validation>
+        - Integration test: PATCH document metadata with new tags → verify 200
+        - Unit test: Edit tags modal component functions correctly
+        - E2E test: Edit tags flow → verify tags updated
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.22.4">
+      <title>Users with READ permission cannot edit tags</title>
+      <given>I am viewing a document in the dashboard</given>
+      <and>I have only READ permission on the KB</and>
+      <when>I view the document</when>
+      <then>I see the document's tags (read-only)</then>
+      <and>I do NOT see an "Edit tags" button</and>
+      <validation>
+        - Integration test: PATCH as READ user → verify 403
+        - E2E test: READ user sees no edit button
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.22.5">
+      <title>Tags are searchable in document filtering</title>
+      <given>I am on the KB dashboard</given>
+      <when>I enter a tag name in the search/filter field</when>
+      <then>Documents matching that tag are shown</then>
+      <and>Tag matches are case-insensitive</and>
+      <validation>
+        - Integration test: GET documents?tag=xyz → verify filtered results
+        - E2E test: Search by tag → verify results
+      </validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <artifact type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-5.md">
+      <summary>Epic 5 technical specification covering admin dashboard, audit logging, and KB management features</summary>
+    </artifact>
+
+    <artifact type="implementation-guide" path="docs/sprint-artifacts/kb-tags-feature-implementation.md">
+      <summary>KB Tags implementation guide - pattern to follow for document tags</summary>
+      <relevance>Provides exact pattern for tags in create/update/display including frontend components and backend service methods</relevance>
+    </artifact>
+  </artifacts>
+
+  <codeReferences>
+    <reference type="model" path="backend/app/models/document.py">
+      <description>Document SQLAlchemy model - tags will be stored in metadata JSONB</description>
+      <relevantLines>29-120</relevantLines>
+      <keyElements>
+        - Document model with JSONB columns (version_history example)
+        - Status, chunk_count, timestamps
+        - No new columns needed - use metadata JSONB for tags
+      </keyElements>
+    </reference>
+
+    <reference type="schema" path="backend/app/schemas/document.py">
+      <description>Document Pydantic schemas for API</description>
+      <relevantLines>23-180</relevantLines>
+      <keyElements>
+        - DocumentUploadResponse, DocumentResponse, DocumentListItem
+        - Need to add: tags field to DocumentCreate, DocumentUpdate, DocumentResponse
+        - Need to add: tag validation (max 10 tags, max 50 chars each)
+      </keyElements>
+    </reference>
+
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService with upload and CRUD operations</description>
+      <relevantLines>71-150</relevantLines>
+      <keyElements>
+        - async def upload(): document upload method
+        - Need to add: tags parameter to upload method
+        - Need to add: update_document_tags() method
+      </keyElements>
+    </reference>
+
+    <reference type="api" path="backend/app/api/v1/documents.py">
+      <description>Document API endpoints</description>
+      <relevantLines>212-280</relevantLines>
+      <keyElements>
+        - async def upload_document(): handles file upload
+        - Need to add: PATCH /documents/{id}/tags endpoint
+        - Need to update: upload to accept tags
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/kb/kb-edit-tags-modal.tsx">
+      <description>KB Edit Tags Modal - pattern to follow for document tags modal</description>
+      <relevantLines>1-159</relevantLines>
+      <keyElements>
+        - Tag input with Enter/comma to add
+        - Remove button on each tag
+        - 10 tag limit enforcement
+        - Save/cancel functionality
+        - Pattern to REUSE for DocumentEditTagsModal
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/documents/document-list.tsx">
+      <description>Document list component - needs tags display</description>
+      <relevantLines>32-100</relevantLines>
+      <keyElements>
+        - Document interface: needs tags field
+        - DocumentListItem: needs tags badges display
+        - Edit button visibility based on permission
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents">
+        <description>Upload document - add optional tags parameter</description>
+        <changes>
+          <add formField="tags" type="string[]" optional="true">List of tags (max 10, each max 50 chars)</add>
+        </changes>
+        <response>
+          <add field="tags" type="string[]">Document tags</add>
+        </response>
+      </endpoint>
+
+      <endpoint method="PATCH" path="/api/v1/documents/{document_id}/tags" new="true">
+        <description>Update document tags. Requires ADMIN or WRITE permission on KB.</description>
+        <authorization>ADMIN or WRITE permission on document's KB required</authorization>
+        <requestBody>
+          <field name="tags" type="string[]" required="true">New tags list (max 10, each max 50 chars)</field>
+        </requestBody>
+        <response>
+          <field name="id" type="uuid">Document ID</field>
+          <field name="name" type="string">Document name</field>
+          <field name="tags" type="string[]">Updated tags</field>
+        </response>
+        <errors>
+          <error code="400">Invalid tags (too many or too long)</error>
+          <error code="403">READ permission only - cannot edit tags</error>
+          <error code="404">Document not found</error>
+        </errors>
+      </endpoint>
+
+      <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents">
+        <description>List documents - add optional tag filter</description>
+        <changes>
+          <add queryParam="tag" type="string" optional="true">Filter by tag (case-insensitive)</add>
+        </changes>
+        <response>
+          <add field="tags" type="string[]" inEachDocument="true">Document tags</add>
+        </response>
+      </endpoint>
+    </api>
+
+    <database>
+      <note>No migration required - tags stored in existing metadata JSONB column</note>
+      <structure>
+        <column name="metadata" type="JSONB">
+          <field name="tags" type="array[string]">["policy", "hr", "2024"]</field>
+          <field name="original_filename" type="string">Existing field</field>
+          <field name="content_type" type="string">Existing field</field>
+        </column>
+      </structure>
+    </database>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="epic" id="3" status="completed">
+      <name>Document Management</name>
+      <provides>Documents table, upload flow, metadata JSONB column</provides>
+    </dependency>
+
+    <dependency type="implementation" id="kb-tags" status="completed">
+      <name>KB Tags Feature</name>
+      <provides>Pattern for tags implementation - follow exactly for documents</provides>
+      <reference>docs/sprint-artifacts/kb-tags-feature-implementation.md</reference>
+    </dependency>
+  </dependencies>
+
+  <constraints>
+    <constraint type="security">
+      <description>Only ADMIN and WRITE permission users can edit document tags</description>
+      <implementation>Check permission_level IN ('ADMIN', 'WRITE') before allowing PATCH</implementation>
+    </constraint>
+
+    <constraint type="validation">
+      <description>Maximum 10 tags per document</description>
+      <implementation>Validate in schema with max_items=10</implementation>
+    </constraint>
+
+    <constraint type="validation">
+      <description>Maximum 50 characters per tag</description>
+      <implementation>Truncate tags to 50 chars in validator</implementation>
+    </constraint>
+
+    <constraint type="format">
+      <description>Tags are stored lowercase for case-insensitive matching</description>
+      <implementation>Convert to lowercase in validator</implementation>
+    </constraint>
+
+    <constraint type="consistency">
+      <description>Follow exact same UX pattern as KB tags</description>
+      <implementation>Reuse kb-edit-tags-modal.tsx pattern</implementation>
+    </constraint>
+  </constraints>
+
+  <tests>
+    <testCategory name="Backend Unit Tests" count="5">
+      <test>Tag validation rejects more than 10 tags</test>
+      <test>Tag validation truncates tags to 50 chars</test>
+      <test>Tag validation converts to lowercase</test>
+      <test>DocumentService.update_document_tags updates metadata correctly</test>
+      <test>DocumentService.upload stores tags in metadata</test>
+    </testCategory>
+
+    <testCategory name="Backend Integration Tests" count="4">
+      <test>Upload document with tags returns tags in response</test>
+      <test>PATCH /documents/{id}/tags returns 200 for ADMIN/WRITE user</test>
+      <test>PATCH /documents/{id}/tags returns 403 for READ user</test>
+      <test>GET documents?tag=xyz returns filtered results</test>
+    </testCategory>
+
+    <testCategory name="Frontend Unit Tests" count="10">
+      <test>DocumentTagInput validates 10-tag limit</test>
+      <test>DocumentTagInput adds tag on Enter key</test>
+      <test>DocumentTagInput adds tag on comma key</test>
+      <test>DocumentTagInput removes tag on X click</test>
+      <test>DocumentEditTagsModal shows current tags</test>
+      <test>DocumentEditTagsModal saves changes on submit</test>
+      <test>DocumentEditTagsModal resets on cancel</test>
+      <test>DocumentListItem displays tags as badges</test>
+      <test>DocumentListItem truncates with "+N more"</test>
+      <test>Edit button hidden for READ-only users</test>
+    </testCategory>
+
+    <testCategory name="E2E Tests" count="3">
+      <test>Upload document with tags flow complete</test>
+      <test>Edit document tags flow complete</test>
+      <test>Filter documents by tag</test>
+    </testCategory>
+  </tests>
+
+  <implementationNotes>
+    <note category="patterns">
+      Follow KB tags pattern exactly from docs/sprint-artifacts/kb-tags-feature-implementation.md
+    </note>
+    <note category="reuse">
+      Create DocumentTagInput by adapting the tag input logic from kb-edit-tags-modal.tsx
+    </note>
+    <note category="database">
+      No migration needed - tags go in metadata JSONB: {"tags": ["tag1", "tag2"], ...}
+    </note>
+    <note category="api">
+      Use JSONB contains operator for tag filtering: metadata->'tags' @> '["tagname"]'
+    </note>
+    <note category="ui">
+      Tag badges: use shadcn/ui Badge component with same styling as KB tags
+    </note>
+    <note category="validation">
+      Tags: lowercase, max 10, max 50 chars each, strip whitespace
+    </note>
+  </implementationNotes>
+
+</storyContext>

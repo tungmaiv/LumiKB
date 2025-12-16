@@ -62,7 +62,8 @@ export function DraftSelectionPanel({ kbId }: DraftSelectionPanelProps) {
         description: `Generated ${response.mode} with ${response.sourcesUsed} sources (confidence: ${Math.round(response.confidence * 100)}%)`,
       });
 
-      // TODO: Navigate to document view or download
+      // Note: Navigation to draft view handled by modal workflow (Stories 4.5, 4.6)
+      // Document response logged for debugging - remove when full UI integration complete
       console.log('Generated document:', response);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate document';

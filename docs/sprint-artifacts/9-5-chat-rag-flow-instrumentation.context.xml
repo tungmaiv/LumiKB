@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-5" title="Chat RAG Flow Instrumentation" generated="2025-12-15">
+  <story-definition>
+    <summary>
+      Instrument chat conversations showing retrieval latency, context tokens, LLM response time, and citation mapping
+      to enable RAG pipeline performance monitoring and optimization.
+    </summary>
+    <acceptance-criteria>
+      <criterion id="AC1">Chat conversation trace starts when /api/v1/chat/ endpoint receives a request</criterion>
+      <criterion id="AC2">Retrieval span tracks: query embedding time, Qdrant search latency, documents_retrieved, confidence_scores</criterion>
+      <criterion id="AC3">Context assembly span tracks: chunks_selected, context_tokens, truncation_applied</criterion>
+      <criterion id="AC4">LLM synthesis span tracks: model, prompt_tokens, completion_tokens, latency_ms</criterion>
+      <criterion id="AC5">Citation mapping span tracks: citations_generated, citation_confidence_scores</criterion>
+      <criterion id="AC6">Overall trace captures: user_id, kb_id, conversation_id, total_latency_ms</criterion>
+      <criterion id="AC7">Chat messages logged via log_chat_message() for both user and assistant messages</criterion>
+      <criterion id="AC8">Error traces capture step name and error type without exposing sensitive query content</criterion>
+      <criterion id="AC9">Streaming responses maintain trace continuity across SSE chunks</criterion>
+      <criterion id="AC10">Unit tests verify span creation for each RAG pipeline step</criterion>
+      <criterion id="AC11">Integration test demonstrates end-to-end chat trace with retrieval and synthesis</criterion>
+    </acceptance-criteria>
+  </story-definition>
+
+  <source-files>
+    <file path="backend/app/api/v1/chat.py" purpose="Primary endpoint to instrument">
+      <description>
+        Chat API endpoint handling non-streaming requests. Main entry point for RAG conversation flow.
+        Trace should start at endpoint entry and end in finally block.
+      </description>
+      <key-sections>
+        <section name="send_chat_message" lines="39-183">
+          POST endpoint for chat messages. Contains permission check, service call, audit logging.
+          Trace initialization point - capture user_id, kb_id, conversation_id.
+        </section>
+        <section name="timing_and_audit" lines="82-182">
+          Existing start_time tracking and audit logging pattern. Instrumentation follows same pattern.
+        </section>
+        <section name="error_handling" lines="126-153">
+          Exception handlers for HTTPException, NoDocumentsError, and general errors.
+          Error spans should capture step and error_type here.
+        </section>
+      </key-sections>
+      <instrumentation-points>
+        <point name="trace_init" location="line 82">
+          Start trace with name="chat.conversation", user_id, kb_id, conversation_id
+        </point>
+        <point name="user_message_log" location="after line 104">
+          Log user message via obs.log_chat_message() with role="user"
+        </point>
+        <point name="service_call_span" location="lines 105-111">
+          Pass TraceContext to conversation_service.send_message()
+        </point>
+        <point name="assistant_message_log" location="after line 113">
+          Log assistant message with role="assistant", latency_ms
+        </point>
+        <point name="trace_end_success" location="line 124">
+          End trace with status="completed"
+        </point>
+        <point name="trace_end_failure" location="lines 126-153">
+          End trace with status="failed" in exception handlers
+        </point>
+      </instrumentation-points>
+    </file>
+
+    <file path="backend/app/api/v1/chat_stream.py" purpose="Streaming endpoint to instrument">
+      <description>
+        Streaming chat endpoint using Server-Sent Events (SSE).
+        Requires special handling to maintain trace across async generator.
+      </description>
+      <key-sections>
+        <section name="generate_sse_events" lines="34-124">
+          Async generator for SSE events. Trace context must be passed through and maintained.
+          End trace after final chunk sent or on error.
+        </section>
+        <section name="send_chat_message_stream" lines="148-253">
+          Main streaming endpoint. Start trace here, pass to generator.
+        </section>
+        <section name="metrics_tracking" lines="61-101">
+          Existing metrics for citation_count, source_doc_ids, output_word_count, confidence_score.
+          Observability spans should capture these same metrics.
+        </section>
+      </key-sections>
+      <instrumentation-points>
+        <point name="stream_trace_init" location="line 182">
+          Start trace before creating StreamingResponse
+        </point>
+        <point name="context_propagation" location="line 215">
+          Pass TraceContext to generate_sse_events()
+        </point>
+        <point name="stream_trace_end" location="lines 91-102">
+          End trace in generator after final event or error
+        </point>
+      </instrumentation-points>
+    </file>
+
+    <file path="backend/app/services/conversation_service.py" purpose="RAG pipeline to instrument">
+      <description>
+        Conversation service orchestrating the RAG pipeline: retrieval, context assembly, LLM synthesis, citation mapping.
+        Each stage should have its own span for detailed performance analysis.
+      </description>
+      <key-sections>
+        <section name="send_message" lines="80-160">
+          Non-streaming RAG pipeline. 7 steps: history, retrieval, prompt build, LLM call, citation extract, confidence calc, storage.
+          Each step is an instrumentation point.
+        </section>
+        <section name="send_message_stream" lines="162-291">
+          Streaming RAG pipeline with same stages plus token streaming.
+          Spans must handle async iteration properly.
+        </section>
+        <section name="retrieval_call" lines="107-113">
+          SearchService.search() call - create "retrieval" span here.
+        </section>
+        <section name="context_assembly" lines="119">
+          _build_prompt() call - create "context_assembly" span here.
+        </section>
+        <section name="llm_synthesis" lines="122-127">
+          chat_completion() call - create "synthesis" span here.
+        </section>
+        <section name="citation_mapping" lines="132-134">
+          citation_service.extract_citations() - create "citation_mapping" span here.
+        </section>
+        <section name="_build_prompt" lines="367-427">
+          Context window management with token counting. Track chunks_selected, context_tokens, truncation.
+        </section>
+        <section name="_count_tokens" lines="429-438">
+          Token estimation method. Use this for context_tokens metric.
+        </section>
+      </key-sections>
+      <instrumentation-points>
+        <point name="retrieval_span" location="lines 107-113">
+          Create span with name="retrieval", type="retrieval"
+          Record: documents_retrieved, confidence_scores
+        </point>
+        <point name="context_span" location="line 119">
+          Create span with name="context_assembly", type="retrieval"
+          Record: chunks_selected, context_tokens, truncation_applied
+        </point>
+        <point name="synthesis_span" location="lines 122-127">
+          Create span with name="synthesis", type="llm"
+          Record: model, prompt_tokens, completion_tokens, latency_ms
+        </point>
+        <point name="citation_span" location="lines 132-134">
+          Create span with name="citation_mapping", type="retrieval"
+          Record: citations_generated, citation_confidence_scores
+        </point>
+      </instrumentation-points>
+      <method-signature-change>
+        <![CDATA[
+async def send_message(
+    self,
+    session_id: str,
+    kb_id: str,
+    user_id: str,
+    message: str,
+    conversation_id: str | None = None,
+    trace_ctx: TraceContext | None = None,  # NEW PARAMETER
+) -> dict[str, Any]:
+        ]]>
+      </method-signature-change>
+    </file>
+
+    <file path="backend/app/services/observability_service.py" purpose="Observability API reference">
+      <description>
+        ObservabilityService provides the API for creating traces, spans, and logging chat messages.
+        Chat RAG flow will use start_trace(), span(), log_chat_message(), log_llm_call(), and end_trace().
+      </description>
+      <key-methods>
+        <method name="start_trace" signature="async def start_trace(name, kb_id, user_id, metadata) -> TraceContext">
+          Creates a new trace, returns TraceContext for passing through pipeline stages.
+        </method>
+        <method name="span" signature="async with obs.span(ctx, name, span_type) as span_id">
+          Async context manager for automatic timing of operations.
+        </method>
+        <method name="log_chat_message" signature="async def log_chat_message(ctx, role, content, conversation_id, latency_ms)">
+          Logs chat messages with role (user/assistant), links to trace.
+        </method>
+        <method name="log_llm_call" signature="async def log_llm_call(ctx, name, model, input_tokens, output_tokens, duration_ms)">
+          Logs LLM API calls with token usage metrics.
+        </method>
+        <method name="end_trace" signature="async def end_trace(ctx, status, error_message)">
+          Ends trace with final status (completed/failed).
+        </method>
+      </key-methods>
+      <usage-pattern>
+        <code><![CDATA[
+# In chat.py endpoint
+obs = ObservabilityService.get_instance()
+
+# Start trace
+ctx = await obs.start_trace(
+    name="chat.conversation",
+    kb_id=request_body.kb_id,
+    user_id=current_user.id,
+    metadata={"conversation_id": request_body.conversation_id},
+)
+
+# Log user message
+await obs.log_chat_message(
+    ctx=ctx,
+    role="user",
+    content=request_body.message,  # Or just message length for privacy
+    conversation_id=result.get("conversation_id"),
+)
+
+# Call service with context
+result = await conversation_service.send_message(
+    ...,
+    trace_ctx=ctx,
+)
+
+# Log assistant message
+await obs.log_chat_message(
+    ctx=ctx,
+    role="assistant",
+    content=result["answer"],
+    conversation_id=result["conversation_id"],
+    latency_ms=response_time_ms,
+)
+
+# End trace
+await obs.end_trace(ctx, status="completed")
+        ]]></code>
+      </usage-pattern>
+    </file>
+
+    <file path="backend/app/models/observability.py" purpose="Database models reference">
+      <description>
+        SQLAlchemy models for observability data. Chat RAG flow will create:
+        - Trace records (one per chat request)
+        - Span records (retrieval, context_assembly, synthesis, citation_mapping)
+        - ChatMessage records (user and assistant messages)
+        - LLMCall records (for synthesis step)
+      </description>
+      <relevant-models>
+        <model name="Trace">
+          Fields: trace_id, timestamp, name, user_id, kb_id, status, duration_ms, attributes
+        </model>
+        <model name="Span">
+          Fields: span_id, trace_id, parent_span_id, name, span_type, duration_ms, status, error_message, attributes
+        </model>
+        <model name="ChatMessage">
+          Fields: trace_id, timestamp, role, message_length, conversation_id, model, input_tokens, output_tokens, latency_ms
+        </model>
+        <model name="LLMCall">
+          Fields: trace_id, timestamp, model, operation, input_tokens, output_tokens, latency_ms, cost_usd
+        </model>
+      </relevant-models>
+    </file>
+  </source-files>
+
+  <architecture-patterns>
+    <pattern name="Request-Scoped Trace">
+      One trace per chat request, starting at endpoint entry, ending when response sent.
+      Trace ID propagated through all service layers.
+      <example><![CDATA[
+# Endpoint starts trace
+ctx = await obs.start_trace(name="chat.conversation", ...)
+
+# Service receives context
+async def send_message(..., trace_ctx: TraceContext | None = None):
+    if trace_ctx:
+        async with obs.span(trace_ctx, "retrieval", "retrieval") as span_id:
+            results = await search_service.search(...)
+      ]]></example>
+    </pattern>
+
+    <pattern name="Span Hierarchy">
+      Root trace with child spans for each RAG pipeline stage.
+      Spans are siblings (not nested) for easier visualization.
+      <hierarchy>
+        trace: chat.conversation
+        ├── span: retrieval (type=retrieval)
+        ├── span: context_assembly (type=retrieval)
+        ├── span: synthesis (type=llm)
+        └── span: citation_mapping (type=retrieval)
+      </hierarchy>
+    </pattern>
+
+    <pattern name="Fire-and-Forget">
+      Observability calls wrapped in try/except, never block response.
+      All provider calls are async and non-blocking.
+    </pattern>
+
+    <pattern name="Privacy-First Logging">
+      Never log full user queries or message content in error traces.
+      Use message_length instead of content for chat message logging.
+      Only log error type, not query that caused it.
+    </pattern>
+
+    <pattern name="Streaming Trace Continuity">
+      For SSE streams, trace spans must be created and ended within async generator.
+      Token aggregation happens during streaming, span ends after stream completes.
+      <example><![CDATA[
+async def generate_sse_events(..., trace_ctx: TraceContext):
+    try:
+        async with obs.span(trace_ctx, "synthesis", "llm") as span_id:
+            async for chunk in llm_stream:
+                yield {"type": "token", "content": chunk}
+
+        # Span auto-ends here with duration
+        await obs.end_trace(trace_ctx, status="completed")
+    except Exception as e:
+        await obs.end_trace(trace_ctx, status="failed", error_message=type(e).__name__)
+      ]]></example>
+    </pattern>
+  </architecture-patterns>
+
+  <implementation-notes>
+    <note title="Span Types">
+      - "retrieval" for search and context operations
+      - "llm" for LLM synthesis calls
+      - These map to span_type column for filtering/visualization
+    </note>
+    <note title="Metrics Mapping">
+      Retrieval span attributes:
+        - documents_retrieved: len(search_response.results)
+        - max_confidence: max(r.relevance_score for r in results)
+        - min_confidence: min(r.relevance_score for r in results)
+
+      Context span attributes:
+        - chunks_selected: len(chunks)
+        - context_tokens: _count_tokens(context_text)
+        - truncation_applied: bool (if history was trimmed)
+
+      Synthesis span attributes:
+        - model: response.model
+        - prompt_tokens: response.usage.prompt_tokens
+        - completion_tokens: response.usage.completion_tokens
+
+      Citation span attributes:
+        - citations_generated: len(citations)
+        - citation_confidence_scores: [c.confidence for c in citations]
+    </note>
+    <note title="Error Sanitization">
+      Never expose: query content, message text, user data
+      Safe to log: error type name, step name, KB ID (already known)
+    </note>
+    <note title="Token Counting">
+      Use existing _count_tokens() method for context_tokens.
+      LLM response provides actual token counts in usage field.
+    </note>
+  </implementation-notes>
+
+  <testing-patterns>
+    <unit-tests>
+      <test name="test_chat_endpoint_creates_trace">
+        Mock ObservabilityService.get_instance() and verify start_trace() called with correct args.
+      </test>
+      <test name="test_retrieval_span_created">
+        Verify span() called with name="retrieval", type="retrieval".
+      </test>
+      <test name="test_context_span_metrics">
+        Verify context_assembly span records chunks_selected, context_tokens.
+      </test>
+      <test name="test_synthesis_span_with_llm_call">
+        Verify log_llm_call() called with model, token counts.
+      </test>
+      <test name="test_chat_messages_logged">
+        Verify log_chat_message() called twice: once for user, once for assistant.
+      </test>
+      <test name="test_error_ends_trace_with_failed">
+        Simulate error, verify end_trace() called with status="failed".
+      </test>
+      <test name="test_streaming_trace_continuity">
+        Verify trace spans created and ended correctly in streaming flow.
+      </test>
+    </unit-tests>
+    <integration-tests>
+      <test name="test_full_chat_trace">
+        Send chat message with mock search results, verify:
+        - Trace record in obs_traces
+        - 4 span records (retrieval, context_assembly, synthesis, citation_mapping)
+        - ChatMessage records for user and assistant
+        - LLMCall record for synthesis
+      </test>
+      <test name="test_streaming_chat_trace">
+        Send streaming chat request, verify trace completes after stream ends.
+      </test>
+      <test name="test_error_trace_capture">
+        Trigger retrieval failure, verify trace ends with status="failed".
+      </test>
+    </integration-tests>
+  </testing-patterns>
+
+  <file-changes>
+    <change file="backend/app/api/v1/chat.py" type="modify">
+      Add imports for ObservabilityService, TraceContext.
+      Instrument send_chat_message() with trace and chat message logging.
+    </change>
+    <change file="backend/app/api/v1/chat_stream.py" type="modify">
+      Add trace propagation through streaming generator.
+      End trace after stream completes or on error.
+    </change>
+    <change file="backend/app/services/conversation_service.py" type="modify">
+      Add trace_ctx parameter to send_message() and send_message_stream().
+      Create spans for retrieval, context_assembly, synthesis, citation_mapping.
+    </change>
+    <change file="backend/tests/unit/test_chat_observability.py" type="create">
+      Unit tests for chat endpoint and service instrumentation.
+    </change>
+    <change file="backend/tests/integration/test_chat_trace_flow.py" type="create">
+      Integration tests verifying end-to-end trace creation.
+    </change>
+  </file-changes>
+
+  <dependencies>
+    <dependency story="9-1">Observability schema and models</dependency>
+    <dependency story="9-2">PostgreSQL provider implementation</dependency>
+    <dependency story="9-3">TraceContext and ObservabilityService core</dependency>
+  </dependencies>
+</story-context>

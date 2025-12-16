@@ -87,7 +87,9 @@ describe('GenerationModal', () => {
     it('renders all form fields', () => {
       render(<GenerationModal {...defaultProps} />);
 
-      expect(screen.getByText(/Document Type/i)).toBeInTheDocument();
+      // Template selection uses radiogroup with 4 templates
+      expect(screen.getByText(/Template/i)).toBeInTheDocument();
+      expect(screen.getByRole('radiogroup', { name: /Template selection/i })).toBeInTheDocument();
       expect(screen.getByText(/Additional Instructions/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
       expect(screen.getByTestId('generate-button')).toBeInTheDocument();
@@ -168,17 +170,21 @@ describe('GenerationModal', () => {
       const user = userEvent.setup();
       render(<GenerationModal {...defaultProps} />);
 
-      const trigger = screen.getByRole('combobox');
-      expect(trigger).toHaveTextContent('RFP Response Section'); // Default
+      // TemplateSelector uses a radiogroup with radio buttons (card-based UI)
+      const radiogroup = screen.getByRole('radiogroup', { name: /Template selection/i });
+      expect(radiogroup).toBeInTheDocument();
 
-      await user.click(trigger);
+      // Default selection is RFP Response Section
+      const rfpRadio = screen.getByRole('radio', { name: /RFP Response Section/i });
+      expect(rfpRadio).toHaveAttribute('aria-checked', 'true');
 
-      // Select Technical Checklist
-      const option = screen.getByRole('option', { name: /Technical Checklist/i });
-      await user.click(option);
+      // Click Technical Checklist template card
+      const checklistRadio = screen.getByRole('radio', { name: /Technical Checklist/i });
+      await user.click(checklistRadio);
 
       await waitFor(() => {
-        expect(trigger).toHaveTextContent('Technical Checklist');
+        expect(checklistRadio).toHaveAttribute('aria-checked', 'true');
+        expect(rfpRadio).toHaveAttribute('aria-checked', 'false');
       });
     });
 
@@ -189,12 +195,9 @@ describe('GenerationModal', () => {
       const textarea = screen.getByPlaceholderText(/Add specific instructions/i);
       await user.type(textarea, 'Focus on security requirements');
 
-      const lastCall = vi
-        .mocked(textarea)
-        .onchange?.mock?.calls?.[vi.mocked(textarea).onchange.mock.calls.length - 1];
-
       // Verify controlled input receives changes
       expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveValue('Focus on security requirements');
     });
 
     it('validates form before submission', async () => {
@@ -452,12 +455,16 @@ describe('GenerationModal', () => {
   });
 
   describe('Integration with Primitive Components', () => {
-    it('renders GenerationModeSelector with correct props', () => {
+    it('renders TemplateSelector with correct props', () => {
       render(<GenerationModal {...defaultProps} />);
 
-      const selector = screen.getByRole('combobox');
+      // TemplateSelector renders as a radiogroup with 4 template options
+      const selector = screen.getByRole('radiogroup', { name: /Template selection/i });
       expect(selector).toBeInTheDocument();
-      expect(selector).toHaveTextContent('RFP Response Section'); // Default value
+
+      // Default selection is RFP Response Section
+      const rfpRadio = screen.getByRole('radio', { name: /RFP Response Section/i });
+      expect(rfpRadio).toHaveAttribute('aria-checked', 'true');
     });
 
     it('renders AdditionalPromptInput with correct props', () => {

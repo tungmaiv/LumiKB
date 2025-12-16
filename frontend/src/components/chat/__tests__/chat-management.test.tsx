@@ -17,6 +17,7 @@ vi.mock('@/lib/hooks/use-chat-stream', () => ({
     clearMessages: vi.fn(),
     restoreMessages: vi.fn(),
     abortStream: vi.fn(),
+    debugInfo: null,
   })),
 }));
 
@@ -101,6 +102,7 @@ describe('ChatContainer - Management UI', () => {
       clearMessages: vi.fn(),
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
+      debugInfo: null,
     });
 
     const mockClearChat = vi.fn();
@@ -145,6 +147,7 @@ describe('ChatContainer - Management UI', () => {
       clearMessages: vi.fn(),
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
+      debugInfo: null,
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -215,6 +218,7 @@ describe('ChatContainer - Management UI', () => {
       clearMessages: vi.fn(),
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
+      debugInfo: null,
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -240,6 +244,7 @@ describe('ChatContainer - Management UI', () => {
       clearMessages: vi.fn(),
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
+      debugInfo: null,
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -277,6 +282,7 @@ describe('ChatContainer - Management UI', () => {
         clearMessages: mockClearMessages,
         restoreMessages: vi.fn(),
         abortStream: vi.fn(),
+        debugInfo: null,
       });
 
       vi.mocked(useChatManagement).mockImplementation((callbacks) => {
@@ -340,6 +346,7 @@ describe('ChatContainer - Management UI', () => {
         clearMessages: vi.fn(),
         restoreMessages: vi.fn(),
         abortStream: vi.fn(),
+        debugInfo: null,
       });
 
       // Component mounts and should load undo buffer from localStorage

@@ -1,0 +1,173 @@
+<story-context id="bmad/bmm/story-context/7-2" v="1.0">
+  <metadata>
+    <epicId>epic-7</epicId>
+    <storyId>7-2</storyId>
+    <title>Centralized LLM Configuration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-2-centralized-llm-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>a centralized UI to configure LLM model settings with hot-reload capability</iWant>
+    <soThat>I can switch models and adjust parameters without restarting services</soThat>
+    <tasks>
+      <task id="1" title="Extend ConfigService for LLM settings" acs="1,2">
+        <subtask>1.1 Add `get_llm_config()` method to ConfigService returning current model settings</subtask>
+        <subtask>1.2 Add `update_llm_config()` method with Redis cache invalidation</subtask>
+        <subtask>1.3 Implement hot-reload mechanism (Redis pub/sub or 30s polling interval)</subtask>
+        <subtask>1.4 Write unit tests for ConfigService LLM methods (≥80% coverage)</subtask>
+      </task>
+      <task id="2" title="Create LLM Configuration Admin API" acs="1,2,3,4">
+        <subtask>2.1 GET `/api/v1/admin/config/llm` - Retrieve current LLM configuration</subtask>
+        <subtask>2.2 PUT `/api/v1/admin/config/llm` - Update LLM configuration (admin-only)</subtask>
+        <subtask>2.3 POST `/api/v1/admin/config/llm/test` - Test model connection</subtask>
+        <subtask>2.4 Add dimension mismatch detection logic comparing model dimensions vs KB collections</subtask>
+        <subtask>2.5 Write integration tests for all endpoints</subtask>
+      </task>
+      <task id="3" title="Create LLM Configuration Frontend Page" acs="1,4">
+        <subtask>3.1 Create `useLLMConfig` hook with React Query (stale time: 30s)</subtask>
+        <subtask>3.2 Create LLMConfigForm component with provider selection and model parameters</subtask>
+        <subtask>3.3 Create ModelHealthIndicator component showing connection status</subtask>
+        <subtask>3.4 Add page at `/admin/config/llm` with AdminGuard protection</subtask>
+        <subtask>3.5 Write unit tests for hooks and components</subtask>
+      </task>
+      <task id="4" title="Implement Hot-Reload UI Feedback" acs="2,3">
+        <subtask>4.1 Add "Apply Changes" button with loading state</subtask>
+        <subtask>4.2 Show success toast on config update ("Changes applied without restart")</subtask>
+        <subtask>4.3 Display dimension mismatch warning dialog with affected KB list</subtask>
+        <subtask>4.4 Add confirmation modal for changes affecting active processing</subtask>
+      </task>
+      <task id="5" title="Connect to Existing LiteLLM Integration" acs="1,2">
+        <subtask>5.1 Update `litellm_config.yaml` template generation from database config</subtask>
+        <subtask>5.2 Add signal to LiteLLM proxy for config refresh (if supported) or document polling</subtask>
+        <subtask>5.3 Verify model switching works end-to-end via search/generation</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.2.1">Admin UI displays current LLM model settings including provider, model name, base URL, and key parameters (temperature, max_tokens)</criterion>
+    <criterion id="AC-7.2.2">Model switching applies without service restart (hot-reload via Redis pub/sub or config polling)</criterion>
+    <criterion id="AC-7.2.3">Embedding dimension mismatch triggers warning when selected model dimensions differ from existing KB collections</criterion>
+    <criterion id="AC-7.2.4">Health status shown for each configured model (via connection test endpoint)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/architecture.md" relevance="high">
+        Architecture document containing:
+        - ADR-006: LiteLLM Proxy for Model Abstraction (lines 1600-1650)
+        - LLM Model Configuration hierarchy diagram
+        - Model Registry Architecture planned for Epic 7
+        - ConfigService patterns and caching strategy
+      </artifact>
+      <artifact path="docs/sprint-artifacts/tech-spec-epic-7.md" relevance="high">
+        Epic 7 technical specification with:
+        - Story 7-2 detailed requirements
+        - Model registry database schema
+        - LLM configuration API contracts
+      </artifact>
+    </docs>
+    <code>
+      <artifact path="backend/app/services/config_service.py" relevance="critical">
+        Existing ConfigService implementation to extend:
+        - `get_all_settings()` method pattern (line 119)
+        - `update_setting()` with Redis cache invalidation (line 173)
+        - DEFAULT_SETTINGS structure (line 23-112)
+        - Redis caching pattern (CACHE_KEY, CACHE_TTL)
+        - Audit logging integration (line 258-269)
+      </artifact>
+      <artifact path="backend/app/integrations/litellm_client.py" relevance="critical">
+        LiteLLM client abstraction:
+        - `LiteLLMEmbeddingClient` class (line 56)
+        - Settings integration: `settings.embedding_model`, `settings.llm_model`
+        - `chat_completion()` method (line 254) - uses litellm_proxy/ prefix
+        - `get_embeddings()` method (line 92) - batched embedding requests
+      </artifact>
+      <artifact path="backend/app/api/v1/admin.py" relevance="high">
+        Admin API patterns:
+        - Admin-only route protection with `is_superuser` check
+        - Existing admin endpoints for stats, users, config
+      </artifact>
+      <artifact path="backend/app/core/config.py" relevance="high">
+        Settings class with:
+        - `embedding_model` setting
+        - `llm_model` setting
+        - `litellm_url` and `litellm_api_key`
+      </artifact>
+      <artifact path="infrastructure/docker/litellm_config.yaml" relevance="high">
+        LiteLLM proxy configuration:
+        - Model definitions
+        - Provider settings
+        - API routing configuration
+      </artifact>
+      <artifact path="frontend/src/hooks/useSystemConfig.ts" relevance="medium">
+        Existing config hook pattern to follow for useLLMConfig
+      </artifact>
+      <artifact path="frontend/src/components/admin/config-settings-table.tsx" relevance="medium">
+        Existing admin config UI patterns
+      </artifact>
+      <artifact path="frontend/src/app/(protected)/admin/config/page.tsx" relevance="medium">
+        Existing admin config page structure (if exists)
+      </artifact>
+    </code>
+    <dependencies>
+      <dependency name="litellm" version=">=1.50.0,&lt;2.0.0">LLM proxy client library</dependency>
+      <dependency name="redis" version=">=7.1.0,&lt;8.0.0">Cache and pub/sub for hot-reload</dependency>
+      <dependency name="@tanstack/react-query" version="^5.90.11">React Query for frontend caching</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">All LLM config endpoints must be admin-only (is_superuser check)</constraint>
+    <constraint type="performance">Hot-reload must not require service restart</constraint>
+    <constraint type="compatibility">Embedding dimension changes must warn about existing KB collections</constraint>
+    <constraint type="pattern">Follow existing ConfigService pattern with Redis caching</constraint>
+    <constraint type="pattern">Use litellm_proxy/ prefix for model names when calling through LiteLLM proxy</constraint>
+  </constraints>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/api/v1/admin/config/llm">
+        Returns current LLM configuration including provider, model, base_url, temperature, max_tokens
+      </endpoint>
+      <endpoint method="PUT" path="/api/v1/admin/config/llm">
+        Updates LLM configuration with validation and cache invalidation
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/admin/config/llm/test">
+        Tests model connection and returns health status
+      </endpoint>
+    </api>
+    <frontend>
+      <route path="/admin/config/llm">LLM configuration admin page</route>
+      <hook name="useLLMConfig">React Query hook for LLM config state</hook>
+      <component name="LLMConfigForm">Form for editing LLM settings</component>
+      <component name="ModelHealthIndicator">Model connection status indicator</component>
+    </frontend>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Unit tests: ≥80% coverage for ConfigService LLM methods</standard>
+      <standard>Integration tests: All API endpoints with mocked LiteLLM</standard>
+      <standard>Frontend tests: Hook behavior, form validation, health indicator states</standard>
+      <standard>Manual verification: Hot-reload works without service restart</standard>
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_config_service.py</location>
+      <location>backend/tests/integration/test_llm_config_api.py</location>
+      <location>frontend/src/hooks/__tests__/useLLMConfig.test.ts</location>
+      <location>frontend/src/components/admin/__tests__/llm-config-form.test.tsx</location>
+    </locations>
+    <ideas>
+      <idea>Test hot-reload with multiple concurrent config updates</idea>
+      <idea>Test dimension mismatch warning with existing KB collections</idea>
+      <idea>Test model connection timeout handling (5s max)</idea>
+      <idea>Test Redis pub/sub notification delivery</idea>
+      <idea>Test UI feedback during config update (loading states, toasts)</idea>
+    </ideas>
+  </tests>
+</story-context>

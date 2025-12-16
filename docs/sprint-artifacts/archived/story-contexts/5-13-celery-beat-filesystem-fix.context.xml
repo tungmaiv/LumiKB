@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-key="5-13" epic="5" generated="2025-12-03">
+  <metadata>
+    <title>Celery Beat Filesystem Fix</title>
+    <type>Technical Debt - Infrastructure</type>
+    <story-points>2</story-points>
+    <priority>Medium</priority>
+    <status>ready-for-dev</status>
+    <estimated-effort>1-1.5 hours</estimated-effort>
+  </metadata>
+
+  <story-summary>
+    Fix Celery Beat scheduler's inability to persist its schedule file (celerybeat-schedule)
+    due to read-only Docker mount. Add named volume for /app/celery-data/ directory to enable
+    reliable execution of scheduled tasks (reconciliation, outbox processing, cleanup).
+  </story-summary>
+
+  <acceptance-criteria>
+    <ac id="1" tech-spec-ref="AC-5.13.1">
+      <title>Celery Beat Schedule Directory Created</title>
+      <description>Celery Beat writes celerybeat-schedule to /app/celery-data/ directory with write permissions</description>
+      <verification>docker exec lumikb-celery-beat ls -la /app/celery-data/</verification>
+    </ac>
+    <ac id="2" tech-spec-ref="AC-5.13.2">
+      <title>Scheduled Tasks Execute Successfully</title>
+      <description>All scheduled tasks execute without permission errors</description>
+      <scheduled-tasks>
+        <task name="process-outbox-events" schedule="10 seconds"/>
+        <task name="reconcile-data-consistency" schedule="1 hour"/>
+        <task name="cleanup-processed-outbox-events" schedule="daily 3AM UTC"/>
+      </scheduled-tasks>
+      <verification>docker logs lumikb-celery-beat 2>&amp;1 | grep -i "error\|permission"</verification>
+    </ac>
+    <ac id="3" tech-spec-ref="AC-5.13.3">
+      <title>Schedule File Persists Across Restarts</title>
+      <description>celerybeat-schedule file persists in named volume across container restarts</description>
+      <verification>docker compose restart celery-beat; docker exec lumikb-celery-beat ls -la /app/celery-data/celerybeat-schedule</verification>
+    </ac>
+    <ac id="4" tech-spec-ref="AC-5.13.4">
+      <title>Beat Scheduler Initializes Successfully</title>
+      <description>Logs show "beat: Starting..." and scheduled tasks registered</description>
+      <verification>docker logs lumikb-celery-beat 2>&amp;1 | head -50</verification>
+    </ac>
+    <ac id="5" tech-spec-ref="AC-5.13.5">
+      <title>No Root-Owned Files Created</title>
+      <description>Files in /app/celery-data/ owned by celery process user</description>
+      <verification>docker exec lumikb-celery-beat stat /app/celery-data/celerybeat-schedule</verification>
+    </ac>
+  </acceptance-criteria>
+
+  <artifacts>
+    <source-documents>
+      <doc type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-5.md" sections="AC-5.13.1 through AC-5.13.5"/>
+      <doc type="epics" path="docs/epics.md" sections="Story 5.13 definition (lines 2284-2347)"/>
+      <doc type="architecture" path="docs/architecture.md" sections="Infrastructure overview, Transactional Outbox"/>
+    </source-documents>
+
+    <code-files>
+      <file path="infrastructure/docker/docker-compose.yml" action="MODIFY">
+        <description>Celery Beat service configuration (lines 178-196)</description>
+        <current-state>
+          <problem>Mounts backend as read-only: volumes: ../../backend:/app:ro</problem>
+          <command>celery -A app.workers.celery_app beat --loglevel=info</command>
+        </current-state>
+        <changes-needed>
+          <change>Add named volume: celery_beat_data:/app/celery-data</change>
+          <change>Update command: --schedule=/app/celery-data/celerybeat-schedule</change>
+          <change>Add to volumes section: celery_beat_data: name: lumikb-celery-beat-data</change>
+        </changes-needed>
+      </file>
+      <file path="backend/Dockerfile" action="MODIFY">
+        <description>Multi-stage build for Python application</description>
+        <changes-needed>
+          <change>Add in runtime stage: RUN mkdir -p /app/celery-data &amp;&amp; chmod 755 /app/celery-data</change>
+        </changes-needed>
+      </file>
+      <file path="backend/app/workers/celery_app.py" action="READ-ONLY">
+        <description>Beat schedule configuration (lines 50-64)</description>
+        <relevant-config>
+          beat_schedule with 3 periodic tasks:
+          - process-outbox-events (10 seconds)
+          - reconcile-data-consistency (3600 seconds)
+          - cleanup-processed-outbox-events (crontab 3AM UTC)
+        </relevant-config>
+      </file>
+      <file path=".gitignore" action="VERIFY">
+        <description>Already contains celerybeat-schedule pattern (lines 75-77)</description>
+        <status>No modification needed</status>
+      </file>
+    </code-files>
+  </artifacts>
+
+  <technical-design>
+    <solution-overview>
+      1. Add named volume for celery-beat data persistence
+      2. Update Dockerfile to create /app/celery-data/ directory
+      3. Update celery-beat command to specify schedule file location
+      4. Mount volume at /app/celery-data/ instead of relying on read-only mount
+    </solution-overview>
+
+    <docker-compose-changes>
+      <change type="service">
+        <target>celery-beat</target>
+        <description>Update command and volumes</description>
+        <code><![CDATA[
+celery-beat:
+  build:
+    context: ../../backend
+    dockerfile: Dockerfile
+  container_name: lumikb-celery-beat
+  command: >
+    celery -A app.workers.celery_app beat
+    --loglevel=info
+    --schedule=/app/celery-data/celerybeat-schedule
+  environment:
+    # ... existing env vars ...
+  volumes:
+    - ../../backend:/app:ro
+    - celery_beat_data:/app/celery-data  # NEW: Writable volume
+  networks:
+    - lumikb-network
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+        ]]></code>
+      </change>
+      <change type="volume">
+        <target>volumes section</target>
+        <code><![CDATA[
+volumes:
+  # ... existing volumes ...
+  celery_beat_data:
+    name: lumikb-celery-beat-data
+        ]]></code>
+      </change>
+    </docker-compose-changes>
+
+    <dockerfile-changes>
+      <change type="directory">
+        <target>Runtime stage</target>
+        <description>Create celery-data directory with proper permissions</description>
+        <code><![CDATA[
+# Create directory for Celery Beat schedule file
+RUN mkdir -p /app/celery-data && chmod 755 /app/celery-data
+        ]]></code>
+      </change>
+    </dockerfile-changes>
+  </technical-design>
+
+  <testing-strategy>
+    <approach>Manual Docker verification (not application code)</approach>
+    <note>
+      Testcontainer patterns from Story 5-12 are not directly applicable since this story
+      modifies Docker Compose configuration itself rather than application code.
+    </note>
+    <verification-commands>
+      <command description="Rebuild celery-beat image">
+        cd /home/tungmv/Projects/LumiKB/infrastructure/docker
+        docker compose build celery-beat
+      </command>
+      <command description="Start services">
+        docker compose up -d
+      </command>
+      <command description="Verify schedule file exists">
+        docker exec lumikb-celery-beat ls -la /app/celery-data/
+      </command>
+      <command description="Check logs for initialization">
+        docker logs lumikb-celery-beat 2>&amp;1 | head -50
+      </command>
+      <command description="Check for permission errors">
+        docker logs lumikb-celery-beat 2>&amp;1 | grep -i "error\|permission\|denied"
+      </command>
+      <command description="Test persistence">
+        docker compose restart celery-beat
+        docker exec lumikb-celery-beat ls -la /app/celery-data/celerybeat-schedule
+      </command>
+      <command description="Verify scheduled tasks running">
+        docker logs lumikb-celery-worker 2>&amp;1 | grep -i "process_outbox_events"
+      </command>
+    </verification-commands>
+  </testing-strategy>
+
+  <constraints>
+    <constraint type="infrastructure">Only 2 files to modify: Dockerfile, docker-compose.yml</constraint>
+    <constraint type="scope">Changes isolated to celery-beat service</constraint>
+    <constraint type="compatibility">Named volume persists across docker compose down (use -v flag for clean slate)</constraint>
+    <constraint type="deployment">Celery Beat should only run one instance - file-based schedule appropriate for single-instance</constraint>
+    <constraint type="production">For Kubernetes/production, consider Redis-based scheduler instead</constraint>
+  </constraints>
+
+  <rollback-plan>
+    <step n="1">Remove volume mount from docker-compose.yml</step>
+    <step n="2">Remove --schedule flag from command</step>
+    <step n="3">Celery Beat will use in-memory schedule (loses persistence but works)</step>
+  </rollback-plan>
+
+  <dependencies>
+    <dependency type="service">Redis - healthy before celery-beat starts</dependency>
+    <dependency type="library">Celery (existing) - no new dependencies</dependency>
+    <dependency type="config">Uses existing Celery configuration in celery_app.py</dependency>
+  </dependencies>
+
+  <learnings-from-previous-story story="5-12">
+    <source>docs/sprint-artifacts/5-12-atdd-integration-tests-transition-to-green.md</source>
+    <items>
+      <item>Test Helpers Created: backend/tests/helpers/qdrant_helpers.py and document_helpers.py</item>
+      <item>Testcontainer Patterns: PostgresContainer, RedisContainer, QdrantContainer for isolated testing</item>
+      <item>Graceful Degradation: Tests handle service unavailability gracefully</item>
+      <item>Note: These patterns not directly applicable to infrastructure-only Story 5-13</item>
+    </items>
+  </learnings-from-previous-story>
+
+  <definition-of-done>
+    <section name="Schedule Directory (AC1)">
+      <item>/app/celery-data/ directory exists in container</item>
+      <item>celerybeat-schedule file created successfully</item>
+      <item>Directory writable by celery process</item>
+    </section>
+    <section name="Tasks Execute (AC2)">
+      <item>process-outbox-events triggers every 10 seconds</item>
+      <item>No permission errors in celery-beat logs</item>
+      <item>Worker logs show tasks being processed</item>
+    </section>
+    <section name="Persistence (AC3)">
+      <item>Named volume lumikb-celery-beat-data created</item>
+      <item>Schedule file persists across container restarts</item>
+      <item>No data loss on restart</item>
+    </section>
+    <section name="Initialization (AC4)">
+      <item>"beat: Starting..." appears in logs</item>
+      <item>Scheduled tasks registered in startup logs</item>
+      <item>No startup errors</item>
+    </section>
+    <section name="File Ownership (AC5)">
+      <item>No root-owned files in /app/celery-data/</item>
+      <item>Files accessible by container process</item>
+    </section>
+    <section name="Code Quality">
+      <item>docker-compose.yml changes follow existing patterns</item>
+      <item>Dockerfile changes are minimal and clean</item>
+      <item>No hardcoded paths outside of infrastructure files</item>
+    </section>
+  </definition-of-done>
+</story-context>

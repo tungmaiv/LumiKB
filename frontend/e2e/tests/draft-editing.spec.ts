@@ -50,7 +50,7 @@ test.describe('Draft Editing - Citation Preservation @p0', () => {
 
     /*
     // Network-first: Intercept BEFORE navigation
-    const draftPromise = page.waitForResponse('**/api/v1/drafts/**');
+    const draftPromise = page.waitForResponse('**\/api/v1/drafts/**');
 
     // GIVEN: Draft editor with existing citation
     await page.goto(`/drafts/${page.testDraftId}`);
@@ -129,7 +129,7 @@ test.describe('Draft Editing - Citation Preservation @p0', () => {
 
     // Reload page to verify persistence
     await page.reload();
-    await page.waitForResponse('**/api/v1/drafts/**');
+    await page.waitForResponse('**\/api/v1/drafts/**');
 
     // Verify citation persisted after reload
     await expect(marker).toBeVisible();

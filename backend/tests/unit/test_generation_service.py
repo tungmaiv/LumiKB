@@ -1,4 +1,4 @@
-"""Unit tests for GenerationService (Story 4.5)."""
+"""Unit tests for GenerationService (Story 4.5, Story 7-10)."""
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,6 +7,7 @@ import pytest
 
 from app.schemas.generation import GenerationRequest
 from app.services.generation_service import (
+    GenerationConfig,
     GenerationService,
     InsufficientSourcesError,
 )
@@ -23,7 +24,9 @@ class TestGenerationService:
             chunk = MagicMock()
             chunk.id = f"chunk-{i + 1}"
             chunk.document_id = uuid.uuid4()
-            chunk.chunk_text = f"This is chunk {i + 1} content with important information."
+            chunk.chunk_text = (
+                f"This is chunk {i + 1} content with important information."
+            )
             chunk.char_start = i * 100
             chunk.char_end = (i + 1) * 100
             chunk.metadata = {
@@ -43,6 +46,8 @@ class TestGenerationService:
         scalars = MagicMock()
         scalars.all.return_value = mock_chunks
         result.scalars.return_value = scalars
+        # For KB model lookup, return None (no KB-specific model)
+        result.scalar_one_or_none.return_value = None
         session.execute = AsyncMock(return_value=result)
         return session
 
@@ -59,7 +64,7 @@ class TestGenerationService:
 
         with pytest.raises(InsufficientSourcesError) as exc_info:
             async for _ in service.generate_document_stream(
-                session=MagicMock(),
+                MagicMock(),  # session (positional)
                 request=request,
                 user_id="user-123",
             ):
@@ -74,21 +79,23 @@ class TestGenerationService:
         service = GenerationService()
         request = GenerationRequest(
             kb_id="kb-123",
-            mode="technical_checklist",
+            mode="checklist",  # Valid template name
             additional_prompt="Focus on security",
             selected_chunk_ids=["chunk-1", "chunk-2", "chunk-3"],
         )
 
         # Mock LLM streaming response
         mock_llm_response = AsyncMock()
-        mock_llm_response.__aiter__.return_value = iter([])  # Empty stream for this test
+        mock_llm_response.__aiter__.return_value = iter(
+            []
+        )  # Empty stream for this test
 
         with patch.object(
             service.llm_client, "chat_completion", return_value=mock_llm_response
         ):
             events = []
             async for event in service.generate_document_stream(
-                session=mock_session,
+                mock_session,  # session (positional)
                 request=request,
                 user_id="user-123",
             ):
@@ -125,7 +132,7 @@ class TestGenerationService:
         ):
             events = []
             async for event in service.generate_document_stream(
-                session=mock_session,
+                mock_session,  # session (positional)
                 request=request,
                 user_id="user-123",
             ):
@@ -162,7 +169,7 @@ class TestGenerationService:
         ):
             events = []
             async for event in service.generate_document_stream(
-                session=mock_session,
+                mock_session,  # session (positional)
                 request=request,
                 user_id="user-123",
             ):
@@ -189,16 +196,16 @@ class TestGenerationService:
 
         # Mock LLM response
         mock_llm_response = AsyncMock()
-        mock_llm_response.__aiter__.return_value = iter([
-            self._create_llm_chunk("Test content [1]")
-        ])
+        mock_llm_response.__aiter__.return_value = iter(
+            [self._create_llm_chunk("Test content [1]")]
+        )
 
         with patch.object(
             service.llm_client, "chat_completion", return_value=mock_llm_response
         ):
             events = []
             async for event in service.generate_document_stream(
-                session=mock_session,
+                mock_session,  # session (positional)
                 request=request,
                 user_id="user-123",
             ):
@@ -252,3 +259,199 @@ class TestGenerationService:
         chunk.choices[0].delta = MagicMock()
         chunk.choices[0].delta.content = content
         return chunk
+
+
+class TestGenerationConfig:
+    """Tests for GenerationConfig dataclass (Story 7-10)."""
+
+    def test_generation_config_defaults(self):
+        """Test GenerationConfig with default values."""
+        config = GenerationConfig()
+
+        assert config.model_id is None
+        assert config.temperature is None
+        assert config.max_tokens is None
+
+    def test_generation_config_custom_values(self):
+        """Test GenerationConfig with custom values."""
+        config = GenerationConfig(
+            model_id="openai/gpt-4o",
+            temperature=0.7,
+            max_tokens=2000,
+        )
+
+        assert config.model_id == "openai/gpt-4o"
+        assert config.temperature == 0.7
+        assert config.max_tokens == 2000
+
+
+class TestKBSpecificGeneration:
+    """Tests for KB-specific generation model support (Story 7-10)."""
+
+    @pytest.fixture
+    def mock_kb_with_generation_model(self):
+        """Mock KB with configured generation model."""
+        kb = MagicMock()
+        kb.id = uuid.UUID("12345678-1234-1234-1234-123456789012")
+        kb.temperature = 0.5
+        kb.generation_model = MagicMock()
+        kb.generation_model.model_id = "openai/gpt-4o"
+        kb.generation_model.config = {"max_tokens": 3000}
+        return kb
+
+    @pytest.fixture
+    def mock_kb_without_generation_model(self):
+        """Mock KB without configured generation model."""
+        kb = MagicMock()
+        kb.id = uuid.UUID("12345678-1234-1234-1234-123456789012")
+        kb.temperature = 0.4
+        kb.generation_model = None
+        return kb
+
+    @pytest.mark.asyncio
+    async def test_get_kb_generation_config_with_model(
+        self, mock_kb_with_generation_model
+    ):
+        """Test _get_kb_generation_config returns KB model config (AC-7.10.10)."""
+        service = GenerationService()
+
+        # Mock session to return KB with generation model
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_kb_with_generation_model
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        config = await service._get_kb_generation_config(
+            mock_session,
+            "12345678-1234-1234-1234-123456789012",
+        )
+
+        assert config.model_id == "openai/gpt-4o"
+        assert config.temperature == 0.5
+        assert config.max_tokens == 3000
+
+    @pytest.mark.asyncio
+    async def test_get_kb_generation_config_without_model(
+        self, mock_kb_without_generation_model
+    ):
+        """Test _get_kb_generation_config returns defaults when no model configured."""
+        service = GenerationService()
+
+        # Mock session to return KB without generation model
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_kb_without_generation_model
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        config = await service._get_kb_generation_config(
+            mock_session,
+            "12345678-1234-1234-1234-123456789012",
+        )
+
+        assert config.model_id is None
+        assert config.temperature == 0.4  # KB's temperature is used
+        assert config.max_tokens is None
+
+    @pytest.mark.asyncio
+    async def test_get_kb_generation_config_kb_not_found(self):
+        """Test _get_kb_generation_config returns defaults when KB not found."""
+        service = GenerationService()
+
+        # Mock session to return None (KB not found)
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        config = await service._get_kb_generation_config(
+            mock_session,
+            "nonexistent-kb-id",
+        )
+
+        assert config.model_id is None
+        assert config.temperature is None
+        assert config.max_tokens is None
+
+    @pytest.mark.asyncio
+    async def test_generate_document_stream_uses_kb_model(
+        self, mock_kb_with_generation_model
+    ):
+        """Test generate_document_stream uses KB-specific model (AC-7.10.10)."""
+        service = GenerationService()
+
+        # Mock session
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_kb_with_generation_model
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        request = GenerationRequest(
+            kb_id="12345678-1234-1234-1234-123456789012",
+            mode="rfp_response",
+            additional_prompt="",
+            selected_chunk_ids=["chunk-1", "chunk-2"],
+        )
+
+        # Mock LLM response
+        mock_llm_response = AsyncMock()
+        mock_llm_response.__aiter__.return_value = iter([])
+
+        with patch.object(
+            service.llm_client, "chat_completion", return_value=mock_llm_response
+        ) as mock_chat:
+            events = []
+            async for event in service.generate_document_stream(
+                mock_session,
+                request=request,
+                user_id="user-123",
+            ):
+                events.append(event)
+
+            # Verify chat_completion was called with KB-specific model
+            mock_chat.assert_called_once()
+            call_kwargs = mock_chat.call_args.kwargs
+            assert call_kwargs["model"] == "openai/gpt-4o"
+            assert call_kwargs["temperature"] == 0.5
+            assert call_kwargs["max_tokens"] == 3000
+
+    @pytest.mark.asyncio
+    async def test_generate_document_stream_uses_default_when_no_kb_model(
+        self, mock_kb_without_generation_model
+    ):
+        """Test generate_document_stream uses defaults when no KB model configured."""
+        service = GenerationService()
+
+        # Mock session
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_kb_without_generation_model
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        request = GenerationRequest(
+            kb_id="12345678-1234-1234-1234-123456789012",
+            mode="rfp_response",
+            additional_prompt="",
+            selected_chunk_ids=["chunk-1", "chunk-2"],
+        )
+
+        # Mock LLM response
+        mock_llm_response = AsyncMock()
+        mock_llm_response.__aiter__.return_value = iter([])
+
+        with patch.object(
+            service.llm_client, "chat_completion", return_value=mock_llm_response
+        ) as mock_chat:
+            events = []
+            async for event in service.generate_document_stream(
+                mock_session,
+                request=request,
+                user_id="user-123",
+            ):
+                events.append(event)
+
+            # Verify chat_completion was called with KB temperature but default model
+            mock_chat.assert_called_once()
+            call_kwargs = mock_chat.call_args.kwargs
+            assert call_kwargs["model"] is None  # Falls back to default
+            assert call_kwargs["temperature"] == 0.4  # KB temperature used
+            assert call_kwargs["max_tokens"] == 2048  # KB config default max_tokens

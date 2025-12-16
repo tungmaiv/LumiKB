@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-7: Archive Management UI
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-7">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Archive Management UI</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>5</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to view and manage all archived documents in a dedicated interface</iWant>
+      <soThat>I can restore or permanently delete archived documents as needed</soThat>
+    </userStory>
+
+    <context>
+      The Archive Management page provides a centralized interface for viewing all archived
+      documents across the user's accessible KBs. It supports filtering by KB, searching by
+      document name, pagination, and actions to restore or purge archived documents.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.7.1">
+      <title>Archive page accessible via navigation</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <when>I click "Archive" in the sidebar navigation</when>
+      <then>I am navigated to /archive page</then>
+      <and>I see a list of archived documents I have access to</and>
+    </criterion>
+
+    <criterion id="AC-6.7.2">
+      <title>Archive list displays document metadata</title>
+      <given>I am viewing the archive page</given>
+      <when>the page loads</when>
+      <then>I see a table with columns: Name, KB Name, Archived Date, Original Completion Date, File Size, Actions</then>
+      <and>documents are sorted by archived date (most recent first) by default</and>
+    </criterion>
+
+    <criterion id="AC-6.7.3">
+      <title>Filter by Knowledge Base</title>
+      <given>I am viewing the archive page</given>
+      <when>I select a KB from the filter dropdown</when>
+      <then>only archived documents from that KB are displayed</then>
+    </criterion>
+
+    <criterion id="AC-6.7.4">
+      <title>Search archived documents</title>
+      <given>I am viewing the archive page</given>
+      <when>I type in the search box</when>
+      <then>documents are filtered by name (case-insensitive partial match)</then>
+    </criterion>
+
+    <criterion id="AC-6.7.5">
+      <title>Pagination support</title>
+      <given>there are more than 20 archived documents</given>
+      <when>I view the archive page</when>
+      <then>I see pagination controls</then>
+      <and>I can navigate between pages</and>
+    </criterion>
+
+    <criterion id="AC-6.7.6">
+      <title>Restore action from archive page</title>
+      <given>I am viewing an archived document in the list</given>
+      <when>I click the Restore button</when>
+      <then>a confirmation dialog appears</then>
+      <and>on confirm, the document is restored</and>
+      <and>the document disappears from the archive list</and>
+      <and>a success toast notification is shown</and>
+    </criterion>
+
+    <criterion id="AC-6.7.7">
+      <title>Purge action from archive page</title>
+      <given>I am viewing an archived document in the list</given>
+      <when>I click the Purge button</when>
+      <then>a two-step confirmation dialog appears (warning about permanent deletion)</then>
+      <and>on confirm, the document is permanently deleted</and>
+      <and>the document disappears from the archive list</and>
+      <and>a success toast notification is shown</and>
+    </criterion>
+
+    <criterion id="AC-6.7.8">
+      <title>Bulk purge selection</title>
+      <given>I am viewing the archive page</given>
+      <when>I select multiple documents using checkboxes</when>
+      <then>I see a "Purge Selected" button</then>
+      <and>clicking it shows a confirmation with count of selected documents</and>
+      <and>on confirm, all selected documents are purged</and>
+    </criterion>
+
+    <criterion id="AC-6.7.9">
+      <title>Handle restore name collision</title>
+      <given>I attempt to restore a document</given>
+      <and>a document with the same name exists in that KB</and>
+      <when>the restore fails with 409</when>
+      <then>an error message is shown: "Cannot restore: a document with this name already exists"</then>
+    </criterion>
+
+    <criterion id="AC-6.7.10">
+      <title>Empty state display</title>
+      <given>there are no archived documents</given>
+      <when>I view the archive page</when>
+      <then>I see an empty state message: "No archived documents"</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="page" path="frontend/src/app/(protected)/archive/page.tsx" new="true">
+      <description>Archive Management page component</description>
+      <keyElements>
+        - Server component with client interactivity
+        - useArchive hook integration
+        - Table with pagination
+        - Filter and search controls
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useArchive.ts" new="true">
+      <description>React Query hook for archive operations</description>
+      <keyElements>
+        - useQuery for fetching archived documents
+        - useMutation for restore operation
+        - useMutation for purge operation
+        - useMutation for bulk purge
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/archive/archive-table.tsx" new="true">
+      <description>Archive documents table component</description>
+      <keyElements>
+        - Sortable columns
+        - Row selection for bulk actions
+        - Action buttons per row
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/archive/purge-confirmation-modal.tsx" new="true">
+      <description>Two-step purge confirmation modal</description>
+      <keyElements>
+        - Warning about permanent deletion
+        - Type confirmation step
+        - Support for single and bulk purge
+      </keyElements>
+    </reference>
+
+    <reference type="navigation" path="frontend/src/components/layout/kb-sidebar.tsx">
+      <description>Sidebar navigation - add Archive link</description>
+      <keyElements>
+        - Archive nav item for owners/admins
+        - Archive icon (ArchiveIcon from lucide-react)
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/api/v1/documents/archived" existing="false">
+        <description>List archived documents with filters</description>
+        <queryParams>
+          <param name="kb_id" type="uuid" required="false">Filter by KB</param>
+          <param name="search" type="string" required="false">Search by name</param>
+          <param name="page" type="int" required="false" default="1">Page number</param>
+          <param name="limit" type="int" required="false" default="20">Items per page</param>
+        </queryParams>
+        <response code="200">
+          <field name="items" type="array">List of archived documents</field>
+          <field name="total" type="int">Total count</field>
+          <field name="page" type="int">Current page</field>
+          <field name="limit" type="int">Items per page</field>
+        </response>
+      </endpoint>
+    </api>
+
+    <uiComponents>
+      <component name="ArchivePage">
+        <props>None (page component)</props>
+        <state>
+          - selectedKbId: string | null
+          - searchQuery: string
+          - selectedDocIds: string[]
+          - currentPage: number
+        </state>
+      </component>
+
+      <component name="ArchiveTable">
+        <props>
+          - documents: ArchivedDocument[]
+          - onRestore: (docId: string) => void
+          - onPurge: (docId: string) => void
+          - selectedIds: string[]
+          - onSelectionChange: (ids: string[]) => void
+        </props>
+      </component>
+
+      <component name="PurgeConfirmationModal">
+        <props>
+          - isOpen: boolean
+          - onClose: () => void
+          - onConfirm: () => void
+          - documentCount: number
+          - documentNames?: string[]
+        </props>
+      </component>
+    </uiComponents>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-1" status="pending">
+      <name>Archive Document Backend</name>
+      <provides>Archive API endpoint, archived status</provides>
+    </dependency>
+
+    <dependency type="story" id="6-2" status="pending">
+      <name>Restore Document Backend</name>
+      <provides>Restore API endpoint</provides>
+    </dependency>
+
+    <dependency type="story" id="6-3" status="pending">
+      <name>Purge Document Backend</name>
+      <provides>Purge and bulk purge API endpoints</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Component Tests" count="8">
+      <test>ArchivePage renders empty state when no documents</test>
+      <test>ArchivePage displays documents in table</test>
+      <test>KB filter updates document list</test>
+      <test>Search filters documents by name</test>
+      <test>Pagination controls work correctly</test>
+      <test>Restore button triggers confirmation and API call</test>
+      <test>Purge button triggers two-step confirmation</test>
+      <test>Bulk selection enables bulk purge button</test>
+    </testCategory>
+
+    <testCategory name="E2E Tests" count="6">
+      <test>Navigate to archive page from sidebar</test>
+      <test>Filter archived documents by KB</test>
+      <test>Search archived documents</test>
+      <test>Restore document from archive</test>
+      <test>Purge single document with confirmation</test>
+      <test>Bulk purge multiple documents</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

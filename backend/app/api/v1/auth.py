@@ -25,7 +25,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users.exceptions import InvalidResetPasswordToken, UserAlreadyExists
 from pydantic import BaseModel, EmailStr, Field
 
-from app.core.auth import UserManager, auth_backend, fastapi_users, get_user_manager
+from app.core.auth import (
+    UserManager,
+    auth_backend,
+    current_active_user,
+    fastapi_users,
+    get_user_manager,
+)
 from app.core.redis import (
     RedisSessionStore,
     create_session_data,
@@ -378,3 +384,56 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="RESET_PASSWORD_INVALID_TOKEN",
         ) from exc
+
+
+# ============================================================================
+# Session Refresh Endpoint
+# ============================================================================
+
+
+@router.post(
+    "/refresh",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Session refreshed, new JWT cookie set"},
+        401: {"description": "Not authenticated or session expired"},
+    },
+)
+async def refresh_session(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(current_active_user),
+) -> Response:
+    """Refresh the current session, extending its lifetime.
+
+    This endpoint is called by the frontend to implement sliding sessions.
+    When the user is active, the frontend periodically calls this endpoint
+    to get a new JWT token with full session lifetime, preventing timeout
+    while the user is actively using the application.
+
+    Args:
+        request: FastAPI request object.
+        background_tasks: Background task manager.
+        user: Current authenticated user (validates JWT is still valid).
+
+    Returns:
+        Response: Response with new Set-Cookie header for refreshed JWT.
+    """
+    session_store = await _get_session_store()
+    ip_address = get_client_ip(request)
+
+    # Update session data in Redis with refreshed timestamp
+    session_data = create_session_data(ip_address)
+    await session_store.store_session(user.id, session_data)
+
+    # Generate new JWT with full session lifetime
+    strategy = auth_backend.get_strategy()
+    token = await strategy.write_token(user)
+    response = await auth_backend.transport.get_login_response(token)
+
+    # Audit logging (optional - can be verbose, consider throttling in production)
+    background_tasks.add_task(
+        _log_audit_event, "user.session_refreshed", user.id, ip_address
+    )
+
+    return response

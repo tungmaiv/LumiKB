@@ -20,11 +20,28 @@ vi.mock('@/components/search/search-bar', () => ({
   ),
 }));
 
+// Mock MainNav component
+vi.mock('@/components/layout/main-nav', () => ({
+  MainNav: () => <nav data-testid="main-nav">MainNav</nav>,
+}));
+
+// Mock CommandPalette component (uses useRouter, useSearchParams, etc.)
+vi.mock('@/components/search/command-palette', () => ({
+  CommandPalette: () => null,
+}));
+
 describe('Header', () => {
   it('renders the LumiKB logo', () => {
     render(<Header />);
 
-    expect(screen.getByText('LumiKB')).toBeInTheDocument();
+    // Logo is now an image with alt text
+    expect(screen.getByAltText('LumiKB')).toBeInTheDocument();
+  });
+
+  it('renders the main navigation', () => {
+    render(<Header />);
+
+    expect(screen.getByTestId('main-nav')).toBeInTheDocument();
   });
 
   it('renders the search bar placeholder', () => {

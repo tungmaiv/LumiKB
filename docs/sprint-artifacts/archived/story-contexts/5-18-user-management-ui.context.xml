@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 5-18 User Management UI
+  Generated: 2025-12-05
+  Purpose: Provides comprehensive context for dev agent to implement Story 5-18
+-->
+<story-context story-key="5-18" title="User Management UI">
+
+  <story>
+    <as-a>administrator</as-a>
+    <i-want>to view, create, edit, and manage user accounts through the admin UI</i-want>
+    <so-that>I can onboard new team members, update user information, and control account status without direct database access</so-that>
+  </story>
+
+  <acceptance-criteria>
+    <criterion id="AC-5.18.1" title="User List Page Created">
+      <given>I am logged in as an admin (is_superuser=true)</given>
+      <when>I navigate to /admin/users</when>
+      <then>
+        - I see a paginated table of all users with columns: Email, Status (Active/Inactive badge), Role (Admin/User), Created date, Last active date
+        - I can sort by any column
+        - I can search/filter by email
+        - Pagination shows 20 users per page with navigation controls
+      </then>
+      <technical-notes>
+        - Use existing PaginatedResponse[UserRead] schema from backend
+        - Implement client-side sorting (API doesn't support server-side sort yet)
+        - Add URL search params for filter state persistence
+      </technical-notes>
+    </criterion>
+
+    <criterion id="AC-5.18.2" title="Create User Modal Implemented">
+      <given>I am on the /admin/users page</given>
+      <when>I click "Add User" button</when>
+      <then>
+        - Modal appears with fields: Email (required, email format), Password (required, min 8 chars), Confirm Password (must match), Is Admin checkbox
+        - Clicking "Create" calls POST /api/v1/admin/users
+        - Success shows toast notification and refreshes user list
+        - Error displays validation message inline (email already exists, etc.)
+      </then>
+      <technical-notes>
+        - Use existing UserCreate schema (email, password, is_superuser)
+        - Password confirmation is client-side only
+        - Handle 409 Conflict for duplicate email
+      </technical-notes>
+    </criterion>
+
+    <criterion id="AC-5.18.3" title="Edit User Functionality Implemented">
+      <given>I am viewing the user list</given>
+      <when>I click the edit action on a user row</when>
+      <then>
+        - Modal appears with: Email (read-only), Status toggle (Active/Inactive), Role indicator (Admin/User - read-only)
+        - Changes saved via PATCH /api/v1/admin/users/{user_id}
+        - Success shows confirmation and updates table row
+        - I cannot deactivate my own account (button disabled with tooltip)
+      </then>
+      <technical-notes>
+        - Use existing AdminUserUpdate schema (is_active only currently)
+        - Role change requires future backend enhancement (Story 5.19+ scope)
+        - Prevent self-deactivation on frontend
+        - DEVIATION: Role dropdown specified in epics but backend doesn't support is_superuser update - implementing as read-only badge
+      </technical-notes>
+    </criterion>
+
+    <criterion id="AC-5.18.4" title="User Status Toggle Works">
+      <given>I am viewing the user list</given>
+      <when>I toggle a user's status from Active to Inactive</when>
+      <then>
+        - Status badge updates immediately (optimistic UI)
+        - API call updates is_active field
+        - Deactivated users cannot log in until reactivated
+        - Action logged to audit.events (handled by backend)
+      </then>
+      <technical-notes>
+        - Implement optimistic update with rollback on error
+        - Use SWR mutation for cache update
+        - Backend already logs to audit.events
+      </technical-notes>
+    </criterion>
+
+    <criterion id="AC-5.18.5" title="Admin Navigation Updated">
+      <given>I am an admin user</given>
+      <when>I view the admin navigation menu</when>
+      <then>
+        - I see a "Users" link in the admin section
+        - Clicking it navigates to /admin/users
+        - The link shows active state when on users page
+      </then>
+      <technical-notes>
+        - Add to existing admin tools section in /admin/page.tsx
+        - Follow existing pattern (Audit Logs, Queue Status, etc.)
+        - Extend MainNav admin section from Story 5.17
+      </technical-notes>
+    </criterion>
+
+    <criterion id="AC-5.18.6" title="Access Control Enforced">
+      <given>I am NOT an admin (is_superuser=false)</given>
+      <when>I attempt to access /admin/users directly</when>
+      <then>
+        - I am redirected to /dashboard with an error message
+        - API calls return 403 Forbidden (handled by backend)
+      </then>
+      <technical-notes>
+        - Use existing admin route protection middleware
+        - Backend already checks current_superuser dependency
+      </technical-notes>
+    </criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" title="Create useUsers Hook" acs="1,2,3,4">
+      <subtask>1.1 Create frontend/src/hooks/useUsers.ts with SWR data fetching</subtask>
+      <subtask>1.2 Implement pagination support (page, limit params)</subtask>
+      <subtask>1.3 Add createUser mutation function</subtask>
+      <subtask>1.4 Add updateUser mutation function with optimistic updates</subtask>
+      <subtask>1.5 Handle error states and rollback logic</subtask>
+      <subtask>1.6 Write unit tests for useUsers hook</subtask>
+    </task>
+
+    <task id="2" title="Create UserTable Component" acs="1">
+      <subtask>2.1 Create frontend/src/components/admin/user-table.tsx</subtask>
+      <subtask>2.2 Implement columns: Email, Status badge, Role badge, Created, Last Active, Actions</subtask>
+      <subtask>2.3 Add client-side sorting by column click</subtask>
+      <subtask>2.4 Add email search/filter input with debounce (300ms)</subtask>
+      <subtask>2.5 Implement pagination controls (20 per page)</subtask>
+      <subtask>2.6 Add empty state message</subtask>
+      <subtask>2.7 Write unit tests for UserTable component</subtask>
+    </task>
+
+    <task id="3" title="Create CreateUserModal Component" acs="2">
+      <subtask>3.1 Create frontend/src/components/admin/create-user-modal.tsx</subtask>
+      <subtask>3.2 Implement form with react-hook-form + zod validation</subtask>
+      <subtask>3.3 Add email format validation</subtask>
+      <subtask>3.4 Add password validation (min 8 chars)</subtask>
+      <subtask>3.5 Add confirm password match validation</subtask>
+      <subtask>3.6 Add Is Admin checkbox</subtask>
+      <subtask>3.7 Handle 409 Conflict error for duplicate email</subtask>
+      <subtask>3.8 Show toast on success, inline errors on failure</subtask>
+      <subtask>3.9 Write unit tests for CreateUserModal component</subtask>
+    </task>
+
+    <task id="4" title="Create EditUserModal Component" acs="3,4">
+      <subtask>4.1 Create frontend/src/components/admin/edit-user-modal.tsx</subtask>
+      <subtask>4.2 Display email as read-only</subtask>
+      <subtask>4.3 Add status toggle (Active/Inactive)</subtask>
+      <subtask>4.4 Display role as read-only badge</subtask>
+      <subtask>4.5 Implement self-deactivation prevention (disabled + tooltip)</subtask>
+      <subtask>4.6 Implement optimistic UI update</subtask>
+      <subtask>4.7 Write unit tests for EditUserModal component</subtask>
+    </task>
+
+    <task id="5" title="Create Users Page" acs="1,5">
+      <subtask>5.1 Create frontend/src/app/(protected)/admin/users/page.tsx</subtask>
+      <subtask>5.2 Integrate UserTable, CreateUserModal, EditUserModal</subtask>
+      <subtask>5.3 Add "Add User" button</subtask>
+      <subtask>5.4 Wrap in DashboardLayout</subtask>
+      <subtask>5.5 Add URL state for search/page params</subtask>
+      <subtask>5.6 Write unit tests for page component</subtask>
+    </task>
+
+    <task id="6" title="Update Admin Navigation" acs="5">
+      <subtask>6.1 Add "Users" link to admin tools section in /admin/page.tsx</subtask>
+      <subtask>6.2 Add Users icon (Users from lucide-react)</subtask>
+      <subtask>6.3 Update MainNav admin section (from Story 5.17) with Users link</subtask>
+      <subtask>6.4 Verify navigation renders and links work</subtask>
+    </task>
+
+    <task id="7" title="Access Control Verification" acs="6">
+      <subtask>7.1 Verify admin route protection redirects non-admins</subtask>
+      <subtask>7.2 Verify 403 response from API for non-admin users</subtask>
+      <subtask>7.3 Write E2E test for access control</subtask>
+    </task>
+
+    <task id="8" title="E2E Tests">
+      <subtask>8.1 Create frontend/e2e/tests/admin/user-management.spec.ts</subtask>
+      <subtask>8.2 Test: Admin can list users</subtask>
+      <subtask>8.3 Test: Admin can create user</subtask>
+      <subtask>8.4 Test: Admin can edit user status</subtask>
+      <subtask>8.5 Test: Non-admin redirected to dashboard</subtask>
+    </task>
+  </tasks>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic 5 - Story 5.18" section="Story 5.18: User Management UI" snippet="Defines acceptance criteria AC-5.18.1 through AC-5.18.6 for user management frontend."/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Technical Specification" section="Story 5.18" snippet="Technical details for admin dashboard and user management features."/>
+      <doc path="docs/sprint-artifacts/5-17-main-navigation.md" title="Previous Story - Main Navigation" section="Completion Notes" snippet="MainNav component patterns, admin section visibility using is_superuser check, responsive breakpoints."/>
+      <doc path="docs/architecture.md" title="Architecture" section="Frontend Architecture" snippet="Component patterns, state management, and API integration guidelines."/>
+      <doc path="docs/coding-standards.md" title="Coding Standards" section="TypeScript" snippet="No any types, strict mode, error handling patterns."/>
+    </docs>
+
+    <code>
+      <!-- Backend API Endpoints -->
+      <file path="backend/app/api/v1/admin.py" kind="router" symbol="list_users" lines="154-203" reason="GET /api/v1/admin/users - Returns PaginatedResponse[UserRead] with skip/limit pagination"/>
+      <file path="backend/app/api/v1/admin.py" kind="router" symbol="create_user" lines="206-265" reason="POST /api/v1/admin/users - Creates user with email/password/is_superuser, returns 409 on duplicate"/>
+      <file path="backend/app/api/v1/admin.py" kind="router" symbol="update_user" lines="268-343" reason="PATCH /api/v1/admin/users/{user_id} - Updates is_active only (not is_superuser)"/>
+
+      <!-- Backend Schemas -->
+      <file path="backend/app/schemas/user.py" kind="schema" symbol="UserRead" lines="10-28" reason="User response schema with id, email, is_active, is_superuser, created_at, last_active"/>
+      <file path="backend/app/schemas/user.py" kind="schema" symbol="UserCreate" lines="31-42" reason="User creation schema with email, password (min 8 chars), is_superuser"/>
+      <file path="backend/app/schemas/user.py" kind="schema" symbol="AdminUserUpdate" lines="59-65" reason="Admin update schema - ONLY is_active supported, NOT is_superuser"/>
+      <file path="backend/app/schemas/common.py" kind="schema" symbol="PaginatedResponse" lines="19-24" reason="Generic paginated response with data list and meta (total, page, per_page, total_pages)"/>
+
+      <!-- Frontend Types -->
+      <file path="frontend/src/types/user.ts" kind="type" symbol="UserRead" lines="1-10" reason="Frontend user type matching backend schema"/>
+
+      <!-- Reference Patterns - Hooks -->
+      <file path="frontend/src/hooks/useAuditLogs.ts" kind="hook" symbol="useAuditLogs" lines="1-60" reason="SWR hook pattern for admin data fetching with pagination and error handling"/>
+      <file path="frontend/src/hooks/useAdminStats.ts" kind="hook" symbol="useAdminStats" reason="Simple SWR hook pattern for admin API calls"/>
+
+      <!-- Reference Patterns - Components -->
+      <file path="frontend/src/components/admin/audit-log-table.tsx" kind="component" symbol="AuditLogTable" lines="1-280" reason="Admin table component pattern with pagination, loading state, empty state"/>
+      <file path="frontend/src/components/admin/stat-card.tsx" kind="component" symbol="StatCard" reason="Admin stat card component pattern"/>
+      <file path="frontend/src/app/(protected)/admin/page.tsx" kind="page" symbol="AdminDashboardPage" lines="1-249" reason="Admin dashboard page pattern with DashboardLayout, admin tools section"/>
+
+      <!-- Navigation -->
+      <file path="frontend/src/components/layout/main-nav.tsx" kind="component" symbol="MainNav" reason="Main navigation component - add Users link to admin section"/>
+      <file path="frontend/src/components/layout/mobile-nav.tsx" kind="component" symbol="MobileNav" reason="Mobile navigation - may need Users link added"/>
+
+      <!-- UI Components (existing) -->
+      <file path="frontend/src/components/ui/button.tsx" kind="component" symbol="Button" reason="Shadcn button component"/>
+      <file path="frontend/src/components/ui/dialog.tsx" kind="component" symbol="Dialog" reason="Shadcn dialog/modal component"/>
+      <file path="frontend/src/components/ui/table.tsx" kind="component" symbol="Table" reason="Shadcn table component"/>
+      <file path="frontend/src/components/ui/switch.tsx" kind="component" symbol="Switch" reason="Shadcn switch/toggle component"/>
+    </code>
+
+    <dependencies>
+      <frontend>
+        <package name="react-hook-form" version="^7.66.1" purpose="Form state management"/>
+        <package name="@hookform/resolvers" version="^5.2.2" purpose="Zod integration for form validation"/>
+        <package name="zod" version="^4.1.12" purpose="Schema validation"/>
+        <package name="@tanstack/react-query" version="^5.90.11" purpose="Server state management (SWR alternative)"/>
+        <package name="lucide-react" version="^0.554.0" purpose="Icons (Users, Edit, Plus, etc.)"/>
+        <package name="sonner" version="^2.0.7" purpose="Toast notifications"/>
+        <package name="date-fns" version="^4.1.0" purpose="Date formatting"/>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface name="GET /api/v1/admin/users" kind="REST endpoint">
+      <signature>GET /api/v1/admin/users?skip={int}&amp;limit={int}</signature>
+      <path>backend/app/api/v1/admin.py:154-203</path>
+      <request>Query params: skip (default 0), limit (default 20, max 100)</request>
+      <response>
+        {
+          "data": [UserRead],
+          "meta": {
+            "total": int,
+            "page": int,
+            "per_page": int,
+            "total_pages": int
+          }
+        }
+      </response>
+      <auth>Requires current_superuser (403 for non-admin)</auth>
+    </interface>
+
+    <interface name="POST /api/v1/admin/users" kind="REST endpoint">
+      <signature>POST /api/v1/admin/users</signature>
+      <path>backend/app/api/v1/admin.py:206-265</path>
+      <request>
+        {
+          "email": string (required, email format),
+          "password": string (required, min 8 chars),
+          "is_superuser": boolean (optional, default false)
+        }
+      </request>
+      <response>UserRead (201 Created)</response>
+      <errors>
+        400: Invalid email format or password too short
+        409: Email already exists
+      </errors>
+      <auth>Requires current_superuser</auth>
+    </interface>
+
+    <interface name="PATCH /api/v1/admin/users/{user_id}" kind="REST endpoint">
+      <signature>PATCH /api/v1/admin/users/{user_id}</signature>
+      <path>backend/app/api/v1/admin.py:268-343</path>
+      <request>
+        {
+          "is_active": boolean (optional)
+        }
+      </request>
+      <response>UserRead (200 OK)</response>
+      <errors>
+        404: User not found
+      </errors>
+      <auth>Requires current_superuser</auth>
+      <notes>ONLY is_active supported - is_superuser update NOT implemented</notes>
+    </interface>
+
+    <interface name="UserRead" kind="TypeScript interface">
+      <signature>
+        interface UserRead {
+          id: string;
+          email: string;
+          is_active: boolean;
+          is_superuser: boolean;
+          is_verified: boolean;
+          created_at: string;
+          onboarding_completed: boolean;
+          last_active: string | null;
+        }
+      </signature>
+      <path>frontend/src/types/user.ts:1-10</path>
+    </interface>
+
+    <interface name="PaginatedResponse" kind="TypeScript interface">
+      <signature>
+        interface PaginatedResponse&lt;T&gt; {
+          data: T[];
+          meta: {
+            total: number;
+            page: number;
+            per_page: number;
+            total_pages: number;
+          };
+        }
+      </signature>
+      <notes>Generic pagination wrapper used by all list endpoints</notes>
+    </interface>
+
+    <interface name="useUsers" kind="React hook">
+      <signature>
+        interface UseUsersOptions {
+          page?: number;
+          search?: string;
+        }
+
+        interface UseUsersReturn {
+          users: UserRead[];
+          pagination: PaginationMeta;
+          isLoading: boolean;
+          error: Error | null;
+          createUser: (data: CreateUserRequest) => Promise&lt;UserRead&gt;;
+          updateUser: (id: string, data: UpdateUserRequest) => Promise&lt;UserRead&gt;;
+          refetch: () => void;
+        }
+
+        function useUsers(options: UseUsersOptions): UseUsersReturn;
+      </signature>
+      <notes>To be implemented - follows useAuditLogs pattern</notes>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint type="architecture">
+      Follow existing admin component patterns from audit-log-table.tsx and admin/page.tsx
+    </constraint>
+    <constraint type="architecture">
+      Use DashboardLayout wrapper for users page (consistent with other admin pages)
+    </constraint>
+    <constraint type="architecture">
+      Use SWR/React Query pattern for data fetching (see useAuditLogs.ts)
+    </constraint>
+    <constraint type="styling">
+      Use Shadcn UI components (Table, Dialog, Button, Badge, Switch)
+    </constraint>
+    <constraint type="validation">
+      Use react-hook-form + zod for form validation (already installed)
+    </constraint>
+    <constraint type="state">
+      Implement optimistic updates with rollback on error for status toggle
+    </constraint>
+    <constraint type="ux">
+      Prevent self-deactivation: check currentUser.id === editingUser.id
+    </constraint>
+    <constraint type="backend-limitation">
+      PATCH endpoint only supports is_active update, NOT is_superuser - display role as read-only
+    </constraint>
+    <constraint type="accessibility">
+      Keyboard navigation, ARIA labels, focus visible styles (WCAG 2.1 AA)
+    </constraint>
+    <constraint type="responsive">
+      Mobile-friendly design following patterns from Story 5.17
+    </constraint>
+    <constraint type="testing">
+      Unit tests required for hooks and components (>80% coverage)
+      E2E tests for critical paths (list, create, edit, access control)
+    </constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      - Frontend unit testing: Vitest + React Testing Library
+      - E2E testing: Playwright
+      - Coverage target: >80% for components and hooks
+      - Test file location: __tests__/ folder adjacent to source
+      - Test naming: ComponentName.test.tsx, useHookName.test.ts
+    </standards>
+
+    <locations>
+      <location>frontend/src/components/admin/__tests__/*.test.tsx</location>
+      <location>frontend/src/hooks/__tests__/*.test.ts</location>
+      <location>frontend/src/app/(protected)/admin/users/__tests__/*.test.tsx</location>
+      <location>frontend/e2e/tests/admin/user-management.spec.ts</location>
+    </locations>
+
+    <ideas>
+      <idea ac="AC-5.18.1">Test UserTable renders all columns correctly</idea>
+      <idea ac="AC-5.18.1">Test client-side sorting by each column</idea>
+      <idea ac="AC-5.18.1">Test email filter debounce behavior</idea>
+      <idea ac="AC-5.18.1">Test pagination controls (previous, next, page numbers)</idea>
+      <idea ac="AC-5.18.1">Test empty state when no users match filter</idea>
+      <idea ac="AC-5.18.2">Test CreateUserModal opens on button click</idea>
+      <idea ac="AC-5.18.2">Test email validation (invalid format shows error)</idea>
+      <idea ac="AC-5.18.2">Test password validation (less than 8 chars shows error)</idea>
+      <idea ac="AC-5.18.2">Test confirm password mismatch shows error</idea>
+      <idea ac="AC-5.18.2">Test successful creation shows toast and closes modal</idea>
+      <idea ac="AC-5.18.2">Test 409 conflict shows inline error for duplicate email</idea>
+      <idea ac="AC-5.18.3">Test EditUserModal displays user email as read-only</idea>
+      <idea ac="AC-5.18.3">Test status toggle calls API with correct payload</idea>
+      <idea ac="AC-5.18.3">Test role badge displays correctly (Admin/User)</idea>
+      <idea ac="AC-5.18.3">Test self-deactivation button is disabled</idea>
+      <idea ac="AC-5.18.4">Test optimistic UI update on status toggle</idea>
+      <idea ac="AC-5.18.4">Test rollback on API error</idea>
+      <idea ac="AC-5.18.5">Test Users link appears in admin navigation</idea>
+      <idea ac="AC-5.18.5">Test Users link navigates to /admin/users</idea>
+      <idea ac="AC-5.18.6">Test non-admin user is redirected to dashboard</idea>
+      <idea ac="AC-5.18.6">Test API returns 403 for non-admin user</idea>
+    </ideas>
+
+    <commands>
+      <command purpose="Run unit tests">npm run test:run -- frontend/src/components/admin/__tests__/user-table.test.tsx</command>
+      <command purpose="Run hook tests">npm run test:run -- frontend/src/hooks/__tests__/useUsers.test.tsx</command>
+      <command purpose="Run page tests">npm run test:run -- frontend/src/app/\\(protected\\)/admin/users/__tests__/page.test.tsx</command>
+      <command purpose="Run E2E tests">npx playwright test frontend/e2e/tests/admin/user-management.spec.ts</command>
+      <command purpose="Run all admin tests">npm run test:run -- frontend/src/components/admin/__tests__/</command>
+    </commands>
+  </tests>
+
+  <file-structure>
+    <directory path="frontend/src/app/(protected)/admin/users/">
+      <file>page.tsx</file>
+      <directory path="__tests__/">
+        <file>page.test.tsx</file>
+      </directory>
+    </directory>
+    <directory path="frontend/src/components/admin/">
+      <file>user-table.tsx</file>
+      <file>create-user-modal.tsx</file>
+      <file>edit-user-modal.tsx</file>
+      <directory path="__tests__/">
+        <file>user-table.test.tsx</file>
+        <file>create-user-modal.test.tsx</file>
+        <file>edit-user-modal.test.tsx</file>
+      </directory>
+    </directory>
+    <directory path="frontend/src/hooks/">
+      <file>useUsers.ts</file>
+      <directory path="__tests__/">
+        <file>useUsers.test.tsx</file>
+      </directory>
+    </directory>
+    <directory path="frontend/e2e/tests/admin/">
+      <file>user-management.spec.ts</file>
+    </directory>
+  </file-structure>
+
+  <learnings-from-previous-story>
+    <story key="5-17" title="Main Application Navigation Menu">
+      <learning>MainNav component uses horizontal header navigation approach</learning>
+      <learning>Admin section visibility gated by user?.is_superuser === true check via useAuthStore</learning>
+      <learning>Active route highlighting uses usePathname() hook</learning>
+      <learning>Responsive breakpoints: Desktop ≥1024px, Tablet 768-1023px, Mobile &lt;768px</learning>
+      <learning>DashboardLayout wrapper required for all protected routes</learning>
+      <file created="frontend/src/components/layout/main-nav.tsx">Add Users link to admin section</file>
+      <file modified="frontend/src/components/layout/mobile-nav.tsx">May need Users link in admin section</file>
+    </story>
+  </learnings-from-previous-story>
+
+  <important-notes>
+    <note type="deviation">
+      Role dropdown specified in epics.md but backend PATCH endpoint only supports is_active update.
+      Implement role (is_superuser) as READ-ONLY badge until backend is enhanced in future story.
+    </note>
+    <note type="self-protection">
+      Prevent admin from deactivating their own account - check currentUser.id === editingUser.id
+      and disable the status toggle with explanatory tooltip.
+    </note>
+    <note type="pagination">
+      Backend uses skip/limit pattern. Frontend should calculate: skip = (page - 1) * limit
+    </note>
+    <note type="error-handling">
+      Handle 409 Conflict specially for duplicate email - show inline form error, not toast.
+    </note>
+  </important-notes>
+
+</story-context>

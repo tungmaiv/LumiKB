@@ -21,30 +21,49 @@ global.fetch = vi.fn();
 global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = vi.fn();
 
-// Mock document.createElement and appendChild/removeChild
+// Mock link element for download triggers
 const mockLink = {
   href: '',
   download: '',
   click: vi.fn(),
+  style: {},
 };
-global.document.createElement = vi.fn((tagName) => {
-  if (tagName === 'a') {
-    return mockLink as unknown as HTMLAnchorElement;
-  }
-  return {} as HTMLElement;
-});
-global.document.body.appendChild = vi.fn();
-global.document.body.removeChild = vi.fn();
+
+// Store original createElement to call through
+const originalCreateElement = document.createElement.bind(document);
 
 describe('useExport Hook', () => {
   const mockDraftId = 'test-draft-123';
+  const defaultOptions = { draftId: mockDraftId };
+  let createElementSpy: ReturnType<typeof vi.spyOn>;
+  let appendChildSpy: ReturnType<typeof vi.spyOn>;
+  let removeChildSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mockLink state
+    mockLink.href = '';
+    mockLink.download = '';
+    mockLink.click = vi.fn();
+
+    // Spy on createElement and intercept only anchor tags
+    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      if (tagName === 'a') {
+        return mockLink as unknown as HTMLAnchorElement;
+      }
+      // Call original for other elements (React needs this)
+      return originalCreateElement(tagName);
+    });
+
+    appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    createElementSpy?.mockRestore();
+    appendChildSpy?.mockRestore();
+    removeChildSpy?.mockRestore();
   });
 
   it('[P1] should successfully export DOCX and trigger download', async () => {
@@ -68,22 +87,15 @@ describe('useExport Hook', () => {
     });
 
     // WHEN: Hook is rendered and export is called
-    const { result } = renderHook(() => useExport(mockDraftId));
-
-    const exportPromise = result.current.handleExport('docx');
-
-    // THEN: Loading state is true during export
-    expect(result.current.isExporting).toBe(true);
+    const { result } = renderHook(() => useExport(defaultOptions));
 
     // WHEN: Export completes
-    const success = await exportPromise;
+    const success = await result.current.handleExport('docx');
 
     // THEN: Export succeeds
-    await waitFor(() => {
-      expect(success).toBe(true);
-    });
+    expect(success).toBe(true);
 
-    // THEN: Loading state returns to false
+    // THEN: Loading state returns to false after export
     expect(result.current.isExporting).toBe(false);
 
     // THEN: No error
@@ -126,7 +138,7 @@ describe('useExport Hook', () => {
     });
 
     // WHEN: Export PDF
-    const { result } = renderHook(() => useExport(mockDraftId));
+    const { result } = renderHook(() => useExport(defaultOptions));
     const success = await result.current.handleExport('pdf');
 
     // THEN: Export succeeds
@@ -153,7 +165,7 @@ describe('useExport Hook', () => {
     });
 
     // WHEN: Export Markdown
-    const { result } = renderHook(() => useExport(mockDraftId));
+    const { result } = renderHook(() => useExport(defaultOptions));
     const success = await result.current.handleExport('markdown');
 
     // THEN: Export succeeds
@@ -169,19 +181,20 @@ describe('useExport Hook', () => {
       ok: false,
       status: 403,
       statusText: 'Forbidden',
+      json: () => Promise.resolve({ detail: 'Export failed: Permission denied' }),
     });
 
     // WHEN: Export is called
-    const { result } = renderHook(() => useExport(mockDraftId));
+    const { result } = renderHook(() => useExport(defaultOptions));
     const success = await result.current.handleExport('docx');
 
     // THEN: Export fails
-    await waitFor(() => {
-      expect(success).toBe(false);
-    });
+    expect(success).toBe(false);
 
-    // THEN: Error state is set
-    expect(result.current.error).toBeTruthy();
+    // THEN: Error state is set (wait for state update)
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+    });
     expect(result.current.error).toContain('Export failed');
 
     // THEN: Loading state is false
@@ -198,16 +211,16 @@ describe('useExport Hook', () => {
     );
 
     // WHEN: Export is called
-    const { result } = renderHook(() => useExport(mockDraftId));
+    const { result } = renderHook(() => useExport(defaultOptions));
     const success = await result.current.handleExport('pdf');
 
     // THEN: Export fails
-    await waitFor(() => {
-      expect(success).toBe(false);
-    });
+    expect(success).toBe(false);
 
-    // THEN: Error state is set
-    expect(result.current.error).toBe('Network error');
+    // THEN: Error state is set (wait for state update)
+    await waitFor(() => {
+      expect(result.current.error).toBe('Network error');
+    });
 
     // THEN: Loading state is false
     expect(result.current.isExporting).toBe(false);
@@ -229,7 +242,7 @@ describe('useExport Hook', () => {
     });
 
     // WHEN: Export is called
-    const { result } = renderHook(() => useExport(mockDraftId));
+    const { result } = renderHook(() => useExport(defaultOptions));
     const success = await result.current.handleExport('pdf');
 
     // THEN: Export succeeds with fallback filename

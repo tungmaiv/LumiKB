@@ -6,3 +6,5 @@ export { DocumentDetailModal } from './document-detail-modal';
 export { UploadDropzone } from './upload-dropzone';
 export { UploadProgress } from './upload-progress';
 export { DocumentsPanel } from './documents-panel';
+export { DocumentFilterBar } from './document-filter-bar';
+export { DocumentPagination } from './document-pagination';

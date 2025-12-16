@@ -1,0 +1,35 @@
+name: 'Setup Backend'
+description: 'Setup Python environment with caching for LumiKB backend'
+
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  install-extras:
+    description: 'Extra dependencies to install (e.g., dev, api, worker)'
+    required: false
+    default: 'dev'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: pip-${{ runner.os }}-${{ hashFiles('backend/pyproject.toml') }}
+        restore-keys: |
+          pip-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd backend
+        pip install --upgrade pip
+        pip install -e ".[${{ inputs.install-extras }}]"

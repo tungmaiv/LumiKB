@@ -1,4 +1,7 @@
-"""User Pydantic schemas for API request/response validation."""
+"""User Pydantic schemas for API request/response validation.
+
+Story 7.11: Added permission_level to UserRead.
+"""
 
 from datetime import datetime
 from uuid import UUID
@@ -19,9 +22,20 @@ class UserRead(schemas.BaseUser[UUID]):
 
     Additional fields:
     - created_at: datetime
+    - onboarding_completed: bool
+    - last_active: datetime | None
+    - permission_level: int (1=User, 2=Operator, 3=Administrator)
     """
 
     created_at: datetime
+    onboarding_completed: bool
+    last_active: datetime | None
+    permission_level: int = Field(
+        default=1,
+        ge=1,
+        le=3,
+        description="Permission tier: 1=User, 2=Operator, 3=Administrator",
+    )
 
 
 class UserCreate(schemas.BaseUserCreate):

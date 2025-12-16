@@ -11,7 +11,7 @@
  * Fixtures: authenticatedPage (auth.fixture.ts)
  */
 
-import { test, expect } from '../fixtures/auth.fixture';
+import { test, expect } from '../../fixtures/auth.fixture';
 import { Page } from '@playwright/test';
 
 test.describe('Document Export - Story 4-7', () => {

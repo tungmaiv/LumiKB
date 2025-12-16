@@ -110,9 +110,10 @@ async def test_find_related_documents_excludes_original(service, mock_qdrant):
         "document_name": "Similar Doc",
     }
 
-    mock_qdrant.client.search = AsyncMock(
-        return_value=[mock_result_original, mock_result_similar]
-    )
+    # Mock query_points to return result with .points attribute
+    mock_query_response = MagicMock()
+    mock_query_response.points = [mock_result_original, mock_result_similar]
+    mock_qdrant.client.query_points = MagicMock(return_value=mock_query_response)
 
     related = await service._find_related_documents(chunk_id, kb_id, limit=3)
 

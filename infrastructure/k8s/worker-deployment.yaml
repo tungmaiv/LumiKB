@@ -1,0 +1,192 @@
+# LumiKB Celery Worker Deployment
+# Story 7.4: Production Deployment Configuration
+# AC-7.4.2: Optional Kubernetes manifests (Deployments)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lumikb-worker
+  namespace: lumikb
+  labels:
+    app.kubernetes.io/name: lumikb
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lumikb
+      app.kubernetes.io/component: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lumikb
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: lumikb-worker
+      terminationGracePeriodSeconds: 300  # Allow time for tasks to complete
+      containers:
+        - name: worker
+          image: lumikb-worker:latest
+          imagePullPolicy: Always
+          command:
+            - celery
+            - -A
+            - app.workers.celery_app
+            - worker
+            - --loglevel=info
+            - --queues=default,document_processing
+            - --concurrency=4
+          envFrom:
+            - configMapRef:
+                name: lumikb-config
+            - secretRef:
+                name: lumikb-secrets
+            - secretRef:
+                name: lumikb-llm-keys
+                optional: true
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          # Worker liveness check via celery inspect
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - app.workers.celery_app
+                - inspect
+                - ping
+                - -d
+                - celery@$(hostname)
+                - --timeout
+                - "10"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 3
+          # Readiness - worker is accepting tasks
+          readinessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - app.workers.celery_app
+                - inspect
+                - ping
+                - -d
+                - celery@$(hostname)
+                - --timeout
+                - "10"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 15
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: lumikb
+                    app.kubernetes.io/component: worker
+                topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lumikb-worker
+  namespace: lumikb
+  labels:
+    app.kubernetes.io/name: lumikb
+    app.kubernetes.io/component: worker
+
+---
+# Celery Beat (single replica scheduler)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lumikb-beat
+  namespace: lumikb
+  labels:
+    app.kubernetes.io/name: lumikb
+    app.kubernetes.io/component: beat
+spec:
+  replicas: 1  # MUST be 1 - beat is singleton scheduler
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lumikb
+      app.kubernetes.io/component: beat
+  strategy:
+    type: Recreate  # Don't run multiple beat instances
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lumikb
+        app.kubernetes.io/component: beat
+    spec:
+      serviceAccountName: lumikb-worker
+      containers:
+        - name: beat
+          image: lumikb-beat:latest
+          imagePullPolicy: Always
+          command:
+            - celery
+            - -A
+            - app.workers.celery_app
+            - beat
+            - --loglevel=info
+            - --schedule=/app/celery-data/celerybeat-schedule
+          envFrom:
+            - configMapRef:
+                name: lumikb-config
+            - secretRef:
+                name: lumikb-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          # Beat liveness - check schedule file exists
+          livenessProbe:
+            exec:
+              command:
+                - test
+                - -f
+                - /app/celery-data/celerybeat-schedule
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: beat-data
+              mountPath: /app/celery-data
+      volumes:
+        - name: beat-data
+          emptyDir: {}

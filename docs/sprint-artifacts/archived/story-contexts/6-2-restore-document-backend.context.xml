@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-2: Restore Document Backend
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-2">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Restore Document Backend</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to restore archived documents back to active status</iWant>
+      <soThat>they reappear in search results</soThat>
+    </userStory>
+
+    <context>
+      Document restoration reverses the archive operation, making documents active again.
+      This story must handle name collision detection to prevent restoring a document
+      when another document with the same name already exists in active state.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.2.1">
+      <title>Restore endpoint exists</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <when>I call POST /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/restore</when>
+      <then>I receive 200 OK</then>
+      <and>the document status changes from "archived" to "completed"</and>
+      <and>an audit log entry is created with action "document_restored"</and>
+    </criterion>
+
+    <criterion id="AC-6.2.2">
+      <title>Only archived documents can be restored</title>
+      <given>a document has status other than "archived"</given>
+      <when>I attempt to restore it</when>
+      <then>I receive 400 Bad Request with message "Only archived documents can be restored"</then>
+    </criterion>
+
+    <criterion id="AC-6.2.3">
+      <title>Name collision blocks restore</title>
+      <given>an archived document named "report.pdf"</given>
+      <and>an active document with the same name exists in the KB</and>
+      <when>I attempt to restore the archived document</when>
+      <then>I receive 409 Conflict with message "Cannot restore: a document with this name already exists"</then>
+    </criterion>
+
+    <criterion id="AC-6.2.4">
+      <title>Qdrant vectors restored to active</title>
+      <given>I restore a document</given>
+      <when>the operation completes</when>
+      <then>all Qdrant vectors for this document have payload status: "completed"</then>
+      <and>vectors appear in search results</and>
+    </criterion>
+
+    <criterion id="AC-6.2.5">
+      <title>Permission check enforced</title>
+      <given>I am not KB owner or admin</given>
+      <when>I attempt to restore a document</when>
+      <then>I receive 403 Forbidden</then>
+    </criterion>
+
+    <criterion id="AC-6.2.6">
+      <title>archived_at timestamp cleared</title>
+      <given>I restore a document</given>
+      <when>the operation completes</when>
+      <then>the archived_at field is set to null</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService - add restore_document method</description>
+      <keyElements>
+        - async def restore_document(doc_id, user): new method
+        - Name collision check (case-insensitive)
+        - Status validation
+        - Qdrant payload update
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/restore" new="true">
+        <description>Restore an archived document to active status</description>
+        <authorization>KB owner or admin required</authorization>
+        <response code="200">
+          <field name="id" type="uuid">Document ID</field>
+          <field name="name" type="string">Document name</field>
+          <field name="status" type="string">New status: "completed"</field>
+          <field name="archived_at" type="null">Cleared timestamp</field>
+        </response>
+        <errors>
+          <error code="400">Document is not archived</error>
+          <error code="403">Permission denied</error>
+          <error code="404">Document not found</error>
+          <error code="409">Name collision with active document</error>
+        </errors>
+      </endpoint>
+    </api>
+
+    <nameCollisionCheck>
+      <description>Case-insensitive check for existing active document with same name</description>
+      <sql><![CDATA[
+SELECT COUNT(*) FROM documents
+WHERE kb_id = :kb_id
+AND LOWER(name) = LOWER(:doc_name)
+AND status != 'archived'
+AND id != :doc_id
+      ]]></sql>
+    </nameCollisionCheck>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-1" status="pending">
+      <name>Archive Document Backend</name>
+      <provides>Document archiving, archived_at column, status enum</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Backend Integration Tests" count="6">
+      <test>POST /restore returns 200 for archived document</test>
+      <test>POST /restore returns 400 for non-archived document</test>
+      <test>POST /restore returns 403 for non-owner</test>
+      <test>POST /restore returns 409 for name collision</test>
+      <test>Restored document appears in search results</test>
+      <test>archived_at is null after restore</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

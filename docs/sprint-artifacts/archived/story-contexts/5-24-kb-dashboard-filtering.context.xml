@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 5-24: KB Dashboard Document Filtering & Pagination
+  Generated: 2025-12-06
+
+  This document provides the dev agent with all necessary context to implement
+  the story. It includes relevant documentation excerpts, code references,
+  interface contracts, and constraints.
+-->
+<storyContext version="1.0" storyId="5-24">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>KB Dashboard Document Filtering and Pagination</storyTitle>
+    <epicId>5</epicId>
+    <epicName>Administration and Polish</epicName>
+    <priority>MEDIUM</priority>
+    <storyPoints>3</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-06</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>knowledge base user</asA>
+      <iWant>to filter and paginate the document list in the KB dashboard</iWant>
+      <soThat>I can quickly find specific documents in large knowledge bases</soThat>
+    </userStory>
+
+    <context>
+      As knowledge bases grow, the document list becomes difficult to navigate. This story
+      applies the same filtering/pagination patterns from Story 5-2 (Audit Log Viewer) to
+      the KB dashboard document list, enabling filtering by name, type, status, tags, and
+      date range with persistent URL state.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.24.1">
+      <title>Document list displays filter bar</title>
+      <given>I am viewing the KB dashboard with an active KB</given>
+      <when>The page loads</when>
+      <then>I see a filter bar above the document list with: Search, Type dropdown, Status dropdown, Tags multi-select, Date Range picker, Clear Filters button</then>
+      <validation>
+        - Unit test: Filter bar renders all filter controls
+        - E2E test: Filter bar is visible on dashboard
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.24.2">
+      <title>Filters update document list in real-time</title>
+      <given>I have applied one or more filters</given>
+      <when>I change a filter value</when>
+      <then>The document list updates automatically (no manual "Apply" button needed)</then>
+      <and>Loading indicator shows during refresh</and>
+      <and>Empty state message shows if no documents match filters</and>
+      <validation>
+        - Integration test: GET documents with filters → verify filtered results
+        - E2E test: Apply filter → verify list updates
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.24.3">
+      <title>Document list is paginated</title>
+      <given>The KB has more than 50 documents</given>
+      <when>I view the document list</when>
+      <then>I see pagination controls: current page indicator, Previous/Next buttons, page size selector (25, 50, 100), total count</then>
+      <and>Default page size is 50 documents</and>
+      <and>Pagination works with active filters</and>
+      <validation>
+        - Unit test: Pagination component renders controls
+        - Integration test: GET documents?page=2&limit=50 → verify page 2 results
+        - E2E test: Click "Next" → verify page 2 loads
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.24.4">
+      <title>Filter state persists in URL</title>
+      <given>I have applied filters (e.g., status=failed, type=pdf)</given>
+      <when>I refresh the page or copy/share the URL</when>
+      <then>The same filters are applied</then>
+      <and>The document list shows the same filtered results</and>
+      <urlFormat>/dashboard?kb={kb_id}&amp;status=failed&amp;type=pdf&amp;page=2</urlFormat>
+      <validation>
+        - Unit test: useDocumentFilters hook syncs with URL
+        - E2E test: Apply filters → refresh page → verify filters persist
+      </validation>
+    </criterion>
+
+    <criterion id="AC-5.24.5">
+      <title>Filter by tags shows matching documents</title>
+      <given>Documents have tags (from Story 5-22)</given>
+      <when>I select one or more tags in the tag filter</when>
+      <then>Only documents with ALL selected tags are shown</then>
+      <and>Tag filter dropdown shows available tags from documents in this KB</and>
+      <validation>
+        - Integration test: GET documents?tags=policy,hr → verify filtered results
+        - E2E test: Select tag filter → verify results
+      </validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <artifact type="tech-spec" path="docs/sprint-artifacts/tech-spec-epic-5.md">
+      <summary>Epic 5 technical specification covering admin dashboard and KB management features</summary>
+    </artifact>
+
+    <artifact type="related-story" path="docs/sprint-artifacts/5-2-audit-log-viewer.md">
+      <summary>Story 5.2 established filtering and pagination patterns for admin views</summary>
+      <relevance>Provides exact patterns for filter bar, URL param sync, pagination controls</relevance>
+    </artifact>
+
+    <artifact type="related-story" path="docs/sprint-artifacts/5-22-document-tags.md">
+      <summary>Story 5.22 adds tags to documents</summary>
+      <relevance>Tag filtering depends on tags being available on documents</relevance>
+    </artifact>
+  </artifacts>
+
+  <codeReferences>
+    <reference type="component" path="frontend/src/components/admin/audit-log-filters.tsx">
+      <description>Audit log filter component - pattern to follow for document filters</description>
+      <relevantLines>1-234</relevantLines>
+      <keyElements>
+        - Collapsible filter bar with active filter count
+        - Select dropdowns for type filters
+        - Input for text search
+        - Date range inputs (datetime-local)
+        - Apply and Reset buttons
+        - Pattern to ADAPT for DocumentFilterBar
+      </keyElements>
+    </reference>
+
+    <reference type="hook" path="frontend/src/hooks/useAuditLogs.ts">
+      <description>Audit logs hook - pattern for filtered data fetching</description>
+      <relevantLines>1-61</relevantLines>
+      <keyElements>
+        - useQuery with filter and pagination params
+        - Error handling for 401/403/500
+        - staleTime configuration
+        - Pattern to FOLLOW for useDocuments hook
+      </keyElements>
+    </reference>
+
+    <reference type="component" path="frontend/src/components/documents/document-list.tsx">
+      <description>Current document list component - needs filter/pagination integration</description>
+      <relevantLines>1-100</relevantLines>
+      <keyElements>
+        - Document interface with status, name, timestamps
+        - DocumentListItem component
+        - formatBytes, formatRelativeDate utilities
+        - Needs: filter bar integration, pagination controls
+      </keyElements>
+    </reference>
+
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>Document service - needs list_documents with filters</description>
+      <relevantLines>71-150</relevantLines>
+      <keyElements>
+        - async def upload(): existing method
+        - Need to add: list_documents() with filter/pagination params
+        - Need to add: JSONB tag filtering with contains operator
+      </keyElements>
+    </reference>
+
+    <reference type="api" path="backend/app/api/v1/knowledge_bases.py">
+      <description>KB API endpoints - document list endpoint needs filters</description>
+      <keyElements>
+        - GET /knowledge-bases/{kb_id}/documents endpoint
+        - Need to add: query params for filters
+        - Need to add: pagination params (page, limit)
+        - Need to add: PaginatedDocumentResponse return type
+      </keyElements>
+    </reference>
+
+    <reference type="schema" path="backend/app/schemas/document.py">
+      <description>Document schemas - needs pagination response</description>
+      <relevantLines>23-180</relevantLines>
+      <keyElements>
+        - DocumentResponse, DocumentListItem existing schemas
+        - Need to add: PaginatedDocumentResponse schema
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="GET" path="/api/v1/knowledge-bases/{kb_id}/documents">
+        <description>List documents in a KB with filtering and pagination</description>
+        <authorization>READ permission or higher on KB required</authorization>
+        <queryParams>
+          <param name="search" type="string" optional="true">Search by document name (partial match, case-insensitive)</param>
+          <param name="type" type="string" optional="true">Filter by file type (pdf, docx, txt, md)</param>
+          <param name="status" type="enum" optional="true">Filter by status (pending, processing, ready, failed)</param>
+          <param name="tags" type="string[]" optional="true">Filter by tags (AND logic - must have all)</param>
+          <param name="start_date" type="datetime" optional="true">Filter by upload date from</param>
+          <param name="end_date" type="datetime" optional="true">Filter by upload date to</param>
+          <param name="page" type="int" default="1">Page number (min 1)</param>
+          <param name="limit" type="int" default="50">Items per page (1-100)</param>
+        </queryParams>
+        <response>
+          <field name="documents" type="array[DocumentResponse]">List of documents</field>
+          <field name="total" type="int">Total matching documents</field>
+          <field name="page" type="int">Current page</field>
+          <field name="page_size" type="int">Page size</field>
+          <field name="has_more" type="bool">Whether more pages exist</field>
+        </response>
+      </endpoint>
+    </api>
+
+    <frontend>
+      <hook name="useDocumentFilters">
+        <description>Manages filter state synced with URL search params</description>
+        <returns>
+          <field name="filters" type="DocumentFilters">Current filter values</field>
+          <field name="setFilters" type="function">Update filters and URL</field>
+          <field name="clearFilters" type="function">Reset all filters</field>
+        </returns>
+      </hook>
+
+      <component name="DocumentFilterBar">
+        <description>Filter controls for document list</description>
+        <props>
+          <prop name="filters" type="DocumentFilters">Current filter state</prop>
+          <prop name="onFiltersChange" type="function">Filter change handler</prop>
+          <prop name="availableTags" type="string[]">Tags available for filtering</prop>
+        </props>
+      </component>
+
+      <component name="DocumentPagination">
+        <description>Pagination controls for document list</description>
+        <props>
+          <prop name="page" type="number">Current page</prop>
+          <prop name="pageSize" type="number">Current page size</prop>
+          <prop name="total" type="number">Total documents</prop>
+          <prop name="onPageChange" type="function">Page change handler</prop>
+          <prop name="onPageSizeChange" type="function">Page size change handler</prop>
+        </props>
+      </component>
+    </frontend>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="5.2" status="completed">
+      <name>Audit Log Viewer</name>
+      <provides>Filter bar pattern, pagination pattern, URL param sync pattern</provides>
+    </dependency>
+
+    <dependency type="story" id="5.22" status="ready-for-dev">
+      <name>Document Tags</name>
+      <provides>Tags on documents for tag filtering</provides>
+      <note>Tag filter depends on 5-22 being implemented first</note>
+    </dependency>
+  </dependencies>
+
+  <constraints>
+    <constraint type="performance">
+      <description>Document list query must complete in under 500ms for 1000 documents</description>
+      <implementation>Use efficient SQLAlchemy queries with proper indexing</implementation>
+    </constraint>
+
+    <constraint type="ux">
+      <description>Filters should apply immediately without requiring an "Apply" button</description>
+      <implementation>Use debounce for text search (300ms), immediate for dropdowns</implementation>
+    </constraint>
+
+    <constraint type="ux">
+      <description>Filter state must persist in URL for sharing/bookmarking</description>
+      <implementation>Use useSearchParams for URL sync</implementation>
+    </constraint>
+
+    <constraint type="pagination">
+      <description>Default page size is 50, options: 25, 50, 100</description>
+      <implementation>Page size selector in pagination controls</implementation>
+    </constraint>
+
+    <constraint type="consistency">
+      <description>Follow exact same patterns as audit log filter/pagination</description>
+      <implementation>Reuse component structure from audit-log-filters.tsx</implementation>
+    </constraint>
+  </constraints>
+
+  <tests>
+    <testCategory name="Backend Unit Tests" count="4">
+      <test>DocumentService.list_documents filters by name (partial match)</test>
+      <test>DocumentService.list_documents filters by status</test>
+      <test>DocumentService.list_documents filters by tags (AND logic)</test>
+      <test>DocumentService.list_documents paginates correctly</test>
+    </testCategory>
+
+    <testCategory name="Backend Integration Tests" count="6">
+      <test>GET documents?search=test returns matching documents</test>
+      <test>GET documents?type=pdf returns PDF documents only</test>
+      <test>GET documents?status=failed returns failed documents</test>
+      <test>GET documents?tags=policy,hr returns documents with both tags</test>
+      <test>GET documents?page=2&limit=50 returns page 2</test>
+      <test>GET documents with all filters returns intersection</test>
+    </testCategory>
+
+    <testCategory name="Frontend Unit Tests" count="12">
+      <test>useDocumentFilters hook reads from URL params</test>
+      <test>useDocumentFilters hook writes to URL params</test>
+      <test>useDocumentFilters hook clears all filters</test>
+      <test>DocumentFilterBar renders all filter controls</test>
+      <test>DocumentFilterBar search input updates filters</test>
+      <test>DocumentFilterBar type dropdown updates filters</test>
+      <test>DocumentFilterBar status dropdown updates filters</test>
+      <test>DocumentFilterBar tag select updates filters</test>
+      <test>DocumentPagination renders page controls</test>
+      <test>DocumentPagination page buttons navigate correctly</test>
+      <test>DocumentPagination page size selector works</test>
+      <test>Dashboard integrates filter bar and pagination</test>
+    </testCategory>
+
+    <testCategory name="E2E Tests" count="4">
+      <test>Apply search filter → verify filtered results</test>
+      <test>Navigate to page 2 → verify different documents</test>
+      <test>Apply filters → refresh page → verify filters persist</test>
+      <test>Select tag filter → verify matching documents shown</test>
+    </testCategory>
+  </tests>
+
+  <implementationNotes>
+    <note category="patterns">
+      Follow audit-log-filters.tsx pattern: Collapsible filter bar, active filter count badge
+    </note>
+    <note category="patterns">
+      Follow useAuditLogs.ts pattern: useQuery with filter params in queryKey
+    </note>
+    <note category="url-sync">
+      Use Next.js useSearchParams() to read/write URL query params
+    </note>
+    <note category="debounce">
+      Use 300ms debounce on search input to prevent excessive API calls
+    </note>
+    <note category="tags">
+      Tag filter uses AND logic: documents must have ALL selected tags
+    </note>
+    <note category="database">
+      JSONB tag filtering: metadata->'tags' @> '["tagname"]' for contains
+    </note>
+    <note category="empty-state">
+      Show "No documents match your filters" with Clear Filters button when results empty
+    </note>
+  </implementationNotes>
+
+</storyContext>

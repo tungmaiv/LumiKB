@@ -1,0 +1,210 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>14</storyId>
+    <title>Search Audit Logging</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-14-search-audit-logging.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>compliance officer</asA>
+    <iWant>all search queries logged to the audit system</iWant>
+    <soThat>we can audit information access and demonstrate compliance with data governance policies</soThat>
+    <tasks>
+      <task id="1" title="Create SearchAuditService with PII Sanitizer" ac="AC2, AC3">
+        <subtask>Create backend/app/services/search_audit_service.py</subtask>
+        <subtask>Implement PIISanitizer class with regex patterns for email, phone, SSN, CC</subtask>
+        <subtask>Implement SearchAuditService with log_search() method</subtask>
+        <subtask>Add fire-and-forget error handling (log errors, don't raise)</subtask>
+        <subtask>Add structlog logging for audit events</subtask>
+      </task>
+      <task id="2" title="Add SearchAuditService Dependency" ac="AC1">
+        <subtask>Add get_search_audit_service function to backend/app/api/dependencies.py</subtask>
+        <subtask>Ensure dependency injection works with existing AuditService</subtask>
+      </task>
+      <task id="3" title="Instrument Semantic Search Endpoint" ac="AC1, AC4">
+        <subtask>Add audit logging to POST /api/v1/search endpoint</subtask>
+        <subtask>Capture timing with time.time() for duration_ms</subtask>
+        <subtask>Add BackgroundTasks for fire-and-forget execution</subtask>
+        <subtask>Handle both success and failure cases</subtask>
+      </task>
+      <task id="4" title="Instrument Cross-KB Search Endpoint" ac="AC1, AC4">
+        <subtask>Add audit logging to POST /api/v1/search/cross-kb endpoint</subtask>
+        <subtask>Log multiple KB IDs in metadata</subtask>
+        <subtask>Handle success and failure cases</subtask>
+      </task>
+      <task id="5" title="Instrument Quick Search Endpoint" ac="AC1, AC4">
+        <subtask>Add audit logging to GET /api/v1/search/quick endpoint</subtask>
+        <subtask>Capture query from query params</subtask>
+        <subtask>Handle success and failure cases</subtask>
+      </task>
+      <task id="6" title="Write Unit Tests for SearchAuditService" ac="AC2, AC3">
+        <subtask>Create backend/tests/unit/test_search_audit_service.py</subtask>
+        <subtask>Test PII sanitization patterns (email, phone, SSN, CC)</subtask>
+        <subtask>Test log_search() with success status</subtask>
+        <subtask>Test log_search() with failure status</subtask>
+        <subtask>Test fire-and-forget error handling</subtask>
+      </task>
+      <task id="7" title="Write Unit Tests for PII Sanitizer" ac="AC2">
+        <subtask>Test email sanitization</subtask>
+        <subtask>Test phone number sanitization (various formats)</subtask>
+        <subtask>Test SSN sanitization</subtask>
+        <subtask>Test credit card sanitization</subtask>
+        <subtask>Test multiple patterns in single query</subtask>
+      </task>
+      <task id="8" title="Write Integration Tests for Search Audit Logging" ac="AC1, AC4, AC5">
+        <subtask>Create backend/tests/integration/test_search_audit_logging.py</subtask>
+        <subtask>Test successful search creates audit event</subtask>
+        <subtask>Test failed search creates audit event with error details</subtask>
+        <subtask>Test audit events queryable via admin API</subtask>
+        <subtask>Test latency impact is minimal</subtask>
+      </task>
+      <task id="9" title="Verify Audit Viewer Integration" ac="AC5">
+        <subtask>Verify search events appear in audit log viewer</subtask>
+        <subtask>Verify filtering by event_type="search" works</subtask>
+        <subtask>Verify search-specific metadata displayed</subtask>
+      </task>
+      <task id="10" title="Update Documentation">
+        <subtask>Add search audit logging to API documentation</subtask>
+        <subtask>Document PII sanitization patterns</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" title="All Search API Calls Logged">
+      An audit event is created with event_type="search" for all search API calls:
+      - POST /api/v1/search (main semantic search)
+      - POST /api/v1/search/cross-kb (cross-KB search)
+      - GET /api/v1/search/quick (quick search/command palette)
+      Event is logged regardless of search success or failure.
+    </criterion>
+    <criterion id="AC2" title="Audit Logs Capture Required Fields">
+      Audit event captures:
+      - user_id: UUID of user who performed the search
+      - query_text: Search query (PII sanitized)
+      - kb_id: Knowledge base ID searched (or array for cross-KB)
+      - result_count: Number of results returned
+      - duration_ms: Search response time in milliseconds
+      - search_type: Type of search (semantic, cross_kb, quick)
+      - status: "success" or "failed"
+      PII Sanitization: email→[EMAIL], phone→[PHONE], SSN→[SSN], CC→[CC]
+    </criterion>
+    <criterion id="AC3" title="Fire-and-Forget Async Logging">
+      - Logging performed asynchronously (no await blocking response)
+      - Search latency not impacted by audit logging
+      - Audit write failures do not cause search request failures
+      - Search response returned before audit write confirms
+      Performance: &lt;5ms latency impact (p99)
+    </criterion>
+    <criterion id="AC4" title="Failed Searches Logged">
+      When search fails:
+      - Audit event created with status="failed"
+      - error_message field captures failure reason
+      - error_type categorized: "validation_error", "kb_not_found", "access_denied", "internal_error"
+      - Failed searches queryable in audit log viewer
+    </criterion>
+    <criterion id="AC5" title="Search Logs Queryable in Audit Viewer">
+      - Search events appear in audit log table (Story 5.2)
+      - Events filterable by event_type="search"
+      - Events filterable by user, date range, and KB
+      - Search-specific metadata displayed (query, result_count, duration)
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Search Audit Logging" snippet="AC-5.14.1 through AC-5.14.5: Audit logs for all search operations with PII sanitization, fire-and-forget pattern, and admin viewer integration." />
+      <doc path="docs/epics.md" title="Epics" section="Story 5.14" snippet="Search audit logging moved from Epic 3 (Story 3.11) for thematic fit with administration features." />
+      <doc path="docs/sprint-artifacts/5-2-audit-log-viewer.md" title="Story 5.2 Audit Log Viewer" section="Integration" snippet="Audit log viewer with filtering and pagination for viewing all audit events including search events." />
+      <doc path="docs/sprint-artifacts/5-3-audit-log-export.md" title="Story 5.3 Audit Log Export" section="Export" snippet="CSV/JSON export of audit logs including search events for compliance reporting." />
+    </docs>
+    <code>
+      <artifact path="backend/app/services/audit_service.py" kind="service" symbol="AuditService" lines="1-548" reason="Core audit service with log_event(), log_search(), fire-and-forget pattern. Contains existing log_search() method at lines 76-103 that can be extended." />
+      <artifact path="backend/app/services/audit_service.py" kind="service" symbol="AuditService.log_search" lines="76-103" reason="Existing log_search method - simple implementation that logs to audit_events. Story 5.14 may extend this with PII sanitization." />
+      <artifact path="backend/app/services/audit_service.py" kind="service" symbol="AuditService.redact_pii" lines="495-534" reason="Existing PII redaction for audit events - can be used as pattern for search query sanitization." />
+      <artifact path="backend/app/services/search_service.py" kind="service" symbol="SearchService" lines="60-1078" reason="Search service with search(), quick_search(), similar_search(). All methods already call audit_service.log_search() - Story 5.14 needs to enhance with PII sanitization." />
+      <artifact path="backend/app/services/search_service.py" kind="service" symbol="SearchService._search_sync" lines="122-285" reason="Non-streaming search implementation. Calls audit_service.log_search() at lines 241-248. This is one endpoint to enhance." />
+      <artifact path="backend/app/services/search_service.py" kind="service" symbol="SearchService._search_stream" lines="526-696" reason="Streaming search implementation. Calls audit_service.log_search() at lines 651-658. Another endpoint to enhance." />
+      <artifact path="backend/app/services/search_service.py" kind="service" symbol="SearchService.quick_search" lines="752-856" reason="Quick search for command palette. Currently does NOT call audit logging - needs to be instrumented." />
+      <artifact path="backend/app/services/search_service.py" kind="service" symbol="SearchService.similar_search" lines="857-1055" reason="Similar content search. Calls audit_service.log_search() at lines 1022-1029. Another endpoint to enhance." />
+      <artifact path="backend/app/models/audit.py" kind="model" symbol="AuditEvent" reason="Audit event model with timestamp, user_id, action, resource_type, resource_id, details JSON, ip_address fields." />
+      <artifact path="backend/app/repositories/audit_repo.py" kind="repository" symbol="AuditRepository" reason="Repository for creating audit events in PostgreSQL." />
+      <artifact path="backend/app/api/v1/knowledge_bases.py" kind="controller" symbol="search" reason="Search API endpoint - may need to add BackgroundTasks for fire-and-forget audit logging if not already using service-level logging." />
+      <artifact path="backend/tests/unit/test_audit_logging.py" kind="test" symbol="test_log_generation_request_creates_audit_event" lines="26-65" reason="Pattern for testing audit service methods with mocked repository." />
+      <artifact path="backend/tests/unit/test_audit_service_queries.py" kind="test" reason="Tests for audit service query methods - pattern for testing filtered queries." />
+      <artifact path="backend/tests/integration/test_audit_api.py" kind="test" reason="Integration tests for audit API endpoints - pattern for testing audit viewer integration." />
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="fastapi" version=">=0.115.0,<1.0.0" reason="Core framework for search endpoints" />
+        <package name="structlog" version=">=25.5.0,<26.0.0" reason="Structured logging for audit events" />
+        <package name="sqlalchemy" version=">=2.0.44,<3.0.0" reason="Database access for audit_events table" />
+        <package name="pydantic" version=">=2.7.0,<3.0.0" reason="Schema validation for audit event data" />
+        <package name="pytest" version=">=8.0.0" reason="Testing framework" />
+        <package name="pytest-asyncio" version=">=0.24.0" reason="Async test support" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern" source="audit_service.py">Fire-and-forget pattern: Use asyncio.create_task() or BackgroundTasks to avoid blocking search responses with audit writes.</constraint>
+    <constraint type="pattern" source="search_service.py">Existing audit logging pattern: SearchService already uses self.audit_service.log_search() - extend this pattern with PII sanitization.</constraint>
+    <constraint type="performance" source="tech-spec-epic-5.md">Latency impact must be &lt;5ms (p99). Audit logging must not noticeably slow down search responses.</constraint>
+    <constraint type="security" source="AC2">PII sanitization required: Mask email, phone, SSN, credit card patterns in query text before storing to audit_events.</constraint>
+    <constraint type="testing" source="coding-standards.md">Unit test coverage ≥90% for new service. Integration tests for all ACs. All tests must pass in CI/CD.</constraint>
+    <constraint type="code-quality" source="coding-standards.md">KISS/DRY/YAGNI: Reuse existing AuditService patterns. ruff check must pass with zero errors. Type hints required.</constraint>
+    <constraint type="reliability" source="AC3">Audit failures must never cause search failures. Wrap all audit operations in try-except with error logging.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="AuditService.log_search" kind="function" signature="async def log_search(user_id: str, query: str, kb_ids: list[str], result_count: int, latency_ms: int) -> None" path="backend/app/services/audit_service.py" />
+    <interface name="AuditService.log_event" kind="function" signature="async def log_event(action: str, resource_type: str, user_id: UUID | None = None, resource_id: UUID | None = None, details: dict[str, Any] | None = None, ip_address: str | None = None) -> None" path="backend/app/services/audit_service.py" />
+    <interface name="SearchService.search" kind="function" signature="async def search(query: str, kb_ids: list[str] | None, user_id: str, limit: int = 10, stream: bool = False) -> SearchResponse | AsyncGenerator[SSEEvent, None]" path="backend/app/services/search_service.py" />
+    <interface name="SearchService.quick_search" kind="function" signature="async def quick_search(query: str, kb_ids: list[str] | None, user_id: str) -> QuickSearchResponse" path="backend/app/services/search_service.py" />
+    <interface name="SearchService.similar_search" kind="function" signature="async def similar_search(chunk_id: str, kb_ids: list[str] | None, user_id: str, limit: int = 10) -> SearchResponse" path="backend/app/services/search_service.py" />
+    <interface name="POST /api/v1/search" kind="REST endpoint" signature="POST /api/v1/search - Body: {query, kb_ids, limit, stream} - Returns: SearchResponse or SSE stream" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="POST /api/v1/search/cross-kb" kind="REST endpoint" signature="POST /api/v1/search/cross-kb - Body: {query, kb_ids, limit} - Returns: SearchResponse" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="GET /api/v1/search/quick" kind="REST endpoint" signature="GET /api/v1/search/quick?q={query}&amp;kb_ids={ids} - Returns: QuickSearchResponse" path="backend/app/api/v1/knowledge_bases.py" />
+    <interface name="POST /api/v1/admin/audit/logs" kind="REST endpoint" signature="POST /api/v1/admin/audit/logs - Body: AuditLogFilter - Returns: PaginatedResponse[AuditEvent]" path="backend/app/api/v1/admin.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows project standards from pyproject.toml and coding-standards.md:
+      - Unit tests: Fast tests without external dependencies, pytest-asyncio for async code
+      - Integration tests: Testcontainers for PostgreSQL and Redis
+      - Markers: @pytest.mark.unit, @pytest.mark.integration
+      - Coverage: Minimum 90% for new service code
+      - Pattern: Mock AuditRepository for unit tests, use real database for integration tests
+      - Fire-and-forget testing: Verify audit calls don't block, errors don't propagate
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_search_audit_service.py (new - main unit tests)</location>
+      <location>backend/tests/unit/test_pii_sanitizer.py (new - PII sanitization tests)</location>
+      <location>backend/tests/integration/test_search_audit_logging.py (new - integration tests)</location>
+      <location>backend/tests/unit/test_audit_logging.py (existing - pattern reference)</location>
+      <location>backend/tests/integration/test_audit_api.py (existing - pattern reference)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Test that POST /api/v1/search creates audit event with event_type="search"</idea>
+      <idea ac="AC1">Test that POST /api/v1/search/cross-kb creates audit event</idea>
+      <idea ac="AC1">Test that GET /api/v1/search/quick creates audit event</idea>
+      <idea ac="AC2">Test PIISanitizer.sanitize() replaces email with [EMAIL]</idea>
+      <idea ac="AC2">Test PIISanitizer.sanitize() replaces phone patterns with [PHONE]</idea>
+      <idea ac="AC2">Test PIISanitizer.sanitize() replaces SSN with [SSN]</idea>
+      <idea ac="AC2">Test PIISanitizer.sanitize() replaces credit card with [CC]</idea>
+      <idea ac="AC2">Test audit event contains all required fields (user_id, query_text, kb_id, result_count, duration_ms, search_type, status)</idea>
+      <idea ac="AC3">Test search response is returned before audit write completes (mock slow audit)</idea>
+      <idea ac="AC3">Test audit failure does not cause search request failure</idea>
+      <idea ac="AC3">Measure latency impact of audit logging (should be &lt;5ms)</idea>
+      <idea ac="AC4">Test failed search (invalid KB) creates audit event with status="failed"</idea>
+      <idea ac="AC4">Test error_type is categorized correctly for different failure types</idea>
+      <idea ac="AC5">Test search events queryable via POST /api/v1/admin/audit/logs with event_type="search" filter</idea>
+      <idea ac="AC5">Test search metadata (query, result_count, duration) included in audit event details</idea>
+    </ideas>
+  </tests>
+</story-context>

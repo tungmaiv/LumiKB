@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: dev dev-stop dev-restart test lint migrate seed docker-build clean help test-backend test-unit test-integration test-all test-coverage test-frontend test-frontend-watch test-frontend-coverage test-e2e test-e2e-ui test-e2e-headed logs logs-errors logs-warnings logs-follow logs-celery logs-backend
+.PHONY: dev dev-stop dev-restart test lint migrate seed docker-build clean help test-backend test-unit test-integration test-all test-coverage test-frontend test-frontend-watch test-frontend-coverage test-e2e test-e2e-ui test-e2e-headed logs logs-errors logs-warnings logs-follow logs-celery logs-backend prune-doc prune-all check-consistency fix-consistency clear-observability
 
 # Default target
 help:
@@ -56,6 +56,13 @@ help:
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean                Clean build artifacts (__pycache__, node_modules, etc.)"
+	@echo ""
+	@echo "Data Management:"
+	@echo "  make prune-doc DOC_ID=<uuid>  Delete specific document and all related data"
+	@echo "  make prune-all                Delete ALL documents (requires confirmation)"
+	@echo "  make check-consistency        Check for orphan items across all data stores"
+	@echo "  make fix-consistency          Check and fix orphan items (auto-cleanup)"
+	@echo "  make clear-observability      Clear all traces, spans, metrics, and audit events"
 
 # Docker compose file location
 DOCKER_COMPOSE := docker compose -f infrastructure/docker/docker-compose.yml
@@ -177,3 +184,33 @@ clean:
 	find . -type d -name .next -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name dist -exec rm -rf {} + 2>/dev/null || true
 	@echo "Cleaned build artifacts"
+
+# Data Management
+prune-doc:
+	@if [ -z "$(DOC_ID)" ]; then \
+		echo "Usage: make prune-doc DOC_ID=<document-uuid>"; \
+		echo "Example: make prune-doc DOC_ID=550e8400-e29b-41d4-a716-446655440000"; \
+		exit 1; \
+	fi
+	./infrastructure/scripts/prune-documents.sh $(DOC_ID)
+
+prune-all:
+	./infrastructure/scripts/prune-documents.sh --all
+
+check-consistency:
+	./infrastructure/scripts/check-consistency.sh
+
+fix-consistency:
+	./infrastructure/scripts/check-consistency.sh --fix
+
+clear-observability:
+	@echo "Clearing all observability data..."
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE observability.spans CASCADE;" > /dev/null
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE observability.traces CASCADE;" > /dev/null
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE observability.document_events CASCADE;" > /dev/null
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE observability.chat_messages CASCADE;" > /dev/null
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE observability.metrics_aggregates CASCADE;" > /dev/null
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE audit.events CASCADE;" > /dev/null
+	@docker exec lumikb-postgres psql -U lumikb -d lumikb -c "TRUNCATE TABLE public.kb_access_log CASCADE;" > /dev/null
+	@docker exec lumikb-redis redis-cli FLUSHALL > /dev/null
+	@echo "All observability data cleared (traces, spans, metrics, audit events, Redis cache)"

@@ -1,6 +1,6 @@
 """Document generation schemas for template-based generation."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +13,8 @@ class GenerationRequest(BaseModel):
     kb_id: str = Field(..., description="Knowledge Base ID to generate from")
     mode: str = Field(
         ...,
-        description="Generation mode: rfp_response, technical_checklist, requirements_summary, custom",
-        pattern="^(rfp_response|technical_checklist|requirements_summary|custom)$",
+        description="Generation mode: rfp_response, checklist, gap_analysis, custom",
+        pattern="^(rfp_response|checklist|gap_analysis|custom)$",
     )
     additional_prompt: str = Field(
         "",
@@ -98,7 +98,9 @@ class StatusEvent(BaseModel):
     """Status update event during generation."""
 
     type: Literal["status"] = "status"
-    content: str = Field(..., description="Status message (e.g., 'Preparing sources...')")
+    content: str = Field(
+        ..., description="Status message (e.g., 'Preparing sources...')"
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -192,9 +194,7 @@ class TemplateSchema(BaseModel):
     description: str = Field(..., description="Template description")
     system_prompt: str = Field(..., description="System prompt for LLM generation")
     sections: list[str] = Field(..., description="Expected output sections")
-    example_output: Optional[str] = Field(
-        None, description="Example output preview"
-    )
+    example_output: str | None = Field(None, description="Example output preview")
 
     model_config = {
         "json_schema_extra": {

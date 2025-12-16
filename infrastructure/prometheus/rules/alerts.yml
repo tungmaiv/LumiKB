@@ -1,0 +1,138 @@
+# Prometheus Alert Rules
+# Story 7.5: Monitoring and Observability (AC-7.5.3)
+
+groups:
+  - name: lumikb-api-alerts
+    rules:
+      # High Error Rate Alert (AC-7.5.3: 5% threshold for 5 minutes)
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(lumikb_http_request_duration_seconds_count{status=~"5.."}[5m]))
+            /
+            sum(rate(lumikb_http_request_duration_seconds_count[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: lumikb-api
+        annotations:
+          summary: "High error rate detected (>5%)"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          runbook_url: "https://docs.lumikb.io/runbooks/high-error-rate"
+
+      # High Latency Alert (p99 > 2s)
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99, sum(rate(lumikb_http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: lumikb-api
+        annotations:
+          summary: "High API latency detected"
+          description: "P99 latency is {{ $value | humanizeDuration }} (>2s threshold)"
+          runbook_url: "https://docs.lumikb.io/runbooks/high-latency"
+
+      # API Down Alert
+      - alert: APIDown
+        expr: up{job="lumikb-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: lumikb-api
+        annotations:
+          summary: "LumiKB API is down"
+          description: "The LumiKB API has been unreachable for more than 1 minute"
+          runbook_url: "https://docs.lumikb.io/runbooks/api-down"
+
+  - name: lumikb-document-processing-alerts
+    rules:
+      # Document Processing Queue Buildup
+      - alert: DocumentQueueBacklog
+        expr: lumikb_document_processing_queue_depth{queue_name="document_processing"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: lumikb-worker
+        annotations:
+          summary: "Document processing queue backlog"
+          description: "{{ $value }} documents queued for processing (>100 threshold)"
+          runbook_url: "https://docs.lumikb.io/runbooks/queue-backlog"
+
+      # High Document Processing Failure Rate
+      - alert: DocumentProcessingFailures
+        expr: |
+          (
+            sum(rate(lumikb_document_processing_total{status="failed"}[15m]))
+            /
+            sum(rate(lumikb_document_processing_total[15m]))
+          ) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          service: lumikb-worker
+        annotations:
+          summary: "High document processing failure rate"
+          description: "{{ $value | humanizePercentage }} of documents failing processing"
+          runbook_url: "https://docs.lumikb.io/runbooks/document-failures"
+
+      # Slow Document Processing
+      - alert: SlowDocumentProcessing
+        expr: |
+          histogram_quantile(0.95, sum(rate(lumikb_document_processing_duration_seconds_bucket[30m])) by (le)) > 300
+        for: 30m
+        labels:
+          severity: warning
+          service: lumikb-worker
+        annotations:
+          summary: "Slow document processing"
+          description: "P95 document processing time is {{ $value | humanizeDuration }} (>5min threshold)"
+          runbook_url: "https://docs.lumikb.io/runbooks/slow-processing"
+
+  - name: lumikb-llm-alerts
+    rules:
+      # High LLM Error Rate
+      - alert: LLMHighErrorRate
+        expr: |
+          (
+            sum(rate(lumikb_llm_request_total{status="failed"}[5m]))
+            /
+            sum(rate(lumikb_llm_request_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: lumikb-llm
+        annotations:
+          summary: "High LLM API error rate"
+          description: "{{ $value | humanizePercentage }} of LLM requests failing"
+          runbook_url: "https://docs.lumikb.io/runbooks/llm-errors"
+
+      # Slow LLM Responses
+      - alert: SlowLLMResponses
+        expr: |
+          histogram_quantile(0.95, sum(rate(lumikb_llm_request_duration_seconds_bucket[5m])) by (le)) > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: lumikb-llm
+        annotations:
+          summary: "Slow LLM responses"
+          description: "P95 LLM response time is {{ $value | humanizeDuration }} (>30s threshold)"
+          runbook_url: "https://docs.lumikb.io/runbooks/slow-llm"
+
+  - name: lumikb-search-alerts
+    rules:
+      # Slow Search Responses
+      - alert: SlowSearchResponses
+        expr: |
+          histogram_quantile(0.95, sum(rate(lumikb_search_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: lumikb-search
+        annotations:
+          summary: "Slow search responses"
+          description: "P95 search response time is {{ $value | humanizeDuration }} (>5s threshold)"
+          runbook_url: "https://docs.lumikb.io/runbooks/slow-search"

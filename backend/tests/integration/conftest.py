@@ -5,13 +5,19 @@ infrastructure for integration tests without requiring docker-compose.
 """
 
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.postgres import PostgresContainer
+from testcontainers.qdrant import QdrantContainer
 from testcontainers.redis import RedisContainer
 
+# Import all models to register them with Base.metadata
+# Must import model classes (not just Base) so they're registered
+# Note: AuditEvent and Outbox also needed for completeness
+import app.models  # noqa: F401 - triggers all model imports via __init__.py
 from app.models.base import Base
 
 if TYPE_CHECKING:
@@ -56,6 +62,111 @@ def redis_url(redis_container):
     return f"redis://{host}:{port}"
 
 
+# =============================================================================
+# Qdrant Container Fixtures (Story 5-12: ATDD Integration Tests)
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def qdrant_container():
+    """Session-scoped Qdrant container for vector search tests.
+
+    Starts once per test session and is reused across all search tests.
+    Container exposes ports 6333 (REST) and 6334 (gRPC).
+    """
+    # Use Qdrant v1.15 for compatibility with qdrant-client 1.16.x
+    # Major versions must match and minor version difference <= 1
+    with QdrantContainer("qdrant/qdrant:v1.15.0") as qdrant:
+        yield qdrant
+
+
+@pytest.fixture(scope="session")
+def qdrant_url(qdrant_container):
+    """Qdrant connection info (host, port, grpc_port).
+
+    Returns:
+        dict: {"host": str, "port": int, "grpc_port": int}
+    """
+    host = qdrant_container.get_container_host_ip()
+    # REST port (6333 inside container)
+    port = int(qdrant_container.get_exposed_port(6333))
+    # gRPC port (6334 inside container)
+    grpc_port = int(qdrant_container.get_exposed_port(6334))
+    return {"host": host, "port": port, "grpc_port": grpc_port}
+
+
+@pytest.fixture
+def test_qdrant_service(qdrant_url):
+    """Function-scoped Qdrant service configured to use test container.
+
+    Patches the global qdrant_service singleton to use the test container.
+    Resets after each test to ensure isolation.
+
+    IMPORTANT: Cleans up ALL collections after each test to prevent
+    "Too many open files" errors from RocksDB accumulating file handles.
+
+    Usage:
+        async def test_search(test_qdrant_service):
+            # test_qdrant_service is already configured
+            await test_qdrant_service.create_collection(kb_id)
+    """
+    from app.core.config import settings
+    from app.integrations.qdrant_client import qdrant_service
+
+    # Save original settings
+    original_host = settings.qdrant_host
+    original_port = settings.qdrant_port
+    original_grpc_port = settings.qdrant_grpc_port
+
+    # Patch settings to use test container
+    settings.qdrant_host = qdrant_url["host"]
+    settings.qdrant_port = qdrant_url["port"]
+    settings.qdrant_grpc_port = qdrant_url["grpc_port"]
+
+    # Reset the service to pick up new settings
+    qdrant_service.reset()
+
+    yield qdrant_service
+
+    # Cleanup: delete all collections to free file handles
+    # This prevents "Too many open files" errors in long test sessions
+    try:
+        collections = qdrant_service.client.get_collections()
+        for collection in collections.collections:
+            try:
+                qdrant_service.client.delete_collection(collection.name)
+            except Exception:
+                pass  # Ignore cleanup errors
+    except Exception:
+        pass  # Ignore if client not available
+
+    # Cleanup: reset and restore settings
+    qdrant_service.reset()
+    settings.qdrant_host = original_host
+    settings.qdrant_port = original_port
+    settings.qdrant_grpc_port = original_grpc_port
+
+
+@pytest.fixture(autouse=True)
+def mock_embedding_client():
+    """Auto-use fixture to mock embedding client for all integration tests.
+
+    Uses the same deterministic embedding generator as test helpers,
+    ensuring consistent embeddings for query/chunk matching.
+    """
+    from tests.helpers.qdrant_helpers import create_test_embedding
+
+    async def mock_get_embeddings(texts: list[str]) -> list[list[float]]:
+        """Generate deterministic embeddings for search queries."""
+        return [create_test_embedding(text) for text in texts]
+
+    with patch(
+        "app.integrations.litellm_client.embedding_client.get_embeddings",
+        side_effect=mock_get_embeddings,
+    ):
+        yield
+
+
 @pytest.fixture
 async def test_engine(postgres_url):
     """Create async engine for test database.
@@ -77,6 +188,7 @@ async def test_engine(postgres_url):
     # Create schema and tables
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS observability"))
 
         # Create enum types before tables (PostgreSQL requires this)
         # Use DO block since CREATE TYPE doesn't support IF NOT EXISTS
@@ -124,6 +236,53 @@ async def db_session(test_engine) -> AsyncSession:
     async with test_session_factory() as session:
         yield session
         await session.rollback()
+
+
+# =============================================================================
+# Observability Service Fixture (Story 9-4: Document Processing Instrumentation)
+# =============================================================================
+
+
+@pytest.fixture
+async def test_observability_service(test_engine):
+    """Fixture to patch ObservabilityService to use test database.
+
+    Patches the async_session_factory used by ObservabilityService so that
+    traces, spans, and document events are stored in the test database instead
+    of the production database.
+
+    Also resets the singleton instance to ensure clean state for each test.
+
+    Usage:
+        async def test_document_trace(db_session, test_observability_service):
+            obs = ObservabilityService.get_instance()
+            ctx = await obs.start_trace(...)
+    """
+    from app.services import observability_service as obs_module
+    from app.services.observability_service import ObservabilityService
+
+    test_session_factory = async_sessionmaker(
+        test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    # Save original factory
+    original_factory = obs_module.async_session_factory
+
+    # Patch to use test database
+    obs_module.async_session_factory = test_session_factory
+
+    # Reset singleton to ensure it picks up the patched factory
+    ObservabilityService._instance = None
+
+    yield ObservabilityService.get_instance()
+
+    # Restore original factory
+    obs_module.async_session_factory = original_factory
+
+    # Reset singleton again for cleanup
+    ObservabilityService._instance = None
 
 
 # =============================================================================
@@ -193,6 +352,8 @@ async def api_client(
     from app.core.database import get_async_session
     from app.main import app
     from app.services import audit_service as audit_module
+    from app.services import observability_service as obs_module
+    from app.services.observability_service import ObservabilityService
 
     test_session_factory = async_sessionmaker(
         test_engine,
@@ -204,12 +365,17 @@ async def api_client(
     original_db_factory = db_module.async_session_factory
     original_audit_factory = audit_module.async_session_factory
     original_auth_factory = auth_module.async_session_factory
+    original_obs_factory = obs_module.async_session_factory
     original_redis_url = settings.redis_url
 
     # Patch ALL module-level references to async_session_factory
     db_module.async_session_factory = test_session_factory
     audit_module.async_session_factory = test_session_factory
     auth_module.async_session_factory = test_session_factory
+    obs_module.async_session_factory = test_session_factory
+
+    # Reset ObservabilityService singleton to pick up patched factory
+    ObservabilityService._instance = None
 
     # Patch Redis URL to use test container
     settings.redis_url = redis_url
@@ -242,7 +408,11 @@ async def api_client(
     db_module.async_session_factory = original_db_factory
     audit_module.async_session_factory = original_audit_factory
     auth_module.async_session_factory = original_auth_factory
+    obs_module.async_session_factory = original_obs_factory
     settings.redis_url = original_redis_url
+
+    # Reset ObservabilityService singleton for cleanup
+    ObservabilityService._instance = None
 
     # Close Redis singleton with grace handling
     try:
@@ -287,9 +457,10 @@ async def test_user_data(api_client: "AsyncClient") -> dict:
             "password": user_data["password"],
         },
     )
-    assert login_response.status_code in (200, 204), (
-        f"Login failed: {login_response.status_code}"
-    )
+    assert login_response.status_code in (
+        200,
+        204,
+    ), f"Login failed: {login_response.status_code}"
 
     # Return user data with cookies (keep as httpx.Cookies object)
     return {
@@ -530,3 +701,307 @@ async def second_test_kb(db_session: AsyncSession, test_user_data: dict) -> dict
         "id": str(kb.id),  # Changed from kb_id to id for consistency
         "name": kb.name,
     }
+
+
+# =============================================================================
+# Search Test Fixtures with Qdrant Integration (Story 5-12)
+# =============================================================================
+
+
+@pytest.fixture
+async def kb_with_indexed_chunks(
+    db_session: AsyncSession,
+    test_user_data: dict,
+    test_qdrant_service,
+) -> dict:
+    """Create a KB with indexed documents and chunks in Qdrant.
+
+    This fixture creates:
+    1. A KB with test user as owner
+    2. Documents with READY status
+    3. Chunks inserted directly into Qdrant
+
+    Use this for search integration tests that need real vector data.
+
+    Returns:
+        dict: {
+            "id": str (KB UUID),
+            "name": str,
+            "documents": list of document dicts,
+            "chunk_count": int (total chunks indexed)
+        }
+    """
+    from sqlalchemy import select
+
+    from app.models.document import Document, DocumentStatus
+    from app.models.knowledge_base import KnowledgeBase
+    from app.models.permission import KBPermission, PermissionLevel
+    from app.models.user import User
+    from tests.helpers.qdrant_helpers import create_test_chunk
+
+    # Get test user
+    result = await db_session.execute(
+        select(User).where(User.id == test_user_data["user_id"])
+    )
+    test_user = result.scalar_one()
+
+    # Create KB
+    kb = KnowledgeBase(
+        name="Search Test KB",
+        description="KB with indexed chunks for search testing",
+        owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(kb)
+    await db_session.flush()
+
+    # Grant READ permission
+    permission = KBPermission(
+        user_id=test_user.id,
+        kb_id=kb.id,
+        permission_level=PermissionLevel.READ,
+    )
+    db_session.add(permission)
+
+    # Create documents (checksums must be exactly 64 chars - SHA256 hex)
+    doc1 = Document(
+        kb_id=kb.id,
+        name="OAuth 2.0 Guide.md",
+        original_filename="oauth-guide.md",
+        mime_type="text/markdown",
+        file_size_bytes=4096,
+        file_path=f"kb-{kb.id}/oauth-guide.md",
+        checksum="a" * 64,  # Valid SHA256 hex length
+        status=DocumentStatus.READY,
+        chunk_count=3,
+        uploaded_by=test_user.id,
+    )
+    doc2 = Document(
+        kb_id=kb.id,
+        name="Security Best Practices.md",
+        original_filename="security.md",
+        mime_type="text/markdown",
+        file_size_bytes=5120,
+        file_path=f"kb-{kb.id}/security.md",
+        checksum="b" * 64,  # Valid SHA256 hex length
+        status=DocumentStatus.READY,
+        chunk_count=3,
+        uploaded_by=test_user.id,
+    )
+    db_session.add_all([doc1, doc2])
+    await db_session.commit()
+    await db_session.refresh(kb)
+    await db_session.refresh(doc1)
+    await db_session.refresh(doc2)
+
+    # Create Qdrant collection and insert chunks
+    await test_qdrant_service.create_collection(kb.id)
+
+    chunks = [
+        # OAuth document chunks
+        create_test_chunk(
+            text="OAuth 2.0 is an authorization framework that enables applications to obtain limited access to user accounts. It provides delegated access without exposing user credentials.",
+            document_id=str(doc1.id),
+            document_name=doc1.name,
+            kb_id=str(kb.id),
+            chunk_index=0,
+            section_header="Introduction to OAuth",
+        ),
+        create_test_chunk(
+            text="The OAuth 2.0 authorization code flow is recommended for server-side applications. It involves exchanging an authorization code for an access token.",
+            document_id=str(doc1.id),
+            document_name=doc1.name,
+            kb_id=str(kb.id),
+            chunk_index=1,
+            section_header="Authorization Code Flow",
+        ),
+        create_test_chunk(
+            text="PKCE (Proof Key for Code Exchange) enhances OAuth 2.0 security for public clients. It prevents authorization code interception attacks.",
+            document_id=str(doc1.id),
+            document_name=doc1.name,
+            kb_id=str(kb.id),
+            chunk_index=2,
+            section_header="PKCE Extension",
+        ),
+        # Security document chunks
+        create_test_chunk(
+            text="Multi-factor authentication (MFA) adds an extra security layer beyond passwords. Users must verify their identity using multiple methods.",
+            document_id=str(doc2.id),
+            document_name=doc2.name,
+            kb_id=str(kb.id),
+            chunk_index=0,
+            section_header="Multi-Factor Authentication",
+        ),
+        create_test_chunk(
+            text="API security best practices include using HTTPS, implementing rate limiting, and validating all input. Never trust client-side data.",
+            document_id=str(doc2.id),
+            document_name=doc2.name,
+            kb_id=str(kb.id),
+            chunk_index=1,
+            section_header="API Security",
+        ),
+        create_test_chunk(
+            text="Authentication tokens should be stored securely. Use HTTP-only cookies for session tokens and consider token rotation policies.",
+            document_id=str(doc2.id),
+            document_name=doc2.name,
+            kb_id=str(kb.id),
+            chunk_index=2,
+            section_header="Token Security",
+        ),
+    ]
+
+    await test_qdrant_service.upsert_points(kb.id, chunks)
+
+    return {
+        "kb": {
+            "id": str(kb.id),
+            "name": kb.name,
+        },
+        "documents": [
+            {"id": str(doc1.id), "name": doc1.name},
+            {"id": str(doc2.id), "name": doc2.name},
+        ],
+        "chunk_count": len(chunks),
+    }
+
+
+@pytest.fixture
+async def multiple_kbs_with_chunks(
+    db_session: AsyncSession,
+    test_user_data: dict,
+    test_qdrant_service,
+) -> dict:
+    """Create multiple KBs with indexed chunks for cross-KB search testing.
+
+    Creates 3 KBs with different topics:
+    - KB1: Sales (pricing, discounts)
+    - KB2: Engineering (architecture, APIs)
+    - KB3: Security (authentication, encryption)
+
+    Returns:
+        dict: {"kbs": list of KB metadata dicts with id, name, chunk_count}
+    """
+    from sqlalchemy import select
+
+    from app.models.document import Document, DocumentStatus
+    from app.models.knowledge_base import KnowledgeBase
+    from app.models.permission import KBPermission, PermissionLevel
+    from app.models.user import User
+    from tests.helpers.qdrant_helpers import create_test_chunk
+
+    # Get test user
+    result = await db_session.execute(
+        select(User).where(User.id == test_user_data["user_id"])
+    )
+    test_user = result.scalar_one()
+
+    kbs = []
+
+    # KB configurations
+    kb_configs = [
+        {
+            "name": "Sales Knowledge Base",
+            "description": "Sales and pricing documentation",
+            "chunks": [
+                ("Pricing tiers include Basic, Pro, and Enterprise plans.", "Pricing"),
+                (
+                    "Volume discounts are available for orders over 100 units.",
+                    "Discounts",
+                ),
+            ],
+        },
+        {
+            "name": "Engineering Knowledge Base",
+            "description": "Technical architecture documentation",
+            "chunks": [
+                (
+                    "Our microservices architecture uses REST APIs and gRPC.",
+                    "Architecture",
+                ),
+                (
+                    "The API gateway handles authentication and rate limiting.",
+                    "API Gateway",
+                ),
+            ],
+        },
+        {
+            "name": "Security Knowledge Base",
+            "description": "Security policies and procedures",
+            "chunks": [
+                (
+                    "OAuth 2.0 with PKCE is required for all API authentication.",
+                    "Authentication",
+                ),
+                ("Data at rest is encrypted using AES-256 encryption.", "Encryption"),
+                (
+                    "Security best practices require regular credential rotation.",
+                    "Best Practices",
+                ),
+            ],
+        },
+    ]
+
+    for config in kb_configs:
+        # Create KB
+        kb = KnowledgeBase(
+            name=config["name"],
+            description=config["description"],
+            owner_id=test_user.id,
+            status="active",
+        )
+        db_session.add(kb)
+        await db_session.flush()
+
+        # Grant READ permission
+        permission = KBPermission(
+            user_id=test_user.id,
+            kb_id=kb.id,
+            permission_level=PermissionLevel.READ,
+        )
+        db_session.add(permission)
+
+        # Create document
+        doc = Document(
+            kb_id=kb.id,
+            name=f"{config['name'].split()[0]} Doc.md",
+            original_filename="doc.md",
+            mime_type="text/markdown",
+            file_size_bytes=2048,
+            file_path=f"kb-{kb.id}/doc.md",
+            checksum=f"{config['name'][:8]}" + "c" * 56,
+            status=DocumentStatus.READY,
+            chunk_count=len(config["chunks"]),
+            uploaded_by=test_user.id,
+        )
+        db_session.add(doc)
+        await db_session.flush()
+        await db_session.refresh(doc)
+
+        # Create Qdrant collection and insert chunks
+        await test_qdrant_service.create_collection(kb.id)
+
+        chunks = [
+            create_test_chunk(
+                text=text,
+                document_id=str(doc.id),
+                document_name=doc.name,
+                kb_id=str(kb.id),
+                chunk_index=i,
+                section_header=section,
+            )
+            for i, (text, section) in enumerate(config["chunks"])
+        ]
+
+        await test_qdrant_service.upsert_points(kb.id, chunks)
+
+        kbs.append(
+            {
+                "id": str(kb.id),
+                "name": kb.name,
+                "chunk_count": len(chunks),
+            }
+        )
+
+    await db_session.commit()
+
+    return {"kbs": kbs}

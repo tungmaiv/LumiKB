@@ -15,6 +15,7 @@ from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.audit_service import AuditService, get_audit_service
 from app.services.conversation_service import ConversationService, NoDocumentsError
 from app.services.kb_service import get_kb_permission_service
+from app.services.observability_service import ObservabilityService
 from app.services.search_service import SearchService, get_search_service
 
 logger = get_logger()
@@ -24,16 +25,18 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 def get_conversation_service(
     search_service: SearchService = Depends(get_search_service),
+    session: AsyncSession = Depends(get_async_session),
 ) -> ConversationService:
     """Dependency injection for ConversationService.
 
     Args:
         search_service: Search service dependency
+        session: Database session for KB model lookup (Story 7-10)
 
     Returns:
         ConversationService instance
     """
-    return ConversationService(search_service)
+    return ConversationService(search_service, session=session)
 
 
 @router.post("/", response_model=ChatResponse)
@@ -84,28 +87,69 @@ async def send_chat_message(
     error_message = None
     result = {}
 
+    # Generate conversation_id if not provided (needed for observability logging)
+    conversation_id = request_body.conversation_id or f"conv-{uuid.uuid4()}"
+
+    # Start observability trace
+    obs = ObservabilityService.get_instance()
+    trace_ctx = await obs.start_trace(
+        name="chat.conversation",
+        user_id=current_user.id,
+        kb_id=uuid.UUID(request_body.kb_id),
+        metadata={
+            "conversation_id": conversation_id,
+            "message_length": len(request_body.message),
+        },
+    )
+
     try:
-        # Permission check (raises 404 if no access)
+        # Permission check - raises 404 if no access
         permission_service = get_kb_permission_service(session)
-        await permission_service.check_permission(
+        has_permission = await permission_service.check_permission(
             user_id=str(current_user.id),
             kb_id=str(request_body.kb_id),
             permission_level="READ",
         )
+        if not has_permission:
+            raise HTTPException(status_code=404, detail="Knowledge Base not found")
 
         # Generate session_id from user (using user_id as session scope)
         session_id = str(current_user.id)
 
-        # Send message
+        # Log user message (privacy: message length only)
+        await obs.log_chat_message(
+            ctx=trace_ctx,
+            role="user",
+            content="",  # Privacy: don't log actual content
+            conversation_id=uuid.UUID(conversation_id.replace("conv-", ""))
+            if conversation_id.startswith("conv-")
+            else uuid.UUID(conversation_id),
+        )
+
+        # Send message with trace context for internal spans
         result = await conversation_service.send_message(
             session_id=session_id,
             kb_id=request_body.kb_id,
             user_id=str(current_user.id),
             message=request_body.message,
-            conversation_id=request_body.conversation_id,
+            conversation_id=conversation_id,
+            trace_ctx=trace_ctx,
         )
 
         response = ChatResponse(**result)
+
+        # Log assistant message with same conversation_id parsing
+        response_time_ms = int((time.time() - start_time) * 1000)
+        result_conv_id = result.get("conversation_id", conversation_id)
+        await obs.log_chat_message(
+            ctx=trace_ctx,
+            role="assistant",
+            content="",  # Privacy: don't log actual content
+            conversation_id=uuid.UUID(result_conv_id.replace("conv-", ""))
+            if result_conv_id.startswith("conv-")
+            else uuid.UUID(result_conv_id),
+            latency_ms=response_time_ms,
+        )
 
         logger.info(
             "chat_message_success",
@@ -116,7 +160,18 @@ async def send_chat_message(
             confidence=result.get("confidence", 0.0),
         )
 
+        # End trace successfully
+        await obs.end_trace(trace_ctx, status="completed")
         return response
+
+    except HTTPException as e:
+        # End trace with failed status for 404/etc
+        await obs.end_trace(
+            trace_ctx,
+            status="failed",
+            error_message=f"HTTPException: {e.status_code}",
+        )
+        raise
 
     except NoDocumentsError as e:
         success = False
@@ -126,6 +181,11 @@ async def send_chat_message(
             user_id=str(current_user.id),
             kb_id=request_body.kb_id,
             error=error_message,
+        )
+        await obs.end_trace(
+            trace_ctx,
+            status="failed",
+            error_message="NoDocumentsError",
         )
         raise HTTPException(status_code=400, detail=e.message) from e
 
@@ -139,6 +199,11 @@ async def send_chat_message(
             error=error_message,
             exc_info=True,
         )
+        await obs.end_trace(
+            trace_ctx,
+            status="failed",
+            error_message=type(e).__name__,
+        )
         raise HTTPException(
             status_code=503, detail="Chat service temporarily unavailable"
         ) from e
@@ -149,13 +214,12 @@ async def send_chat_message(
 
         try:
             await audit_service.log_event(
-                session=session,
-                user_id=current_user.id,
                 action="chat.message",
                 resource_type="conversation",
+                user_id=current_user.id,
                 resource_id=result.get("conversation_id", "unknown"),
                 details={
-                    "kb_id": request_body.kb_id,
+                    "kb_id": str(request_body.kb_id),
                     "message_length": len(request_body.message),
                     "response_length": len(result.get("answer", "")),
                     "citation_count": len(result.get("citations", [])),
@@ -338,7 +402,7 @@ async def undo_clear_conversation(
     kb_id: str,
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> dict[str, str]:
+) -> dict[str, str | bool]:
     """Restore cleared conversation from backup (30-second window).
 
     Args:
@@ -376,8 +440,7 @@ async def undo_clear_conversation(
         backup_exists = await redis_client.exists(backup_key)
         if not backup_exists:
             raise HTTPException(
-                status_code=410,
-                detail="Undo window expired (30 seconds)"
+                status_code=410, detail="Undo window expired (30 seconds)"
             )
 
         # Restore from backup
@@ -419,7 +482,7 @@ async def get_conversation_history(
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
     conversation_service: ConversationService = Depends(get_conversation_service),
-) -> dict[str, list]:
+) -> dict[str, list | int]:
     """Retrieve conversation history for a knowledge base.
 
     Args:

@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="7-28" title="Markdown Generation from DOCX/PDF (Backend)" epic="7">
+  <metadata>
+    <status>Draft</status>
+    <story-points>3</story-points>
+    <created>2025-12-11</created>
+    <generated>2025-12-11</generated>
+  </metadata>
+
+  <user-story>
+    <as-a>developer</as-a>
+    <i-want-to>convert PDF/DOCX documents to Markdown during parsing</i-want-to>
+    <so-that>chunk positions can be accurately highlighted in the document viewer</so-that>
+  </user-story>
+
+  <background>
+    <summary>
+      The current chunk viewer has position accuracy issues with PDF and DOCX documents:
+      - PDF: Page-level navigation only, no character-level highlighting
+      - DOCX: Scroll position estimation is imprecise (uses ratio calculation)
+      - Markdown/Text: Already accurate with line-based highlighting
+
+      This story implements the first phase of the Markdown-First Document Processing
+      approach by adding markdown generation to the parsing pipeline.
+    </summary>
+    <problem-statement>
+      Users cannot see precise chunk boundaries when viewing PDF/DOCX documents in
+      the chunk viewer because the current highlighting uses page numbers or
+      scroll ratios rather than character positions.
+    </problem-statement>
+    <solution-approach>
+      Convert parsed document elements to Markdown format during the parsing phase,
+      storing the generated markdown alongside the original text content. This enables
+      character-accurate highlighting using char_start/char_end positions.
+    </solution-approach>
+  </background>
+
+  <acceptance-criteria>
+    <criterion id="AC-7.28.1" title="markdownify Dependency">
+      <given>I check backend/pyproject.toml</given>
+      <then>`markdownify>=0.11.0,<1.0.0` is listed as a dependency under worker extras</then>
+      <implementation-notes>
+        - Add to `[project.optional-dependencies]` section
+        - Group with other document processing dependencies
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.28.2" title="elements_to_markdown Function">
+      <given>I import `elements_to_markdown` from `app.workers.parsing`</given>
+      <then>the function accepts `list[ParsedElement]` and returns a markdown string</then>
+      <and>the function preserves element order and appropriate spacing</and>
+      <implementation-notes>
+        <![CDATA[
+def elements_to_markdown(elements: list[ParsedElement]) -> str:
+    """Convert parsed elements to Markdown format.
+
+    Args:
+        elements: List of ParsedElement from document parsing.
+
+    Returns:
+        Markdown-formatted string with heading levels, lists, and tables.
+    """
+        ]]>
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.28.3" title="ParsedContent Markdown Field">
+      <given>I inspect the `ParsedContent` dataclass in `app.workers.parsing`</given>
+      <then>it has an optional field `markdown_content: str | None = None`</then>
+      <and>the field is populated for PDF and DOCX documents during parsing</and>
+      <implementation-notes>
+        - Add field to existing dataclass
+        - Default to None for backwards compatibility
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.28.4" title="Markdown Stored in MinIO">
+      <given>a PDF or DOCX document is processed</given>
+      <when>parsing completes successfully</when>
+      <then>the `.parsed.json` file in MinIO includes `markdown_content` field</then>
+      <and>the markdown content is the full converted document</and>
+      <implementation-notes>
+        - Update `document_tasks.py` to include markdown in parsed content storage
+        - Existing storage pattern uses `{doc_id}.parsed.json`
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.28.5" title="DOCX Markdown Quality">
+      <given>a DOCX document with headings, lists, and tables</given>
+      <when>converted to markdown</when>
+      <then>output preserves:
+        - Heading levels (# for Title, ## for Header, ### for nested)
+        - List formatting (- for bullets, 1. for numbered)
+        - Table structure (using | markdown syntax)
+      </then>
+      <and>code blocks are preserved with triple backticks</and>
+      <implementation-notes>
+        - `markdownify` handles HTML-to-Markdown conversion
+        - `unstructured` elements have `.metadata.text_as_html` for rich content
+        - Map element types to markdown constructs
+      </implementation-notes>
+    </criterion>
+
+    <criterion id="AC-7.28.6" title="Unit Test Coverage">
+      <given>unit tests exist for `elements_to_markdown` function</given>
+      <then>coverage is >= 80% for the new function</then>
+      <and>tests cover:
+        - Empty elements list
+        - Single element conversion
+        - Multiple element types (Title, NarrativeText, ListItem, Table)
+        - Heading level preservation
+        - Table markdown formatting
+        - Edge cases: empty text, special characters
+      </and>
+    </criterion>
+  </acceptance-criteria>
+
+  <technical-design>
+    <element-type-mapping>
+      <mapping element="Title" markdown="# {text}" />
+      <mapping element="Header" markdown="## {text} (or ### based on depth)" />
+      <mapping element="NarrativeText" markdown="{text}\n\n" />
+      <mapping element="ListItem" markdown="- {text}" />
+      <mapping element="Table" markdown="| col1 | col2 |\n|---|---|\n| data |" />
+      <mapping element="CodeSnippet" markdown="```\n{text}\n```" />
+      <mapping element="FigureCaption" markdown="*{text}* (italic)" />
+    </element-type-mapping>
+
+    <sample-implementation>
+      <![CDATA[
+# backend/app/workers/parsing.py
+
+from markdownify import markdownify as md
+
+@dataclass
+class ParsedContent:
+    text: str
+    elements: list[ParsedElement]
+    metadata: dict[str, Any]
+    markdown_content: str | None = None  # NEW
+
+def elements_to_markdown(elements: list[ParsedElement]) -> str:
+    """Convert parsed elements to Markdown format."""
+    markdown_parts: list[str] = []
+
+    for el in elements:
+        element_type = el.element_type
+        text = el.text.strip()
+
+        if not text:
+            continue
+
+        if element_type == "Title":
+            markdown_parts.append(f"# {text}\n")
+        elif element_type == "Header":
+            level = el.metadata.get("heading_level", 2)
+            prefix = "#" * min(level, 6)
+            markdown_parts.append(f"{prefix} {text}\n")
+        elif element_type == "ListItem":
+            markdown_parts.append(f"- {text}\n")
+        elif element_type == "Table":
+            # Use markdownify for HTML tables
+            html = el.metadata.get("text_as_html", f"<p>{text}</p>")
+            markdown_parts.append(md(html) + "\n")
+        elif element_type in ("NarrativeText", "Text"):
+            markdown_parts.append(f"{text}\n\n")
+        else:
+            # Default: plain text with spacing
+            markdown_parts.append(f"{text}\n\n")
+
+    return "".join(markdown_parts).strip()
+      ]]>
+    </sample-implementation>
+  </technical-design>
+
+  <files-to-modify>
+    <file path="backend/pyproject.toml" action="modify">
+      Add `markdownify>=0.11.0,<1.0.0` to worker extras
+    </file>
+    <file path="backend/app/workers/parsing.py" action="modify">
+      Add `elements_to_markdown()` function, update `ParsedContent` dataclass
+    </file>
+    <file path="backend/app/workers/document_tasks.py" action="modify">
+      Store `markdown_content` in parsed JSON via store_parsed_content
+    </file>
+    <file path="backend/tests/unit/test_parsing.py" action="modify">
+      Add tests for `elements_to_markdown()` function
+    </file>
+  </files-to-modify>
+
+  <code-references>
+    <reference file="backend/app/workers/parsing.py" lines="32-75">
+      <description>ParsedElement and ParsedContent dataclasses (current implementation)</description>
+      <code><![CDATA[
+@dataclass
+class ParsedElement:
+    """A single parsed element from a document.
+
+    Attributes:
+        text: The text content of the element.
+        element_type: Type of element (e.g., Title, NarrativeText, ListItem).
+        metadata: Additional metadata (page_number, section, etc.).
+    """
+
+    text: str
+    element_type: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ParsedContent:
+    """Result of parsing a document.
+
+    Attributes:
+        text: Full concatenated text content.
+        elements: List of parsed elements with metadata.
+        metadata: Document-level metadata (page_count, sections, etc.).
+    """
+
+    text: str
+    elements: list[ParsedElement]
+    metadata: dict[str, Any]
+      ]]></code>
+    </reference>
+
+    <reference file="backend/app/workers/parsing.py" lines="81-199">
+      <description>parse_pdf function - returns ParsedContent with elements list</description>
+    </reference>
+
+    <reference file="backend/app/workers/parsing.py" lines="202-281">
+      <description>parse_docx function - returns ParsedContent with elements list</description>
+    </reference>
+
+    <reference file="backend/app/workers/document_tasks.py" lines="694-701">
+      <description>store_parsed_content integration point</description>
+      <code><![CDATA[
+        # 7. Store parsed content temporarily
+        run_async(
+            store_parsed_content(
+                kb_id=kb_id,
+                document_id=UUID(doc_id),
+                parsed=parsed_content,
+            )
+        )
+      ]]></code>
+    </reference>
+
+    <reference file="backend/pyproject.toml" lines="77-103">
+      <description>Worker dependencies where markdownify should be added</description>
+      <code><![CDATA[
+# Celery worker - document processing, ML, vector DB
+worker = [
+    # Task Queue
+    "celery>=5.5.0,<6.0.0",
+    # Vector & LLM
+    "langchain>=0.3.0,<1.0.0",
+    ...
+    # Document Processing - PDF, DOCX, Markdown parsing
+    # Note: unstructured pulls in PyTorch; use CPU-only torch in Dockerfile
+    "unstructured[pdf,docx,md]>=0.16.0,<1.0.0",
+    ...
+]
+      ]]></code>
+    </reference>
+  </code-references>
+
+  <dependencies>
+    <prerequisite>None (can start immediately)</prerequisite>
+    <blocked-by>None</blocked-by>
+    <blocks>Story 7-29 (Markdown Content API Endpoint)</blocks>
+  </dependencies>
+
+  <test-plan>
+    <unit-tests>
+      <test name="test_elements_to_markdown_empty">Empty elements list returns empty string</test>
+      <test name="test_elements_to_markdown_title">Single Title element returns `# Title`</test>
+      <test name="test_elements_to_markdown_headers">Headers with depth return appropriate # levels</test>
+      <test name="test_elements_to_markdown_narrative">NarrativeText element returns text with double newline</test>
+      <test name="test_elements_to_markdown_list">ListItem elements return `- item` format</test>
+      <test name="test_elements_to_markdown_table_html">Table with HTML metadata converts to markdown table</test>
+      <test name="test_elements_to_markdown_mixed">Multiple element types preserve order and formatting</test>
+      <test name="test_parsed_content_markdown_field">ParsedContent with markdown field is accessible and correct</test>
+    </unit-tests>
+
+    <integration-tests>
+      <test name="test_parse_docx_generates_markdown">Parse DOCX file populates `markdown_content`</test>
+      <test name="test_parse_pdf_generates_markdown">Parse PDF file populates `markdown_content`</test>
+      <test name="test_parsed_json_includes_markdown">Check MinIO storage `.parsed.json` contains markdown</test>
+    </integration-tests>
+  </test-plan>
+
+  <definition-of-done>
+    <item>`markdownify>=0.11.0` added to pyproject.toml</item>
+    <item>`elements_to_markdown()` function implemented</item>
+    <item>`ParsedContent.markdown_content` field added</item>
+    <item>PDF parsing generates markdown</item>
+    <item>DOCX parsing generates markdown</item>
+    <item>Markdown stored in MinIO `.parsed.json`</item>
+    <item>Unit tests pass with >= 80% coverage</item>
+    <item>Code review approved</item>
+    <item>Ruff lint/format passes</item>
+  </definition-of-done>
+
+  <notes>
+    <note>This story focuses on backend markdown generation only</note>
+    <note>Frontend viewer changes are in Story 7-30</note>
+    <note>API endpoint is in Story 7-29</note>
+    <note>Start with DOCX which has better structure; PDF may need additional work</note>
+    <note>Keep original `text` field for backwards compatibility</note>
+  </notes>
+</story-context>

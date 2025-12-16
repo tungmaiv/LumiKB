@@ -1,0 +1,178 @@
+<story-context id="lumikb/epic-7/story-7-1" v="1.1">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7-1</storyId>
+    <title>Docker E2E Infrastructure</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <updatedAt>2025-12-08</updatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-1-docker-e2e-infrastructure.md</sourceStoryPath>
+    <migratedFrom>5-16-docker-e2e-infrastructure</migratedFrom>
+    <splitNote>Original scope split: E2E automation moved to Story 8-16</splitNote>
+    <relatedStory>8-16-e2e-test-automation (uses this infrastructure)</relatedStory>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer / Developer</asA>
+    <iWant>a Docker-based E2E testing infrastructure with all services configured and test data seeded</iWant>
+    <soThat>I can run E2E tests against a complete production-like environment locally and in CI</soThat>
+    <tasks>
+      <task id="1" ac="1">
+        <name>Create docker-compose.e2e.yml</name>
+        <subtasks>
+          <subtask>1.1 Define all services (frontend, backend, celery-worker, postgres, redis, qdrant, minio, litellm)</subtask>
+          <subtask>1.2 Configure service dependencies with health checks (depends_on with condition)</subtask>
+          <subtask>1.3 Set environment variables for E2E mode (test database URLs, API endpoints)</subtask>
+          <subtask>1.4 Configure e2e-network bridge for inter-service communication</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="2">
+        <name>Implement E2E database seeding</name>
+        <subtasks>
+          <subtask>2.1 Create backend/seed_e2e.py with test data</subtask>
+          <subtask>2.2 Seed users (admin, regular), KBs, indexed documents</subtask>
+          <subtask>2.3 Ensure Qdrant collections and MinIO buckets created</subtask>
+          <subtask>2.4 Make seeding idempotent (can re-run without errors)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="3">
+        <name>Infrastructure verification</name>
+        <subtasks>
+          <subtask>3.1 All 8 services start and reach healthy status within 90 seconds</subtask>
+          <subtask>3.2 Services can communicate across e2e-network</subtask>
+          <subtask>3.3 Frontend can reach backend API at http://backend:8000</subtask>
+          <subtask>3.4 Backend can connect to all dependent services</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="4">
+        <name>Local developer experience</name>
+        <subtasks>
+          <subtask>4.1 Environment starts without manual configuration</subtask>
+          <subtask>4.2 Environment variables pre-configured for E2E mode</subtask>
+          <subtask>4.3 Seeding can be run via docker-compose exec</subtask>
+          <subtask>4.4 Create E2E Infrastructure Setup Guide documentation</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+    <deferredToStory8_16>
+      <item>Playwright Docker configuration</item>
+      <item>playwright.config.e2e.ts</item>
+      <item>GitHub Actions E2E workflow</item>
+      <item>E2E test execution</item>
+    </deferredToStory8_16>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.1.1" priority="P0">
+      <description>docker-compose.e2e.yml starts all services with test configuration</description>
+      <verification>Run `docker-compose -f docker-compose.e2e.yml up -d` and verify all 8 services (frontend, backend, celery-worker, postgres, redis, qdrant, minio, litellm) start successfully with healthy status</verification>
+      <services>
+        <service>frontend (Next.js production build on port 3000)</service>
+        <service>backend (FastAPI on port 8000)</service>
+        <service>celery-worker (background task processing)</service>
+        <service>postgres (test database)</service>
+        <service>redis (session and chat storage)</service>
+        <service>qdrant (vector search)</service>
+        <service>minio (document storage)</service>
+        <service>litellm (LLM API proxy)</service>
+      </services>
+    </criterion>
+    <criterion id="AC-7.1.2" priority="P0">
+      <description>Database is seeded with test data</description>
+      <verification>After docker-compose up, verify test users (admin@test.com, user@test.com), test KBs, and indexed documents exist in PostgreSQL, Qdrant, and MinIO</verification>
+      <testData>
+        <item>Test users: admin (ADMIN role), regular user (USER role)</item>
+        <item>Test knowledge bases with permissions</item>
+        <item>Indexed test documents for search/chat tests</item>
+        <item>Redis conversation data if needed</item>
+      </testData>
+    </criterion>
+    <criterion id="AC-7.1.3" priority="P0">
+      <description>Infrastructure verification passes</description>
+      <verification>All services start and reach healthy status within 90 seconds, services can communicate across e2e-network, frontend can reach backend API</verification>
+    </criterion>
+    <criterion id="AC-7.1.4" priority="P1">
+      <description>Local developer experience is smooth</description>
+      <verification>Environment starts without manual configuration, seeding can be run via docker-compose exec backend python seed_e2e.py</verification>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" relevance="high">Epic 7 Technical Specification with E2E infrastructure design</doc>
+      <doc path="docs/sprint-artifacts/epic-4-retrospective-2025-11-30.md" relevance="high">Retrospective identifying E2E testing gap</doc>
+      <doc path="docs/architecture.md" relevance="medium">System architecture reference</doc>
+      <doc path="docs/testing-guideline.md" relevance="medium">Testing standards and patterns</doc>
+    </docs>
+    <code>
+      <file path="infrastructure/docker/docker-compose.yml" relevance="high">Base Docker Compose configuration to extend</file>
+      <file path=".github/workflows/test.yml" relevance="high">Existing CI workflow pattern (lint, test jobs)</file>
+      <file path=".github/workflows/e2e.yml" relevance="high">Existing manual E2E workflow to enhance</file>
+      <file path="frontend/playwright.config.ts" relevance="high">Existing Playwright configuration</file>
+      <file path="frontend/e2e/tests/" relevance="high">Existing E2E test files</file>
+      <file path="infrastructure/scripts/seed-data.py" relevance="medium">Existing seeding script pattern</file>
+      <file path="backend/Dockerfile" relevance="medium">Backend container configuration</file>
+    </code>
+    <dependencies>
+      <dependency type="npm" package="@playwright/test" version="^1.40.0">E2E testing framework</dependency>
+      <dependency type="docker" image="postgres:15">Test database</dependency>
+      <dependency type="docker" image="redis:7">Session storage</dependency>
+      <dependency type="docker" image="qdrant/qdrant:latest">Vector search</dependency>
+      <dependency type="docker" image="minio/minio:latest">Document storage</dependency>
+      <dependency type="docker" image="ghcr.io/berriai/litellm:latest">LLM proxy</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance">All services must reach healthy status within 90 seconds</constraint>
+    <constraint type="technical">Services must use Docker network for inter-service communication</constraint>
+    <constraint type="technical">Frontend must use NEXT_PUBLIC_API_URL=http://backend:8000</constraint>
+    <constraint type="technical">Database seeding must be idempotent (re-runnable without errors)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="docker-compose">
+      <service name="e2e-network">Bridge network connecting all services</service>
+      <service name="frontend">Next.js production build, port 3000, depends_on backend healthy</service>
+      <service name="backend">FastAPI, port 8000, /health endpoint for healthcheck</service>
+      <service name="celery-worker">Background task processing</service>
+      <service name="postgres">PostgreSQL 15, test database</service>
+      <service name="redis">Redis 7, session and cache storage</service>
+      <service name="qdrant">Vector search service</service>
+      <service name="minio">Document storage S3-compatible</service>
+      <service name="litellm">LLM API proxy</service>
+    </interface>
+    <interface type="seeding">
+      <script>backend/seed_e2e.py</script>
+      <command>docker-compose exec backend python seed_e2e.py</command>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Infrastructure validation via health checks and connectivity tests</standard>
+      <standard>Seeding validation via database queries and API calls</standard>
+      <standard>Test data seeded consistently before E2E test runs</standard>
+    </standards>
+    <locations>
+      <location type="docker-compose">docker-compose.e2e.yml</location>
+      <location type="seeding">backend/seed_e2e.py</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-7.1.1">Verify: All 8 Docker services start with healthy status within 90 seconds</idea>
+      <idea ac="AC-7.1.1">Verify: Services can communicate across e2e-network (frontend -> backend -> postgres)</idea>
+      <idea ac="AC-7.1.2">Verify: Seeded admin user exists in PostgreSQL with correct role</idea>
+      <idea ac="AC-7.1.2">Verify: Seeded KB has indexed documents in Qdrant</idea>
+      <idea ac="AC-7.1.2">Verify: MinIO buckets created with test documents</idea>
+      <idea ac="AC-7.1.3">Verify: Frontend health check passes at http://frontend:3000</idea>
+      <idea ac="AC-7.1.3">Verify: Backend health check passes at http://backend:8000/health</idea>
+      <idea ac="AC-7.1.4">Verify: docker-compose up requires no manual env setup</idea>
+    </ideas>
+    <deferredTests note="E2E test execution deferred to Story 8-16">
+      <item>Playwright tests for Epic 3-8 features</item>
+      <item>GitHub Actions E2E workflow</item>
+      <item>Test artifact generation</item>
+    </deferredTests>
+  </tests>
+</story-context>

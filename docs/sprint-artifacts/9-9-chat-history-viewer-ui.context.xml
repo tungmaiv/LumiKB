@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-id>9-9</story-id>
+    <story-name>Chat History Viewer UI</story-name>
+    <epic-id>9</epic-id>
+    <epic-name>Hybrid Observability Platform</epic-name>
+    <phase>Phase 3: API & UI</phase>
+    <story-type>frontend</story-type>
+    <priority>high</priority>
+    <estimated-complexity>medium</estimated-complexity>
+  </metadata>
+
+  <story-summary>
+    Create a React component for browsing persistent chat history showing all user conversations
+    with filtering, search, and export capabilities. This enables system administrators to review
+    user interactions for compliance, analyze usage patterns, and support troubleshooting.
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC1">Session list displays user, KB name, message count, and last active timestamp</criterion>
+    <criterion id="AC2">Click session row to view full conversation thread in detail panel</criterion>
+    <criterion id="AC3">User messages and assistant messages rendered with distinct styling (different backgrounds, alignment)</criterion>
+    <criterion id="AC4">Citations displayed inline with clickable source links to documents</criterion>
+    <criterion id="AC5">Token usage and response time shown per assistant message</criterion>
+    <criterion id="AC6">Search within chat history by content (full-text search across messages)</criterion>
+    <criterion id="AC7">Filter by user, KB, and date range</criterion>
+    <criterion id="AC8">Export conversation as JSON or CSV (single session or bulk export)</criterion>
+    <criterion id="AC9">Pagination for long histories with infinite scroll or page controls</criterion>
+    <criterion id="AC10">Unit tests for component rendering and user interactions</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" status="pending">Create chat session list component (AC: #1, #9)</task>
+    <task id="2" status="pending">Create filter and search controls (AC: #6, #7)</task>
+    <task id="3" status="pending">Create conversation thread component (AC: #2, #3, #5)</task>
+    <task id="4" status="pending">Create citation display component (AC: #4)</task>
+    <task id="5" status="pending">Create session detail panel (AC: #2)</task>
+    <task id="6" status="pending">Create export functionality (AC: #8)</task>
+    <task id="7" status="pending">Create custom hooks for chat data (AC: #9)</task>
+    <task id="8" status="pending">Create main chat history page (AC: #1)</task>
+    <task id="9" status="pending">Implement loading and error states</task>
+    <task id="10" status="pending">Write unit tests (AC: #10)</task>
+  </tasks>
+
+  <dependencies>
+    <dependency type="story" required="true">
+      <id>9-7</id>
+      <name>Observability Admin API</name>
+      <reason>Provides REST endpoint: GET /chat-history with filters</reason>
+    </dependency>
+    <dependency type="story" required="true">
+      <id>9-1</id>
+      <name>Observability Schema and Models</name>
+      <reason>Defines ObsChatMessage model with session grouping</reason>
+    </dependency>
+    <dependency type="library" required="true">
+      <name>@tanstack/react-query</name>
+      <version>^5.0.0</version>
+      <reason>Server state management with infinite query for pagination</reason>
+    </dependency>
+    <dependency type="component" required="true">
+      <path>frontend/src/components/chat/chat-message.tsx</path>
+      <reason>Existing chat message rendering pattern</reason>
+    </dependency>
+    <dependency type="component" required="true">
+      <path>frontend/src/components/generation/export-modal.tsx</path>
+      <reason>Export modal pattern for JSON/CSV download</reason>
+    </dependency>
+  </dependencies>
+
+  <technical-context>
+    <architecture-pattern>
+      <name>Component Composition</name>
+      <description>Small, focused components composed together for maintainability</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Custom Hooks Pattern</name>
+      <description>Data fetching encapsulated in hooks (useChatSessions, useChatMessages)</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Infinite Query</name>
+      <description>TanStack Query infinite query for message pagination</description>
+    </architecture-pattern>
+    <architecture-pattern>
+      <name>Client-Side Export</name>
+      <description>File generation and download in browser without server roundtrip</description>
+    </architecture-pattern>
+
+    <key-decisions>
+      <decision>
+        <topic>Chat Bubble Layout</topic>
+        <choice>User messages right-aligned, assistant left-aligned</choice>
+        <rationale>Follows common chat UI patterns for familiar user experience</rationale>
+      </decision>
+      <decision>
+        <topic>Citation Parsing</topic>
+        <choice>Citations stored in message metadata as JSON array</choice>
+        <rationale>Structured data enables clickable links and hover previews</rationale>
+      </decision>
+      <decision>
+        <topic>Search Debouncing</topic>
+        <choice>300ms debounce on search input</choice>
+        <rationale>Prevents excessive API calls while typing</rationale>
+      </decision>
+      <decision>
+        <topic>Export Formats</topic>
+        <choice>JSON for full fidelity, CSV for spreadsheet analysis</choice>
+        <rationale>Covers both technical and non-technical user needs</rationale>
+      </decision>
+    </key-decisions>
+
+    <api-endpoints>
+      <endpoint method="GET" path="/api/v1/observability/chat-history">
+        <description>Query persistent chat history with filters</description>
+        <params>user_id, kb_id, session_id, search_query, start_date, end_date, skip, limit</params>
+        <response>ChatHistoryResponse with items[], total, skip, limit</response>
+      </endpoint>
+    </api-endpoints>
+
+    <data-types>
+      <type name="ChatMessageItem">
+        <field name="id" type="string">Message UUID</field>
+        <field name="trace_id" type="string">W3C Trace ID for correlation</field>
+        <field name="session_id" type="string">Conversation session identifier</field>
+        <field name="role" type="string">user or assistant</field>
+        <field name="content" type="string">Message text content</field>
+        <field name="user_id" type="string">User UUID</field>
+        <field name="kb_id" type="string">Knowledge Base UUID</field>
+        <field name="created_at" type="datetime">ISO timestamp</field>
+        <field name="token_count" type="number | null">Tokens used (assistant only)</field>
+        <field name="response_time_ms" type="number | null">Response time (assistant only)</field>
+        <field name="citations" type="Citation[] | null">Source citations</field>
+      </type>
+      <type name="Citation">
+        <field name="index" type="number">Citation number [1], [2], etc.</field>
+        <field name="document_id" type="string">Source document UUID</field>
+        <field name="document_name" type="string">Display name</field>
+        <field name="chunk_id" type="string">Specific chunk reference</field>
+        <field name="relevance_score" type="number">Match score 0-1</field>
+      </type>
+    </data-types>
+  </technical-context>
+
+  <source-tree-components>
+    <new-files>
+      <file path="frontend/src/app/(protected)/admin/chat-history/page.tsx" purpose="Chat history page" />
+      <file path="frontend/src/components/admin/chat/chat-session-list.tsx" purpose="Session list table" />
+      <file path="frontend/src/components/admin/chat/chat-filters.tsx" purpose="Filter controls" />
+      <file path="frontend/src/components/admin/chat/conversation-thread.tsx" purpose="Message thread" />
+      <file path="frontend/src/components/admin/chat/citation-display.tsx" purpose="Citation rendering" />
+      <file path="frontend/src/components/admin/chat/session-detail-panel.tsx" purpose="Slide-out panel" />
+      <file path="frontend/src/components/admin/chat/export-dialog.tsx" purpose="Export functionality" />
+      <file path="frontend/src/components/admin/chat/__tests__/chat-session-list.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/components/admin/chat/__tests__/conversation-thread.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/components/admin/chat/__tests__/export-dialog.test.tsx" purpose="Unit tests" />
+      <file path="frontend/src/hooks/useChatHistory.ts" purpose="Data fetching hooks" />
+    </new-files>
+    <modified-files>
+      <file path="frontend/src/app/(protected)/admin/page.tsx" change="Add link to chat history" />
+    </modified-files>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="Chat Message Styling">
+      <source-file>frontend/src/components/chat/chat-message.tsx</source-file>
+      <description>Existing pattern for rendering user vs assistant messages</description>
+      <example><![CDATA[
+import { cn } from "@/lib/utils";
+
+export function ConversationThread({ messages }: ConversationThreadProps) {
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      {messages.map((message) => (
+        <div
+          key={message.id}
+          className={cn(
+            "max-w-[80%] rounded-lg p-4",
+            message.role === "user"
+              ? "ml-auto bg-primary text-primary-foreground"
+              : "mr-auto bg-muted"
+          )}
+        >
+          <p className="whitespace-pre-wrap">{message.content}</p>
+
+          {message.role === "assistant" && (
+            <div className="mt-2 flex items-center gap-2 text-xs opacity-70">
+              <span>{message.token_count} tokens</span>
+              <span>{message.response_time_ms}ms</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Citation Display">
+      <description>Inline citations with clickable source links</description>
+      <example><![CDATA[
+interface CitationDisplayProps {
+  citations: Citation[];
+}
+
+export function CitationDisplay({ citations }: CitationDisplayProps) {
+  return (
+    <div className="mt-3 border-t pt-2">
+      <p className="text-xs font-medium mb-1">Sources:</p>
+      <div className="flex flex-wrap gap-1">
+        {citations.map((citation) => (
+          <a
+            key={citation.index}
+            href={`/documents/${citation.document_id}?chunk=${citation.chunk_id}`}
+            className="text-xs px-2 py-1 bg-background rounded hover:underline"
+          >
+            [{citation.index}] {citation.document_name}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Export Functionality">
+      <source-file>frontend/src/components/generation/export-modal.tsx</source-file>
+      <description>Client-side file generation and download</description>
+      <example><![CDATA[
+function exportAsJSON(messages: ChatMessage[], filename: string) {
+  const data = JSON.stringify(messages, null, 2);
+  downloadFile(data, `${filename}.json`, "application/json");
+}
+
+function exportAsCSV(messages: ChatMessage[], filename: string) {
+  const headers = ["id", "role", "content", "created_at", "token_count", "response_time_ms"];
+  const rows = messages.map((m) => [
+    m.id,
+    m.role,
+    `"${m.content.replace(/"/g, '""')}"`, // Escape quotes
+    m.created_at,
+    m.token_count || "",
+    m.response_time_ms || "",
+  ]);
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  downloadFile(csv, `${filename}.csv`, "text/csv");
+}
+
+function downloadFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Debounced Search">
+      <source-file>frontend/src/hooks/useDebounce.ts</source-file>
+      <description>Debounce hook for search input</description>
+      <example><![CDATA[
+import { useDebounce } from "@/hooks/useDebounce";
+
+function ChatFilters({ onFiltersChange }: ChatFiltersProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    onFiltersChange({ searchQuery: debouncedSearch });
+  }, [debouncedSearch, onFiltersChange]);
+
+  return (
+    <Input
+      placeholder="Search messages..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+    />
+  );
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="Infinite Query for Pagination">
+      <description>TanStack Query infinite query for message list</description>
+      <example><![CDATA[
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+export function useChatMessages(sessionId: string) {
+  return useInfiniteQuery({
+    queryKey: ["chat-messages", sessionId],
+    queryFn: ({ pageParam = 0 }) =>
+      api.get("/observability/chat-history", {
+        params: { session_id: sessionId, skip: pageParam, limit: 50 },
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const nextSkip = lastPage.skip + lastPage.limit;
+      return nextSkip < lastPage.total ? nextSkip : undefined;
+    },
+  });
+}
+      ]]></example>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <implementation-notes>
+    <note priority="high">
+      Use 300ms debounce on search input to prevent excessive API calls
+    </note>
+    <note priority="high">
+      CSV export must escape quotes in message content (replace " with "")
+    </note>
+    <note priority="medium">
+      Session list should group messages by session_id and show message count
+    </note>
+    <note priority="medium">
+      Citation links should navigate to document with chunk highlighted
+    </note>
+    <note priority="medium">
+      Last active timestamp should be formatted as relative time (e.g., "2 hours ago")
+    </note>
+    <note priority="low">
+      Consider adding bulk export option for selected sessions
+    </note>
+    <note priority="low">
+      Add keyboard shortcut (Escape) to close session detail panel
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test>ChatSessionList renders sessions with correct columns</test>
+      <test>ConversationThread renders messages with correct styling (user vs assistant)</test>
+      <test>CitationDisplay renders inline citations with clickable links</test>
+      <test>ChatFilters apply filters correctly via callback</test>
+      <test>Export generates correct JSON format</test>
+      <test>Export generates correct CSV format with escaped quotes</test>
+      <test>Pagination and infinite scroll work correctly</test>
+    </unit-tests>
+    <integration-tests>
+      <test>Full page renders with mock API data</test>
+      <test>Session selection loads conversation in detail panel</test>
+      <test>Search query triggers debounced API refetch</test>
+    </integration-tests>
+    <mocking-strategy>
+      Mock API responses using MSW or Jest mocks, include messages with citations
+    </mocking-strategy>
+  </testing-requirements>
+
+  <references>
+    <reference type="story-file">docs/sprint-artifacts/9-9-chat-history-viewer-ui.md</reference>
+    <reference type="tech-spec">docs/sprint-artifacts/tech-spec-epic-9-observability.md</reference>
+    <reference type="epic">docs/epics/epic-9-observability.md</reference>
+    <reference type="dependency">docs/sprint-artifacts/9-7-observability-admin-api.md</reference>
+    <reference type="pattern">frontend/src/components/chat/chat-message.tsx</reference>
+    <reference type="pattern">frontend/src/components/generation/export-modal.tsx</reference>
+    <reference type="pattern">frontend/src/hooks/useDebounce.ts</reference>
+  </references>
+</story-context>

@@ -4,13 +4,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import DateTime, func
+from sqlalchemy import Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, model_repr
 
 if TYPE_CHECKING:
     from app.models.draft import Draft
+    from app.models.group import UserGroup
     from app.models.knowledge_base import KnowledgeBase
     from app.models.permission import KBPermission
 
@@ -44,6 +45,15 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         onupdate=func.now(),
         nullable=False,
     )
+    onboarding_completed: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default="false",
+        nullable=False,
+    )
+    last_active: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     # Relationships
     knowledge_bases: Mapped[list["KnowledgeBase"]] = relationship(
@@ -56,6 +66,11 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     )
     kb_permissions: Mapped[list["KBPermission"]] = relationship(
         "KBPermission",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    user_groups: Mapped[list["UserGroup"]] = relationship(
+        "UserGroup",
         back_populates="user",
         cascade="all, delete-orphan",
     )

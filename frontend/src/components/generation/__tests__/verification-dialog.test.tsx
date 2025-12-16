@@ -12,7 +12,7 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import VerificationDialog from '../verification-dialog';
+import { VerificationDialog } from '../verification-dialog';
 
 describe('VerificationDialog - AC2: Source Verification Prompt', () => {
   const mockDraftId = 'test-draft-123';
@@ -51,9 +51,9 @@ describe('VerificationDialog - AC2: Source Verification Prompt', () => {
     expect(screen.getByTestId('citation-count')).toHaveTextContent('5 citations');
     expect(screen.getByTestId('document-count')).toHaveTextContent('3 documents');
 
-    // THEN: Checkbox is unchecked by default
-    const checkbox = screen.getByTestId('verification-checkbox') as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
+    // THEN: Checkbox is unchecked by default (Radix UI uses data-state)
+    const checkbox = screen.getByTestId('verification-checkbox');
+    expect(checkbox).toHaveAttribute('data-state', 'unchecked');
 
     // THEN: Both buttons are visible
     expect(screen.getByTestId('go-back-button')).toBeInTheDocument();
@@ -106,12 +106,12 @@ describe('VerificationDialog - AC2: Source Verification Prompt', () => {
     );
 
     // WHEN: User checks the verification checkbox
-    const checkbox = screen.getByTestId('verification-checkbox') as HTMLInputElement;
+    const checkbox = screen.getByTestId('verification-checkbox');
     fireEvent.click(checkbox);
 
-    // THEN: Checkbox is checked
+    // THEN: Checkbox is checked (Radix UI uses data-state)
     await waitFor(() => {
-      expect(checkbox.checked).toBe(true);
+      expect(checkbox).toHaveAttribute('data-state', 'checked');
     });
 
     // WHEN: User clicks "Export Anyway"
@@ -148,8 +148,8 @@ describe('VerificationDialog - AC2: Source Verification Prompt', () => {
     );
 
     // WHEN: User clicks "Export Anyway" WITHOUT checking checkbox
-    const checkbox = screen.getByTestId('verification-checkbox') as HTMLInputElement;
-    expect(checkbox.checked).toBe(false); // Not checked
+    const checkbox = screen.getByTestId('verification-checkbox');
+    expect(checkbox).toHaveAttribute('data-state', 'unchecked'); // Not checked
 
     const exportButton = screen.getByTestId('export-anyway-button');
     fireEvent.click(exportButton);
@@ -185,7 +185,7 @@ describe('VerificationDialog - AC2: Source Verification Prompt', () => {
     );
 
     // THEN: Checkbox should be pre-checked (restored from session storage)
-    const checkbox = screen.getByTestId('verification-checkbox') as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
+    const checkbox = screen.getByTestId('verification-checkbox');
+    expect(checkbox).toHaveAttribute('data-state', 'checked');
   });
 });

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document for Story 6-3: Purge Document Backend
+  Generated: 2025-12-07
+-->
+<storyContext version="1.0" storyId="6-3">
+
+  <metadata>
+    <projectName>LumiKB</projectName>
+    <storyTitle>Purge Document Backend</storyTitle>
+    <epicId>6</epicId>
+    <epicName>Document Lifecycle Management</epicName>
+    <priority>HIGH</priority>
+    <storyPoints>5</storyPoints>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-07</generatedAt>
+  </metadata>
+
+  <story>
+    <userStory>
+      <asA>KB owner or admin</asA>
+      <iWant>to permanently delete archived documents including all storage artifacts</iWant>
+      <soThat>I can free up storage and comply with data retention policies</soThat>
+    </userStory>
+
+    <context>
+      Document purging is the permanent, irreversible deletion of archived documents.
+      This operation must clean up all storage layers: PostgreSQL database record,
+      Qdrant vectors, MinIO file storage, and any Celery task metadata.
+    </context>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.3.1">
+      <title>Single purge endpoint exists</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <when>I call DELETE /api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/purge</when>
+      <then>I receive 200 OK</then>
+      <and>the document is permanently deleted</and>
+      <and>an audit log entry is created with action "document_purged"</and>
+    </criterion>
+
+    <criterion id="AC-6.3.2">
+      <title>Bulk purge endpoint exists</title>
+      <given>I am authenticated as KB owner or admin</given>
+      <when>I call POST /api/v1/knowledge-bases/{kb_id}/documents/bulk-purge with document_ids</when>
+      <then>I receive 200 OK with count of purged documents</then>
+      <and>all specified archived documents are permanently deleted</and>
+    </criterion>
+
+    <criterion id="AC-6.3.3">
+      <title>Only archived documents can be purged</title>
+      <given>a document has status other than "archived"</given>
+      <when>I attempt to purge it</when>
+      <then>I receive 400 Bad Request with message "Only archived documents can be purged"</then>
+    </criterion>
+
+    <criterion id="AC-6.3.4">
+      <title>All storage layers cleaned</title>
+      <given>I purge a document</given>
+      <when>the operation completes</when>
+      <then>the document row is deleted from PostgreSQL</then>
+      <and>all vectors are deleted from Qdrant collection</and>
+      <and>the file is deleted from MinIO bucket</and>
+      <and>any pending Celery tasks are revoked</and>
+    </criterion>
+
+    <criterion id="AC-6.3.5">
+      <title>Permission check enforced</title>
+      <given>I am not KB owner or admin</given>
+      <when>I attempt to purge a document</when>
+      <then>I receive 403 Forbidden</then>
+    </criterion>
+
+    <criterion id="AC-6.3.6">
+      <title>Bulk purge skips non-archived with partial success</title>
+      <given>a bulk purge request contains both archived and non-archived document IDs</given>
+      <when>I execute the bulk purge</when>
+      <then>only archived documents are purged</then>
+      <and>response includes purged count, skipped count, and skipped_ids</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <codeReferences>
+    <reference type="service" path="backend/app/services/document_service.py">
+      <description>DocumentService - add purge methods</description>
+      <keyElements>
+        - async def purge_document(doc_id, user): single purge
+        - async def bulk_purge_documents(doc_ids, user): bulk purge
+        - Multi-layer cleanup logic
+      </keyElements>
+    </reference>
+
+    <reference type="qdrant" path="backend/app/integrations/qdrant_client.py">
+      <description>Qdrant delete operation</description>
+      <keyElements>
+        - delete method with filter by doc_id
+      </keyElements>
+    </reference>
+
+    <reference type="minio" path="backend/app/integrations/minio_client.py">
+      <description>MinIO file deletion</description>
+      <keyElements>
+        - remove_object method
+      </keyElements>
+    </reference>
+  </codeReferences>
+
+  <interfaces>
+    <api>
+      <endpoint method="DELETE" path="/api/v1/knowledge-bases/{kb_id}/documents/{doc_id}/purge" new="true">
+        <description>Permanently delete an archived document</description>
+        <response code="200">
+          <field name="message" type="string">"Document permanently deleted"</field>
+        </response>
+        <errors>
+          <error code="400">Document is not archived</error>
+          <error code="403">Permission denied</error>
+          <error code="404">Document not found</error>
+        </errors>
+      </endpoint>
+
+      <endpoint method="POST" path="/api/v1/knowledge-bases/{kb_id}/documents/bulk-purge" new="true">
+        <description>Permanently delete multiple archived documents</description>
+        <requestBody>
+          <field name="document_ids" type="uuid[]" required="true">List of document IDs to purge</field>
+        </requestBody>
+        <response code="200">
+          <field name="purged" type="integer">Count of purged documents</field>
+          <field name="skipped" type="integer">Count of skipped documents</field>
+          <field name="skipped_ids" type="uuid[]">IDs of skipped documents</field>
+        </response>
+      </endpoint>
+    </api>
+
+    <storageCleanup>
+      <step order="1">Delete Qdrant vectors</step>
+      <step order="2">Delete MinIO file</step>
+      <step order="3">Revoke Celery tasks (if any)</step>
+      <step order="4">Delete PostgreSQL record</step>
+    </storageCleanup>
+  </interfaces>
+
+  <dependencies>
+    <dependency type="story" id="6-1" status="pending">
+      <name>Archive Document Backend</name>
+      <provides>Document archiving capability</provides>
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <testCategory name="Backend Integration Tests" count="7">
+      <test>DELETE /purge returns 200 for archived document</test>
+      <test>DELETE /purge returns 400 for non-archived document</test>
+      <test>DELETE /purge returns 403 for non-owner</test>
+      <test>Purge removes Qdrant vectors</test>
+      <test>Purge removes MinIO file</test>
+      <test>Purge removes database record</test>
+      <test>Bulk purge handles partial success</test>
+    </testCategory>
+  </tests>
+
+</storyContext>

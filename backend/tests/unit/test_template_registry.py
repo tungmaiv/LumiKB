@@ -6,7 +6,11 @@ Tests AC-1 (templates available), AC-2 (system prompts), AC-5 (structured output
 
 import pytest
 
-from app.services.template_registry import TEMPLATES, Template, get_template, list_templates
+from app.services.template_registry import (
+    TEMPLATES,
+    get_template,
+    list_templates,
+)
 
 
 def test_get_template_returns_correct_template():

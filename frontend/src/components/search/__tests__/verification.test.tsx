@@ -6,8 +6,42 @@ import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VerifyAllButton } from '../verify-all-button';
 import { VerificationControls } from '../verification-controls';
-import { useVerificationStore } from '@/lib/hooks/use-verification';
 import type { Citation } from '../citation-card';
+
+// Mock the verification store
+const mockStartVerification = vi.fn();
+const mockExitVerification = vi.fn();
+const mockNavigateNext = vi.fn();
+const mockNavigatePrevious = vi.fn();
+const mockToggleVerified = vi.fn();
+let mockIsAllVerified = false;
+let mockProgress = { verified: 0, total: 3 };
+let mockStoreState = {
+  activeAnswerId: null as string | null,
+  currentCitationIndex: 0,
+  verifiedCitations: new Set<number>(),
+  isVerifying: false,
+  totalCitations: 0,
+};
+
+vi.mock('@/lib/hooks/use-verification', () => ({
+  useVerificationStore: (selector?: (state: unknown) => unknown) => {
+    const fullState = {
+      ...mockStoreState,
+      startVerification: mockStartVerification,
+      exitVerification: mockExitVerification,
+      navigateNext: mockNavigateNext,
+      navigatePrevious: mockNavigatePrevious,
+      toggleVerified: mockToggleVerified,
+      isAllVerified: () => mockIsAllVerified,
+      getProgress: () => mockProgress,
+    };
+    if (typeof selector === 'function') {
+      return selector(fullState);
+    }
+    return fullState;
+  },
+}));
 
 // Mock citations
 const mockCitations: Citation[] = [
@@ -39,14 +73,17 @@ const mockCitations: Citation[] = [
 
 describe('VerifyAllButton', () => {
   beforeEach(() => {
-    // Reset store
-    useVerificationStore.setState({
+    vi.clearAllMocks();
+    // Reset mock state
+    mockStoreState = {
       activeAnswerId: null,
       currentCitationIndex: 0,
       verifiedCitations: new Set(),
       isVerifying: false,
       totalCitations: 0,
-    });
+    };
+    mockIsAllVerified = false;
+    mockProgress = { verified: 0, total: 3 };
   });
 
   test('displays citation count for multiple citations', () => {
@@ -72,15 +109,11 @@ describe('VerifyAllButton', () => {
 
     fireEvent.click(screen.getByRole('button'));
 
-    expect(useVerificationStore.getState().isVerifying).toBe(true);
-    expect(useVerificationStore.getState().activeAnswerId).toBe('test');
+    expect(mockStartVerification).toHaveBeenCalledWith('test', 3);
   });
 
   test('displays progress badge when partially verified', () => {
-    useVerificationStore.setState({
-      verifiedCitations: new Set([1, 2]),
-      totalCitations: 3,
-    });
+    mockProgress = { verified: 2, total: 3 };
 
     render(<VerifyAllButton answerId="test" citations={mockCitations} isStreaming={false} />);
 
@@ -88,10 +121,8 @@ describe('VerifyAllButton', () => {
   });
 
   test('displays All verified badge when complete', () => {
-    useVerificationStore.setState({
-      verifiedCitations: new Set([1, 2, 3]),
-      totalCitations: 3,
-    });
+    mockIsAllVerified = true;
+    mockProgress = { verified: 3, total: 3 };
 
     render(<VerifyAllButton answerId="test" citations={mockCitations} isStreaming={false} />);
 
@@ -101,13 +132,17 @@ describe('VerifyAllButton', () => {
 
 describe('VerificationControls', () => {
   beforeEach(() => {
-    useVerificationStore.setState({
+    vi.clearAllMocks();
+    // Reset mock state for verification mode
+    mockStoreState = {
       activeAnswerId: 'test',
       currentCitationIndex: 0,
       verifiedCitations: new Set(),
       isVerifying: true,
       totalCitations: 3,
-    });
+    };
+    mockIsAllVerified = false;
+    mockProgress = { verified: 0, total: 3 };
   });
 
   test('displays progress correctly', () => {
@@ -124,7 +159,7 @@ describe('VerificationControls', () => {
   });
 
   test('Next button disabled on last citation', () => {
-    useVerificationStore.setState({ currentCitationIndex: 2 });
+    mockStoreState.currentCitationIndex = 2;
     render(<VerificationControls citations={mockCitations} />);
 
     const nextButton = screen.getByLabelText('Next citation');
@@ -137,17 +172,17 @@ describe('VerificationControls', () => {
     const nextButton = screen.getByLabelText('Next citation');
     fireEvent.click(nextButton);
 
-    expect(useVerificationStore.getState().currentCitationIndex).toBe(1);
+    expect(mockNavigateNext).toHaveBeenCalled();
   });
 
   test('Previous button navigates to previous citation', () => {
-    useVerificationStore.setState({ currentCitationIndex: 1 });
+    mockStoreState.currentCitationIndex = 1;
     render(<VerificationControls citations={mockCitations} />);
 
     const prevButton = screen.getByLabelText('Previous citation');
     fireEvent.click(prevButton);
 
-    expect(useVerificationStore.getState().currentCitationIndex).toBe(0);
+    expect(mockNavigatePrevious).toHaveBeenCalled();
   });
 
   test('Checkbox toggles verification state', () => {
@@ -158,7 +193,7 @@ describe('VerificationControls', () => {
 
     fireEvent.click(checkbox);
 
-    expect(useVerificationStore.getState().verifiedCitations.has(1)).toBe(true);
+    expect(mockToggleVerified).toHaveBeenCalledWith(1);
   });
 
   test('Exit button deactivates verification mode', () => {
@@ -167,14 +202,13 @@ describe('VerificationControls', () => {
     const exitButton = screen.getByLabelText('Exit verification mode');
     fireEvent.click(exitButton);
 
-    expect(useVerificationStore.getState().isVerifying).toBe(false);
+    expect(mockExitVerification).toHaveBeenCalled();
   });
 
   test('All verified message appears when complete', () => {
-    useVerificationStore.setState({
-      verifiedCitations: new Set([1, 2, 3]),
-      currentCitationIndex: 2,
-    });
+    mockStoreState.verifiedCitations = new Set([1, 2, 3]);
+    mockStoreState.currentCitationIndex = 2;
+    mockIsAllVerified = true;
 
     render(<VerificationControls citations={mockCitations} />);
 

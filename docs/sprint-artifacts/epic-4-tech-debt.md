@@ -2,11 +2,21 @@
 
 **Epic:** Epic 4 - Chat & Document Generation
 **Created:** 2025-11-26
-**Status:** Active
+**Status:** ARCHIVED - Migrated to Epic 7 Tech Debt
 
 ---
 
-## Purpose
+## Migration Notice
+
+> **IMPORTANT:** This file is archived. All active tech debt has been consolidated into:
+> **[epic-7-tech-debt.md](./epic-7-tech-debt.md)**
+>
+> **Migration Date:** 2025-12-10
+> **Reason:** Single-source-of-truth for all project tech debt
+
+---
+
+## Original Purpose (Historical)
 
 Track deferred technical work from Epic 4 stories that:
 - Doesn't block production deployment
@@ -59,8 +69,8 @@ Following Epic 3 pattern of ATDD-first development with deferred GREEN transitio
 - Validate risk mitigations (R-001, R-002, R-004, R-005)
 
 **Reference Documents:**
-- [docs/atdd-checklist-epic-4.md](../atdd-checklist-epic-4.md) - Implementation guide
-- [docs/test-design-epic-4.md](../test-design-epic-4.md) - Risk assessment
+- [docs/sprint-artifacts/atdd-checklist-epic-4.md](atdd-checklist-epic-4.md) - Implementation guide
+- [docs/sprint-artifacts/test-design-epic-4.md](test-design-epic-4.md) - Risk assessment
 
 ---
 
@@ -966,5 +976,5 @@ Add component tests to Epic 5 hardening (Story 5.11 or 5.15).
 ---
 
 **Document Owner**: Tung Vu
-**Last Updated**: 2025-11-29 (Updated with Story 4.8 implementation tracking)
-**Next Review**: After Epic 4 completion
+**Last Updated**: 2025-12-10 (ARCHIVED - Migrated to epic-7-tech-debt.md)
+**Next Review**: N/A - See [epic-7-tech-debt.md](./epic-7-tech-debt.md) for active tracking

@@ -1,0 +1,473 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>17</storyId>
+    <title>Main Application Navigation Menu</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-17-main-navigation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user (admin or regular user)</asA>
+    <iWant>a persistent navigation menu to access main application sections</iWant>
+    <soThat>I can easily navigate between Dashboard, Search, Chat, Admin, and other features</soThat>
+    <tasks>
+### Task 1: Create Desktop Navigation Component (Frontend) - AC-5.17.1, AC-5.17.2
+- Create `frontend/src/components/layout/main-nav.tsx`
+- Implement vertical sidebar navigation layout (left side, below header)
+- Add core navigation links (Dashboard, Search, Chat) with Next.js Link component
+- Implement active route detection using `usePathname()` hook
+- Add tooltips using shadcn/ui Tooltip component
+- Responsive design: Hide on mobile (<768px), show on desktop (≥1024px)
+
+### Task 2: Add Admin Navigation Section with Permission Gating (Frontend) - AC-5.17.3
+- Import `useAuthStore` to access current user role
+- Add conditional rendering for admin section (check `user?.role === 'admin'`)
+- Add visual separator for admin section (Separator component + "Admin" header)
+- Add 5 admin navigation links with icons and routes
+- Ensure backend admin route protection verified
+
+### Task 3: Mobile Navigation Implementation (Frontend) - AC-5.17.5
+- Review and update existing `frontend/src/components/layout/mobile-nav.tsx`
+- Update mobile-nav.tsx with real routing links (Dashboard, Search, Chat)
+- Add admin section to mobile navigation (collapsible or nested)
+- Ensure touch-friendly tap targets (min 44x44px)
+
+### Task 4: Integrate Navigation into DashboardLayout (Frontend) - AC-5.17.1
+- Update `frontend/src/components/layout/dashboard-layout.tsx`
+- Import and add MainNav component to layout structure
+- Adjust layout spacing to accommodate main navigation
+- Test navigation persistence across route changes
+
+### Task 5: Add Settings Link to User Menu (Frontend) - AC-5.17.4
+- Update `frontend/src/components/layout/user-menu.tsx`
+- Add Settings link to dropdown menu (route: /settings - placeholder)
+- Create placeholder settings page (optional)
+
+### Task 6: Backend Route Protection Verification - AC-5.17.3
+- Review all admin API routes verify `admin_required` dependency applied
+- Create integration test for permission enforcement (non-admin gets 403)
+
+### Task 7: Frontend Component Tests - AC-5.17.2, AC-5.17.3, AC-5.17.6
+- Create `frontend/src/components/layout/__tests__/main-nav.test.tsx`
+- Test: MainNav renders all core links for authenticated user
+- Test: MainNav renders admin section for admin user
+- Test: MainNav hides admin section for non-admin user
+- Test: Active route highlighting
+- Test: Accessibility - ARIA labels present on all links
+
+### Task 8: E2E Smoke Tests (Deferred to Story 5-16)
+- Create `frontend/e2e/tests/navigation/main-navigation.spec.ts`
+- Test: Navigation visible after login
+- Test: Navigation works on all routes
+- Test: Admin links visible only to admin users
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+**AC-5.17.1: Navigation Component Structure**
+- Persistent navigation component visible on all protected routes
+- Responsive design: Desktop (≥1024px) vertical sidebar, Mobile (<768px) bottom nav
+- Navigation contains "Core Links" and "Admin" sections
+- Does not interfere with existing three-panel layout
+
+**AC-5.17.2: Core Navigation Links (All Users)**
+- 3 core navigation links: Dashboard (/), Search (/search), Chat (/chat)
+- Each link has icon from lucide-react (Home, Search, MessageSquare)
+- Current active route is visually highlighted
+- Tooltips on links for clarity
+
+**AC-5.17.3: Admin Navigation Section (Admin Users Only)**
+- Admin section visible ONLY if user has admin role
+- Admin section includes 5 links: Admin Dashboard (/admin), Audit Logs (/admin/audit), Queue Status (/admin/queue), System Config (/admin/config), KB Statistics (/admin/kb-stats)
+- Visual separator between core and admin sections
+- Non-admin users: admin section completely hidden
+- Backend: Non-admin users get 403 Forbidden on admin routes
+
+**AC-5.17.4: User Menu Integration**
+- Existing user menu (UserMenu component) in header
+- User menu includes: User email/name, Settings link (/settings - placeholder), Logout button
+- Settings route is placeholder page or "Coming soon" message
+- Logout functionality works (existing implementation)
+
+**AC-5.17.5: Mobile Navigation**
+- Mobile (<768px): Bottom navigation bar OR hamburger menu
+- Core links easily accessible (Dashboard, Search, Chat)
+- Admin links in collapsible section (admin users only)
+- Touch-friendly tap targets (minimum 44x44px)
+- No layout conflicts with existing mobile sheets
+
+**AC-5.17.6: Accessibility & Polish**
+- All navigation links keyboard accessible (Tab, Enter)
+- Focus visible styles on all interactive elements
+- ARIA labels present (aria-label, aria-labelledby)
+- Semantic HTML: <nav> element, <ul>/<li> for link lists
+- Screen reader announces navigation correctly
+- Smooth client-side navigation (Next.js Link component)
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Epic 5 Technical Specification -->
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic 5 Technical Specification - Administration & Polish</title>
+        <section>Epic Overview, System Architecture Alignment, Frontend Routes</section>
+        <snippet>Epic 5 completes MVP with administration capabilities and integration completion. Story 5.0 makes Epic 3 & 4 features accessible through UI navigation. Creates new admin pages at /app/(protected)/admin for Stories 5.1-5.6. Uses existing shadcn/ui components, Next.js 15 App Router. No new infrastructure components needed.</snippet>
+      </doc>
+
+      <!-- epics.md - Story 5.17 -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 5.17: Main Application Navigation Menu</title>
+        <section>Epic 5, Story 5.17</section>
+        <snippet>As a user and administrator, I want a persistent main navigation menu on all protected routes, so that I can easily discover and access all application features including admin tools. Problem: Admin features (Stories 5-1 through 5-6) are built but not accessible via UI navigation. Solution: Add persistent navigation with core links (Dashboard, Search, Chat) and admin section (permission-gated) with 5 admin routes.</snippet>
+      </doc>
+
+      <!-- UX Design Specification -->
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification - Navigation & Layout Patterns</title>
+        <section>Lines 156-188 - Navigation & Layout patterns</section>
+        <snippet>Three-panel layout: KB sidebar (left), main content (center), citations panel (right). Navigation should be consistent, accessible, and responsive. Use shadcn/ui components for navigation menus. Active route highlighting with visual feedback. Mobile navigation uses bottom bar or hamburger menu pattern.</snippet>
+      </doc>
+
+      <!-- Architecture -->
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture - Overall architecture patterns</title>
+        <section>Overall system architecture, frontend patterns</section>
+        <snippet>Next.js 15 App Router with protected routes. Three-panel dashboard layout established in Story 1.9. Permission-based rendering using auth store. Client-side routing with Next.js Link component for smooth navigation.</snippet>
+      </doc>
+
+      <!-- Related Stories -->
+      <doc>
+        <path>docs/sprint-artifacts/5-0-epic-integration-completion.md</path>
+        <title>Story 5.0: Epic 3 & 4 Integration Completion</title>
+        <section>Context, Pattern Reference</section>
+        <snippet>Story 5.0 added Quick Access cards to dashboard for Search and Chat features. Pattern reuse: MainNav is persistent version of Quick Access navigation. Identified that Epic 3 & 4 features were built but not accessible via UI navigation - same pattern Story 5.17 prevents for Epic 5 admin features.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/sprint-artifacts/5-1-admin-dashboard-overview.md</path>
+        <title>Story 5.1: Admin Dashboard Overview</title>
+        <section>Admin feature requiring navigation access</section>
+        <snippet>Admin dashboard at /admin route shows system statistics. Requires admin role (is_superuser=True). Story 5.17 makes this route discoverable via main navigation.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Existing Layout Components -->
+      <artifact>
+        <path>frontend/src/components/layout/dashboard-layout.tsx</path>
+        <kind>component</kind>
+        <symbol>DashboardLayout</symbol>
+        <lines>full file</lines>
+        <reason>Main layout component for all protected routes. MainNav will integrate into this layout alongside Header, KB Sidebar, and Citations Panel. Need to understand existing three-panel structure.</reason>
+      </artifact>
+
+      <artifact>
+        <path>frontend/src/components/layout/header.tsx</path>
+        <kind>component</kind>
+        <symbol>Header</symbol>
+        <lines>full file</lines>
+        <reason>Header component with search bar and user menu. UserMenu component already exists here. Need to reference for consistent styling and integration.</reason>
+      </artifact>
+
+      <artifact>
+        <path>frontend/src/components/layout/kb-sidebar.tsx</path>
+        <kind>component</kind>
+        <symbol>KBSidebar</symbol>
+        <lines>full file</lines>
+        <reason>KB selector sidebar on left side. MainNav layout needs to coexist with this sidebar (horizontal header nav OR second vertical sidebar). Reference for styling consistency.</reason>
+      </artifact>
+
+      <artifact>
+        <path>frontend/src/components/layout/mobile-nav.tsx</path>
+        <kind>component</kind>
+        <symbol>MobileNav</symbol>
+        <lines>full file</lines>
+        <reason>Existing mobile navigation component. Story 5.17 Task 3 updates this component to add real routing links for Dashboard, Search, Chat and admin section. Currently has placeholder buttons.</reason>
+      </artifact>
+
+      <artifact>
+        <path>frontend/src/components/layout/user-menu.tsx</path>
+        <kind>component</kind>
+        <symbol>UserMenu</symbol>
+        <lines>full file</lines>
+        <reason>User profile menu in header. Story 5.17 Task 5 adds Settings link to this component. Need to understand current structure and dropdown implementation.</reason>
+      </artifact>
+
+      <!-- Auth Store -->
+      <artifact>
+        <path>frontend/src/lib/stores/auth-store.ts</path>
+        <kind>store</kind>
+        <symbol>useAuthStore</symbol>
+        <lines>full file</lines>
+        <reason>Auth store provides current user role. MainNav uses this to conditionally render admin section (check user?.role === 'admin'). Critical for permission-based navigation.</reason>
+      </artifact>
+
+      <!-- Dashboard Page (Pattern Reference) -->
+      <artifact>
+        <path>frontend/src/app/(protected)/dashboard/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage</symbol>
+        <lines>full file</lines>
+        <reason>Dashboard page with Quick Access cards pattern from Story 5.0. Reference for navigation card styling and routing patterns. MainNav reuses similar visual approach.</reason>
+      </artifact>
+
+      <!-- Admin Pages (Routes to Link To) -->
+      <artifact>
+        <path>frontend/src/app/(protected)/admin/page.tsx</path>
+        <kind>page</kind>
+        <symbol>AdminDashboard</symbol>
+        <lines>full file</lines>
+        <reason>Admin dashboard page at /admin route. MainNav links to this route. Verify route exists and is functional.</reason>
+      </artifact>
+
+      <!-- Backend Admin API Protection -->
+      <artifact>
+        <path>backend/app/api/v1/admin.py</path>
+        <kind>api</kind>
+        <symbol>admin_required dependency</symbol>
+        <lines>full file</lines>
+        <reason>Admin API routes with admin_required dependency. Story 5.17 Task 6 verifies all admin endpoints have proper permission enforcement. Critical for security (defense in depth).</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <frontend>
+        <package name="next" version="16.0.3">App Router framework, usePathname hook for active route detection, Link component for navigation</package>
+        <package name="react" version="19.2.0">UI library for components</package>
+        <package name="@radix-ui/react-navigation-menu" version="latest">shadcn/ui navigation menu primitives</package>
+        <package name="@radix-ui/react-separator" version="latest">Visual separator between core and admin sections</package>
+        <package name="@radix-ui/react-tooltip" version="latest">Tooltips for navigation links</package>
+        <package name="lucide-react" version="^0.554.0">Icons: Home, Search, MessageSquare, LayoutDashboard, ScrollText, Activity, Settings, BarChart</package>
+        <package name="tailwindcss" version="^4.1.12">Styling framework</package>
+        <package name="zustand" version="^5.0.3">Auth store for user role checks</package>
+      </frontend>
+      <backend>
+        <package name="fastapi" version="≥0.115.0">Web framework, admin API protection</package>
+        <package name="sqlalchemy" version="2.0.44">Database ORM for user role queries</package>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Architecture Constraints -->
+    <constraint type="architecture">MainNav must integrate into existing three-panel DashboardLayout without disrupting KB sidebar, main content, or citations panel</constraint>
+    <constraint type="architecture">Use Next.js usePathname() hook for active route detection (client-side routing)</constraint>
+    <constraint type="architecture">Permission-based rendering: Frontend hides admin links for non-admin users (UX), backend enforces admin_required (security)</constraint>
+    <constraint type="architecture">Desktop layout: Horizontal header navigation OR vertical sidebar navigation (decide based on layout constraints)</constraint>
+    <constraint type="architecture">Mobile layout: Update existing mobile-nav.tsx component with real routing links</constraint>
+
+    <!-- Design System Constraints -->
+    <constraint type="design">All UI components use shadcn/ui library (NavigationMenu, Separator, Tooltip)</constraint>
+    <constraint type="design">Icons from lucide-react library (consistent with existing UI)</constraint>
+    <constraint type="design">Tailwind CSS for styling (bg-accent, text-accent-foreground for active routes)</constraint>
+    <constraint type="design">Responsive breakpoints: Desktop ≥1024px, Mobile <768px</constraint>
+
+    <!-- Accessibility Constraints -->
+    <constraint type="accessibility">WCAG 2.1 AA compliance: keyboard navigation (Tab, Enter), ARIA labels, focus visible styles</constraint>
+    <constraint type="accessibility">Semantic HTML: &lt;nav&gt; element, &lt;ul&gt;/&lt;li&gt; for link lists</constraint>
+    <constraint type="accessibility">Screen reader support: aria-label, aria-current="page" for active route</constraint>
+    <constraint type="accessibility">Touch targets: minimum 44x44px for mobile navigation (WCAG 2.5.5)</constraint>
+
+    <!-- Testing Constraints -->
+    <constraint type="testing">Frontend component tests: Test navigation rendering, admin section visibility, active route highlighting, accessibility (ARIA labels, keyboard nav)</constraint>
+    <constraint type="testing">Backend integration tests: Test admin route protection (non-admin gets 403 Forbidden)</constraint>
+    <constraint type="testing">E2E tests deferred to Story 5.16 (Docker E2E Infrastructure)</constraint>
+    <constraint type="testing">Test coverage target: 80%+ for MainNav component</constraint>
+
+    <!-- Code Quality Constraints -->
+    <constraint type="quality">TypeScript strict mode (no `any` types)</constraint>
+    <constraint type="quality">Code quality target: 90/100</constraint>
+    <constraint type="quality">KISS/DRY/YAGNI principles</constraint>
+    <constraint type="quality">All tests must pass before marking story complete</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Next.js Hooks -->
+    <interface>
+      <name>usePathname</name>
+      <kind>Next.js Hook</kind>
+      <signature>const pathname = usePathname() // Returns current route path string (e.g., "/dashboard", "/search", "/chat")</signature>
+      <path>next/navigation</path>
+    </interface>
+
+    <!-- Auth Store Interface -->
+    <interface>
+      <name>useAuthStore</name>
+      <kind>Zustand Store Hook</kind>
+      <signature>const { user } = useAuthStore() // Returns user object with role property. Check user?.role === 'admin' for admin section visibility</signature>
+      <path>frontend/src/lib/stores/auth-store.ts</path>
+    </interface>
+
+    <!-- Next.js Link Component -->
+    <interface>
+      <name>Link</name>
+      <kind>Next.js Component</kind>
+      <signature>&lt;Link href="/route"&gt;Link Text&lt;/Link&gt; // Client-side navigation component</signature>
+      <path>next/link</path>
+    </interface>
+
+    <!-- shadcn/ui Components -->
+    <interface>
+      <name>NavigationMenu</name>
+      <kind>shadcn/ui Component</kind>
+      <signature>&lt;NavigationMenu&gt;&lt;NavigationMenuItem&gt;...&lt;/NavigationMenuItem&gt;&lt;/NavigationMenu&gt;</signature>
+      <path>frontend/src/components/ui/navigation-menu.tsx</path>
+    </interface>
+
+    <interface>
+      <name>Separator</name>
+      <kind>shadcn/ui Component</kind>
+      <signature>&lt;Separator /&gt; // Horizontal or vertical visual separator</signature>
+      <path>frontend/src/components/ui/separator.tsx</path>
+    </interface>
+
+    <interface>
+      <name>Tooltip</name>
+      <kind>shadcn/ui Component</kind>
+      <signature>&lt;Tooltip&gt;&lt;TooltipTrigger&gt;...&lt;/TooltipTrigger&gt;&lt;TooltipContent&gt;...&lt;/TooltipContent&gt;&lt;/Tooltip&gt;</signature>
+      <path>frontend/src/components/ui/tooltip.tsx</path>
+    </interface>
+
+    <!-- Backend Admin Route Protection -->
+    <interface>
+      <name>admin_required</name>
+      <kind>FastAPI Dependency</kind>
+      <signature>async def admin_required(current_user: User = Depends(get_current_user)) -&gt; User: # Raises 403 if not admin</signature>
+      <path>backend/app/api/dependencies.py</path>
+    </interface>
+
+    <!-- Navigation Routes -->
+    <interface>
+      <name>Core Routes</name>
+      <kind>Protected Routes</kind>
+      <signature>
+        Dashboard: /dashboard (or /)
+        Search: /search
+        Chat: /chat
+      </signature>
+      <path>frontend/src/app/(protected)/</path>
+    </interface>
+
+    <interface>
+      <name>Admin Routes</name>
+      <kind>Protected Admin Routes</kind>
+      <signature>
+        Admin Dashboard: /admin
+        Audit Logs: /admin/audit
+        Queue Status: /admin/queue
+        System Config: /admin/config
+        KB Statistics: /admin/kb-stats
+      </signature>
+      <path>frontend/src/app/(protected)/admin/</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Frontend component testing uses Vitest + React Testing Library. Backend integration testing uses pytest + httpx. E2E testing uses Playwright (deferred to Story 5.16 Docker infrastructure). All tests follow ATDD pattern: write test first (RED), implement (GREEN), refactor. Test coverage target: ≥80% for MainNav component. Accessibility testing with ARIA validation. Permission enforcement tests verify admin routes return 403 for non-admin users.
+    </standards>
+
+    <locations>
+      <!-- Frontend Tests -->
+      <location>frontend/src/components/layout/__tests__/main-nav.test.tsx</location>
+      <location>frontend/src/components/layout/__tests__/mobile-nav.test.tsx</location>
+      <location>frontend/src/components/layout/__tests__/user-menu.test.tsx</location>
+
+      <!-- Backend Integration Tests -->
+      <location>backend/tests/integration/test_admin_route_protection.py</location>
+
+      <!-- E2E Tests (Deferred to Story 5-16) -->
+      <location>frontend/e2e/tests/navigation/main-navigation.spec.ts</location>
+    </locations>
+
+    <ideas>
+      <!-- Frontend Component Tests -->
+      <test ac="AC-5.17.2">
+        <id>TEST-5.17.1</id>
+        <description>Test MainNav renders all 3 core links (Dashboard, Search, Chat) for any authenticated user</description>
+        <approach>Mock useAuthStore to return authenticated user. Render MainNav component. Assert 3 core links present with correct href and icons.</approach>
+      </test>
+
+      <test ac="AC-5.17.3">
+        <id>TEST-5.17.2</id>
+        <description>Test MainNav renders admin section with 5 admin links for admin user</description>
+        <approach>Mock useAuthStore to return user with role='admin'. Render MainNav. Assert admin section visible with 5 links (/admin, /admin/audit, /admin/queue, /admin/config, /admin/kb-stats).</approach>
+      </test>
+
+      <test ac="AC-5.17.3">
+        <id>TEST-5.17.3</id>
+        <description>Test MainNav hides admin section for non-admin user</description>
+        <approach>Mock useAuthStore to return user with role='user'. Render MainNav. Assert admin section not in DOM.</approach>
+      </test>
+
+      <test ac="AC-5.17.2">
+        <id>TEST-5.17.4</id>
+        <description>Test active route highlighting applies to current route</description>
+        <approach>Mock usePathname to return '/search'. Render MainNav. Assert Search link has active styling (bg-accent, aria-current="page").</approach>
+      </test>
+
+      <test ac="AC-5.17.6">
+        <id>TEST-5.17.5</id>
+        <description>Test keyboard navigation works (Tab, Enter)</description>
+        <approach>Render MainNav. Simulate Tab key press. Assert focus moves through navigation links. Simulate Enter on focused link. Assert navigation triggered.</approach>
+      </test>
+
+      <test ac="AC-5.17.6">
+        <id>TEST-5.17.6</id>
+        <description>Test ARIA labels present on all navigation links</description>
+        <approach>Render MainNav. Query all links. Assert each has aria-label or accessible name. Assert nav element has role="navigation".</approach>
+      </test>
+
+      <test ac="AC-5.17.5">
+        <id>TEST-5.17.7</id>
+        <description>Test mobile navigation renders correctly at <768px viewport</description>
+        <approach>Mock viewport width to 767px. Render MobileNav. Assert bottom nav bar visible with 3 core links. Assert admin section collapsible (if admin user).</approach>
+      </test>
+
+      <!-- Backend Integration Tests -->
+      <test ac="AC-5.17.3">
+        <id>TEST-5.17.8</id>
+        <description>Test non-admin user gets 403 Forbidden on admin endpoints</description>
+        <approach>Authenticate as regular user (not admin). GET /api/v1/admin/stats. Assert 403 Forbidden response. Repeat for all admin endpoints (/admin/audit, /admin/queue, /admin/config, /admin/kb-stats).</approach>
+      </test>
+
+      <test ac="AC-5.17.3">
+        <id>TEST-5.17.9</id>
+        <description>Test admin user gets 200 OK on admin endpoints</description>
+        <approach>Authenticate as admin user. GET /api/v1/admin/stats. Assert 200 OK response. Verify response data structure. Repeat for all admin endpoints.</approach>
+      </test>
+
+      <!-- E2E Tests (Deferred to Story 5-16) -->
+      <test ac="AC-5.17.1, AC-5.17.2">
+        <id>TEST-5.17.10</id>
+        <description>E2E: Navigation visible on dashboard after login</description>
+        <approach>Login as user. Navigate to /dashboard. Assert navigation component visible. Assert 3 core links present. Click "Search" link. Assert navigated to /search.</approach>
+      </test>
+
+      <test ac="AC-5.17.3">
+        <id>TEST-5.17.11</id>
+        <description>E2E: Admin links visible only to admin users</description>
+        <approach>Login as admin. Navigate to /dashboard. Assert admin section visible with 5 links. Logout. Login as regular user. Assert admin section not visible.</approach>
+      </test>
+
+      <test ac="AC-5.17.3">
+        <id>TEST-5.17.12</id>
+        <description>E2E: Non-admin user gets 403 error on /admin URL</description>
+        <approach>Login as regular user. Navigate to /admin URL directly. Assert 403 error or redirect to dashboard. Assert error message displayed.</approach>
+      </test>
+
+      <test ac="AC-5.17.2">
+        <id>TEST-5.17.13</id>
+        <description>E2E: Active route highlighting updates on navigation</description>
+        <approach>Login. Navigate to /dashboard. Assert Dashboard link highlighted. Click "Search" link. Assert Search link now highlighted, Dashboard not highlighted.</approach>
+      </test>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 7-27 Queue Monitoring Enhancement with Operator Access
+  Generated: 2025-12-10
+  Purpose: Aggregates all relevant documentation and code references for implementation
+-->
+<story-context story-id="7-27" title="Queue Monitoring Enhancement with Operator Access">
+
+  <!-- ============================================================
+       SECTION 1: STORY OVERVIEW
+       ============================================================ -->
+  <story-summary>
+    <description>
+      Enhance queue monitoring with per-step timing, error visibility, bulk retry
+      capabilities, and filtering. Enable operator access (permission_level >= 2)
+      to queue monitoring endpoints.
+    </description>
+    <epic>Epic 7 - Infrastructure &amp; DevOps</epic>
+    <priority>Medium</priority>
+    <effort>3 days (24 hours)</effort>
+    <type>Enhancement</type>
+  </story-summary>
+
+  <!-- ============================================================
+       SECTION 2: KEY CHANGES
+       ============================================================ -->
+  <changes>
+    <change id="1" name="Per-Step Time Tracking">
+      <summary>Expandable task rows showing step breakdown with timing</summary>
+      <acs>AC-7.27.1, AC-7.27.2, AC-7.27.3</acs>
+    </change>
+    <change id="2" name="Step Status Visibility with Error Display">
+      <summary>Color-coded status badges with error tooltips</summary>
+      <acs>AC-7.27.4, AC-7.27.5</acs>
+    </change>
+    <change id="3" name="Bulk Queue Restart for Failed Tasks">
+      <summary>Retry All Failed button, selective checkboxes, bulk retry API</summary>
+      <acs>AC-7.27.6, AC-7.27.7, AC-7.27.8, AC-7.27.9, AC-7.27.10</acs>
+    </change>
+    <change id="4" name="Failed Task Filter">
+      <summary>Filter tabs (All, Active, Pending, Failed) with count badges</summary>
+      <acs>AC-7.27.11, AC-7.27.12, AC-7.27.13, AC-7.27.14, AC-7.27.15</acs>
+    </change>
+    <change id="5" name="Operator Role Access">
+      <summary>Allow permission_level >= 2 users to access queue endpoints</summary>
+      <acs>AC-7.27.16, AC-7.27.17, AC-7.27.18, AC-7.27.19</acs>
+    </change>
+  </changes>
+
+  <!-- ============================================================
+       SECTION 3: ACCEPTANCE CRITERIA
+       ============================================================ -->
+  <acceptance-criteria>
+    <!-- Change 1: Per-Step Time Tracking -->
+    <criterion id="AC-7.27.1">
+      <given>I am viewing the TaskListModal</given>
+      <when>I click a task row</when>
+      <then>it expands to show a step breakdown table</then>
+    </criterion>
+    <criterion id="AC-7.27.2">
+      <given>I expand a task row</given>
+      <then>I see columns: Step, Status, Started, Completed, Duration</then>
+      <and>each processing step (parse, chunk, embed, index) is displayed</and>
+    </criterion>
+    <criterion id="AC-7.27.3">
+      <given>a step is in_progress</given>
+      <then>the Duration column shows live elapsed time counter</then>
+    </criterion>
+
+    <!-- Change 2: Step Status Visibility with Error Display -->
+    <criterion id="AC-7.27.4">
+      <given>I view the step breakdown table</given>
+      <then>step statuses are displayed with color-coded badges:
+        done = green, in_progress = blue+spinner, pending = gray, error = red+icon</then>
+    </criterion>
+    <criterion id="AC-7.27.5">
+      <given>a step has status "error"</given>
+      <when>I hover over the red error badge</when>
+      <then>a tooltip shows the full error message from step_errors</then>
+    </criterion>
+
+    <!-- Change 3: Bulk Queue Restart -->
+    <criterion id="AC-7.27.6">
+      <given>failed tasks exist in the queue</given>
+      <when>I view TaskListModal</when>
+      <then>"Retry All Failed" button is visible in the header</then>
+    </criterion>
+    <criterion id="AC-7.27.7">
+      <given>I view tasks in TaskListModal</given>
+      <then>each task row has a checkbox for selection</then>
+      <and>I can select multiple tasks for bulk retry</and>
+    </criterion>
+    <criterion id="AC-7.27.8">
+      <given>I select tasks and click retry</given>
+      <when>confirmation dialog appears</when>
+      <then>it shows count: "Retry X failed documents?"</then>
+    </criterion>
+    <criterion id="AC-7.27.9">
+      <given>I confirm bulk retry</given>
+      <when>retry completes</when>
+      <then>success toast shows "X documents queued for retry"</then>
+      <and>failed retries are shown in error list</and>
+    </criterion>
+    <criterion id="AC-7.27.10">
+      <given>I call POST /api/v1/admin/queue/retry-failed</given>
+      <when>request body contains document_ids or retry_all_failed=true</when>
+      <then>documents are queued for reprocessing</then>
+      <and>response shows queued count, failed count, and error details</and>
+    </criterion>
+
+    <!-- Change 4: Failed Task Filter -->
+    <criterion id="AC-7.27.11">
+      <given>I view TaskListModal</given>
+      <then>I see filter tabs: All, Active, Pending, Failed</then>
+    </criterion>
+    <criterion id="AC-7.27.12">
+      <given>failed tasks exist</given>
+      <then>Failed tab shows count badge: "Failed (N)"</then>
+    </criterion>
+    <criterion id="AC-7.27.13">
+      <given>I select a filter tab</given>
+      <when>filter is applied</when>
+      <then>task list updates immediately to show matching tasks</then>
+    </criterion>
+    <criterion id="AC-7.27.14">
+      <given>I select a filter</given>
+      <then>filter state persists during modal session</then>
+    </criterion>
+    <criterion id="AC-7.27.15">
+      <given>I call GET /api/v1/admin/queue/{queue_name}/tasks?document_status=FAILED</given>
+      <then>only documents with FAILED status are returned</then>
+    </criterion>
+
+    <!-- Change 5: Operator Role Access -->
+    <criterion id="AC-7.27.16">
+      <given>a user is in a group with permission_level >= 2</given>
+      <when>they access queue monitoring endpoints</when>
+      <then>access is granted (200 OK)</then>
+    </criterion>
+    <criterion id="AC-7.27.17">
+      <given>a user has only permission_level = 1</given>
+      <when>they access queue monitoring endpoints</when>
+      <then>access is denied (403 Forbidden)</then>
+    </criterion>
+    <criterion id="AC-7.27.18">
+      <given>a user has is_superuser=True</given>
+      <when>they access queue monitoring endpoints</when>
+      <then>access is granted regardless of group membership</then>
+    </criterion>
+    <criterion id="AC-7.27.19">
+      <given>a user has permission_level >= 2</given>
+      <when>they view the application sidebar</when>
+      <then>"Queue Status" link is visible under Operations</then>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ============================================================
+       SECTION 4: TASK BREAKDOWN
+       ============================================================ -->
+  <tasks>
+    <task id="1" estimate="1h" dependencies="">
+      Extend TaskInfo schema with processing_steps, current_step, step_errors
+    </task>
+    <task id="2" estimate="2h" dependencies="1">
+      Update queue_monitor_service to fetch processing_steps from documents
+    </task>
+    <task id="3" estimate="3h" dependencies="2">
+      Create StepBreakdown expandable component in TaskListModal
+    </task>
+    <task id="4" estimate="2h" dependencies="3">
+      Add StepStatusBadge component with error tooltips
+    </task>
+    <task id="5" estimate="2h" dependencies="">
+      Create POST /api/v1/admin/queue/retry-failed endpoint
+    </task>
+    <task id="6" estimate="0.5h" dependencies="5">
+      Add BulkRetryRequest/Response schemas
+    </task>
+    <task id="7" estimate="3h" dependencies="5,6">
+      Add bulk retry UI (checkboxes, button, confirmation dialog)
+    </task>
+    <task id="8" estimate="1h" dependencies="">
+      Add document_status query param to queue tasks endpoint
+    </task>
+    <task id="9" estimate="2h" dependencies="8">
+      Add filter tabs component to TaskListModal
+    </task>
+    <task id="10" estimate="2h" dependencies="">
+      Create get_current_operator_or_admin dependency in auth.py
+    </task>
+    <task id="11" estimate="0.5h" dependencies="10">
+      Add get_user_max_permission_level helper to permission_service
+    </task>
+    <task id="12" estimate="1h" dependencies="10,11">
+      Update queue endpoints to use operator_or_admin dependency
+    </task>
+    <task id="13" estimate="1h" dependencies="12">
+      Update sidebar to show Queue Status for operators
+    </task>
+    <task id="14" estimate="2h" dependencies="all-backend">
+      Write backend unit tests
+    </task>
+    <task id="15" estimate="2h" dependencies="all-frontend">
+      Write frontend unit tests
+    </task>
+    <task id="16" estimate="2h" dependencies="all">
+      Integration testing
+    </task>
+  </tasks>
+
+  <!-- ============================================================
+       SECTION 5: EXISTING CODE REFERENCES
+       ============================================================ -->
+  <code-references>
+
+    <!-- Backend: Document Model with ProcessingStep -->
+    <reference id="document-model">
+      <file>backend/app/models/document.py</file>
+      <lines>29-167</lines>
+      <description>ProcessingStep enum, StepStatus enum, Document model with processing_steps field</description>
+      <snippet><![CDATA[
+class ProcessingStep(str, enum.Enum):
+    """Document processing pipeline steps."""
+    UPLOAD = "upload"
+    PARSE = "parse"
+    CHUNK = "chunk"
+    EMBED = "embed"
+    INDEX = "index"
+    COMPLETE = "complete"
+
+class StepStatus(str, enum.Enum):
+    """Status of individual processing steps."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    ERROR = "error"
+    SKIPPED = "skipped"
+
+# Document model fields (lines 132-147):
+processing_steps: Mapped[dict] = mapped_column(
+    JSONB, server_default="{}", nullable=False,
+    comment="Processing step details: {step_name: {status, started_at, completed_at, duration_ms, error}}"
+)
+current_step: Mapped[str] = mapped_column(
+    String(20), server_default="upload", nullable=False,
+    comment="Current processing step (upload/parse/chunk/embed/index/complete)"
+)
+step_errors: Mapped[dict] = mapped_column(
+    JSONB, server_default="{}", nullable=False,
+    comment="Step-specific errors: {step_name: error_message}"
+)
+      ]]></snippet>
+    </reference>
+
+    <!-- Backend: Queue Monitor Service -->
+    <reference id="queue-monitor-service">
+      <file>backend/app/services/queue_monitor_service.py</file>
+      <lines>1-308</lines>
+      <description>QueueMonitorService with get_all_queues(), get_queue_tasks() methods</description>
+      <key-methods>
+        <method name="get_all_queues" line="94">Returns all queue statuses with worker info</method>
+        <method name="get_queue_tasks" line="148">Returns task list for a specific queue (needs extension)</method>
+        <method name="_get_active_tasks" line="206">Gets active tasks from Celery inspect API</method>
+      </key-methods>
+      <extension-point>
+        get_queue_tasks() needs modification to:
+        1. Join with Document table to get processing_steps, current_step, step_errors
+        2. Add document_status query parameter for filtering
+      </extension-point>
+    </reference>
+
+    <!-- Backend: Admin Schemas -->
+    <reference id="admin-schemas">
+      <file>backend/app/schemas/admin.py</file>
+      <lines>334-398</lines>
+      <description>TaskInfo and QueueStatus schemas</description>
+      <snippet><![CDATA[
+class TaskInfo(BaseModel):
+    """Celery task information."""
+    task_id: str = Field(..., description="Task UUID")
+    task_name: str = Field(..., description="Task name")
+    status: Literal["active"] = Field(..., description="Task status")
+    started_at: datetime | None = Field(None, description="Task start time")
+    estimated_duration: int | None = Field(None, description="Elapsed time in ms")
+
+    # EXTEND WITH:
+    # processing_steps: dict[str, StepDetail] | None = Field(None)
+    # current_step: str | None = Field(None)
+    # step_errors: dict[str, str] | None = Field(None)
+    # document_id: str | None = Field(None)
+    # document_status: str | None = Field(None)
+
+# NEW SCHEMAS NEEDED:
+class BulkRetryRequest(BaseModel):
+    document_ids: list[str] | None = Field(None, description="Specific document IDs to retry")
+    retry_all_failed: bool = Field(False, description="Retry all failed documents")
+    kb_id: str | None = Field(None, description="Scope to specific KB (optional)")
+
+class BulkRetryResponse(BaseModel):
+    queued: int = Field(..., description="Number of documents queued for retry")
+    failed: int = Field(..., description="Number of documents that failed to queue")
+    errors: list[dict] = Field(default_factory=list, description="Error details")
+      ]]></snippet>
+    </reference>
+
+    <!-- Backend: Auth Dependencies -->
+    <reference id="auth-dependencies">
+      <file>backend/app/core/auth.py</file>
+      <lines>346-413</lines>
+      <description>Existing get_current_operator and get_current_administrator dependencies</description>
+      <snippet><![CDATA[
+async def get_current_operator(
+    user: Annotated[User, Depends(current_active_user)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> User:
+    """Dependency that requires OPERATOR (level 2+) permission."""
+    service = PermissionService(session)
+    has_permission = await service.check_permission(user, PermissionLevel.OPERATOR)
+    if not has_permission:
+        raise HTTPException(status_code=403, detail="Requires Operator permission")
+    return user
+
+# NEW DEPENDENCY NEEDED:
+async def get_current_operator_or_admin(
+    user: Annotated[User, Depends(current_active_user)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> User:
+    """Dependency that requires OPERATOR (level 2+) or is_superuser."""
+    if user.is_superuser:
+        return user
+    service = PermissionService(session)
+    has_permission = await service.check_permission(user, PermissionLevel.OPERATOR)
+    if not has_permission:
+        raise HTTPException(status_code=403, detail="Requires Operator permission")
+    return user
+      ]]></snippet>
+    </reference>
+
+    <!-- Backend: Permission Service -->
+    <reference id="permission-service">
+      <file>backend/app/services/permission_service.py</file>
+      <lines>1-283</lines>
+      <description>PermissionService with permission level enum and check methods</description>
+      <snippet><![CDATA[
+class PermissionLevel(IntEnum):
+    """Permission levels for RBAC."""
+    USER = 1         # Basic read-only access
+    OPERATOR = 2     # Queue monitoring, document retry
+    ADMINISTRATOR = 3  # Full admin access
+
+async def get_user_permission_level(self, user: "User") -> int:
+    """Get user's effective permission level (MAX across all groups)."""
+    # Returns highest permission level from user's group memberships
+    # Uses MAX aggregation for users in multiple groups
+
+async def check_permission(self, user: "User", required_level: PermissionLevel) -> bool:
+    """Check if user has required permission level."""
+    if user.is_superuser:
+        return True
+    user_level = await self.get_user_permission_level(user)
+    return user_level >= required_level
+      ]]></snippet>
+    </reference>
+
+    <!-- Backend: Group Model -->
+    <reference id="group-model">
+      <file>backend/app/models/group.py</file>
+      <lines>68-74</lines>
+      <description>Group model with permission_level field</description>
+      <snippet><![CDATA[
+permission_level: Mapped[int] = mapped_column(
+    Integer,
+    server_default="1",
+    nullable=False,
+    index=True,
+    comment="Permission tier: 1=User, 2=Operator, 3=Administrator",
+)
+      ]]></snippet>
+    </reference>
+
+    <!-- Backend: Admin Queue Routes -->
+    <reference id="admin-queue-routes">
+      <file>backend/app/api/v1/admin.py</file>
+      <lines>550-683</lines>
+      <description>Queue monitoring endpoints</description>
+      <endpoints>
+        <endpoint method="GET" path="/api/v1/admin/queue/status">Get all queue statuses</endpoint>
+        <endpoint method="GET" path="/api/v1/admin/queue/{queue_name}/tasks">Get tasks for queue</endpoint>
+      </endpoints>
+      <extension-point>
+        1. Update dependency from get_current_administrator to get_current_operator_or_admin
+        2. Add document_status query parameter to tasks endpoint
+        3. Add new POST /api/v1/admin/queue/retry-failed endpoint
+      </extension-point>
+    </reference>
+
+    <!-- Frontend: TaskListModal -->
+    <reference id="task-list-modal">
+      <file>frontend/src/components/admin/task-list-modal.tsx</file>
+      <lines>1-126</lines>
+      <description>Modal for displaying active tasks in a specific queue</description>
+      <extension-points>
+        1. Add expandable rows with StepBreakdown component
+        2. Add checkboxes for bulk selection
+        3. Add filter tabs (All, Active, Pending, Failed)
+        4. Add "Retry All Failed" button
+        5. Add bulk retry confirmation dialog
+      </extension-points>
+      <snippet><![CDATA[
+export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) {
+  const { data: tasks, isLoading, error } = useQueueTasks(queueName, 'active', open);
+
+  // EXTEND TO:
+  // 1. Add filter state: const [filter, setFilter] = useState<'all'|'active'|'pending'|'failed'>('all')
+  // 2. Add selection state: const [selected, setSelected] = useState<Set<string>>(new Set())
+  // 3. Add expanded state: const [expandedTask, setExpandedTask] = useState<string | null>(null)
+  // 4. Update useQueueTasks to accept document_status filter
+      ]]></snippet>
+    </reference>
+
+    <!-- Frontend: QueueStatusCard -->
+    <reference id="queue-status-card">
+      <file>frontend/src/components/admin/queue-status-card.tsx</file>
+      <lines>1-107</lines>
+      <description>Card component showing queue metrics (pending, active, workers)</description>
+      <status>No changes needed - can be reused as-is</status>
+    </reference>
+
+    <!-- Frontend: Queue Page -->
+    <reference id="queue-page">
+      <file>frontend/src/app/(protected)/operations/queue/page.tsx</file>
+      <lines>1-110</lines>
+      <description>Queue Status Dashboard Page under Operations</description>
+      <status>No changes needed - page structure can be reused</status>
+    </reference>
+
+    <!-- Frontend: useQueueTasks Hook -->
+    <reference id="use-queue-tasks">
+      <file>frontend/src/hooks/useQueueTasks.ts</file>
+      <lines>1-46</lines>
+      <description>React Query hook for fetching queue tasks</description>
+      <extension-point>
+        Add document_status parameter:
+        async function fetchQueueTasks(
+          queueName: string,
+          taskType: 'active' | 'pending' = 'active',
+          documentStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+        ): Promise&lt;TaskInfo[]&gt;
+      </extension-point>
+    </reference>
+
+    <!-- Frontend: Queue Types -->
+    <reference id="queue-types">
+      <file>frontend/src/types/queue.ts</file>
+      <lines>1-55</lines>
+      <description>TypeScript types for queue monitoring</description>
+      <extension-point><![CDATA[
+// Extend TaskInfo interface:
+export interface TaskInfo {
+  task_id: string;
+  task_name: string;
+  status: "active";
+  started_at: string | null;
+  estimated_duration: number | null;
+
+  // NEW FIELDS:
+  document_id?: string;
+  document_status?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  current_step?: string;
+  processing_steps?: Record<string, StepDetail>;
+  step_errors?: Record<string, string>;
+}
+
+// NEW INTERFACE:
+export interface StepDetail {
+  status: "pending" | "in_progress" | "done" | "error" | "skipped";
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  error?: string;
+}
+      ]]></extension-point>
+    </reference>
+
+  </code-references>
+
+  <!-- ============================================================
+       SECTION 6: NEW COMPONENTS TO CREATE
+       ============================================================ -->
+  <new-components>
+    <component name="StepBreakdown">
+      <file>frontend/src/components/admin/step-breakdown.tsx</file>
+      <description>Expandable table showing step-by-step processing details</description>
+      <props>
+        <prop name="steps" type="Record&lt;string, StepDetail&gt;">Processing step details</prop>
+        <prop name="currentStep" type="string">Current active step</prop>
+        <prop name="stepErrors" type="Record&lt;string, string&gt;">Step error messages</prop>
+      </props>
+      <features>
+        - Table with columns: Step, Status, Started, Completed, Duration
+        - Live elapsed time counter for in_progress steps
+        - Color-coded status badges
+      </features>
+    </component>
+
+    <component name="StepStatusBadge">
+      <file>frontend/src/components/admin/step-status-badge.tsx</file>
+      <description>Color-coded badge with optional error tooltip</description>
+      <props>
+        <prop name="status" type="StepStatus">pending | in_progress | done | error | skipped</prop>
+        <prop name="errorMessage" type="string | undefined">Error message for tooltip</prop>
+      </props>
+      <colors>
+        done = green, in_progress = blue+spinner, pending = gray, error = red+icon, skipped = gray-italic
+      </colors>
+    </component>
+
+    <component name="BulkRetryDialog">
+      <file>frontend/src/components/admin/bulk-retry-dialog.tsx</file>
+      <description>Confirmation dialog for bulk retry operations</description>
+      <props>
+        <prop name="open" type="boolean">Dialog visibility</prop>
+        <prop name="documentCount" type="number">Number of documents to retry</prop>
+        <prop name="onConfirm" type="() => void">Confirm callback</prop>
+        <prop name="onCancel" type="() => void">Cancel callback</prop>
+      </props>
+    </component>
+
+    <component name="TaskFilterTabs">
+      <file>frontend/src/components/admin/task-filter-tabs.tsx</file>
+      <description>Filter tabs with count badges for task filtering</description>
+      <props>
+        <prop name="activeFilter" type="'all' | 'active' | 'pending' | 'failed'">Current filter</prop>
+        <prop name="counts" type="{all: number, active: number, pending: number, failed: number}">Tab counts</prop>
+        <prop name="onChange" type="(filter) => void">Filter change callback</prop>
+      </props>
+    </component>
+  </new-components>
+
+  <!-- ============================================================
+       SECTION 7: NEW API ENDPOINT
+       ============================================================ -->
+  <new-endpoint>
+    <method>POST</method>
+    <path>/api/v1/admin/queue/retry-failed</path>
+    <description>Bulk retry failed documents</description>
+    <access>Operator (permission_level >= 2) or Administrator</access>
+    <request-body><![CDATA[
+{
+  "document_ids": ["uuid1", "uuid2", ...],  // Selective retry (optional)
+  "retry_all_failed": true,                  // Retry all (optional, overrides document_ids)
+  "kb_id": "uuid"                            // Scope to specific KB (optional)
+}
+    ]]></request-body>
+    <response-body><![CDATA[
+{
+  "queued": 15,                              // Successfully queued count
+  "failed": 2,                               // Failed to queue count
+  "errors": [                                // Error details for failed documents
+    {"document_id": "uuid", "error": "Document not found"}
+  ]
+}
+    ]]></response-body>
+    <implementation-notes>
+      1. Validate document_ids exist and have FAILED status
+      2. Create outbox events for each document to be retried
+      3. Reset document status to PENDING
+      4. Return accurate success/failure counts
+    </implementation-notes>
+  </new-endpoint>
+
+  <!-- ============================================================
+       SECTION 8: TESTING REQUIREMENTS
+       ============================================================ -->
+  <testing>
+    <backend-unit-tests>
+      <test>TaskInfo schema includes processing_steps, current_step, step_errors</test>
+      <test>bulk_retry_failed() queues correct documents</test>
+      <test>bulk_retry_failed() respects kb_id filter</test>
+      <test>bulk_retry_failed() returns accurate success/failure counts</test>
+      <test>get_current_operator_or_admin() grants access for level >= 2</test>
+      <test>get_current_operator_or_admin() denies access for level 1</test>
+      <test>document_status filter returns correct documents</test>
+    </backend-unit-tests>
+
+    <frontend-unit-tests>
+      <test>StepBreakdown renders step table correctly</test>
+      <test>StepBreakdown shows live elapsed time for in_progress steps</test>
+      <test>StepStatusBadge shows correct colors for each status</test>
+      <test>StepStatusBadge shows error tooltip on hover</test>
+      <test>BulkRetryDialog shows document count</test>
+      <test>Filter tabs update task list correctly</test>
+      <test>Checkboxes enable bulk selection</test>
+    </frontend-unit-tests>
+
+    <integration-tests>
+      <test>Bulk retry endpoint creates outbox events</test>
+      <test>Status filter returns correct documents</test>
+      <test>Operator can access queue endpoints (200)</test>
+      <test>Regular user cannot access queue endpoints (403)</test>
+    </integration-tests>
+  </testing>
+
+  <!-- ============================================================
+       SECTION 9: PERMISSION MODEL
+       ============================================================ -->
+  <permission-model>
+    <level value="1" name="User">Read-only access, no queue monitoring</level>
+    <level value="2" name="Operator">Queue monitoring, document retry</level>
+    <level value="3" name="Administrator">Full access to all features</level>
+    <access-check>
+      user.is_superuser OR user_max_permission_level >= 2
+    </access-check>
+    <sidebar-visibility>
+      Queue Status link visible when permission_level >= 2
+    </sidebar-visibility>
+  </permission-model>
+
+  <!-- ============================================================
+       SECTION 10: REFERENCES
+       ============================================================ -->
+  <references>
+    <doc name="Story File" path="docs/sprint-artifacts/7-27-queue-monitoring-enhancement.md"/>
+    <doc name="Sprint Change Proposal" path="docs/sprint-artifacts/sprint-change-proposal-queue-monitoring-enhancement.md"/>
+    <doc name="Story 5-4 (Original Queue Status)" path="docs/sprint-artifacts/5-4-processing-queue-status.md"/>
+    <doc name="Epic 7 Tech Spec" path="docs/sprint-artifacts/tech-spec-epic-7.md"/>
+    <doc name="PRD" path="docs/prd.md"/>
+  </references>
+
+</story-context>

@@ -1,0 +1,641 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5</storyId>
+    <title>System Configuration Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-5-system-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>to configure system-wide settings through an admin UI</iWant>
+    <soThat>I can tune the system for organizational needs without modifying code or restarting services</soThat>
+    <tasks>
+### Backend Tasks
+
+- [ ] **Task 1: Create database migration for `system_config` table** (30 min)
+- [ ] **Task 2: Create `SystemConfig` model** (30 min)
+- [ ] **Task 3: Create `ConfigService`** (3 hours)
+- [ ] **Task 4: Create config admin API endpoints** (2 hours)
+- [ ] **Task 5: Add config Pydantic schemas** (1 hour)
+
+### Frontend Tasks
+
+- [ ] **Task 6: Create config types and interfaces** (30 min)
+- [ ] **Task 7: Implement `useSystemConfig` hook** (1.5 hours)
+- [ ] **Task 8: Create `ConfigSettingsTable` component** (2 hours)
+- [ ] **Task 9: Create `EditConfigModal` component** (2.5 hours)
+- [ ] **Task 10: Create `RestartWarningBanner` component** (1 hour)
+- [ ] **Task 11: Create `SystemConfigPage` page component** (2 hours)
+- [ ] **Task 12: Add navigation link to admin sidebar** (30 min)
+
+### Testing Tasks
+
+- [ ] **Task 13: Write E2E tests for system configuration** (2 hours)
+- [ ] **Task 14: Verify audit logging in integration tests** (1 hour)
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC-5.5.1: Admin can view all system configuration settings
+**Given** I am an authenticated admin user
+**When** I navigate to `/admin/config`
+**Then** I see a configuration management page displaying all system settings grouped by category (Security, Processing, Rate Limits)
+
+### AC-5.5.2: Admin can edit a configuration setting
+**Given** I am viewing the system configuration page
+**When** I click "Edit" on a setting
+**Then** an edit modal opens displaying current value, data type, allowed range, description, requires restart flag
+
+### AC-5.5.3: Configuration changes are validated before saving
+**Given** I am editing a configuration setting
+**When** I attempt to save a value outside the allowed range or wrong type
+**Then** the save request fails with a 400 Bad Request response and validation error message
+
+### AC-5.5.4: Configuration changes are logged to audit system
+**Given** I successfully update a configuration setting
+**When** the change is saved
+**Then** an audit event is created with event_type="config.update" and detailed change information
+
+### AC-5.5.5: Settings that require restart display a warning
+**Given** I am viewing or editing a setting with "requires_restart=true"
+**When** I save the change
+**Then** a warning modal appears before saving, and a persistent warning banner displays after save
+
+### AC-5.5.6: Non-admin users receive 403 Forbidden
+**Given** I am authenticated as a regular user (not an admin)
+**When** I attempt to access `/admin/config` or call config API endpoints
+**Then** I receive a 403 Forbidden response
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+### Architecture Documents
+- [docs/architecture.md](docs/architecture.md) - Complete system architecture reference
+  - Security Architecture: Admin role (`is_superuser=True`) authorization patterns
+  - Authorization Model: Role-based access control (Admin vs User roles)
+  - API Standards: HTTP 403 for permission denied
+  - Configuration Management: Pydantic Settings pattern with environment variables
+
+- [docs/sprint-artifacts/tech-spec-epic-5.md:216-227](docs/sprint-artifacts/tech-spec-epic-5.md#L216-L227) - Story 5.5 System Configuration API Specification
+  - **GET** `/api/v1/admin/config` - Retrieve all config keys/values
+  - **PUT** `/api/v1/admin/config/{key}` - Update config value with validation
+  - ConfigService responsibilities: manage system configuration, validate values
+  - Integration with AuditService for change logging
+
+- [docs/sprint-artifacts/tech-spec-epic-5.md:575-577](docs/sprint-artifacts/tech-spec-epic-5.md#L575-L577) - Story 5.5 Integration Points
+  - ConfigService → PostgreSQL: Store/retrieve config in dedicated `system_config` table
+  - ConfigService → AuditService: Log all config changes to audit.events
+
+- [docs/sprint-artifacts/tech-spec-epic-5.md:691-702](docs/sprint-artifacts/tech-spec-epic-5.md#L691-L702) - Story 5.5 Acceptance Criteria (Authoritative)
+  - AC-5.5.1: Admin can view all system configuration keys
+  - AC-5.5.2: Admin can update config values with input validation
+  - AC-5.5.3: Config changes logged to audit.events with old/new values
+  - AC-5.5.4: Sensitive config values encrypted at rest and redacted in GET responses
+  - AC-5.5.5: Invalid config values rejected with 400 Bad Request
+
+- [docs/sprint-artifacts/5-4-processing-queue-status.md](docs/sprint-artifacts/5-4-processing-queue-status.md) - Related admin feature pattern reference (Story 5.4 - DONE)
+  - Admin role authorization pattern with `current_superuser` dependency
+  - Service-based architecture pattern for admin features
+  - Redis caching pattern (5-minute TTL) for expensive operations
+  - Graceful degradation pattern for service unavailability
+    </docs>
+    <code>
+### Existing Admin Infrastructure
+- [backend/app/api/v1/admin.py:101-143](backend/app/api/v1/admin.py#L101-L143) - Admin Stats Endpoint Pattern
+  - Uses `current_superuser` dependency for admin role verification (403 for non-admin)
+  - Service-based architecture: AdminStatsService handles business logic
+  - Response model pattern: AdminStats Pydantic schema
+  - Performance notes: Redis caching (5 min TTL), &lt;500ms cache hit, &lt;2s cache miss
+
+- [backend/app/api/v1/admin.py:1006-1042](backend/app/api/v1/admin.py#L1006-L1042) - Queue Status Endpoint Pattern (Story 5.4)
+  - Admin-only endpoint pattern: `_admin: User = Depends(current_superuser)`
+  - Service delegation: QueueMonitorService().get_all_queues()
+  - Graceful degradation: Returns status="unavailable" instead of 500 error
+  - Redis caching: 5 min TTL for broker load reduction
+
+- [backend/app/core/config.py:6-79](backend/app/core/config.py#L6-L79) - Current Configuration Pattern
+  - Uses `pydantic_settings.BaseSettings` for environment-based config
+  - Pattern: `model_config = SettingsConfigDict(env_file=".env", env_prefix="LUMIKB_")`
+  - Existing config categories: Application, Server, Database, Redis, MinIO, Qdrant, LiteLLM, Security, CORS, Celery, Embedding, LLM, Chunking
+  - Settings singleton: `settings = Settings()` - global instance pattern
+
+- [backend/app/schemas/admin.py:1-391](backend/app/schemas/admin.py) - Admin Schema Patterns
+  - Pydantic BaseModel with ConfigDict for response schemas
+  - Enum-based type safety: AuditEventType, AuditResourceType
+  - Nested schema composition: AdminStats composed of UserStats, KnowledgeBaseStats, etc.
+  - JSON schema examples via `json_schema_extra` for OpenAPI documentation
+
+### Services to Create
+- `backend/app/services/config_service.py` - NEW
+  - ConfigService class with methods: get_all_config(), get_config(key), update_config(key, value), validate_value(key, value)
+  - Integration: AuditService.log_event() for config changes
+  - Validation: Type checking, range checking, encryption for sensitive values
+  - Storage: PostgreSQL `system_config` table
+
+### Models to Create
+- `backend/app/models/system_config.py` - NEW
+  - SystemConfig SQLAlchemy model: id, key, value, data_type, allowed_range, description, requires_restart, is_sensitive
+  - Encryption support for sensitive values (is_sensitive=True)
+
+### Schemas to Create
+- `backend/app/schemas/config.py` - NEW (or extend admin.py)
+  - ConfigValue: Response schema with key, value, data_type, description, requires_restart
+  - ConfigUpdateRequest: Request schema with value field
+  - SystemConfigSchema: Full config metadata schema
+
+### Migration to Create
+- `backend/alembic/versions/XXX_add_system_config_table.py` - NEW
+  - CREATE TABLE system_config (id, key, value, data_type, allowed_range, description, requires_restart, is_sensitive, encrypted_value, updated_at, updated_by_user_id)
+  - Seed initial config values from Settings class
+    </code>
+    <dependencies>
+### Backend Dependencies (All Already Installed)
+- **FastAPI** ≥0.115.0 - Web framework for admin config endpoints
+- **SQLAlchemy** 2.0 - ORM for `system_config` table model
+- **Pydantic** ≥2.7.0, &lt;3.0.0 - Request/response validation for ConfigValue schemas
+- **pydantic-settings** ≥2.0.0 - BaseSettings pattern (reference for config structure)
+- **asyncpg** 0.30.0 - Async PostgreSQL driver for config CRUD operations
+- **alembic** - Database migration tool for creating `system_config` table
+- **cryptography** (check if installed) - Encryption for sensitive config values (is_sensitive=True)
+
+### Frontend Dependencies (All Already Installed)
+- **Next.js** 15.x - App Router for `/app/(protected)/admin/config/page.tsx` route
+- **React** 19.x - Component library for config UI
+- **shadcn/ui** - UI components: Table, Modal, Form, Input, Button, Alert
+- **Tailwind CSS** 4.x - Styling
+- **@tanstack/react-query** or SWR - Data fetching for config API (check which is used)
+- **Zod** (check if installed) - Client-side validation schema
+
+### Test Dependencies (All Already Installed)
+- **pytest** ≥8.3.4 - Backend unit/integration test framework
+- **pytest-asyncio** ≥0.24.0 - Async test support
+- **httpx** ≥0.28.1 - Async HTTP client for integration tests
+- **vitest** - Frontend component test framework (if used)
+- **@testing-library/react** - React component testing utilities
+- **Playwright** ≥1.49.0 - E2E testing framework
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+### Technical Constraints
+1. **Admin-Only Access**: All config endpoints require `is_superuser=True` (enforced via `current_superuser` dependency)
+2. **Backward Compatibility**: Must not break existing `Settings` class - config table supplements, not replaces environment variables
+3. **Audit Trail**: Every config change MUST be logged to `audit.events` table with old/new values (compliance requirement)
+4. **Performance**: Config reads should be fast (&lt;100ms) - consider Redis caching if needed
+5. **Security**: Sensitive config values (API keys, secrets) MUST be encrypted at rest and redacted in GET responses
+6. **Validation**: Config updates must validate data type, allowed range before persisting
+7. **Restart Warning**: UI must warn admin if config change requires service restart
+
+### Architectural Constraints
+1. **Service-Based Architecture**: Follow existing pattern - business logic in ConfigService, API routes delegate to service
+2. **Pydantic Schemas**: All request/response models must be Pydantic BaseModel with ConfigDict
+3. **SQLAlchemy ORM**: Use SQLAlchemy 2.0 async patterns for database access
+4. **Alembic Migrations**: Schema changes via Alembic migrations only
+5. **Graceful Error Handling**: Return meaningful 400 Bad Request with validation details on invalid input
+6. **No Breaking Changes**: Do not modify existing `/api/v1/admin` endpoints or AdminStats schema
+
+### Data Constraints
+1. **Config Key Uniqueness**: `system_config.key` must be unique (database constraint)
+2. **Data Type Enforcement**: Support types: string, integer, float, boolean, json
+3. **Encryption**: Use Fernet symmetric encryption (cryptography library) for sensitive values
+4. **Change Tracking**: Store `updated_at` and `updated_by_user_id` for every config change
+
+### UI/UX Constraints
+1. **Admin Navigation**: Config page accessible via `/admin/config` route
+2. **Category Grouping**: Display configs grouped by category (Security, Processing, Rate Limits)
+3. **Inline Editing**: Edit modal opens when clicking "Edit" button
+4. **Restart Warning**: Persistent warning banner after saving config with `requires_restart=True`
+5. **Responsive Design**: Must work on desktop and tablet (mobile not required for admin features)
+  </constraints>
+  <interfaces>
+### Backend API Interfaces (New)
+
+#### GET /api/v1/admin/config
+**Description**: Retrieve all system configuration settings (admin only)
+**Auth**: Requires `is_superuser=True` (401 if not authenticated, 403 if not admin)
+**Request**: None
+**Response**: 200 OK
+```typescript
+{
+  "security.jwt_expiry_minutes": {
+    "value": 60,
+    "data_type": "integer",
+    "allowed_range": "5-1440",
+    "description": "JWT token expiry time in minutes",
+    "requires_restart": false,
+    "category": "Security"
+  },
+  "processing.chunk_size": {
+    "value": 500,
+    "data_type": "integer",
+    "allowed_range": "100-2000",
+    "description": "Target token count per chunk",
+    "requires_restart": true,
+    "category": "Processing"
+  },
+  "security.litellm_api_key": {
+    "value": "[REDACTED]",
+    "data_type": "string",
+    "allowed_range": null,
+    "description": "LiteLLM API key",
+    "requires_restart": true,
+    "category": "Security",
+    "is_sensitive": true
+  }
+}
+```
+
+#### PUT /api/v1/admin/config/{key}
+**Description**: Update a system configuration setting (admin only)
+**Auth**: Requires `is_superuser=True` (401 if not authenticated, 403 if not admin)
+**Path Parameters**:
+- `key` (string): Configuration key (e.g., "security.jwt_expiry_minutes")
+
+**Request Body**:
+```typescript
+{
+  "value": 120  // Type must match config data_type
+}
+```
+
+**Responses**:
+- **200 OK**: Config updated successfully
+```typescript
+{
+  "key": "security.jwt_expiry_minutes",
+  "value": 120,
+  "data_type": "integer",
+  "allowed_range": "5-1440",
+  "description": "JWT token expiry time in minutes",
+  "requires_restart": false,
+  "category": "Security",
+  "updated_at": "2025-12-02T14:30:00Z",
+  "updated_by": "admin@example.com"
+}
+```
+
+- **400 Bad Request**: Validation error
+```typescript
+{
+  "detail": {
+    "code": "VALIDATION_ERROR",
+    "message": "Value 2000 exceeds allowed range 5-1440",
+    "field": "value"
+  }
+}
+```
+
+- **404 Not Found**: Config key not found
+```typescript
+{
+  "detail": "Configuration key 'invalid.key' not found"
+}
+```
+
+### Backend Service Interface
+
+#### ConfigService
+**Location**: `backend/app/services/config_service.py`
+
+```python
+class ConfigService:
+    def __init__(self, db: AsyncSession, audit_service: AuditService):
+        """Initialize service with database and audit dependencies."""
+
+    async def get_all_config(self) -> dict[str, ConfigValue]:
+        """Retrieve all config values with PII redaction."""
+
+    async def get_config(self, key: str) -> ConfigValue:
+        """Retrieve single config value by key."""
+
+    async def update_config(
+        self,
+        key: str,
+        value: Any,
+        user_id: UUID
+    ) -> ConfigValue:
+        """Update config value with validation and audit logging."""
+
+    def validate_value(self, key: str, value: Any) -> tuple[bool, str | None]:
+        """Validate value against config constraints. Returns (is_valid, error_msg)."""
+
+    def _encrypt_sensitive(self, value: str) -> str:
+        """Encrypt sensitive config values using Fernet."""
+
+    def _decrypt_sensitive(self, encrypted_value: str) -> str:
+        """Decrypt sensitive config values."""
+
+    def _redact_sensitive(self, config: SystemConfig) -> ConfigValue:
+        """Redact sensitive values for API response."""
+```
+
+### Frontend Component Interfaces
+
+#### SystemConfigPage
+**Location**: `frontend/src/app/(protected)/admin/config/page.tsx`
+**Props**: None (Next.js page component)
+**Renders**: ConfigSettingsTable, EditConfigModal, RestartWarningBanner
+
+#### ConfigSettingsTable
+**Location**: `frontend/src/components/admin/config-settings-table.tsx`
+**Props**:
+```typescript
+interface ConfigSettingsTableProps {
+  configs: Record<string, ConfigValue>;
+  onEdit: (key: string) => void;
+}
+```
+
+#### EditConfigModal
+**Location**: `frontend/src/components/admin/edit-config-modal.tsx`
+**Props**:
+```typescript
+interface EditConfigModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  configKey: string;
+  currentValue: ConfigValue;
+  onSave: (key: string, value: any) => Promise<void>;
+}
+```
+
+#### RestartWarningBanner
+**Location**: `frontend/src/components/admin/restart-warning-banner.tsx`
+**Props**:
+```typescript
+interface RestartWarningBannerProps {
+  changedKeys: string[];  // Keys of configs that require restart
+  onDismiss: () => void;
+}
+```
+
+### Frontend Hook Interface
+
+#### useSystemConfig
+**Location**: `frontend/src/hooks/useSystemConfig.ts`
+```typescript
+interface UseSystemConfigReturn {
+  configs: Record<string, ConfigValue> | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  updateConfig: (key: string, value: any) => Promise<void>;
+  isUpdating: boolean;
+  updateError: Error | null;
+}
+
+function useSystemConfig(): UseSystemConfigReturn;
+```
+
+### Database Schema Interface
+
+#### system_config Table
+```sql
+CREATE TABLE system_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key VARCHAR(255) UNIQUE NOT NULL,
+  value TEXT,  -- JSON-encoded value
+  data_type VARCHAR(50) NOT NULL,  -- 'string', 'integer', 'float', 'boolean', 'json'
+  allowed_range TEXT,  -- e.g., "5-1440" for integers, "http|https" for string enums
+  description TEXT NOT NULL,
+  requires_restart BOOLEAN DEFAULT FALSE,
+  category VARCHAR(100) NOT NULL,  -- 'Security', 'Processing', 'Rate Limits', etc.
+  is_sensitive BOOLEAN DEFAULT FALSE,
+  encrypted_value TEXT,  -- Fernet-encrypted value if is_sensitive=True
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by_user_id UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_system_config_category ON system_config(category);
+CREATE INDEX idx_system_config_updated_at ON system_config(updated_at DESC);
+```
+
+### Audit Event Interface
+**Event Type**: `config.update`
+**Resource Type**: `system_config`
+**Details**:
+```typescript
+{
+  "config_key": "security.jwt_expiry_minutes",
+  "old_value": 60,
+  "new_value": 120,
+  "data_type": "integer",
+  "changed_by_user_email": "admin@example.com",
+  "requires_restart": false
+}
+```
+  </interfaces>
+  <tests>
+    <standards>
+### Test Standards (from architecture.md and tech-spec-epic-5.md)
+
+**Backend Testing Standards**:
+1. **Coverage Target**: ≥90% unit test coverage for ConfigService
+2. **Test Framework**: pytest ≥8.3.4 with pytest-asyncio ≥0.24.0
+3. **Test Structure**: Arrange-Act-Assert (AAA) pattern
+4. **Naming Convention**: `test_<method>_<scenario>_<expected_outcome>`
+5. **Fixtures**: Use pytest fixtures for database session, test users, test config data
+6. **Async Support**: All service/API tests use `@pytest.mark.asyncio` decorator
+7. **Database Isolation**: Each test gets clean database state via transaction rollback
+8. **Factory Pattern**: Use factories for test data (AdminFactory for test admin users)
+
+**Integration Testing Standards**:
+1. **API Contract Testing**: Verify request/response schemas match OpenAPI spec
+2. **Authorization Testing**: Test both admin (200) and non-admin (403) access
+3. **Validation Testing**: Test all validation error paths (400 Bad Request)
+4. **Audit Logging Verification**: Assert audit.events created for config changes
+5. **Encryption Testing**: Verify sensitive values encrypted at rest, redacted in response
+
+**Frontend Testing Standards**:
+1. **Component Tests**: vitest + @testing-library/react
+2. **Hook Tests**: Test custom hooks in isolation with renderHook
+3. **User Interaction Tests**: Test button clicks, form submissions, modal interactions
+4. **API Mocking**: Mock fetch/API calls for component tests
+5. **Accessibility**: Basic accessibility checks (alt text, ARIA labels)
+
+**E2E Testing Standards** (Playwright):
+1. **Critical Paths Only**: Focus on admin config management workflow
+2. **Page Object Pattern**: Use page objects for config page interactions
+3. **Test Data Setup**: Seed database with test admin user and config data
+4. **Cleanup**: Reset database state after each test
+5. **Browser Target**: Chromium only for admin features (desktop-focused)
+    </standards>
+    <locations>
+### Test File Locations
+
+**Backend Unit Tests**:
+- `backend/tests/unit/test_config_service.py` - ConfigService unit tests (NEW)
+  - Test get_all_config(), get_config(), update_config()
+  - Test validate_value() for all data types
+  - Test encryption/decryption of sensitive values
+  - Test PII redaction logic
+  - Mock AuditService to verify audit logging calls
+
+**Backend Integration Tests**:
+- `backend/tests/integration/test_config_api.py` - Config API integration tests (NEW)
+  - Test GET /api/v1/admin/config (200 for admin, 403 for non-admin)
+  - Test PUT /api/v1/admin/config/{key} (200, 400, 403, 404 responses)
+  - Test audit event creation in database
+  - Test config update with real database
+  - Test sensitive value encryption end-to-end
+
+**Frontend Component Tests**:
+- `frontend/src/components/admin/__tests__/config-settings-table.test.tsx` - Table component tests (NEW)
+- `frontend/src/components/admin/__tests__/edit-config-modal.test.tsx` - Modal component tests (NEW)
+- `frontend/src/components/admin/__tests__/restart-warning-banner.test.tsx` - Banner component tests (NEW)
+
+**Frontend Hook Tests**:
+- `frontend/src/hooks/__tests__/useSystemConfig.test.ts` - Hook tests (NEW)
+
+**Frontend Page Tests**:
+- `frontend/src/app/(protected)/admin/config/__tests__/page.test.tsx` - Config page tests (NEW)
+
+**E2E Tests**:
+- `frontend/e2e/tests/admin/system-config.spec.ts` - E2E config management tests (NEW)
+  - Test admin can view all configs
+  - Test admin can edit config value
+  - Test validation error displayed for invalid input
+  - Test restart warning banner appears for requires_restart=true configs
+
+**Test Fixtures/Factories**:
+- `backend/tests/factories/config_factory.py` - ConfigFactory for test config data (NEW)
+- `frontend/e2e/fixtures/config.factory.ts` - E2E config test data factory (NEW)
+    </locations>
+    <ideas>
+### Test Ideas and Scenarios
+
+**Backend Unit Tests (ConfigService)**:
+1. **get_all_config()**:
+   - Returns all non-deleted configs
+   - Redacts sensitive values (value="[REDACTED]")
+   - Groups configs by category
+   - Returns empty dict if no configs exist
+
+2. **get_config(key)**:
+   - Returns config for valid key
+   - Raises HTTPException 404 for non-existent key
+   - Redacts sensitive value if is_sensitive=True
+   - Returns decrypted value for non-sensitive config
+
+3. **update_config(key, value, user_id)**:
+   - Updates config value in database
+   - Validates data type (integer, float, boolean, string, json)
+   - Validates allowed_range (e.g., 5-1440 for integers)
+   - Encrypts value if is_sensitive=True
+   - Calls audit_service.log_event() with old/new values
+   - Raises HTTPException 400 for validation errors
+   - Raises HTTPException 404 for non-existent key
+
+4. **validate_value(key, value)**:
+   - Integer validation: accepts values in allowed_range, rejects out-of-range
+   - Float validation: accepts valid floats, rejects non-numeric
+   - Boolean validation: accepts true/false, rejects non-boolean
+   - String validation: accepts strings matching allowed_range enum
+   - JSON validation: accepts valid JSON, rejects malformed JSON
+
+5. **Encryption/Decryption**:
+   - _encrypt_sensitive() produces different ciphertext for same plaintext (salt)
+   - _decrypt_sensitive() correctly decrypts encrypted value
+   - Encrypted value stored in encrypted_value column, not value column
+   - Decryption failure handled gracefully (returns "[DECRYPTION_ERROR]")
+
+**Backend Integration Tests (Config API)**:
+1. **GET /api/v1/admin/config**:
+   - 200 OK with all configs for admin user
+   - 403 Forbidden for non-admin user
+   - 401 Unauthorized for unauthenticated request
+   - Sensitive values redacted in response
+
+2. **PUT /api/v1/admin/config/{key}**:
+   - 200 OK with updated config for valid request
+   - 400 Bad Request for value outside allowed_range
+   - 400 Bad Request for wrong data type (string for integer field)
+   - 404 Not Found for non-existent key
+   - 403 Forbidden for non-admin user
+   - Audit event created with correct action="config.update"
+   - Audit event contains old_value and new_value in details
+
+3. **Audit Logging Integration**:
+   - Config update creates audit event with resource_type="system_config"
+   - Audit event includes config_key, old_value, new_value in details
+   - Audit event includes user_id of admin who made change
+
+**Frontend Component Tests**:
+1. **ConfigSettingsTable**:
+   - Renders all configs grouped by category
+   - Displays "[REDACTED]" for sensitive values
+   - Edit button triggers onEdit callback with correct key
+   - Table sortable by key, category, updated_at
+
+2. **EditConfigModal**:
+   - Displays current value in input field
+   - Displays config description and allowed_range
+   - Validation error displayed for invalid input
+   - onSave callback triggered with correct key and value
+   - Modal closes after successful save
+   - Loading state shown during save operation
+
+3. **RestartWarningBanner**:
+   - Displays list of changed config keys requiring restart
+   - Dismiss button hides banner
+   - Banner persists across page refreshes (localStorage)
+
+**Frontend Hook Tests (useSystemConfig)**:
+1. **Fetch Configs**:
+   - Calls GET /api/v1/admin/config on mount
+   - Sets isLoading=true during fetch
+   - Sets configs on successful fetch
+   - Sets error on fetch failure
+
+2. **Update Config**:
+   - Calls PUT /api/v1/admin/config/{key} with correct body
+   - Sets isUpdating=true during update
+   - Updates local configs on successful update
+   - Sets updateError on update failure
+   - Triggers refetch after successful update
+
+**E2E Tests (Playwright)**:
+1. **Admin Config Management Workflow**:
+   - Admin logs in → navigates to /admin/config
+   - Config page displays all settings grouped by category
+   - Admin clicks "Edit" on "security.jwt_expiry_minutes"
+   - Edit modal opens with current value (60)
+   - Admin changes value to 120
+   - Admin clicks "Save"
+   - Modal closes, table shows updated value (120)
+   - No restart warning (requires_restart=false)
+
+2. **Validation Error Workflow**:
+   - Admin edits "security.jwt_expiry_minutes"
+   - Admin enters invalid value (5000, exceeds 1440 max)
+   - Admin clicks "Save"
+   - Error message displayed: "Value exceeds allowed range 5-1440"
+   - Modal remains open, value not saved
+
+3. **Restart Warning Workflow**:
+   - Admin edits "processing.chunk_size" (requires_restart=true)
+   - Admin changes value from 500 to 1000
+   - Admin clicks "Save"
+   - Restart warning banner appears: "Configuration changed. Restart required."
+   - Banner persists across page navigation
+
+4. **Sensitive Value Workflow**:
+   - Admin views "security.litellm_api_key"
+   - Value displayed as "[REDACTED]"
+   - Admin clicks "Edit"
+   - Modal allows entering new value (plaintext)
+   - Admin saves new value
+   - Value stored encrypted, displayed as "[REDACTED]"
+
+5. **Non-Admin Access**:
+   - Regular user logs in
+   - User attempts to navigate to /admin/config
+   - Redirected to 403 error page or dashboard
+   - API call returns 403 Forbidden
+    </ideas>
+  </tests>
+</story-context>

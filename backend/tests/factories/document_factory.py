@@ -50,6 +50,7 @@ def create_document_data(**overrides: Any) -> dict:
         "last_error": None,
         "retry_count": 0,
         "deleted_at": None,
+        "tags": [],
     }
 
     defaults.update(overrides)

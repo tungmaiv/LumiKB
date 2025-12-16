@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useActiveKb } from "@/lib/stores/kb-store";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -82,12 +83,19 @@ export default function ChatPage() {
         throw new Error("No response body");
       }
 
+      // Buffer for incomplete SSE lines that span across chunks
+      let buffer = "";
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
+        // Append decoded chunk to buffer (use stream: true for proper handling)
+        buffer += decoder.decode(value, { stream: true });
+
+        // Split by newlines, keeping incomplete line in buffer
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep last (potentially incomplete) line in buffer
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
@@ -97,22 +105,32 @@ export default function ChatPage() {
 
               if (event.type === "token") {
                 setMessages((prev) => {
-                  const updated = [...prev];
-                  const lastMsg = updated[updated.length - 1];
+                  const lastIdx = prev.length - 1;
+                  const lastMsg = prev[lastIdx];
                   if (lastMsg.role === "assistant") {
-                    lastMsg.content += event.content;
+                    // Create new array with new message object (immutable update)
+                    return [
+                      ...prev.slice(0, lastIdx),
+                      { ...lastMsg, content: lastMsg.content + event.content },
+                    ];
                   }
-                  return updated;
+                  return prev;
                 });
               } else if (event.type === "citation") {
                 setMessages((prev) => {
-                  const updated = [...prev];
-                  const lastMsg = updated[updated.length - 1];
+                  const lastIdx = prev.length - 1;
+                  const lastMsg = prev[lastIdx];
                   if (lastMsg.role === "assistant") {
-                    lastMsg.citations = lastMsg.citations || [];
-                    lastMsg.citations.push(event.data);
+                    // Create new array with new message object (immutable update)
+                    return [
+                      ...prev.slice(0, lastIdx),
+                      {
+                        ...lastMsg,
+                        citations: [...(lastMsg.citations || []), event.data],
+                      },
+                    ];
                   }
-                  return updated;
+                  return prev;
                 });
               } else if (event.type === "error") {
                 throw new Error(event.message);
@@ -123,15 +141,42 @@ export default function ChatPage() {
           }
         }
       }
+
+      // Process any remaining data in buffer after stream ends
+      if (buffer.startsWith("data: ")) {
+        try {
+          const event = JSON.parse(buffer.slice(6));
+          if (event.type === "token") {
+            setMessages((prev) => {
+              const lastIdx = prev.length - 1;
+              const lastMsg = prev[lastIdx];
+              if (lastMsg.role === "assistant") {
+                // Create new array with new message object (immutable update)
+                return [
+                  ...prev.slice(0, lastIdx),
+                  { ...lastMsg, content: lastMsg.content + event.content },
+                ];
+              }
+              return prev;
+            });
+          }
+        } catch {
+          // Ignore parse errors on final buffer
+        }
+      }
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => {
-        const updated = [...prev];
-        const lastMsg = updated[updated.length - 1];
+        const lastIdx = prev.length - 1;
+        const lastMsg = prev[lastIdx];
         if (lastMsg.role === "assistant" && !lastMsg.content) {
-          lastMsg.content = "Error: Failed to get response. Please try again.";
+          // Create new array with new message object (immutable update)
+          return [
+            ...prev.slice(0, lastIdx),
+            { ...lastMsg, content: "Error: Failed to get response. Please try again." },
+          ];
         }
-        return updated;
+        return prev;
       });
     } finally {
       setIsStreaming(false);
@@ -147,23 +192,35 @@ export default function ChatPage() {
 
   if (!activeKb) {
     return (
-      <div className="container mx-auto py-8">
-        <Alert>
-          <AlertDescription>
-            Please select a Knowledge Base from the sidebar to start chatting.
-          </AlertDescription>
-        </Alert>
-      </div>
+      <DashboardLayout>
+        <div className="container mx-auto py-8">
+          <Alert>
+            <AlertDescription>
+              Please select a Knowledge Base from the sidebar to start chatting.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto h-[calc(100vh-8rem)] flex flex-col py-4">
-      <Card className="flex-1 flex flex-col">
-        <CardHeader>
-          <CardTitle>Chat with {activeKb.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
+    <DashboardLayout>
+      <div className="container mx-auto h-[calc(100vh-8rem)] flex flex-col p-6">
+        {/* Page Header - outside the card */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-8 w-8" />
+            <h1 className="text-2xl font-bold">Chat with {activeKb.name}</h1>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ask questions about your knowledge base
+          </p>
+        </div>
+
+        {/* Chat Card */}
+        <Card className="flex-1 flex flex-col overflow-hidden">
+          <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-4">
             {messages.length === 0 && (
@@ -233,6 +290,7 @@ export default function ChatPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

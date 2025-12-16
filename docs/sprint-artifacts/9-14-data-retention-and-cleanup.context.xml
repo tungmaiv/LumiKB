@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-14" title="Data Retention and Cleanup" status="ready-for-dev">
+  <metadata>
+    <created>2025-12-15</created>
+    <epic>9</epic>
+    <phase>4 - Advanced Features</phase>
+    <points>3</points>
+    <priority>P2</priority>
+  </metadata>
+
+  <artifacts>
+    <documentation>
+      <doc path="docs/sprint-artifacts/9-14-data-retention-and-cleanup.md" type="story">
+        Primary story definition with acceptance criteria and implementation tasks
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" type="tech-spec">
+        Comprehensive technical specification with TimescaleDB chunk management patterns
+      </doc>
+      <doc path="docs/sprint-artifacts/9-13-metrics-aggregation-worker.md" type="related-story">
+        Established Celery beat pattern for scheduled tasks
+      </doc>
+      <doc path="docs/testing-guideline.md" type="testing">
+        Testing standards for scheduled tasks
+      </doc>
+    </documentation>
+
+    <existing-code>
+      <file path="backend/app/workers/celery_app.py" relevance="critical">
+        <description>
+          Celery application configuration with existing beat schedule.
+          Daily cleanup task must be added here (3 AM schedule).
+        </description>
+        <key-patterns>
+          <pattern name="crontab-scheduling" lines="63-64">
+            Existing crontab example: crontab(hour=3, minute=0) for daily tasks
+          </pattern>
+          <pattern name="autodiscover_tasks" lines="68-74">
+            Tasks autodiscovered from worker modules - add retention_tasks
+          </pattern>
+        </key-patterns>
+      </file>
+
+      <file path="backend/app/models/observability.py" relevance="high">
+        <description>
+          SQLAlchemy models for observability schema. Contains hypertables
+          that will be cleaned up and ProviderSyncStatus for cleanup.
+        </description>
+        <key-tables>
+          <table name="traces" schema="observability" retention="90 days">
+            TimescaleDB hypertable with 1-day chunks
+          </table>
+          <table name="spans" schema="observability" retention="90 days">
+            TimescaleDB hypertable with 1-day chunks
+          </table>
+          <table name="chat_messages" schema="observability" retention="90 days">
+            TimescaleDB hypertable with 7-day chunks
+          </table>
+          <table name="document_events" schema="observability" retention="90 days">
+            TimescaleDB hypertable with 1-day chunks
+          </table>
+          <table name="metrics_aggregates" schema="observability" retention="365 days">
+            TimescaleDB hypertable with 7-day chunks - longer retention
+          </table>
+          <table name="provider_sync_status" schema="observability" retention="7 days">
+            Regular table - DELETE for completed/failed records
+          </table>
+        </key-tables>
+      </file>
+
+      <file path="backend/app/core/config.py" relevance="high">
+        <description>
+          Settings file - needs retention configuration settings added
+        </description>
+        <new-settings>
+          <setting name="observability_retention_days" default="90">
+            Retention for traces, spans, chat_messages, document_events
+          </setting>
+          <setting name="observability_metrics_retention_days" default="365">
+            Longer retention for metrics_aggregates
+          </setting>
+          <setting name="observability_sync_status_retention_days" default="7">
+            Short retention for provider_sync_status
+          </setting>
+        </new-settings>
+      </file>
+
+      <file path="backend/app/api/v1/admin.py" relevance="medium">
+        <description>
+          Admin API endpoints - add manual cleanup trigger endpoint
+        </description>
+      </file>
+    </existing-code>
+  </artifacts>
+
+  <interfaces>
+    <celery-task name="cleanup_observability_data">
+      <description>Main cleanup task run daily by Celery beat</description>
+      <signature>
+        <code><![CDATA[
+@shared_task
+def cleanup_observability_data(dry_run: bool = False) -> dict[str, Any]:
+    """Clean up observability data based on retention policies.
+
+    Args:
+        dry_run: If True, preview what would be deleted without actual deletion
+
+    Returns:
+        Dict with cleanup results per table:
+        {
+            "observability.traces": {"chunks_dropped": 5, "dry_run": False},
+            "observability.spans": {"chunks_dropped": 5, "dry_run": False},
+            ...
+            "provider_sync_status": {"records_deleted": 142, "dry_run": False},
+        }
+    """
+        ]]></code>
+      </signature>
+    </celery-task>
+
+    <admin-endpoint path="POST /api/v1/admin/observability/cleanup">
+      <description>Manual cleanup trigger with dry-run support</description>
+      <request>
+        <code><![CDATA[
+# Query parameter
+dry_run: bool = Query(False, description="Preview without deleting")
+        ]]></code>
+      </request>
+      <response>
+        <code><![CDATA[
+class CleanupResponse(BaseModel):
+    task_id: str
+    status: str  # "queued"
+    dry_run: bool
+        ]]></code>
+      </response>
+    </admin-endpoint>
+
+    <timescaledb-functions>
+      <function name="drop_chunks">
+        <description>Efficiently delete old chunks from hypertable</description>
+        <code><![CDATA[
+SELECT drop_chunks(
+    'observability.traces',
+    older_than => NOW() - INTERVAL '90 days'
+);
+        ]]></code>
+      </function>
+      <function name="show_chunks">
+        <description>Preview chunks that would be dropped (dry-run)</description>
+        <code><![CDATA[
+SELECT * FROM show_chunks(
+    'observability.traces',
+    older_than => NOW() - INTERVAL '90 days'
+);
+        ]]></code>
+      </function>
+      <function name="check_extension">
+        <description>Verify TimescaleDB extension is available</description>
+        <code><![CDATA[
+SELECT 1 FROM pg_extension WHERE extname = 'timescaledb';
+        ]]></code>
+      </function>
+    </timescaledb-functions>
+  </interfaces>
+
+  <retention-configuration>
+    <table name="observability.traces" retention_days="90">
+      <cleanup-method>drop_chunks()</cleanup-method>
+    </table>
+    <table name="observability.spans" retention_days="90">
+      <cleanup-method>drop_chunks()</cleanup-method>
+    </table>
+    <table name="observability.chat_messages" retention_days="90">
+      <cleanup-method>drop_chunks()</cleanup-method>
+    </table>
+    <table name="observability.document_events" retention_days="90">
+      <cleanup-method>drop_chunks()</cleanup-method>
+    </table>
+    <table name="observability.metrics_aggregates" retention_days="365">
+      <cleanup-method>drop_chunks()</cleanup-method>
+      <note>Longer retention for historical metrics</note>
+    </table>
+    <table name="observability.provider_sync_status" retention_days="7">
+      <cleanup-method>DELETE WHERE status IN ('synced', 'failed') AND created_at &lt; NOW() - INTERVAL '7 days'</cleanup-method>
+      <note>Only delete completed/failed records, preserve pending</note>
+    </table>
+  </retention-configuration>
+
+  <constraints>
+    <constraint type="schedule" name="daily-at-3am">
+      Cleanup task runs daily at 3 AM UTC to minimize impact on production traffic.
+      Uses crontab(hour=3, minute=0) pattern.
+    </constraint>
+    <constraint type="pattern" name="dry-run-first">
+      Admin API endpoint defaults to dry_run=True for safety.
+      Always preview before actual deletion.
+    </constraint>
+    <constraint type="audit" name="cleanup-logging">
+      All cleanup operations MUST be logged with structlog:
+      - Start and end of cleanup operation
+      - Each hypertable cleanup with chunk count
+      - Total records/storage affected
+    </constraint>
+    <constraint type="safety" name="timescaledb-check">
+      MUST check TimescaleDB extension availability before using drop_chunks().
+      Fall back to standard DELETE if extension not available.
+    </constraint>
+    <constraint type="security" name="admin-only">
+      Manual cleanup endpoint requires admin authentication.
+      No user-facing data deletion API.
+    </constraint>
+    <constraint type="preservation" name="pending-status">
+      Provider sync status cleanup MUST preserve 'pending' records.
+      Only delete 'synced' and 'failed' records older than retention period.
+    </constraint>
+  </constraints>
+
+  <dependencies>
+    <dependency type="story" id="9-1">
+      Observability Schema - TimescaleDB hypertables must exist for drop_chunks()
+    </dependency>
+    <dependency type="story" id="9-13">
+      Metrics Aggregation - Aggregates should be preserved longer than raw data
+    </dependency>
+    <dependency type="infrastructure" name="timescaledb">
+      TimescaleDB extension must be installed in PostgreSQL
+    </dependency>
+    <dependency type="infrastructure" name="celery-beat">
+      Celery beat scheduler must be running for daily cleanup
+    </dependency>
+  </dependencies>
+
+  <tests>
+    <test-file path="backend/tests/unit/test_retention_service.py" type="unit">
+      <test-cases>
+        <case name="test_get_chunks_to_drop_returns_old_chunks">
+          Verify show_chunks returns correct chunks for retention period
+        </case>
+        <case name="test_dry_run_does_not_delete">
+          Verify dry_run=True produces preview without actual deletion
+        </case>
+        <case name="test_different_retention_periods">
+          Verify 90, 365, 7 day retention applied correctly per table
+        </case>
+        <case name="test_sync_status_preserves_pending">
+          Verify pending records not deleted, only synced/failed
+        </case>
+        <case name="test_timescaledb_unavailable_fallback">
+          Verify graceful handling when TimescaleDB not available
+        </case>
+        <case name="test_cleanup_logs_audit_trail">
+          Verify structlog captures all cleanup operations
+        </case>
+      </test-cases>
+    </test-file>
+    <test-file path="backend/tests/integration/test_retention_cleanup.py" type="integration">
+      <test-cases>
+        <case name="test_full_cleanup_with_timescaledb">
+          Integration test with actual TimescaleDB chunk operations
+        </case>
+        <case name="test_admin_endpoint_triggers_task">
+          Verify POST /admin/observability/cleanup queues task
+        </case>
+        <case name="test_admin_endpoint_requires_auth">
+          Verify endpoint requires admin authentication
+        </case>
+      </test-cases>
+    </test-file>
+    <testing-patterns>
+      <pattern name="mock-timescaledb">
+        Mock drop_chunks() and show_chunks() SQL functions for unit tests
+      </pattern>
+      <pattern name="verify-no-side-effects">
+        Test dry_run produces no changes by comparing before/after state
+      </pattern>
+      <pattern name="capture-logs">
+        Use pytest-structlog to capture and verify audit logs
+      </pattern>
+    </testing-patterns>
+  </tests>
+
+  <source-tree>
+    <new-files>
+      <file>backend/app/workers/retention_tasks.py</file>
+      <file>backend/app/services/retention_service.py</file>
+      <file>backend/tests/unit/test_retention_service.py</file>
+      <file>backend/tests/integration/test_retention_cleanup.py</file>
+    </new-files>
+    <modified-files>
+      <file>backend/app/workers/celery_app.py</file>
+      <file>backend/app/core/config.py</file>
+      <file>backend/app/api/v1/admin.py</file>
+      <file>backend/app/schemas/admin.py</file>
+    </modified-files>
+  </source-tree>
+
+  <celery-beat-schedule>
+    <task name="cleanup-observability-data-daily">
+      <code><![CDATA[
+'cleanup-observability-data-daily': {
+    'task': 'app.workers.retention_tasks.cleanup_observability_data',
+    'schedule': crontab(hour=3, minute=0),  # 3 AM daily
+    'args': (False,),  # dry_run=False
+},
+      ]]></code>
+    </task>
+  </celery-beat-schedule>
+
+  <implementation-example>
+    <retention-service>
+      <code><![CDATA[
+# backend/app/services/retention_service.py
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+HYPERTABLES = [
+    ('observability.traces', 'observability_retention_days'),
+    ('observability.spans', 'observability_retention_days'),
+    ('observability.chat_messages', 'observability_retention_days'),
+    ('observability.document_events', 'observability_retention_days'),
+    ('observability.metrics_aggregates', 'observability_metrics_retention_days'),
+]
+
+async def check_timescaledb_available(session: AsyncSession) -> bool:
+    """Check if TimescaleDB extension is available."""
+    result = await session.execute(
+        text("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'")
+    )
+    return result.scalar() is not None
+
+async def get_chunks_to_drop(
+    session: AsyncSession,
+    table_name: str,
+    retention_days: int,
+) -> list[str]:
+    """Get list of chunks that would be dropped (dry-run)."""
+    result = await session.execute(
+        text(f"""
+            SELECT chunk_name FROM show_chunks(
+                '{table_name}',
+                older_than => NOW() - INTERVAL '{retention_days} days'
+            )
+        """)
+    )
+    return [row[0] for row in result.fetchall()]
+
+async def drop_old_chunks(
+    session: AsyncSession,
+    table_name: str,
+    retention_days: int,
+) -> int:
+    """Drop chunks older than retention period. Returns count of dropped chunks."""
+    result = await session.execute(
+        text(f"""
+            SELECT drop_chunks(
+                '{table_name}',
+                older_than => NOW() - INTERVAL '{retention_days} days'
+            )
+        """)
+    )
+    dropped = result.fetchall()
+    return len(dropped)
+      ]]></code>
+    </retention-service>
+  </implementation-example>
+
+  <acceptance-criteria-mapping>
+    <ac id="1" task="1">Configuration: OBSERVABILITY_RETENTION_DAYS (default 90)</ac>
+    <ac id="2" task="2">Celery beat task runs daily at 3am</ac>
+    <ac id="3" task="3">Drops TimescaleDB chunks older than retention period</ac>
+    <ac id="4" task="3">Uses drop_chunks() for efficient deletion</ac>
+    <ac id="5" task="6">Logs chunk drop operations for audit</ac>
+    <ac id="6" task="4">Metrics aggregates retained longer (365 days)</ac>
+    <ac id="7" task="5">Provider sync status cleaned after 7 days</ac>
+    <ac id="8" task="8">Admin API endpoint to trigger manual cleanup</ac>
+    <ac id="9" task="7">Dry-run mode to preview deletions</ac>
+    <ac id="10" task="10">Unit tests for retention logic</ac>
+  </acceptance-criteria-mapping>
+</story-context>

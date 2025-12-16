@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="9-1" generated="2025-12-14" status="ready-for-dev">
+
+  <story-summary>
+    <title>Observability Schema and Models</title>
+    <goal>Create a dedicated observability database schema with TimescaleDB-optimized hypertables for storing traces, spans, chat history, and document processing events</goal>
+    <scope>
+      - Alembic migration with TimescaleDB extension and hypertable creation
+      - SQLAlchemy 2.0 async-compatible models for all observability tables
+      - Unit tests for model CRUD operations
+    </scope>
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC-1">Alembic migration creates `observability` schema with TimescaleDB extension enabled</criterion>
+    <criterion id="AC-2">`traces` hypertable created with 1-day chunk intervals for root span storage</criterion>
+    <criterion id="AC-3">`spans` hypertable created with 1-day chunk intervals for child operation storage</criterion>
+    <criterion id="AC-4">`chat_messages` hypertable created with 7-day chunk intervals for conversation persistence</criterion>
+    <criterion id="AC-5">`document_events` hypertable created with 1-day chunk intervals for processing step events</criterion>
+    <criterion id="AC-6">`metrics_aggregates` hypertable created with 7-day chunk intervals for pre-computed dashboard metrics</criterion>
+    <criterion id="AC-7">`provider_sync_status` table created for tracking external provider sync state</criterion>
+    <criterion id="AC-8">All indexes defined per schema design (trace_id, user_id, session_id, operation_type, etc.)</criterion>
+    <criterion id="AC-9">SQLAlchemy 2.0 async-compatible models map correctly to all tables with proper type annotations</criterion>
+    <criterion id="AC-10">Unit tests verify model CRUD operations (create, read, update) for all observability models</criterion>
+  </acceptance-criteria>
+
+  <tasks>
+    <task id="1" name="Create Alembic migration for observability schema" acceptance-criteria="1,2,3,4,5,6,7,8">
+      <subtask id="1.1">Enable TimescaleDB extension in migration</subtask>
+      <subtask id="1.2">Create `observability` schema</subtask>
+      <subtask id="1.3">Create `traces` table with W3C trace context fields and token/cost aggregates</subtask>
+      <subtask id="1.4">Convert `traces` to hypertable with 1-day chunks</subtask>
+      <subtask id="1.5">Create `spans` table with type-specific fields (LLM, embedding, retrieval, parse, chunk)</subtask>
+      <subtask id="1.6">Convert `spans` to hypertable with 1-day chunks</subtask>
+      <subtask id="1.7">Create `chat_messages` table with conversation context and citation fields</subtask>
+      <subtask id="1.8">Convert `chat_messages` to hypertable with 7-day chunks</subtask>
+      <subtask id="1.9">Create `document_events` table with step-specific metrics</subtask>
+      <subtask id="1.10">Convert `document_events` to hypertable with 1-day chunks</subtask>
+      <subtask id="1.11">Create `metrics_aggregates` table with dimension-based aggregations</subtask>
+      <subtask id="1.12">Convert `metrics_aggregates` to hypertable with 7-day chunks</subtask>
+      <subtask id="1.13">Create `provider_sync_status` table for external provider tracking</subtask>
+      <subtask id="1.14">Add all required indexes per schema design</subtask>
+    </task>
+    <task id="2" name="Create SQLAlchemy models" acceptance-criteria="9">
+      <subtask id="2.1">Create `Trace` model with UUIDPrimaryKeyMixin and proper schema setting</subtask>
+      <subtask id="2.2">Create `Span` model with type-specific nullable fields</subtask>
+      <subtask id="2.3">Create `ChatMessage` model with JSONB sources/citations fields</subtask>
+      <subtask id="2.4">Create `DocumentEvent` model with step-specific metrics</subtask>
+      <subtask id="2.5">Create `MetricsAggregate` model with percentile fields (p50, p95, p99)</subtask>
+      <subtask id="2.6">Create `ProviderSyncStatus` model</subtask>
+      <subtask id="2.7">Register models in `app/models/__init__.py`</subtask>
+    </task>
+    <task id="3" name="Write unit tests" acceptance-criteria="10">
+      <subtask id="3.1">Test Trace model CRUD operations</subtask>
+      <subtask id="3.2">Test Span model with various span_type values</subtask>
+      <subtask id="3.3">Test ChatMessage model with sources and citations</subtask>
+      <subtask id="3.4">Test DocumentEvent model for all event_type values</subtask>
+      <subtask id="3.5">Test MetricsAggregate unique constraint behavior</subtask>
+      <subtask id="3.6">Test ProviderSyncStatus sync_status transitions</subtask>
+    </task>
+  </tasks>
+
+  <dependencies>
+    <dependency type="infrastructure">
+      <description>PostgreSQL with TimescaleDB extension must be available</description>
+    </dependency>
+    <dependency type="codebase">
+      <description>Existing model base classes (UUIDPrimaryKeyMixin, TimestampMixin) from app/models/base.py</description>
+    </dependency>
+  </dependencies>
+
+  <technical-context>
+    <architecture-patterns>
+      <pattern name="Schema Separation">
+        <description>Dedicated `observability` schema like existing `audit` schema for clear domain boundaries</description>
+        <reference>Similar to backend/alembic/versions/002_audit_schema_and_role.py</reference>
+      </pattern>
+      <pattern name="TimescaleDB Hypertables">
+        <description>Time-series optimization for efficient range queries and automatic data retention</description>
+        <note>Uses `create_hypertable()` function with configurable chunk intervals</note>
+      </pattern>
+      <pattern name="Denormalized Fields">
+        <description>Span type-specific fields (LLM, embedding, retrieval) are denormalized for query performance</description>
+      </pattern>
+    </architecture-patterns>
+
+    <key-technical-decisions>
+      <decision id="1">
+        <topic>W3C Trace Context</topic>
+        <choice>trace_id is 32-hex (16 bytes), span_id is 16-hex (8 bytes) per OpenTelemetry spec</choice>
+      </decision>
+      <decision id="2">
+        <topic>Chunk Intervals</topic>
+        <choice>1-day for high-volume tables (traces, spans, doc_events), 7-day for lower-volume (chat, metrics)</choice>
+      </decision>
+      <decision id="3">
+        <topic>JSONB Fields</topic>
+        <choice>Used for flexible metadata, sources, and citations storage</choice>
+      </decision>
+      <decision id="4">
+        <topic>Decimal Precision</topic>
+        <choice>cost_usd uses Numeric(10, 6) for accurate cost tracking</choice>
+      </decision>
+    </key-technical-decisions>
+  </technical-context>
+
+  <source-tree-components>
+    <component type="create" path="backend/alembic/versions/xxx_add_observability_schema.py">
+      <description>Alembic migration for observability schema with TimescaleDB hypertables</description>
+      <responsibilities>
+        - Enable TimescaleDB extension
+        - Create observability schema
+        - Create all 6 tables with hypertable conversion
+        - Create all required indexes
+      </responsibilities>
+    </component>
+    <component type="create" path="backend/app/models/observability.py">
+      <description>SQLAlchemy models for all observability tables</description>
+      <responsibilities>
+        - Trace model (root spans)
+        - Span model (child operations)
+        - ChatMessage model (conversation persistence)
+        - DocumentEvent model (processing events)
+        - MetricsAggregate model (pre-computed metrics)
+        - ProviderSyncStatus model (external provider sync)
+      </responsibilities>
+    </component>
+    <component type="modify" path="backend/app/models/__init__.py">
+      <description>Register new observability models in package exports</description>
+    </component>
+    <component type="create" path="backend/tests/unit/test_observability_models.py">
+      <description>Unit tests for model CRUD operations</description>
+      <responsibilities>
+        - Test Trace model CRUD
+        - Test Span model with various span_type values
+        - Test ChatMessage with sources/citations
+        - Test DocumentEvent for all event_type values
+        - Test MetricsAggregate unique constraint
+        - Test ProviderSyncStatus sync transitions
+      </responsibilities>
+    </component>
+  </source-tree-components>
+
+  <existing-codebase-patterns>
+    <pattern name="Model Base Classes" file="backend/app/models/base.py">
+      <code-snippet language="python">
+class UUIDPrimaryKeyMixin:
+    """Mixin providing UUID primary key with PostgreSQL gen_random_uuid()."""
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+
+class TimestampMixin:
+    """Mixin providing created_at and updated_at columns."""
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Schema Separation Example" file="backend/alembic/versions/002_audit_schema_and_role.py">
+      <description>The audit schema demonstrates the pattern for creating separate schemas</description>
+      <note>Use same pattern: CREATE SCHEMA IF NOT EXISTS observability</note>
+    </pattern>
+
+    <pattern name="Model Registration" file="backend/app/models/__init__.py">
+      <description>All models are imported and re-exported in __init__.py</description>
+      <code-snippet language="python">
+from app.models.audit import AuditEvent
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+# Add: from app.models.observability import Trace, Span, ChatMessage, DocumentEvent, MetricsAggregate, ProviderSyncStatus
+      </code-snippet>
+    </pattern>
+
+    <pattern name="Integration Test Setup" file="backend/tests/integration/conftest.py">
+      <description>Test fixtures create schemas before running tests</description>
+      <code-snippet language="python">
+async with engine.begin() as conn:
+    await conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+    # Add: await conn.execute(text("CREATE SCHEMA IF NOT EXISTS observability"))
+    await conn.run_sync(Base.metadata.create_all)
+      </code-snippet>
+    </pattern>
+  </existing-codebase-patterns>
+
+  <schema-reference>
+    <table name="observability.traces">
+      <purpose>Root spans for distributed operations (W3C Trace Context)</purpose>
+      <key-columns>
+        - id: UUID PRIMARY KEY
+        - trace_id: VARCHAR(32) NOT NULL (W3C 16-byte hex)
+        - name: VARCHAR(100) NOT NULL (e.g., "chat.conversation")
+        - operation_type: VARCHAR(50) NOT NULL (chat, document, search, generation)
+        - user_id, session_id, kb_id: context fields
+        - started_at, ended_at, duration_ms: timing
+        - status: in_progress | success | error
+        - total_tokens, prompt_tokens, completion_tokens, total_cost_usd: aggregated metrics
+        - metadata: JSONB
+      </key-columns>
+      <hypertable>chunk_time_interval => INTERVAL '1 day'</hypertable>
+      <indexes>trace_id, (user_id, started_at), (session_id, started_at), (operation_type, started_at), (status, started_at)</indexes>
+    </table>
+
+    <table name="observability.spans">
+      <purpose>Child operations within a trace</purpose>
+      <key-columns>
+        - trace_id, parent_span_id, span_id: hierarchy
+        - name, span_type: operation details
+        - LLM fields: model, prompt_tokens, completion_tokens, cost_usd, temperature
+        - Embedding fields: embedding_model, vector_count, vector_dimensions
+        - Retrieval fields: query_text, result_count, top_score
+        - Parse fields: file_type, file_size_bytes, page_count
+        - Chunk fields: chunk_count, chunk_strategy
+        - input_preview, output_preview: truncated previews
+      </key-columns>
+      <hypertable>chunk_time_interval => INTERVAL '1 day'</hypertable>
+    </table>
+
+    <table name="observability.chat_messages">
+      <purpose>Persistent chat history (complements Redis cache)</purpose>
+      <key-columns>
+        - session_id, user_id, kb_id: conversation context
+        - role: user | assistant | system
+        - content: TEXT (full message)
+        - turn_number: conversation ordering
+        - sources, citations: JSONB for retrieval details
+        - prompt_tokens, completion_tokens, response_time_ms
+      </key-columns>
+      <hypertable>chunk_time_interval => INTERVAL '7 days'</hypertable>
+    </table>
+
+    <table name="observability.document_events">
+      <purpose>Detailed document processing step events</purpose>
+      <key-columns>
+        - trace_id, span_id, document_id, kb_id: context
+        - event_type: upload | parse | chunk | embed | index | complete
+        - status: started | completed | failed | skipped
+        - Parse metrics: extracted_pages, extracted_chars, tables_found, images_found
+        - Chunk metrics: chunks_created, avg_chunk_size
+        - Embed metrics: vectors_generated, embedding_model
+        - Index metrics: vectors_upserted, collection_name
+        - Error tracking: error_type, error_message, retryable, retry_count
+      </key-columns>
+      <hypertable>chunk_time_interval => INTERVAL '1 day'</hypertable>
+    </table>
+
+    <table name="observability.metrics_aggregates">
+      <purpose>Pre-computed metrics for dashboard performance</purpose>
+      <key-columns>
+        - bucket_time, granularity (hour/day/week)
+        - metric_name, dimension_type, dimension_value
+        - count, sum_value, min_value, max_value, avg_value
+        - p50_value, p95_value, p99_value (percentiles)
+      </key-columns>
+      <constraint>UNIQUE (bucket_time, granularity, metric_name, dimension_type, dimension_value)</constraint>
+      <hypertable>chunk_time_interval => INTERVAL '7 days'</hypertable>
+    </table>
+
+    <table name="observability.provider_sync_status">
+      <purpose>Track external provider sync state (LangFuse, etc.)</purpose>
+      <key-columns>
+        - provider_name, trace_id: composite key
+        - sync_status: pending | synced | failed
+        - external_id: provider's trace ID
+        - error_message, retry_count
+      </key-columns>
+      <constraint>UNIQUE (provider_name, trace_id)</constraint>
+    </table>
+  </schema-reference>
+
+  <implementation-notes>
+    <note id="1" priority="high">
+      <topic>TimescaleDB Extension</topic>
+      <content>
+        The migration must enable TimescaleDB extension before creating hypertables.
+        Use: CREATE EXTENSION IF NOT EXISTS timescaledb;
+        This requires PostgreSQL with TimescaleDB installed.
+      </content>
+    </note>
+    <note id="2" priority="high">
+      <topic>Hypertable Creation Order</topic>
+      <content>
+        Create table first, then convert to hypertable using:
+        SELECT create_hypertable('observability.traces', 'started_at',
+            chunk_time_interval => INTERVAL '1 day',
+            if_not_exists => TRUE);
+      </content>
+    </note>
+    <note id="3" priority="medium">
+      <topic>Test Database Compatibility</topic>
+      <content>
+        Unit tests should mock hypertable creation since testcontainers postgres
+        may not have TimescaleDB. Integration tests can skip hypertable-specific
+        assertions or use a TimescaleDB-enabled container.
+      </content>
+    </note>
+    <note id="4" priority="medium">
+      <topic>Model Index Definition</topic>
+      <content>
+        Use SQLAlchemy Index() in __table_args__ for explicit index control.
+        Example from existing code patterns shows this approach.
+      </content>
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test name="test_trace_model_crud">Create, read, update Trace records</test>
+      <test name="test_span_model_with_llm_type">Span with LLM-specific fields populated</test>
+      <test name="test_span_model_with_embedding_type">Span with embedding fields populated</test>
+      <test name="test_span_model_with_retrieval_type">Span with retrieval fields populated</test>
+      <test name="test_chat_message_with_sources">ChatMessage with JSONB sources and citations</test>
+      <test name="test_document_event_all_types">DocumentEvent for upload/parse/chunk/embed/index</test>
+      <test name="test_metrics_aggregate_unique_constraint">Verify unique constraint on composite key</test>
+      <test name="test_provider_sync_status_transitions">Test status transitions: pending → synced/failed</test>
+    </unit-tests>
+    <patterns>
+      - Use pytest-asyncio for async tests
+      - Use factory pattern for test data (see tests/factories/)
+      - Rollback transactions after each test for isolation
+    </patterns>
+  </testing-requirements>
+
+  <references>
+    <document path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" section="4.1 PostgreSQL Schema">
+      Complete SQL schema definition with all table structures and indexes
+    </document>
+    <document path="docs/sprint-artifacts/tech-spec-epic-9-observability.md" section="2.2 SQLAlchemy Models">
+      Reference implementation for all SQLAlchemy model classes
+    </document>
+    <document path="docs/epics/epic-9-observability.md" section="Phase 1: Core Infrastructure">
+      Epic context and story relationships
+    </document>
+    <document path="backend/app/models/base.py">
+      Base classes and mixins to use
+    </document>
+    <document path="backend/alembic/versions/002_audit_schema_and_role.py">
+      Reference for schema creation pattern
+    </document>
+  </references>
+
+</story-context>

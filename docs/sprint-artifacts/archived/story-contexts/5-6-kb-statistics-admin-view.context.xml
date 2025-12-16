@@ -1,0 +1,325 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>6</storyId>
+    <title>KB Statistics (Admin View)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/home/tungmv/Projects/LumiKB/docs/sprint-artifacts/5-6-kb-statistics-admin-view.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>administrator</asA>
+    <iWant>detailed statistics for each Knowledge Base</iWant>
+    <soThat>I can optimize storage and identify issues</soThat>
+    <tasks>
+### Task 1: Create KBStatsService (Backend) - AC-5.6.1, AC-5.6.2, AC-5.6.3, AC-5.6.5
+- 1.1 Create `backend/app/services/kb_stats_service.py`
+- 1.2 Implement `get_kb_stats(kb_id: int, db: AsyncSession)` method
+- 1.3 Aggregate document statistics from PostgreSQL
+- 1.4 Aggregate storage statistics from MinIO
+- 1.5 Aggregate vector statistics from Qdrant
+- 1.6 Aggregate search activity from audit.events
+- 1.7 Aggregate generation activity from audit.events
+- 1.8 Implement `get_kb_trends(kb_id: int, db: AsyncSession)` method
+- 1.9 Add Redis caching decorator (10-minute TTL)
+- 1.10 Add error handling for missing KB, MinIO, Qdrant errors
+
+### Task 2: Create KB Stats API Endpoint (Backend)
+- 2.1-2.8 Admin-only GET /api/v1/admin/kb/{kb_id}/stats endpoint
+
+### Task 3: Create Pydantic Schema for KB Stats
+- 3.1-3.4 KBStats schema with nested DocumentMetrics, StorageMetrics, VectorMetrics, SearchActivity, GenerationActivity, TrendData
+
+### Task 4: Implement MinIO Storage Queries
+- 4.1-4.6 Query MinIO for per-KB file storage metrics with graceful error handling
+
+### Task 5: Implement Qdrant Vector Queries
+- 5.1-5.7 Query Qdrant for per-KB vector metrics with graceful error handling
+
+### Task 6: Create KB Statistics Page (Frontend)
+- 6.1-6.10 Build statistics page with metrics display and trend visualizations
+
+### Task 7: Create useKBStats Hook (Frontend)
+- 7.1-7.6 State management hook with React Query caching (10 minutes)
+
+### Task 8: Integrate KB Stats into Admin Dashboard
+- 8.1-8.5 Add navigation from admin dashboard to KB statistics
+
+### Task 9: Write Backend Unit Tests
+- 9.1-9.11 Unit tests for service methods (11 tests)
+
+### Task 10: Write Backend Integration Tests
+- 10.1-10.7 Integration tests for API endpoint (7 tests)
+
+### Task 11: Write Frontend Tests
+- 11.1-11.10 Hook and component tests (10 tests)
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+**AC-5.6.1: Per-KB Statistics Display**
+- Document count by status (ready, pending, processing, failed)
+- Total storage size (MinIO + Qdrant)
+- Vector count (total embeddings)
+- Average chunk size
+- Processing success rate
+
+**AC-5.6.2: Search Activity Metrics (30-day window)**
+- Total search queries
+- Top 5 searchers
+- Queries per day sparkline
+
+**AC-5.6.3: Generation Activity Metrics (30-day window)**
+- Total generation requests
+- Generation success rate
+- Generations per day sparkline
+
+**AC-5.6.4: Trends Over Time Visualization**
+- Document count over time (30 days)
+- Storage usage growth (30 days)
+- Search volume trends (30 days)
+- Generation volume trends (30 days)
+- Recharts library, responsive, trend direction colors
+
+**AC-5.6.5: Performance and Caching**
+- Page loads within 3 seconds
+- Redis caching (10-minute TTL)
+- "Last updated" timestamp with manual refresh
+
+**AC-5.6.6: Authorization and Navigation**
+- Route: /admin/kb/{kb_id}/stats
+- Admin-only access (403 for non-admins)
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic 5 Technical Specification</title>
+        <section>Admin Statistics Response, KB Statistics Design</section>
+        <snippet>Epic 5 admin features require aggregation from PostgreSQL, MinIO, and Qdrant with Redis caching (10-min TTL). KBDetailedStats includes per-KB metrics: document count by status, storage size (files+vectors), vector count, search/generation activity (30d), trends over time with sparklines.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>MinIO Integration, Qdrant Collections, Admin APIs</section>
+        <snippet>MinIO stores files in KB buckets (kb-{uuid}), Qdrant stores vectors in collections (kb_{uuid}). Admin endpoints require superuser role. Cross-service aggregation requires graceful degradation on connection failures. Collection-per-KB pattern (ADR-002) ensures zero-trust isolation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Specifications</title>
+        <section>Story 5.6 Requirements</section>
+        <snippet>Admin views detailed KB metrics: document count by status, total storage (files+vectors), vector count, avg chunk size, search queries (30d), top searchers, processing success rate, trends over time. Aggregates from PostgreSQL + Qdrant + MinIO.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/5-1-admin-dashboard-overview.md</path>
+        <title>Story 5.1 Implementation</title>
+        <section>AdminStatsService Pattern, Redis Caching, Sparkline Trends</section>
+        <snippet>Establishes Redis caching pattern (5min TTL), graceful fallback on cache miss, structured logging with correlation IDs. Uses Recharts for sparklines (30-day trends). Implements admin-only authorization with current_active_superuser dependency.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/app/services/admin_stats_service.py</path>
+        <kind>service</kind>
+        <symbol>AdminStatsService</symbol>
+        <lines>31-270</lines>
+        <reason>Reference pattern for cross-database aggregation with Redis caching (5min TTL), graceful degradation, audit event queries (search.query, generation.request), and sparkline trend generation (_get_daily_counts).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/qdrant_client.py</path>
+        <kind>integration</kind>
+        <symbol>QdrantService.get_collection_info</symbol>
+        <lines>341-368</lines>
+        <reason>Use this method to query Qdrant for vector count per KB collection. Returns vectors_count, points_count, status. Collection naming: kb_{uuid}. Handle 404 gracefully (return None).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/minio_client.py</path>
+        <kind>integration</kind>
+        <symbol>MinIOService.list_objects</symbol>
+        <lines>242-302</lines>
+        <reason>Use paginated list_objects to query MinIO file storage per KB bucket (kb-{uuid}). Handles bucket not found (returns empty list). Sum object sizes from metadata for total storage calculation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/admin.py</path>
+        <kind>controller</kind>
+        <symbol>GET /api/v1/admin/stats</symbol>
+        <lines>1-50</lines>
+        <reason>Existing admin endpoint pattern. Add new GET /api/v1/admin/kb/{kb_id}/stats endpoint following same authorization (current_active_superuser), error handling (404, 403), OpenAPI documentation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/admin.py</path>
+        <kind>schema</kind>
+        <symbol>AdminStats, DocumentStats, StorageStats</symbol>
+        <lines>1-100</lines>
+        <reason>Extend with KBStats schema (nested DocumentMetrics, StorageMetrics, VectorMetrics, SearchActivity, GenerationActivity, TrendData). Follow existing Pydantic patterns with Field descriptions and examples.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/hooks/useAdminStats.ts</path>
+        <kind>hook</kind>
+        <symbol>useAdminStats</symbol>
+        <lines>1-50</lines>
+        <reason>Reference pattern for React Query hook with staleTime (5min for admin stats, use 10min for KB stats due to cross-service queries). Include loading, error, data states, manual refresh function.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/app/(protected)/admin/page.tsx</path>
+        <kind>page</kind>
+        <symbol>AdminDashboard</symbol>
+        <lines>1-100</lines>
+        <reason>Add KB list with "View Statistics" links navigating to /admin/kb/{kbId}/stats. Follow existing layout patterns with shadcn/ui Card components.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/admin/stat-card.tsx</path>
+        <kind>component</kind>
+        <symbol>StatCard</symbol>
+        <lines>1-50</lines>
+        <reason>Reusable metric card component for displaying KB statistics consistently. Create KB-specific variant (KBMetricCard) following same design patterns.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend>
+        <package>sqlalchemy</package>
+        <version>2.0+</version>
+        <usage>PostgreSQL queries (COUNT, GROUP BY, date_trunc for trends)</usage>
+      </backend>
+      <backend>
+        <package>qdrant-client</package>
+        <version>1.10.0+</version>
+        <usage>Query Qdrant collection info (vectors_count, points_count)</usage>
+      </backend>
+      <backend>
+        <package>boto3</package>
+        <version>latest</version>
+        <usage>MinIO S3-compatible queries (list_objects_v2, sum file sizes)</usage>
+      </backend>
+      <backend>
+        <package>redis</package>
+        <version>latest</version>
+        <usage>Cache KB stats with 10-minute TTL (longer than system stats due to cross-service queries)</usage>
+      </backend>
+      <backend>
+        <package>structlog</package>
+        <version>25.5.0+</version>
+        <usage>Structured logging for service errors, cache hits/misses</usage>
+      </backend>
+      <frontend>
+        <package>@tanstack/react-query</package>
+        <version>latest</version>
+        <usage>Client-side caching with 10-minute staleTime for KB stats hook</usage>
+      </frontend>
+      <frontend>
+        <package>recharts</package>
+        <version>latest</version>
+        <usage>Trend charts (LineChart) for document count, storage, search, generation sparklines</usage>
+      </frontend>
+      <frontend>
+        <package>shadcn/ui</package>
+        <version>latest</version>
+        <usage>Card, Button, Skeleton components for KB stats layout</usage>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use existing database tables ONLY - no schema migrations required (documents, knowledge_bases, audit.events)</constraint>
+    <constraint>Follow collection-per-KB pattern: Qdrant collections named kb_{uuid}, MinIO buckets named kb-{uuid}</constraint>
+    <constraint>Admin-only access: Use current_active_superuser dependency for all KB stats endpoints (403 for non-admin)</constraint>
+    <constraint>Redis caching: 10-minute TTL for KB stats (longer than system stats due to expensive cross-service queries)</constraint>
+    <constraint>Graceful degradation: If MinIO/Qdrant unavailable, show partial stats with warnings (don't fail entire request)</constraint>
+    <constraint>Performance target: Page loads within 3 seconds (cache critical for meeting this SLA)</constraint>
+    <constraint>Use structured logging (structlog) with correlation IDs - NO traceback.print_exc() in production code</constraint>
+    <constraint>All queries use COUNT aggregations for performance - no full table scans</constraint>
+    <constraint>Storage size formatting: Display in human-readable format (KB, MB, GB) on frontend</constraint>
+    <constraint>Trend data: 30-day arrays for sparklines (document counts, storage sizes, search volumes, generation volumes)</constraint>
+    <constraint>Follow KISS/DRY/YAGNI principles - reuse patterns from Story 5.1 (AdminStatsService)</constraint>
+    <constraint>Type safety: Python type hints required, TypeScript strict mode on frontend</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/admin/kb/{kb_id}/stats</name>
+      <kind>REST endpoint</kind>
+      <signature>async def get_kb_stats(kb_id: int, db: AsyncSession, current_user: User = Depends(current_active_superuser)) -> KBStats</signature>
+      <path>backend/app/api/v1/admin.py</path>
+    </interface>
+    <interface>
+      <name>KBStatsService.get_kb_stats</name>
+      <kind>service method</kind>
+      <signature>async def get_kb_stats(kb_id: int, db: AsyncSession) -> KBStats</signature>
+      <path>backend/app/services/kb_stats_service.py (new)</path>
+    </interface>
+    <interface>
+      <name>QdrantService.get_collection_info</name>
+      <kind>integration method</kind>
+      <signature>async def get_collection_info(kb_id: UUID) -> dict[str, Any] | None</signature>
+      <path>backend/app/integrations/qdrant_client.py:341-368</path>
+    </interface>
+    <interface>
+      <name>MinIOService.list_objects</name>
+      <kind>integration method</kind>
+      <signature>async def list_objects(kb_id: UUID, prefix: str = "") -> list[str]</signature>
+      <path>backend/app/integrations/minio_client.py:242-302</path>
+    </interface>
+    <interface>
+      <name>useKBStats hook</name>
+      <kind>React Query hook</kind>
+      <signature>function useKBStats(kbId: number): { data: KBStats | undefined, isLoading: boolean, error: Error | null, refetch: () => void }</signature>
+      <path>frontend/src/hooks/useKBStats.ts (new)</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+Backend: pytest for unit/integration tests. Mock external dependencies (AsyncSession, MinIO client, Qdrant client) with pytest-mock. Integration tests use test database, TestClient for API calls. Target: 11 unit tests + 7 integration tests = 18 backend tests.
+
+Frontend: Vitest for hooks/components. Mock fetch calls with MSW or vi.mock. Test loading states, error handling (404, 403, network), data rendering. Target: 10 frontend tests (hook + component).
+
+Performance: Verify <3s page load target during manual QA (caching critical).
+
+E2E: Smoke tests deferred to Story 5.16 (Docker E2E Infrastructure).
+    </standards>
+    <locations>
+backend/tests/unit/test_kb_stats_service.py (new)
+backend/tests/integration/test_kb_stats_api.py (new)
+frontend/src/hooks/__tests__/useKBStats.test.ts (new)
+frontend/src/components/admin/__tests__/kb-stats-overview.test.tsx (new)
+    </locations>
+    <ideas>
+**Unit Tests (backend/tests/unit/test_kb_stats_service.py):**
+- AC-5.6.1: test_get_kb_stats_aggregates_document_metrics (count by status, success rate)
+- AC-5.6.1: test_get_kb_stats_aggregates_storage_from_minio (mock list_objects, sum sizes)
+- AC-5.6.1: test_get_kb_stats_aggregates_vectors_from_qdrant (mock get_collection_info)
+- AC-5.6.2: test_get_kb_stats_search_activity_30d (audit.events query, top searchers, daily counts)
+- AC-5.6.3: test_get_kb_stats_generation_activity_30d (requests, success rate, daily counts)
+- AC-5.6.4: test_get_kb_trends_returns_30day_arrays (document, storage, search, generation)
+- AC-5.6.5: test_caching_behavior (verify Redis cache hit/miss)
+- test_graceful_minio_connection_error (return 0 bytes, log warning, partial stats)
+- test_graceful_qdrant_connection_error (return 0 vectors, log warning, partial stats)
+- test_kb_not_found_raises_404
+- test_empty_kb_returns_zero_metrics
+
+**Integration Tests (backend/tests/integration/test_kb_stats_api.py):**
+- AC-5.6.6: test_get_kb_stats_admin_user_returns_200 (full response validation)
+- AC-5.6.6: test_get_kb_stats_non_admin_returns_403
+- AC-5.6.6: test_get_kb_stats_invalid_kb_id_returns_404
+- test_response_schema_matches_kbstats
+- test_cache_headers_present (Cache-Control, Last-Modified)
+- test_manual_refresh_bypasses_cache (query param)
+- test_storage_size_human_readable_format (KB/MB/GB conversion)
+
+**Frontend Tests (frontend/src/hooks/__tests__/useKBStats.test.ts):**
+- test_successful_data_fetch
+- test_loading_state
+- test_error_404_handling
+- test_error_403_handling
+- test_network_error_handling
+- test_manual_refresh_function
+
+**Frontend Tests (frontend/src/components/admin/__tests__/kb-stats-overview.test.tsx):**
+- AC-5.6.1: test_statistics_display_with_mock_data (all metrics rendered)
+- test_loading_state_renders_skeleton
+- test_error_state_displays_message
+- AC-5.6.4: test_trend_charts_render (Recharts LineChart for 4 metrics)
+    </ideas>
+  </tests>
+</story-context>

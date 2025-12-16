@@ -2,7 +2,6 @@
 
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SearchBarProps {
   /**
@@ -29,38 +28,30 @@ export function SearchBar({
   onClick,
 }: SearchBarProps): React.ReactElement {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            className="relative w-full max-w-md cursor-pointer"
-            onClick={disabled ? undefined : onClick} // AC6: clicking opens palette
-            role="button"
-            tabIndex={disabled ? -1 : 0}
-            onKeyDown={(e) => {
-              if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                onClick?.();
-              }
-            }}
-          >
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder={placeholder}
-              disabled={disabled}
-              className="w-full pl-9 pr-12 cursor-pointer"
-              readOnly // Prevent direct typing - opens palette instead
-            />
-            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
-              <span className="text-xs">&#8984;</span>K
-            </kbd>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Press {navigator?.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+K to search</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div
+      className="relative w-full max-w-md cursor-pointer"
+      onClick={disabled ? undefined : onClick} // AC6: clicking opens palette
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={(e) => {
+        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      title="Press ⌘K or Ctrl+K to search"
+    >
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        type="search"
+        placeholder={placeholder}
+        disabled={disabled}
+        className="w-full pl-9 pr-12 cursor-pointer"
+        readOnly // Prevent direct typing - opens palette instead
+      />
+      <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+        <span className="text-xs">⌘</span>K
+      </kbd>
+    </div>
   );
 }
