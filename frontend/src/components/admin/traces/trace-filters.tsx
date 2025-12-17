@@ -115,10 +115,7 @@ export function TraceFiltersComponent({ filters, onFilterChange }: TraceFiltersP
           <span>Filters:</span>
         </div>
 
-        <Select
-          value={filters.operation_type || 'all'}
-          onValueChange={handleOperationTypeChange}
-        >
+        <Select value={filters.operation_type || 'all'} onValueChange={handleOperationTypeChange}>
           <SelectTrigger className="w-[180px]" data-testid="operation-type-filter">
             <SelectValue placeholder="Operation Type" />
           </SelectTrigger>
@@ -131,10 +128,7 @@ export function TraceFiltersComponent({ filters, onFilterChange }: TraceFiltersP
           </SelectContent>
         </Select>
 
-        <Select
-          value={filters.status || 'all'}
-          onValueChange={handleStatusChange}
-        >
+        <Select value={filters.status || 'all'} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-[150px]" data-testid="status-filter">
             <SelectValue placeholder="Status" />
           </SelectTrigger>

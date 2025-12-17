@@ -687,6 +687,56 @@ class ModelHealthStatus(BaseModel):
     last_checked: datetime = Field(..., description="When health was last checked")
 
 
+# =============================================================================
+# Query Rewriter Model Schemas (Story 8-0)
+# =============================================================================
+
+
+class RewriterModelResponse(BaseModel):
+    """Response for query rewriter model configuration.
+
+    Story 8-0: History-Aware Query Rewriting
+    Returns the currently configured query rewriter model ID, or null
+    if using the default generation model fallback.
+    """
+
+    model_id: UUID | None = Field(
+        None,
+        description="Configured rewriter model UUID, or null to use default generation model",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_id": "123e4567-e89b-12d3-a456-426614174000",
+            }
+        }
+    )
+
+
+class RewriterModelUpdateRequest(BaseModel):
+    """Request to update query rewriter model configuration.
+
+    Story 8-0: History-Aware Query Rewriting
+    Set model_id to a generation model UUID, or null to use
+    the default generation model fallback.
+    """
+
+    model_id: UUID | None = Field(
+        None,
+        description="Generation model UUID to use for query rewriting, "
+        "or null to use default generation model",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_id": "123e4567-e89b-12d3-a456-426614174000",
+            }
+        }
+    )
+
+
 class LLMHealthResponse(BaseModel):
     """Health status response for all configured models."""
 

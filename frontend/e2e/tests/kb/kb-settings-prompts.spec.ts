@@ -178,9 +178,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
   });
 
   test.describe('[P0] AC-7.15.4: Citation Style Selector', () => {
-    test('displays citation style dropdown with all options', async ({
-      authenticatedPage,
-    }) => {
+    test('displays citation style dropdown with all options', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on Prompts tab
        * WHEN: User clicks citation style dropdown
@@ -256,9 +254,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
   });
 
   test.describe('[P1] AC-7.15.6: Response Language Input', () => {
-    test('displays response language input with placeholder', async ({
-      authenticatedPage,
-    }) => {
+    test('displays response language input with placeholder', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on Prompts tab
        * WHEN: Viewing response language input
@@ -273,9 +269,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
       await page.locator('[data-testid="kb-settings-tab-prompts"]').click();
 
       // Verify input with placeholder
-      await expect(
-        page.getByPlaceholder(/leave empty for auto-detect/i)
-      ).toBeVisible();
+      await expect(page.getByPlaceholder(/leave empty for auto-detect/i)).toBeVisible();
     });
 
     test('accepts ISO 639-1 language codes', async ({ authenticatedPage }) => {
@@ -300,9 +294,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
   });
 
   test.describe('[P1] AC-7.15.7: Preview Modal', () => {
-    test('opens preview modal with variable substitution', async ({
-      authenticatedPage,
-    }) => {
+    test('opens preview modal with variable substitution', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User has entered system prompt with variables
        * WHEN: User clicks Preview button
@@ -330,9 +322,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
       await expect(page.getByRole('dialog')).toContainText('Test KB for Prompts');
     });
 
-    test('disables preview button when no prompt content', async ({
-      authenticatedPage,
-    }) => {
+    test('disables preview button when no prompt content', async ({ authenticatedPage }) => {
       /**
        * GIVEN: System prompt is empty
        * THEN: Preview button is disabled
@@ -370,9 +360,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
   });
 
   test.describe('[P1] AC-7.15.8: Prompt Templates', () => {
-    test('displays template options when clicking Load Template', async ({
-      authenticatedPage,
-    }) => {
+    test('displays template options when clicking Load Template', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on Prompts tab
        * WHEN: User clicks Load Template dropdown
@@ -393,9 +381,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
       await expect(page.getByRole('option', { name: /default rag/i })).toBeVisible();
       await expect(page.getByRole('option', { name: /strict citations/i })).toBeVisible();
       await expect(page.getByRole('option', { name: /conversational/i })).toBeVisible();
-      await expect(
-        page.getByRole('option', { name: /technical documentation/i })
-      ).toBeVisible();
+      await expect(page.getByRole('option', { name: /technical documentation/i })).toBeVisible();
     });
 
     test('shows confirmation dialog when loading template with existing content', async ({
@@ -456,9 +442,7 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
       await expect(textarea).toContainText(/helpful assistant/i);
     });
 
-    test('loads template directly when system prompt is empty', async ({
-      authenticatedPage,
-    }) => {
+    test('loads template directly when system prompt is empty', async ({ authenticatedPage }) => {
       /**
        * GIVEN: System prompt is empty
        * WHEN: User selects a template
@@ -541,7 +525,9 @@ test.describe('Story 7-15: KB Settings UI - Prompts Panel', () => {
 
       // Verify API call includes prompts
       await expect.poll(() => savedSettings).not.toBeNull();
-      expect((savedSettings as KBSettings | null)?.prompts?.system_prompt).toBe('Custom prompt for testing');
+      expect((savedSettings as KBSettings | null)?.prompts?.system_prompt).toBe(
+        'Custom prompt for testing'
+      );
     });
   });
 });

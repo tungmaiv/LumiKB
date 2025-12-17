@@ -3,7 +3,17 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Database, FolderOpen, Clock, Sparkles, Search, X, LayoutDashboard, Archive } from 'lucide-react';
+import {
+  Plus,
+  Database,
+  FolderOpen,
+  Clock,
+  Sparkles,
+  Search,
+  X,
+  LayoutDashboard,
+  Archive,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,7 +65,8 @@ export function KbSidebar(): React.ReactElement {
 
   const isDashboardActive = pathname === '/dashboard';
 
-  const { kbs, activeKb, isLoading, error, fetchKbs, setActiveKb, showArchived, setShowArchived } = useKBStore();
+  const { kbs, activeKb, isLoading, error, fetchKbs, setActiveKb, showArchived, setShowArchived } =
+    useKBStore();
   const user = useAuthStore((state) => state.user);
 
   // Filter KBs based on search query (name, description, or tags) and archived status
@@ -88,14 +99,8 @@ export function KbSidebar(): React.ReactElement {
   const showSearch = kbs.length >= 5;
 
   // Fetch recent KBs and recommendations
-  const {
-    data: recentKBs,
-    isLoading: isLoadingRecent,
-  } = useRecentKBs();
-  const {
-    data: recommendations,
-    isLoading: isLoadingRecommendations,
-  } = useKBRecommendations();
+  const { data: recentKBs, isLoading: isLoadingRecent } = useRecentKBs();
+  const { data: recommendations, isLoading: isLoadingRecommendations } = useKBRecommendations();
 
   // Check if user has admin permission on any KB (or can create new ones)
   // Users who are authenticated can create KBs (they become owner with ADMIN)
@@ -107,13 +112,19 @@ export function KbSidebar(): React.ReactElement {
     fetchKbs({ include_archived: true });
   }, [fetchKbs]);
 
-  const handleKbClick = useCallback((kb: KnowledgeBase) => {
-    setActiveKb(kb);
-  }, [setActiveKb]);
+  const handleKbClick = useCallback(
+    (kb: KnowledgeBase) => {
+      setActiveKb(kb);
+    },
+    [setActiveKb]
+  );
 
-  const handleToggleArchived = useCallback((checked: boolean) => {
-    setShowArchived(checked);
-  }, [setShowArchived]);
+  const handleToggleArchived = useCallback(
+    (checked: boolean) => {
+      setShowArchived(checked);
+    },
+    [setShowArchived]
+  );
 
   const handleRecentKbClick = (kbId: string) => {
     // Find KB in store and set as active, then navigate to search
@@ -135,7 +146,8 @@ export function KbSidebar(): React.ReactElement {
 
   // Check if user has no access history for empty state
   const hasNoHistory = !isLoadingRecent && (!recentKBs || recentKBs.length === 0);
-  const hasRecommendations = !isLoadingRecommendations && recommendations && recommendations.length > 0;
+  const hasRecommendations =
+    !isLoadingRecommendations && recommendations && recommendations.length > 0;
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -144,9 +156,7 @@ export function KbSidebar(): React.ReactElement {
         <Link
           href="/dashboard"
           className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent ${
-            isDashboardActive
-              ? 'bg-accent text-accent-foreground'
-              : 'text-sidebar-foreground'
+            isDashboardActive ? 'bg-accent text-accent-foreground' : 'text-sidebar-foreground'
           }`}
         >
           <LayoutDashboard className="h-5 w-5" />
@@ -286,16 +296,18 @@ export function KbSidebar(): React.ReactElement {
         )}
 
         {/* Separator if we have recent or recommendations - hide when searching */}
-        {!searchQuery && ((recentKBs && recentKBs.length > 0) || (hasNoHistory && hasRecommendations)) && kbs.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center gap-2 px-3 py-2">
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                All Knowledge Bases
-              </span>
+        {!searchQuery &&
+          ((recentKBs && recentKBs.length > 0) || (hasNoHistory && hasRecommendations)) &&
+          kbs.length > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  All Knowledge Bases
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Search results header when searching */}
         {searchQuery && (
@@ -331,9 +343,7 @@ export function KbSidebar(): React.ReactElement {
           <div className="flex flex-col items-center justify-center px-3 py-8 text-center">
             <Search className="h-10 w-10 text-muted-foreground/50 mb-3" />
             <p className="text-sm text-muted-foreground">No matching Knowledge Bases</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Try a different search term
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Try a different search term</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -347,11 +357,7 @@ export function KbSidebar(): React.ReactElement {
                 isActive={activeKb?.id === kb.id}
                 isArchived={!!kb.archived_at}
                 onClick={() => handleKbClick(kb)}
-                actionSlot={
-                  kb.permission_level === 'ADMIN' ? (
-                    <KBActionsMenu kb={kb} />
-                  ) : undefined
-                }
+                actionSlot={kb.permission_level === 'ADMIN' ? <KBActionsMenu kb={kb} /> : undefined}
               />
             ))}
           </div>

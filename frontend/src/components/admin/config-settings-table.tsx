@@ -2,7 +2,7 @@
  * Table component for displaying system configuration settings.
  */
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -10,8 +10,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { ConfigSetting } from "@/types/config";
+} from '@/components/ui/table';
+import { ConfigSetting } from '@/types/config';
 
 interface ConfigSettingsTableProps {
   configs: Record<string, ConfigSetting>;
@@ -50,10 +50,10 @@ export function ConfigSettingsTable({ configs, onEdit }: ConfigSettingsTableProp
                   <TableRow key={setting.key}>
                     <TableCell className="font-medium">{setting.name}</TableCell>
                     <TableCell>
-                      {typeof setting.value === "boolean"
+                      {typeof setting.value === 'boolean'
                         ? setting.value
-                          ? "Enabled"
-                          : "Disabled"
+                          ? 'Enabled'
+                          : 'Disabled'
                         : setting.value}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -67,11 +67,7 @@ export function ConfigSettingsTable({ configs, onEdit }: ConfigSettingsTableProp
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEdit(setting.key)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => onEdit(setting.key)}>
                         Edit
                       </Button>
                     </TableCell>

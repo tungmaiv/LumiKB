@@ -20,13 +20,9 @@ import DashboardPage from '../page';
 
 // Mock Next.js Link component
 vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-  }: {
-    children: React.ReactNode;
-    href: string;
-  }) => <a href={href}>{children}</a>,
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 
 // Mock DashboardLayout
@@ -60,7 +56,12 @@ vi.mock('@/lib/stores/auth-store', () => ({
 }));
 
 // Variable to control KB state in tests
-let mockActiveKb: { id: string; name: string; description: string; permission_level?: string } | null = null;
+let mockActiveKb: {
+  id: string;
+  name: string;
+  description: string;
+  permission_level?: string;
+} | null = null;
 let mockKbs: Array<{ id: string; name: string }> = [];
 
 // Mock kb store

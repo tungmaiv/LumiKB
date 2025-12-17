@@ -135,9 +135,7 @@ describe('AdditionalPromptInput Component', () => {
      */
     const onChange = vi.fn();
 
-    render(
-      <AdditionalPromptInput value="" onChange={onChange} placeholder="Custom placeholder" />
-    );
+    render(<AdditionalPromptInput value="" onChange={onChange} placeholder="Custom placeholder" />);
 
     expect(screen.getByPlaceholderText('Custom placeholder')).toBeInTheDocument();
   });

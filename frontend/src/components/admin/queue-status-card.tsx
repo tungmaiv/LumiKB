@@ -11,10 +11,10 @@
  * Clickable to open TaskListModal with task details.
  */
 
-import { Server, Activity, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import type { QueueStatus } from "@/types/queue";
+import { Server, Activity, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import type { QueueStatus } from '@/types/queue';
 
 interface QueueStatusCardProps {
   queue: QueueStatus;
@@ -23,16 +23,16 @@ interface QueueStatusCardProps {
 
 export function QueueStatusCard({ queue, onClick }: QueueStatusCardProps) {
   // Calculate workers online/offline
-  const workersOnline = queue.workers.filter((w) => w.status === "online").length;
-  const workersOffline = queue.workers.filter((w) => w.status === "offline").length;
+  const workersOnline = queue.workers.filter((w) => w.status === 'online').length;
+  const workersOffline = queue.workers.filter((w) => w.status === 'offline').length;
   const totalWorkers = queue.workers.length;
 
   // Determine status color
   const getStatusColor = () => {
-    if (queue.status === "unavailable") return "destructive";
-    if (totalWorkers === 0) return "destructive"; // No workers
-    if (queue.pending_tasks > 100) return "secondary"; // Warning: high backlog
-    return "default"; // Healthy
+    if (queue.status === 'unavailable') return 'destructive';
+    if (totalWorkers === 0) return 'destructive'; // No workers
+    if (queue.pending_tasks > 100) return 'secondary'; // Warning: high backlog
+    return 'default'; // Healthy
   };
 
   const statusColor = getStatusColor();
@@ -40,18 +40,16 @@ export function QueueStatusCard({ queue, onClick }: QueueStatusCardProps) {
   return (
     <Card
       className={`cursor-pointer hover:bg-accent transition-colors ${
-        queue.status === "unavailable" ? "border-destructive" : ""
+        queue.status === 'unavailable' ? 'border-destructive' : ''
       }`}
       onClick={onClick}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          {queue.queue_name}
-        </CardTitle>
+        <CardTitle className="text-sm font-medium">{queue.queue_name}</CardTitle>
         <Server className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        {queue.status === "unavailable" ? (
+        {queue.status === 'unavailable' ? (
           <div className="flex items-center gap-2 text-sm text-destructive">
             <AlertTriangle className="h-4 w-4" />
             <span>Unavailable</span>
@@ -74,28 +72,22 @@ export function QueueStatusCard({ queue, onClick }: QueueStatusCardProps) {
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">
                   {workersOnline > 0 && (
-                    <span className="text-green-600 font-medium">
-                      {workersOnline} online
-                    </span>
+                    <span className="text-green-600 font-medium">{workersOnline} online</span>
                   )}
-                  {workersOnline > 0 && workersOffline > 0 && ", "}
+                  {workersOnline > 0 && workersOffline > 0 && ', '}
                   {workersOffline > 0 && (
-                    <span className="text-destructive font-medium">
-                      {workersOffline} offline
-                    </span>
+                    <span className="text-destructive font-medium">{workersOffline} offline</span>
                   )}
-                  {totalWorkers === 0 && (
-                    <span className="text-muted-foreground">No workers</span>
-                  )}
+                  {totalWorkers === 0 && <span className="text-muted-foreground">No workers</span>}
                 </span>
               </div>
 
               <Badge variant={statusColor}>
                 {totalWorkers === 0
-                  ? "No Workers"
+                  ? 'No Workers'
                   : queue.pending_tasks > 100
-                  ? "High Load"
-                  : "Healthy"}
+                    ? 'High Load'
+                    : 'Healthy'}
               </Badge>
             </div>
           </>

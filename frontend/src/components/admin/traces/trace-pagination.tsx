@@ -80,7 +80,11 @@ export function TracePagination({
               onValueChange={(value) => onLimitChange(parseInt(value, 10))}
               disabled={isLoading}
             >
-              <SelectTrigger id="trace-page-size" className="w-[80px]" data-testid="trace-page-size-select">
+              <SelectTrigger
+                id="trace-page-size"
+                className="w-[80px]"
+                data-testid="trace-page-size-select"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

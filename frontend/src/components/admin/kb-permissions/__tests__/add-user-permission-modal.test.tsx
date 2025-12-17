@@ -15,50 +15,50 @@
  * - component-tdd.md: Component testing patterns
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { vi, describe, it, expect, beforeEach } from "vitest";
-import { AddUserPermissionModal } from "../add-user-permission-modal";
-import type { UserRead, PermissionLevel } from "@/types/user";
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { AddUserPermissionModal } from '../add-user-permission-modal';
+import type { UserRead, PermissionLevel } from '@/types/user';
 
 // Test data
 const mockUsers: UserRead[] = [
   {
-    id: "user-1",
-    email: "alice@example.com",
+    id: 'user-1',
+    email: 'alice@example.com',
     is_active: true,
     is_superuser: false,
     is_verified: true,
     permission_level: 1 as PermissionLevel, // User
-    created_at: "2025-01-01T00:00:00Z",
+    created_at: '2025-01-01T00:00:00Z',
     onboarding_completed: true,
-    last_active: "2025-01-01T00:00:00Z",
+    last_active: '2025-01-01T00:00:00Z',
   },
   {
-    id: "user-2",
-    email: "bob@example.com",
+    id: 'user-2',
+    email: 'bob@example.com',
     is_active: true,
     is_superuser: true,
     is_verified: true,
     permission_level: 3 as PermissionLevel, // Administrator
-    created_at: "2025-01-01T00:00:00Z",
+    created_at: '2025-01-01T00:00:00Z',
     onboarding_completed: true,
-    last_active: "2025-01-01T00:00:00Z",
+    last_active: '2025-01-01T00:00:00Z',
   },
   {
-    id: "user-3",
-    email: "charlie@example.com",
+    id: 'user-3',
+    email: 'charlie@example.com',
     is_active: true,
     is_superuser: false,
     is_verified: true,
     permission_level: 1 as PermissionLevel, // User
-    created_at: "2025-01-01T00:00:00Z",
+    created_at: '2025-01-01T00:00:00Z',
     onboarding_completed: true,
-    last_active: "2025-01-01T00:00:00Z",
+    last_active: '2025-01-01T00:00:00Z',
   },
 ];
 
-describe("AddUserPermissionModal", () => {
+describe('AddUserPermissionModal', () => {
   const defaultProps = {
     open: true,
     onOpenChange: vi.fn(),
@@ -73,8 +73,8 @@ describe("AddUserPermissionModal", () => {
     vi.clearAllMocks();
   });
 
-  describe("rendering", () => {
-    it("[P1] should render modal with title and description", () => {
+  describe('rendering', () => {
+    it('[P1] should render modal with title and description', () => {
       /**
        * GIVEN: Modal is open
        * WHEN: Component renders
@@ -82,13 +82,11 @@ describe("AddUserPermissionModal", () => {
        */
       render(<AddUserPermissionModal {...defaultProps} />);
 
-      expect(screen.getByText("Add User Permission")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Grant a user access to this Knowledge Base/)
-      ).toBeInTheDocument();
+      expect(screen.getByText('Add User Permission')).toBeInTheDocument();
+      expect(screen.getByText(/Grant a user access to this Knowledge Base/)).toBeInTheDocument();
     });
 
-    it("[P1] should render all available users in list", () => {
+    it('[P1] should render all available users in list', () => {
       /**
        * GIVEN: Users array provided
        * WHEN: Modal renders
@@ -96,32 +94,27 @@ describe("AddUserPermissionModal", () => {
        */
       render(<AddUserPermissionModal {...defaultProps} />);
 
-      expect(screen.getByText("alice@example.com")).toBeInTheDocument();
-      expect(screen.getByText("bob@example.com")).toBeInTheDocument();
-      expect(screen.getByText("charlie@example.com")).toBeInTheDocument();
+      expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+      expect(screen.getByText('bob@example.com')).toBeInTheDocument();
+      expect(screen.getByText('charlie@example.com')).toBeInTheDocument();
     });
 
-    it("[P1] should exclude users with existing permissions", () => {
+    it('[P1] should exclude users with existing permissions', () => {
       /**
        * GIVEN: Some users already have permissions
        * WHEN: Modal renders
        * THEN: Those users are not shown
        */
-      render(
-        <AddUserPermissionModal
-          {...defaultProps}
-          existingUserIds={["user-1", "user-3"]}
-        />
-      );
+      render(<AddUserPermissionModal {...defaultProps} existingUserIds={['user-1', 'user-3']} />);
 
-      expect(screen.queryByText("alice@example.com")).not.toBeInTheDocument();
-      expect(screen.getByText("bob@example.com")).toBeInTheDocument();
-      expect(screen.queryByText("charlie@example.com")).not.toBeInTheDocument();
+      expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument();
+      expect(screen.getByText('bob@example.com')).toBeInTheDocument();
+      expect(screen.queryByText('charlie@example.com')).not.toBeInTheDocument();
     });
   });
 
-  describe("loading state", () => {
-    it("[P2] should show loading indicator when loading users", () => {
+  describe('loading state', () => {
+    it('[P2] should show loading indicator when loading users', () => {
       /**
        * GIVEN: Users are being loaded
        * WHEN: Modal renders
@@ -129,12 +122,12 @@ describe("AddUserPermissionModal", () => {
        */
       render(<AddUserPermissionModal {...defaultProps} usersLoading={true} />);
 
-      expect(screen.getByText("Loading users...")).toBeInTheDocument();
+      expect(screen.getByText('Loading users...')).toBeInTheDocument();
     });
   });
 
-  describe("user selection", () => {
-    it("[P1] should select user when clicked", async () => {
+  describe('user selection', () => {
+    it('[P1] should select user when clicked', async () => {
       /**
        * GIVEN: User list displayed
        * WHEN: User clicks on a user
@@ -143,7 +136,7 @@ describe("AddUserPermissionModal", () => {
       const user = userEvent.setup();
       render(<AddUserPermissionModal {...defaultProps} />);
 
-      const aliceButton = screen.getByText("alice@example.com").closest("button");
+      const aliceButton = screen.getByText('alice@example.com').closest('button');
       await user.click(aliceButton!);
 
       // Check that selection is shown
@@ -151,8 +144,8 @@ describe("AddUserPermissionModal", () => {
     });
   });
 
-  describe("search", () => {
-    it("[P1] should filter users by search query", async () => {
+  describe('search', () => {
+    it('[P1] should filter users by search query', async () => {
       /**
        * GIVEN: Users displayed
        * WHEN: User types in search
@@ -161,15 +154,15 @@ describe("AddUserPermissionModal", () => {
       const user = userEvent.setup();
       render(<AddUserPermissionModal {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholderText("Search by email...");
-      await user.type(searchInput, "alice");
+      const searchInput = screen.getByPlaceholderText('Search by email...');
+      await user.type(searchInput, 'alice');
 
-      expect(screen.getByText("alice@example.com")).toBeInTheDocument();
-      expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
-      expect(screen.queryByText("charlie@example.com")).not.toBeInTheDocument();
+      expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+      expect(screen.queryByText('bob@example.com')).not.toBeInTheDocument();
+      expect(screen.queryByText('charlie@example.com')).not.toBeInTheDocument();
     });
 
-    it("[P2] should show no results message when search finds nothing", async () => {
+    it('[P2] should show no results message when search finds nothing', async () => {
       /**
        * GIVEN: Users displayed
        * WHEN: User searches for non-existent email
@@ -178,17 +171,15 @@ describe("AddUserPermissionModal", () => {
       const user = userEvent.setup();
       render(<AddUserPermissionModal {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholderText("Search by email...");
-      await user.type(searchInput, "nonexistent");
+      const searchInput = screen.getByPlaceholderText('Search by email...');
+      await user.type(searchInput, 'nonexistent');
 
-      expect(
-        screen.getByText("No users found matching your search")
-      ).toBeInTheDocument();
+      expect(screen.getByText('No users found matching your search')).toBeInTheDocument();
     });
   });
 
-  describe("form submission", () => {
-    it("[P1] should call onGrantPermission with selected user and level", async () => {
+  describe('form submission', () => {
+    it('[P1] should call onGrantPermission with selected user and level', async () => {
       /**
        * GIVEN: User selected and permission level set
        * WHEN: Form is submitted
@@ -196,30 +187,25 @@ describe("AddUserPermissionModal", () => {
        */
       const user = userEvent.setup();
       const onGrantPermission = vi.fn().mockResolvedValue(undefined);
-      render(
-        <AddUserPermissionModal
-          {...defaultProps}
-          onGrantPermission={onGrantPermission}
-        />
-      );
+      render(<AddUserPermissionModal {...defaultProps} onGrantPermission={onGrantPermission} />);
 
       // Select a user
-      const aliceButton = screen.getByText("alice@example.com").closest("button");
+      const aliceButton = screen.getByText('alice@example.com').closest('button');
       await user.click(aliceButton!);
 
       // Submit form
-      const submitButton = screen.getByText("Grant Permission");
+      const submitButton = screen.getByText('Grant Permission');
       await user.click(submitButton);
 
       await waitFor(() => {
         expect(onGrantPermission).toHaveBeenCalledWith({
-          user_id: "user-1",
-          permission_level: "READ", // default
+          user_id: 'user-1',
+          permission_level: 'READ', // default
         });
       });
     });
 
-    it("[P2] should show error when submitting without user selection", async () => {
+    it('[P2] should show error when submitting without user selection', async () => {
       /**
        * GIVEN: No user selected
        * WHEN: Form is submitted
@@ -229,11 +215,11 @@ describe("AddUserPermissionModal", () => {
       render(<AddUserPermissionModal {...defaultProps} />);
 
       // Submit button should be disabled when no user selected
-      const submitButton = screen.getByText("Grant Permission");
+      const submitButton = screen.getByText('Grant Permission');
       expect(submitButton).toBeDisabled();
     });
 
-    it("[P1] should close modal on successful submission", async () => {
+    it('[P1] should close modal on successful submission', async () => {
       /**
        * GIVEN: Valid user selection
        * WHEN: Form is submitted successfully
@@ -241,16 +227,14 @@ describe("AddUserPermissionModal", () => {
        */
       const user = userEvent.setup();
       const onOpenChange = vi.fn();
-      render(
-        <AddUserPermissionModal {...defaultProps} onOpenChange={onOpenChange} />
-      );
+      render(<AddUserPermissionModal {...defaultProps} onOpenChange={onOpenChange} />);
 
       // Select a user
-      const aliceButton = screen.getByText("alice@example.com").closest("button");
+      const aliceButton = screen.getByText('alice@example.com').closest('button');
       await user.click(aliceButton!);
 
       // Submit form
-      const submitButton = screen.getByText("Grant Permission");
+      const submitButton = screen.getByText('Grant Permission');
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -259,8 +243,8 @@ describe("AddUserPermissionModal", () => {
     });
   });
 
-  describe("cancel", () => {
-    it("[P1] should close modal when cancel clicked", async () => {
+  describe('cancel', () => {
+    it('[P1] should close modal when cancel clicked', async () => {
       /**
        * GIVEN: Modal open
        * WHEN: Cancel button clicked
@@ -268,11 +252,9 @@ describe("AddUserPermissionModal", () => {
        */
       const user = userEvent.setup();
       const onOpenChange = vi.fn();
-      render(
-        <AddUserPermissionModal {...defaultProps} onOpenChange={onOpenChange} />
-      );
+      render(<AddUserPermissionModal {...defaultProps} onOpenChange={onOpenChange} />);
 
-      const cancelButton = screen.getByText("Cancel");
+      const cancelButton = screen.getByText('Cancel');
       await user.click(cancelButton);
 
       expect(onOpenChange).toHaveBeenCalledWith(false);

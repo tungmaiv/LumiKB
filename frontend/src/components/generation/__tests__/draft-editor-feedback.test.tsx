@@ -216,8 +216,10 @@ describe('DraftEditor Feedback Integration', () => {
       });
 
       // Select a feedback option (find radio button or label)
-      const feedbackOption = screen.getByText((content) =>
-        content.toLowerCase().includes('results aren') && content.toLowerCase().includes('relevant')
+      const feedbackOption = screen.getByText(
+        (content) =>
+          content.toLowerCase().includes('results aren') &&
+          content.toLowerCase().includes('relevant')
       );
       await userEvent.click(feedbackOption);
 
@@ -244,9 +246,7 @@ describe('DraftEditor Feedback Integration', () => {
         },
       ];
 
-      render(
-        <DraftEditor {...defaultProps} onRecoveryAction={onRecoveryAction} />
-      );
+      render(<DraftEditor {...defaultProps} onRecoveryAction={onRecoveryAction} />);
 
       // RecoveryModal should be triggered by state in real flow
       // This tests the handler is properly wired

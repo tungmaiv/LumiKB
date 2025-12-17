@@ -5,8 +5,8 @@
  * Story 7-27: Extended with document_status filter support.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import type { TaskInfo, TaskInfoWithSteps, DocumentStatusFilter } from "@/types/queue";
+import { useQuery } from '@tanstack/react-query';
+import type { TaskInfo, TaskInfoWithSteps, DocumentStatusFilter } from '@/types/queue';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -27,7 +27,7 @@ async function fetchQueueTasks(
 
   const url = `${API_BASE_URL}/api/v1/admin/queue/${queueName}/tasks${params.toString() ? `?${params}` : ''}`;
   const response = await fetch(url, {
-    credentials: "include",
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -51,7 +51,7 @@ export function useQueueTasks(
   enabled = true
 ) {
   return useQuery({
-    queryKey: ["admin", "queue", queueName, "tasks", documentStatus],
+    queryKey: ['admin', 'queue', queueName, 'tasks', documentStatus],
     queryFn: () => fetchQueueTasks(queueName, documentStatus),
     enabled,
     staleTime: 5000, // Consider data stale after 5s

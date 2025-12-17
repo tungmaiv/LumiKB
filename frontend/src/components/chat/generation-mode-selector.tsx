@@ -79,9 +79,7 @@ export function GenerationModeSelector({
         >
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            <SelectValue placeholder="Select generation mode">
-              {selectedMode?.label}
-            </SelectValue>
+            <SelectValue placeholder="Select generation mode">{selectedMode?.label}</SelectValue>
           </div>
         </SelectTrigger>
         <SelectContent>
@@ -95,9 +93,7 @@ export function GenerationModeSelector({
               >
                 <div className="flex flex-col">
                   <span className="font-medium">{mode.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {mode.description}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{mode.description}</span>
                 </div>
               </SelectItem>
             ))}

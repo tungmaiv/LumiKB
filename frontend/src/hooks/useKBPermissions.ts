@@ -3,7 +3,7 @@
  * Story 5.20: Role & KB Permission Management UI (AC-5.20.1, AC-5.20.2, AC-5.20.3)
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   PermissionExtended,
   PermissionCreate,
@@ -11,9 +11,9 @@ import type {
   PaginatedPermissionResponse,
   EffectivePermission,
   EffectivePermissionListResponse,
-} from "@/types/permission";
+} from '@/types/permission';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface UseKBPermissionsOptions {
   kbId: string;
@@ -60,38 +60,33 @@ async function fetchPermissions(
   const res = await fetch(
     `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/all?${params}`,
     {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
     }
   );
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error("ADMIN permission required");
-    if (res.status === 404) throw new Error("Knowledge Base not found");
-    if (res.status === 401) throw new Error("Authentication required");
+    if (res.status === 403) throw new Error('ADMIN permission required');
+    if (res.status === 404) throw new Error('Knowledge Base not found');
+    if (res.status === 401) throw new Error('Authentication required');
     throw new Error(`Failed to fetch permissions: ${res.statusText}`);
   }
 
   return res.json();
 }
 
-async function fetchEffectivePermissions(
-  kbId: string
-): Promise<EffectivePermissionListResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/effective`,
-    {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    }
-  );
+async function fetchEffectivePermissions(kbId: string): Promise<EffectivePermissionListResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/effective`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  });
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error("ADMIN permission required");
-    if (res.status === 404) throw new Error("Knowledge Base not found");
-    if (res.status === 401) throw new Error("Authentication required");
+    if (res.status === 403) throw new Error('ADMIN permission required');
+    if (res.status === 404) throw new Error('Knowledge Base not found');
+    if (res.status === 401) throw new Error('Authentication required');
     throw new Error(`Failed to fetch effective permissions: ${res.statusText}`);
   }
 
@@ -102,25 +97,22 @@ async function grantPermissionApi(
   kbId: string,
   data: PermissionCreate
 ): Promise<PermissionExtended> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/extended`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(data),
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/extended`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error("ADMIN permission required");
+    if (res.status === 403) throw new Error('ADMIN permission required');
     if (res.status === 404) {
       const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.detail || "Resource not found");
+      throw new Error(errorData?.detail || 'Resource not found');
     }
     if (res.status === 422) {
       const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.detail?.[0]?.msg || "Validation error");
+      throw new Error(errorData?.detail?.[0]?.msg || 'Validation error');
     }
     throw new Error(`Failed to grant permission: ${res.statusText}`);
   }
@@ -136,16 +128,16 @@ async function updatePermissionApi(
   const res = await fetch(
     `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/${permissionId}`,
     {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     }
   );
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error("ADMIN permission required");
-    if (res.status === 404) throw new Error("Permission not found");
+    if (res.status === 403) throw new Error('ADMIN permission required');
+    if (res.status === 404) throw new Error('Permission not found');
     throw new Error(`Failed to update permission: ${res.statusText}`);
   }
 
@@ -153,18 +145,15 @@ async function updatePermissionApi(
 }
 
 async function revokeUserPermissionApi(kbId: string, userId: string): Promise<void> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/${userId}`,
-    {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/${userId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  });
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error("ADMIN permission required");
-    if (res.status === 404) throw new Error("Permission not found");
+    if (res.status === 403) throw new Error('ADMIN permission required');
+    if (res.status === 404) throw new Error('Permission not found');
     throw new Error(`Failed to revoke permission: ${res.statusText}`);
   }
 }
@@ -173,15 +162,15 @@ async function revokeGroupPermissionApi(kbId: string, groupId: string): Promise<
   const res = await fetch(
     `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/permissions/groups/${groupId}`,
     {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
     }
   );
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error("ADMIN permission required");
-    if (res.status === 404) throw new Error("Permission not found");
+    if (res.status === 403) throw new Error('ADMIN permission required');
+    if (res.status === 404) throw new Error('Permission not found');
     throw new Error(`Failed to revoke group permission: ${res.statusText}`);
   }
 }
@@ -196,7 +185,7 @@ export function useKBPermissions({
   enabled = true,
 }: UseKBPermissionsOptions): UseKBPermissionsReturn {
   const queryClient = useQueryClient();
-  const queryKey = ["kb", kbId, "permissions", page, limit];
+  const queryKey = ['kb', kbId, 'permissions', page, limit];
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey,
@@ -210,8 +199,8 @@ export function useKBPermissions({
   const grantMutation = useMutation({
     mutationFn: (grantData: PermissionCreate) => grantPermissionApi(kbId, grantData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "permissions"] });
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "effective-permissions"] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'effective-permissions'] });
     },
   });
 
@@ -239,8 +228,8 @@ export function useKBPermissions({
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "permissions"] });
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "effective-permissions"] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'effective-permissions'] });
     },
   });
 
@@ -254,7 +243,7 @@ export function useKBPermissions({
         queryClient.setQueryData<PaginatedPermissionResponse>(queryKey, {
           ...previousData,
           data: previousData.data.filter(
-            (perm) => !(perm.entity_type === "user" && perm.entity_id === userId)
+            (perm) => !(perm.entity_type === 'user' && perm.entity_id === userId)
           ),
           total: previousData.total - 1,
         });
@@ -268,8 +257,8 @@ export function useKBPermissions({
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "permissions"] });
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "effective-permissions"] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'effective-permissions'] });
     },
   });
 
@@ -283,7 +272,7 @@ export function useKBPermissions({
         queryClient.setQueryData<PaginatedPermissionResponse>(queryKey, {
           ...previousData,
           data: previousData.data.filter(
-            (perm) => !(perm.entity_type === "group" && perm.entity_id === groupId)
+            (perm) => !(perm.entity_type === 'group' && perm.entity_id === groupId)
           ),
           total: previousData.total - 1,
         });
@@ -297,8 +286,8 @@ export function useKBPermissions({
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "permissions"] });
-      queryClient.invalidateQueries({ queryKey: ["kb", kbId, "effective-permissions"] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['kb', kbId, 'effective-permissions'] });
     },
   });
 
@@ -328,7 +317,7 @@ export function useEffectivePermissions(
   kbId: string,
   enabled = true
 ): UseEffectivePermissionsReturn {
-  const queryKey = ["kb", kbId, "effective-permissions"];
+  const queryKey = ['kb', kbId, 'effective-permissions'];
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey,

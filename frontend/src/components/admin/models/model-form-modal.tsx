@@ -10,11 +10,7 @@ import { useForm } from 'react-hook-form';
 import { Info } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -76,6 +72,7 @@ interface FormData {
   supports_vision: boolean;
   temperature_default: number;
   top_p_default: number;
+  timeout_seconds: number;
   cost_per_1m_input: number;
   cost_per_1m_output: number;
   // NER config
@@ -86,6 +83,7 @@ interface FormData {
   ner_response_format: 'json' | 'text';
   ner_logprobs_enabled: boolean;
   ner_stop_sequences: string;
+  ner_timeout_seconds: number;
   ner_cost_per_1m_input: number;
   ner_cost_per_1m_output: number;
 }
@@ -146,6 +144,7 @@ export function ModelFormModal({
       supports_vision: false,
       temperature_default: 0.7,
       top_p_default: 1.0,
+      timeout_seconds: 120,
       cost_per_1m_input: 0,
       cost_per_1m_output: 0,
       // NER defaults
@@ -156,6 +155,7 @@ export function ModelFormModal({
       ner_response_format: 'json',
       ner_logprobs_enabled: true,
       ner_stop_sequences: '\\n\\n,<END>,</json>',
+      ner_timeout_seconds: 30,
       ner_cost_per_1m_input: 0,
       ner_cost_per_1m_output: 0,
     },
@@ -195,8 +195,11 @@ export function ModelFormModal({
         supports_vision: (config?.supports_vision as boolean) ?? false,
         temperature_default: (config?.temperature_default as number) || 0.7,
         top_p_default: (config?.top_p_default as number) || 1.0,
-        cost_per_1m_input: (config?.cost_per_1m_input as number) || (config?.cost_per_1k_input as number) || 0,
-        cost_per_1m_output: (config?.cost_per_1m_output as number) || (config?.cost_per_1k_output as number) || 0,
+        timeout_seconds: (config?.timeout_seconds as number) || 120,
+        cost_per_1m_input:
+          (config?.cost_per_1m_input as number) || (config?.cost_per_1k_input as number) || 0,
+        cost_per_1m_output:
+          (config?.cost_per_1m_output as number) || (config?.cost_per_1k_output as number) || 0,
         // NER config
         ner_max_tokens: (config?.max_tokens as number) || 4096,
         ner_temperature_default: (config?.temperature_default as number) ?? 0,
@@ -205,6 +208,7 @@ export function ModelFormModal({
         ner_response_format: (config?.response_format as 'json' | 'text') || 'json',
         ner_logprobs_enabled: (config?.logprobs_enabled as boolean) ?? true,
         ner_stop_sequences: stopSeqString,
+        ner_timeout_seconds: (config?.timeout_seconds as number) || 30,
         ner_cost_per_1m_input: (config?.cost_per_1m_input as number) || 0,
         ner_cost_per_1m_output: (config?.cost_per_1m_output as number) || 0,
       });
@@ -230,6 +234,7 @@ export function ModelFormModal({
         supports_vision: false,
         temperature_default: 0.7,
         top_p_default: 1.0,
+        timeout_seconds: 120,
         cost_per_1m_input: 0,
         cost_per_1m_output: 0,
         // NER defaults
@@ -240,6 +245,7 @@ export function ModelFormModal({
         ner_response_format: 'json',
         ner_logprobs_enabled: true,
         ner_stop_sequences: '\\n\\n,<END>,</json>',
+        ner_timeout_seconds: 30,
         ner_cost_per_1m_input: 0,
         ner_cost_per_1m_output: 0,
       });
@@ -278,6 +284,7 @@ export function ModelFormModal({
         response_format: data.ner_response_format,
         logprobs_enabled: data.ner_logprobs_enabled,
         stop_sequences: stopSequences,
+        timeout_seconds: data.ner_timeout_seconds,
         cost_per_1m_input: data.ner_cost_per_1m_input,
         cost_per_1m_output: data.ner_cost_per_1m_output,
         tags: [],
@@ -293,6 +300,7 @@ export function ModelFormModal({
         temperature_default: data.temperature_default,
         temperature_range: [0.0, 2.0] as [number, number],
         top_p_default: data.top_p_default,
+        timeout_seconds: data.timeout_seconds,
         cost_per_1m_input: data.cost_per_1m_input,
         cost_per_1m_output: data.cost_per_1m_output,
         tags: [],
@@ -351,9 +359,7 @@ export function ModelFormModal({
               {...register('name', { required: 'Name is required' })}
               placeholder="GPT-4 Turbo"
             />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
           </div>
 
           {/* Provider */}
@@ -398,6 +404,28 @@ export function ModelFormModal({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* API Configuration */}
+          <div className="space-y-4">
+            <h4 className="font-medium">API Configuration</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="api_endpoint">API Endpoint (Optional)</Label>
+                <Input
+                  id="api_endpoint"
+                  {...register('api_endpoint')}
+                  placeholder="https://api.example.com/v1"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="api_key">
+                  API Key {isEditing && '(Leave blank to keep current)'}
+                </Label>
+                <Input id="api_key" type="password" {...register('api_key')} placeholder="sk-..." />
+              </div>
+            </div>
           </div>
 
           {/* Model ID and Type */}
@@ -455,33 +483,6 @@ export function ModelFormModal({
               </Select>
             </div>
           )}
-
-          {/* API Configuration */}
-          <div className="space-y-4">
-            <h4 className="font-medium">API Configuration</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="api_endpoint">API Endpoint (Optional)</Label>
-                <Input
-                  id="api_endpoint"
-                  {...register('api_endpoint')}
-                  placeholder="https://api.example.com/v1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="api_key">
-                  API Key {isEditing && '(Leave blank to keep current)'}
-                </Label>
-                <Input
-                  id="api_key"
-                  type="password"
-                  {...register('api_key')}
-                  placeholder="sk-..."
-                />
-              </div>
-            </div>
-          </div>
 
           {/* Type-Specific Config */}
           <Tabs value={selectedType} className="w-full">
@@ -592,9 +593,15 @@ export function ModelFormModal({
                       <TooltipContent side="top" className="max-w-xs">
                         <p className="font-medium mb-1">Temperature (Default: 0.7)</p>
                         <p>Controls randomness in responses.</p>
-                        <p className="mt-1"><strong>Low (0-0.3):</strong> Deterministic, focused output</p>
-                        <p><strong>Medium (0.4-0.7):</strong> Balanced creativity</p>
-                        <p><strong>High (0.8-2.0):</strong> More creative, varied responses</p>
+                        <p className="mt-1">
+                          <strong>Low (0-0.3):</strong> Deterministic, focused output
+                        </p>
+                        <p>
+                          <strong>Medium (0.4-0.7):</strong> Balanced creativity
+                        </p>
+                        <p>
+                          <strong>High (0.8-2.0):</strong> More creative, varied responses
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -620,10 +627,18 @@ export function ModelFormModal({
                       <TooltipContent side="top" className="max-w-xs">
                         <p className="font-medium mb-1">Top P / Nucleus Sampling (Default: 1.0)</p>
                         <p>Controls token selection threshold.</p>
-                        <p className="mt-1"><strong>1.0:</strong> Consider all tokens (recommended)</p>
-                        <p><strong>0.9:</strong> Top 90% probable tokens</p>
-                        <p><strong>Lower:</strong> More focused, less diverse output</p>
-                        <p className="mt-1 text-xs italic">Tip: Usually keep at 1.0 and adjust Temperature instead.</p>
+                        <p className="mt-1">
+                          <strong>1.0:</strong> Consider all tokens (recommended)
+                        </p>
+                        <p>
+                          <strong>0.9:</strong> Top 90% probable tokens
+                        </p>
+                        <p>
+                          <strong>Lower:</strong> More focused, less diverse output
+                        </p>
+                        <p className="mt-1 text-xs italic">
+                          Tip: Usually keep at 1.0 and adjust Temperature instead.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -638,6 +653,37 @@ export function ModelFormModal({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="timeout_seconds" className="flex items-center gap-1">
+                    Timeout (seconds)
+                    <Tooltip>
+                      <TooltipTrigger type="button" className="cursor-help">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="font-medium mb-1">Request Timeout (Default: 120s)</p>
+                        <p>Maximum time to wait for LLM response.</p>
+                        <p className="mt-1">
+                          <strong>Range:</strong> 1-600 seconds (10 min max)
+                        </p>
+                        <p className="mt-1 text-xs italic">
+                          Tip: Set lower for fast models like query rewriters.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
+                  <Input
+                    id="timeout_seconds"
+                    type="number"
+                    step="1"
+                    {...register('timeout_seconds', {
+                      valueAsNumber: true,
+                      min: 1,
+                      max: 600,
+                    })}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="cost_per_1m_input">Cost per 1M Input Tokens ($)</Label>
                   <Input
                     id="cost_per_1m_input"
@@ -646,16 +692,16 @@ export function ModelFormModal({
                     {...register('cost_per_1m_input', { valueAsNumber: true, min: 0 })}
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cost_per_1m_output">Cost per 1M Output Tokens ($)</Label>
-                  <Input
-                    id="cost_per_1m_output"
-                    type="number"
-                    step="0.01"
-                    {...register('cost_per_1m_output', { valueAsNumber: true, min: 0 })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="cost_per_1m_output">Cost per 1M Output Tokens ($)</Label>
+                <Input
+                  id="cost_per_1m_output"
+                  type="number"
+                  step="0.01"
+                  {...register('cost_per_1m_output', { valueAsNumber: true, min: 0 })}
+                />
               </div>
 
               <div className="space-y-2">
@@ -710,7 +756,11 @@ export function ModelFormModal({
                     id="ner_temperature_default"
                     type="number"
                     step="0.1"
-                    {...register('ner_temperature_default', { valueAsNumber: true, min: 0, max: 2 })}
+                    {...register('ner_temperature_default', {
+                      valueAsNumber: true,
+                      min: 0,
+                      max: 2,
+                    })}
                   />
                   <p className="text-xs text-muted-foreground">0 for deterministic output</p>
                 </div>
@@ -744,7 +794,9 @@ export function ModelFormModal({
                   <Label htmlFor="ner_response_format">Response Format</Label>
                   <Select
                     value={watch('ner_response_format')}
-                    onValueChange={(value) => setValue('ner_response_format', value as 'json' | 'text')}
+                    onValueChange={(value) =>
+                      setValue('ner_response_format', value as 'json' | 'text')
+                    }
                   >
                     <SelectTrigger id="ner_response_format">
                       <SelectValue placeholder="Select format" />
@@ -754,7 +806,9 @@ export function ModelFormModal({
                       <SelectItem value="text">Text</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Use JSON for structured entity output</p>
+                  <p className="text-xs text-muted-foreground">
+                    Use JSON for structured entity output
+                  </p>
                 </div>
 
                 <div className="space-y-2 flex flex-col justify-center">
@@ -770,14 +824,47 @@ export function ModelFormModal({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="ner_stop_sequences">Stop Sequences</Label>
-                <Input
-                  id="ner_stop_sequences"
-                  placeholder='e.g., \n\n, <END>, </json>'
-                  {...register('ner_stop_sequences')}
-                />
-                <p className="text-xs text-muted-foreground">Comma-separated stop sequences</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ner_stop_sequences">Stop Sequences</Label>
+                  <Input
+                    id="ner_stop_sequences"
+                    placeholder="e.g., \n\n, <END>, </json>"
+                    {...register('ner_stop_sequences')}
+                  />
+                  <p className="text-xs text-muted-foreground">Comma-separated stop sequences</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ner_timeout_seconds" className="flex items-center gap-1">
+                    Timeout (seconds)
+                    <Tooltip>
+                      <TooltipTrigger type="button" className="cursor-help">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="font-medium mb-1">Request Timeout (Default: 30s)</p>
+                        <p>Maximum time to wait for NER response.</p>
+                        <p className="mt-1">
+                          <strong>Range:</strong> 1-300 seconds (5 min max)
+                        </p>
+                        <p className="mt-1 text-xs italic">
+                          NER models are typically fast - 30s is usually sufficient.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
+                  <Input
+                    id="ner_timeout_seconds"
+                    type="number"
+                    step="1"
+                    {...register('ner_timeout_seconds', {
+                      valueAsNumber: true,
+                      min: 1,
+                      max: 300,
+                    })}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

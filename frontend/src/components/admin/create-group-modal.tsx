@@ -29,10 +29,7 @@ const createGroupSchema = z.object({
     .string()
     .min(1, 'Group name is required')
     .max(255, 'Group name must be at most 255 characters'),
-  description: z
-    .string()
-    .max(2000, 'Description must be at most 2000 characters')
-    .optional(),
+  description: z.string().max(2000, 'Description must be at most 2000 characters').optional(),
 });
 
 type CreateGroupFormData = z.infer<typeof createGroupSchema>;

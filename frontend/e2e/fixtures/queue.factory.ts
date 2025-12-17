@@ -94,10 +94,7 @@ export function createAllQueues(overrides?: {
     createQueueStatus('document_processing', {
       pending_tasks: 10,
       active_tasks: 3,
-      workers: [
-        createWorker('worker-doc-1', 'online'),
-        createWorker('worker-doc-2', 'online'),
-      ],
+      workers: [createWorker('worker-doc-1', 'online'), createWorker('worker-doc-2', 'online')],
       ...overrides?.documentProcessing,
     }),
     createQueueStatus('embedding_generation', {
@@ -118,9 +115,7 @@ export function createAllQueues(overrides?: {
 /**
  * Create queue status with no workers (warning state)
  */
-export function createQueueWithNoWorkers(
-  queueName: string = 'document_processing'
-): QueueStatus {
+export function createQueueWithNoWorkers(queueName: string = 'document_processing'): QueueStatus {
   return createQueueStatus(queueName, {
     pending_tasks: 20,
     active_tasks: 0,
@@ -132,9 +127,7 @@ export function createQueueWithNoWorkers(
 /**
  * Create queue status with high load (>100 pending tasks)
  */
-export function createQueueWithHighLoad(
-  queueName: string = 'document_processing'
-): QueueStatus {
+export function createQueueWithHighLoad(queueName: string = 'document_processing'): QueueStatus {
   return createQueueStatus(queueName, {
     pending_tasks: 150,
     active_tasks: 10,
@@ -168,9 +161,7 @@ export function createQueueWithOfflineWorkers(
 /**
  * Create unavailable queue status (Celery broker offline)
  */
-export function createUnavailableQueue(
-  queueName: string = 'document_processing'
-): QueueStatus {
+export function createUnavailableQueue(queueName: string = 'document_processing'): QueueStatus {
   return createQueueStatus(queueName, {
     pending_tasks: 0,
     active_tasks: 0,
@@ -293,7 +284,8 @@ export function createProcessingSteps(
 
     return createStepInfo(step, status, {
       duration_ms: status === 'done' ? 1000 + index * 500 : status === 'in_progress' ? 200 : null,
-      error_message: hasError && index === currentIndex ? `${step} failed: Connection timeout` : null,
+      error_message:
+        hasError && index === currentIndex ? `${step} failed: Connection timeout` : null,
     });
   });
 }
@@ -341,8 +333,11 @@ export function createTaskListWithSteps(options?: {
   // Active tasks (currently processing)
   for (let i = 0; i < activeCount; i++) {
     tasks.push(
-      createTaskWithSteps(`task-active-${++taskIndex}`, 'PROCESSING',
-        ['parse', 'chunk', 'embed', 'index'][i % 4] as 'parse' | 'chunk' | 'embed' | 'index')
+      createTaskWithSteps(
+        `task-active-${++taskIndex}`,
+        'PROCESSING',
+        ['parse', 'chunk', 'embed', 'index'][i % 4] as 'parse' | 'chunk' | 'embed' | 'index'
+      )
     );
   }
 
@@ -351,7 +346,7 @@ export function createTaskListWithSteps(options?: {
     tasks.push(
       createTaskWithSteps(`task-pending-${++taskIndex}`, 'PENDING', 'parse', {
         started_at: null,
-        processing_steps: createProcessingSteps('parse').map(s => ({
+        processing_steps: createProcessingSteps('parse').map((s) => ({
           ...s,
           status: 'pending' as StepStatus,
           started_at: null,

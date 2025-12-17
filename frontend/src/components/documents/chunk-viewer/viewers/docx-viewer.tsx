@@ -63,10 +63,7 @@ export function DOCXViewer({
 
   if (isLoading) {
     return (
-      <div
-        className="flex items-center justify-center h-full"
-        data-testid="docx-viewer-loading"
-      >
+      <div className="flex items-center justify-center h-full" data-testid="docx-viewer-loading">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -140,9 +137,7 @@ export function DOCXViewer({
               {text}
             </pre>
           ) : (
-            <div className="text-muted-foreground text-center">
-              No content available
-            </div>
+            <div className="text-muted-foreground text-center">No content available</div>
           )}
         </div>
       </div>

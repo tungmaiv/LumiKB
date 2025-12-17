@@ -197,9 +197,7 @@ export function PDFViewer({
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <span className="text-sm w-14 text-center">
-            {Math.round(scale * 100)}%
-          </span>
+          <span className="text-sm w-14 text-center">{Math.round(scale * 100)}%</span>
           <Button
             variant="ghost"
             size="icon"
@@ -274,23 +272,24 @@ export function PDFViewer({
               options={DOCUMENT_OPTIONS}
             >
               {/* Only render pages after PDF document proxy is ready */}
-              {canRenderPages && Array.from({ length: numPages }, (_, index) => (
-                <div
-                  key={`page_${index + 1}`}
-                  ref={(el) => {
-                    if (el) pageRefs.current.set(index + 1, el);
-                  }}
-                  className="shadow-lg"
-                >
-                  <Page
-                    pageNumber={index + 1}
-                    scale={scale}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="[&_.react-pdf__Page__canvas]:bg-white dark:[&_.react-pdf__Page__canvas]:bg-gray-100"
-                  />
-                </div>
-              ))}
+              {canRenderPages &&
+                Array.from({ length: numPages }, (_, index) => (
+                  <div
+                    key={`page_${index + 1}`}
+                    ref={(el) => {
+                      if (el) pageRefs.current.set(index + 1, el);
+                    }}
+                    className="shadow-lg"
+                  >
+                    <Page
+                      pageNumber={index + 1}
+                      scale={scale}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      className="[&_.react-pdf__Page__canvas]:bg-white dark:[&_.react-pdf__Page__canvas]:bg-gray-100"
+                    />
+                  </div>
+                ))}
             </Document>
           )}
         </div>

@@ -50,21 +50,33 @@ type ErrorScenarioFixtures = {
    * @example
    * await mockApiError(page, '/api/v1/search', ERROR_RESPONSES.INTERNAL_SERVER_ERROR);
    */
-  mockApiError: (page: Page, urlPattern: string | RegExp, errorResponse: typeof ERROR_RESPONSES[keyof typeof ERROR_RESPONSES]) => Promise<void>;
+  mockApiError: (
+    page: Page,
+    urlPattern: string | RegExp,
+    errorResponse: (typeof ERROR_RESPONSES)[keyof typeof ERROR_RESPONSES]
+  ) => Promise<void>;
 
   /**
    * Mock API endpoint to timeout
    * @example
    * await mockNetworkTimeout(page, '/api/v1/chat/stream');
    */
-  mockNetworkTimeout: (page: Page, urlPattern: string | RegExp, timeoutMs?: number) => Promise<void>;
+  mockNetworkTimeout: (
+    page: Page,
+    urlPattern: string | RegExp,
+    timeoutMs?: number
+  ) => Promise<void>;
 
   /**
    * Mock API endpoint to return malformed response
    * @example
    * await mockMalformedResponse(page, '/api/v1/search', 'invalid json');
    */
-  mockMalformedResponse: (page: Page, urlPattern: string | RegExp, responseBody: string) => Promise<void>;
+  mockMalformedResponse: (
+    page: Page,
+    urlPattern: string | RegExp,
+    responseBody: string
+  ) => Promise<void>;
 
   /**
    * Mock slow network (delay all requests)
@@ -85,9 +97,10 @@ export const test = base.extend<ErrorScenarioFixtures>({
           await route.fulfill({
             status: errorResponse.status,
             contentType: 'application/json',
-            body: typeof errorResponse.body === 'string'
-              ? errorResponse.body
-              : JSON.stringify(errorResponse.body),
+            body:
+              typeof errorResponse.body === 'string'
+                ? errorResponse.body
+                : JSON.stringify(errorResponse.body),
           });
         }
       });
@@ -98,7 +111,7 @@ export const test = base.extend<ErrorScenarioFixtures>({
     await use(async (page: Page, urlPattern: string | RegExp, timeoutMs = 30000) => {
       await page.route(urlPattern, async (route: Route) => {
         // Delay longer than Playwright's default timeout to simulate timeout
-        await new Promise(resolve => setTimeout(resolve, timeoutMs));
+        await new Promise((resolve) => setTimeout(resolve, timeoutMs));
         await route.abort('timedout');
       });
     });
@@ -119,7 +132,7 @@ export const test = base.extend<ErrorScenarioFixtures>({
   mockSlowNetwork: async ({}, use) => {
     await use(async (page: Page, delayMs: number) => {
       await page.route('**/*', async (route: Route) => {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
         await route.continue();
       });
     });

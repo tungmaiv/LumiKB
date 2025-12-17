@@ -32,11 +32,7 @@ test.describe('Story 5-6: KB Statistics Admin View E2E Tests', () => {
 
   test.beforeEach(async ({ page }) => {
     // Network-first: Mock KB stats API BEFORE navigation
-    await mockApiResponse(
-      page,
-      `**/api/v1/admin/knowledge-bases/${mockKbId}/stats`,
-      mockKbStats
-    );
+    await mockApiResponse(page, `**/api/v1/admin/knowledge-bases/${mockKbId}/stats`, mockKbStats);
   });
 
   test('[P0] KB stats page displays all metrics correctly (AC-5.6.1, AC-5.6.2, AC-5.6.3)', async ({
@@ -212,11 +208,7 @@ test.describe('Story 5-6: KB Statistics Admin View E2E Tests', () => {
       document_count: 50, // Changed from 42
     });
 
-    await mockApiResponse(
-      page,
-      `**/api/v1/admin/knowledge-bases/${mockKbId}/stats`,
-      updatedStats
-    );
+    await mockApiResponse(page, `**/api/v1/admin/knowledge-bases/${mockKbId}/stats`, updatedStats);
 
     // WHEN: Click refresh button
     const refreshButton = page.getByTestId('refresh-kb-stats-button');
@@ -294,11 +286,7 @@ test.describe('Story 5-6: KB Statistics Admin View E2E Tests', () => {
     const emptyKbId = '550e8400-e29b-41d4-a716-446655440001';
     const emptyKbStats = createEmptyKBStats(emptyKbId, 'Empty KB');
 
-    await mockApiResponse(
-      page,
-      `**/api/v1/admin/knowledge-bases/${emptyKbId}/stats`,
-      emptyKbStats
-    );
+    await mockApiResponse(page, `**/api/v1/admin/knowledge-bases/${emptyKbId}/stats`, emptyKbStats);
 
     // Navigate to empty KB stats page
     await page.goto(`/admin/kb-stats?kbId=${emptyKbId}`);
@@ -327,11 +315,7 @@ test.describe('Story 5-6: KB Statistics Admin View E2E Tests', () => {
     const largeKbStats = createLargeKBStats();
     largeKbStats.kb_id = largeKbId;
 
-    await mockApiResponse(
-      page,
-      `**/api/v1/admin/knowledge-bases/${largeKbId}/stats`,
-      largeKbStats
-    );
+    await mockApiResponse(page, `**/api/v1/admin/knowledge-bases/${largeKbId}/stats`, largeKbStats);
 
     // Navigate to large KB stats page
     await page.goto(`/admin/kb-stats?kbId=${largeKbId}`);

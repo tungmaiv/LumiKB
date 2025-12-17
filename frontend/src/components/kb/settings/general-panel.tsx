@@ -188,9 +188,7 @@ export function GeneralPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResetToDefaults}>
-              Reset to Defaults
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleResetToDefaults}>Reset to Defaults</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

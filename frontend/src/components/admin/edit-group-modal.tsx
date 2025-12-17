@@ -30,10 +30,7 @@ const editGroupSchema = z.object({
     .string()
     .min(1, 'Group name is required')
     .max(255, 'Group name must be at most 255 characters'),
-  description: z
-    .string()
-    .max(2000, 'Description must be at most 2000 characters')
-    .optional(),
+  description: z.string().max(2000, 'Description must be at most 2000 characters').optional(),
   is_active: z.boolean(),
 });
 
@@ -178,9 +175,7 @@ export function EditGroupModal({
               <div>
                 <p className="text-sm font-medium">{isActive ? 'Active' : 'Inactive'}</p>
                 <p className="text-xs text-muted-foreground">
-                  {isActive
-                    ? 'Group is active and visible'
-                    : 'Group is deactivated (soft deleted)'}
+                  {isActive ? 'Group is active and visible' : 'Group is deactivated (soft deleted)'}
                 </p>
               </div>
               <Switch

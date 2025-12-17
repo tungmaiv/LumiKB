@@ -3,7 +3,7 @@
  * Story 5-23 (AC-5.23.1): Shows step-level progress for each document
  */
 
-"use client";
+'use client';
 
 import {
   CheckCircle2,
@@ -14,7 +14,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -22,20 +22,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import type {
-  DocumentProcessingStatus,
-  ProcessingStep,
-  DocumentStatus,
-} from "@/types/processing";
-import {
-  STEP_LABELS,
-  DOC_STATUS_LABELS,
-  PROCESSING_STEPS_ORDER,
-} from "@/types/processing";
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import type { DocumentProcessingStatus, ProcessingStep, DocumentStatus } from '@/types/processing';
+import { STEP_LABELS, DOC_STATUS_LABELS, PROCESSING_STEPS_ORDER } from '@/types/processing';
 
 export interface DocumentProcessingTableProps {
   documents: DocumentProcessingStatus[];
@@ -52,15 +44,12 @@ export interface DocumentProcessingTableProps {
 /**
  * Get progress percentage based on current step
  */
-function getProgressPercentage(
-  status: DocumentStatus,
-  currentStep: ProcessingStep
-): number {
+function getProgressPercentage(status: DocumentStatus, currentStep: ProcessingStep): number {
   // Normalize status to lowercase for comparison (backend returns uppercase)
   const normalizedStatus = status.toLowerCase();
 
-  if (normalizedStatus === "ready" || normalizedStatus === "archived") return 100;
-  if (normalizedStatus === "failed" || normalizedStatus === "pending") {
+  if (normalizedStatus === 'ready' || normalizedStatus === 'archived') return 100;
+  if (normalizedStatus === 'failed' || normalizedStatus === 'pending') {
     // For failed/pending, show progress up to current step
     const stepIndex = PROCESSING_STEPS_ORDER.indexOf(currentStep);
     return Math.round((stepIndex / (PROCESSING_STEPS_ORDER.length - 1)) * 100);
@@ -68,9 +57,7 @@ function getProgressPercentage(
 
   const stepIndex = PROCESSING_STEPS_ORDER.indexOf(currentStep);
   // Add half step for in-progress
-  return Math.round(
-    ((stepIndex + 0.5) / (PROCESSING_STEPS_ORDER.length - 1)) * 100
-  );
+  return Math.round(((stepIndex + 0.5) / (PROCESSING_STEPS_ORDER.length - 1)) * 100);
 }
 
 /**
@@ -81,28 +68,28 @@ function getStatusBadge(status: DocumentStatus) {
   const normalizedStatus = status.toLowerCase();
 
   switch (normalizedStatus) {
-    case "ready":
+    case 'ready':
       return (
         <Badge variant="default" className="bg-green-600">
           <CheckCircle2 className="mr-1 h-3 w-3" />
           {DOC_STATUS_LABELS.ready}
         </Badge>
       );
-    case "processing":
+    case 'processing':
       return (
         <Badge variant="secondary" className="bg-blue-100 text-blue-800">
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
           {DOC_STATUS_LABELS.processing}
         </Badge>
       );
-    case "failed":
+    case 'failed':
       return (
         <Badge variant="destructive">
           <XCircle className="mr-1 h-3 w-3" />
           {DOC_STATUS_LABELS.failed}
         </Badge>
       );
-    case "pending":
+    case 'pending':
       return (
         <Badge variant="outline">
           <Clock className="mr-1 h-3 w-3" />
@@ -128,11 +115,11 @@ function formatFileSize(bytes: number): string {
  */
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
@@ -163,9 +150,7 @@ export function DocumentProcessingTable({
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <AlertCircle className="h-12 w-12 mb-4" />
         <p className="text-lg">No documents found</p>
-        <p className="text-sm">
-          Try adjusting your filters or upload some documents
-        </p>
+        <p className="text-sm">Try adjusting your filters or upload some documents</p>
       </div>
     );
   }
@@ -219,16 +204,16 @@ export function DocumentProcessingTable({
                       className="h-2"
                     />
                     <span className="text-xs text-muted-foreground">
-                      {doc.status.toLowerCase() === "ready"
-                        ? "Complete"
-                        : doc.status.toLowerCase() === "failed"
-                        ? `Failed at ${STEP_LABELS[doc.current_step]}`
-                        : `${STEP_LABELS[doc.current_step]}`}
+                      {doc.status.toLowerCase() === 'ready'
+                        ? 'Complete'
+                        : doc.status.toLowerCase() === 'failed'
+                          ? `Failed at ${STEP_LABELS[doc.current_step]}`
+                          : `${STEP_LABELS[doc.current_step]}`}
                     </span>
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {doc.chunk_count !== null ? doc.chunk_count : "-"}
+                  {doc.chunk_count !== null ? doc.chunk_count : '-'}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {formatDate(doc.created_at)}

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
-export type ExportFormat = "docx" | "pdf" | "markdown";
+export type ExportFormat = 'docx' | 'pdf' | 'markdown';
 
 interface UseExportOptions {
   draftId: string;
@@ -21,9 +21,9 @@ export function useExport({ draftId, onSuccess, onError }: UseExportOptions) {
     try {
       // Call export API
       const response = await fetch(`/api/v1/drafts/${draftId}/export`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ format }),
       });
@@ -37,15 +37,13 @@ export function useExport({ draftId, onSuccess, onError }: UseExportOptions) {
       const blob = await response.blob();
 
       // Extract filename from Content-Disposition header
-      const contentDisposition = response.headers.get("content-disposition");
+      const contentDisposition = response.headers.get('content-disposition');
       const filename =
-        contentDisposition
-          ?.split("filename=")[1]
-          ?.replace(/"/g, "") || `draft.${format}`;
+        contentDisposition?.split('filename=')[1]?.replace(/"/g, '') || `draft.${format}`;
 
       // Trigger download
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
+      const link = document.createElement('a');
       link.href = url;
       link.download = filename;
       document.body.appendChild(link);
@@ -58,8 +56,7 @@ export function useExport({ draftId, onSuccess, onError }: UseExportOptions) {
       onSuccess?.();
       return true;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Export failed";
+      const errorMessage = err instanceof Error ? err.message : 'Export failed';
       setError(errorMessage);
       onError?.(errorMessage);
       return false;

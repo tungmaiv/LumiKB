@@ -1,13 +1,7 @@
 import { LucideIcon } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface StatCardProps {
   title: string;
@@ -41,9 +35,7 @@ export function StatCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
         {trend && trend.length > 0 && (
           <div className="mt-4">
             <ResponsiveContainer width="100%" height={40}>

@@ -93,27 +93,22 @@ export function ObservabilityDashboard({
 
   // Generate mock trend data for sparklines (in production, this would come from API)
   const generateTrend = (base: number, variance: number = 0.2): number[] => {
-    return Array.from({ length: 12 }, () =>
-      base * (1 + (Math.random() - 0.5) * variance)
-    );
+    return Array.from({ length: 12 }, () => base * (1 + (Math.random() - 0.5) * variance));
   };
 
-  const llmTrend = data ? generateTrend(
-    (data.llm_usage?.total_input_tokens ?? 0) + (data.llm_usage?.total_output_tokens ?? 0)
-  ) : undefined;
+  const llmTrend = data
+    ? generateTrend(
+        (data.llm_usage?.total_input_tokens ?? 0) + (data.llm_usage?.total_output_tokens ?? 0)
+      )
+    : undefined;
 
-  const processingTrend = data ? generateTrend(
-    data.processing_metrics?.total_documents ?? 0
-  ) : undefined;
+  const processingTrend = data
+    ? generateTrend(data.processing_metrics?.total_documents ?? 0)
+    : undefined;
 
-  const chatTrend = data ? generateTrend(
-    data.chat_metrics?.total_messages ?? 0
-  ) : undefined;
+  const chatTrend = data ? generateTrend(data.chat_metrics?.total_messages ?? 0) : undefined;
 
-  const healthTrend = data ? generateTrend(
-    (1 - (data.error_rate ?? 0)) * 100,
-    0.05
-  ) : undefined;
+  const healthTrend = data ? generateTrend((1 - (data.error_rate ?? 0)) * 100, 0.05) : undefined;
 
   return (
     <div className="space-y-4">
@@ -157,37 +152,20 @@ export function ObservabilityDashboard({
       <div className="text-xs text-muted-foreground">
         Last updated: {formatLastUpdated(lastUpdated)}
         {refreshInterval > 0 && (
-          <span className="ml-2">
-            (auto-refresh every {refreshInterval / 1000}s)
-          </span>
+          <span className="ml-2">(auto-refresh every {refreshInterval / 1000}s)</span>
         )}
       </div>
 
       {/* Widget grid */}
-      <div
-        className="grid gap-4 md:grid-cols-2"
-        data-testid="widget-grid"
-      >
-        <LLMUsageWidget
-          data={data?.llm_usage}
-          isLoading={isLoading}
-          trend={llmTrend}
-        />
+      <div className="grid gap-4 md:grid-cols-2" data-testid="widget-grid">
+        <LLMUsageWidget data={data?.llm_usage} isLoading={isLoading} trend={llmTrend} />
         <ProcessingWidget
           data={data?.processing_metrics}
           isLoading={isLoading}
           trend={processingTrend}
         />
-        <ChatActivityWidget
-          data={data?.chat_metrics}
-          isLoading={isLoading}
-          trend={chatTrend}
-        />
-        <SystemHealthWidget
-          data={data}
-          isLoading={isLoading}
-          trend={healthTrend}
-        />
+        <ChatActivityWidget data={data?.chat_metrics} isLoading={isLoading} trend={chatTrend} />
+        <SystemHealthWidget data={data} isLoading={isLoading} trend={healthTrend} />
       </div>
     </div>
   );

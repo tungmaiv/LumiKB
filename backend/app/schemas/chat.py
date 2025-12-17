@@ -29,6 +29,26 @@ class KBParamsDebugInfo(BaseModel):
     uncertainty_handling: str = Field(..., description="Uncertainty handling strategy")
 
 
+class QueryRewriteDebugInfo(BaseModel):
+    """Debug information for query rewriting (Story 8-0).
+
+    Shows the original query, rewritten query, and rewriting metadata.
+    Only populated when chat history exists and rewriting is attempted.
+    """
+
+    original_query: str = Field(..., description="Original user query")
+    rewritten_query: str = Field(..., description="Reformulated standalone query")
+    was_rewritten: bool = Field(
+        ..., description="Whether the query was actually modified"
+    )
+    model_used: str = Field(
+        ..., description="LLM model ID used for rewriting (empty if skipped)"
+    )
+    latency_ms: float = Field(
+        ..., ge=0, description="Time spent on rewriting in milliseconds"
+    )
+
+
 class TimingDebugInfo(BaseModel):
     """Debug timing metrics (AC-9.15.11)."""
 
@@ -38,13 +58,17 @@ class TimingDebugInfo(BaseModel):
     context_assembly_ms: float = Field(
         ..., ge=0, description="Time spent on context assembly in milliseconds"
     )
+    query_rewrite_ms: float = Field(
+        default=0, ge=0, description="Time spent on query rewriting in milliseconds"
+    )
 
 
 class DebugInfo(BaseModel):
     """Complete debug information for RAG pipeline telemetry (AC-9.15.10-13).
 
     Emitted as SSE event type="debug" when KB debug_mode is enabled.
-    Contains KB parameters, retrieved chunks with scores, and timing metrics.
+    Contains KB parameters, retrieved chunks with scores, timing metrics,
+    and query rewriting information (Story 8-0).
     """
 
     kb_params: KBParamsDebugInfo = Field(
@@ -54,6 +78,10 @@ class DebugInfo(BaseModel):
         ..., description="Retrieved chunks with scores"
     )
     timing: TimingDebugInfo = Field(..., description="Pipeline timing breakdown")
+    query_rewrite: QueryRewriteDebugInfo | None = Field(
+        None,
+        description="Query rewriting info (Story 8-0) - present when history exists",
+    )
 
     model_config = {
         "json_schema_extra": {

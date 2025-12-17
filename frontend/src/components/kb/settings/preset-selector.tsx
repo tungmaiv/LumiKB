@@ -30,11 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  PRESET_OPTIONS,
-  getPresetSettings,
-  detectPreset,
-} from '@/lib/kb-presets';
+import { PRESET_OPTIONS, getPresetSettings, detectPreset } from '@/lib/kb-presets';
 import type { KBSettings } from '@/types/kb-settings';
 
 // =============================================================================
@@ -178,11 +174,10 @@ export function PresetSelector({
           shouldDirty: true,
           shouldValidate: true,
         });
-        form.setValue(
-          'prompts.uncertainty_handling',
-          presetSettings.prompts.uncertainty_handling,
-          { shouldDirty: true, shouldValidate: true }
-        );
+        form.setValue('prompts.uncertainty_handling', presetSettings.prompts.uncertainty_handling, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
       }
 
       // Update applied preset indicator and reset form modified flag
@@ -244,11 +239,7 @@ export function PresetSelector({
             Apply optimized settings for common use cases
           </p>
         </div>
-        <Select
-          value={detectedPreset}
-          onValueChange={handlePresetChange}
-          disabled={disabled}
-        >
+        <Select value={detectedPreset} onValueChange={handlePresetChange} disabled={disabled}>
           <SelectTrigger id="preset-selector" className="w-[160px]">
             <SelectValue>{getCurrentPresetLabel()}</SelectValue>
           </SelectTrigger>
@@ -272,19 +263,15 @@ export function PresetSelector({
           <AlertDialogHeader>
             <AlertDialogTitle>Apply Preset?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have custom settings that will be overwritten by this preset.
-              Are you sure you want to apply the{' '}
-              <strong>
-                {PRESET_OPTIONS.find((opt) => opt.value === pendingPreset)?.label}
-              </strong>{' '}
+              You have custom settings that will be overwritten by this preset. Are you sure you
+              want to apply the{' '}
+              <strong>{PRESET_OPTIONS.find((opt) => opt.value === pendingPreset)?.label}</strong>{' '}
               preset?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelApply}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmApply}>
-              Apply Preset
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmApply}>Apply Preset</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

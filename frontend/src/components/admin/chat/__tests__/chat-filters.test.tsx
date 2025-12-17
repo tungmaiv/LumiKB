@@ -97,13 +97,7 @@ describe('ChatFilters', () => {
       { id: 'user-2', name: 'Bob' },
     ];
 
-    render(
-      <ChatFilters
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-        users={users}
-      />
-    );
+    render(<ChatFilters filters={filters} onFiltersChange={onFiltersChange} users={users} />);
 
     // User filter should be present
     expect(screen.getByTestId('user-filter')).toBeInTheDocument();

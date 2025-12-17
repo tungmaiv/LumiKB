@@ -92,11 +92,7 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
   describe('[P0] AC-7.27.8: Bulk retry confirmation dialog', () => {
     it('should render dialog when open is true', () => {
       render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={['doc-1', 'doc-2']}
-        />,
+        <BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={['doc-1', 'doc-2']} />,
         { wrapper: createWrapper() }
       );
 
@@ -106,11 +102,7 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
 
     it('should not render dialog when open is false', () => {
       render(
-        <BulkRetryDialog
-          open={false}
-          onClose={vi.fn()}
-          selectedDocumentIds={['doc-1', 'doc-2']}
-        />,
+        <BulkRetryDialog open={false} onClose={vi.fn()} selectedDocumentIds={['doc-1', 'doc-2']} />,
         { wrapper: createWrapper() }
       );
 
@@ -134,29 +126,17 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
 
     it('should display "all failed" when retryAll is true', () => {
       render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={[]}
-          retryAll={true}
-        />,
+        <BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={[]} retryAll={true} />,
         { wrapper: createWrapper() }
       );
 
-      expect(screen.getByTestId('retry-count-message')).toHaveTextContent(
-        'Retry all failed'
-      );
+      expect(screen.getByTestId('retry-count-message')).toHaveTextContent('Retry all failed');
     });
 
     it('should have Cancel and Confirm buttons', () => {
-      render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={['doc-1']}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={['doc-1']} />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByTestId('cancel-button')).toBeInTheDocument();
       expect(screen.getByTestId('confirm-button')).toBeInTheDocument();
@@ -165,14 +145,9 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
     it('should call onClose when Cancel is clicked', async () => {
       const onClose = vi.fn();
 
-      render(
-        <BulkRetryDialog
-          open={true}
-          onClose={onClose}
-          selectedDocumentIds={['doc-1']}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<BulkRetryDialog open={true} onClose={onClose} selectedDocumentIds={['doc-1']} />, {
+        wrapper: createWrapper(),
+      });
 
       await user.click(screen.getByTestId('cancel-button'));
 
@@ -252,14 +227,9 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
 
   describe('[P1] Error Handling', () => {
     it('should handle single document retry', () => {
-      render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={['doc-1']}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={['doc-1']} />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByTestId('retry-count-message')).toHaveTextContent(
         'Retry 1 failed documents?'
@@ -267,14 +237,9 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
     });
 
     it('should handle empty selection gracefully', () => {
-      render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={[]}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={[]} />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByTestId('retry-count-message')).toHaveTextContent(
         'Retry 0 failed documents?'
@@ -284,32 +249,20 @@ describe('BulkRetryDialog Component (Story 7-27)', () => {
 
   describe('[P1] Accessibility', () => {
     it('should have proper dialog role and aria-labelledby', () => {
-      render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={['doc-1']}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={['doc-1']} />, {
+        wrapper: createWrapper(),
+      });
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveAttribute('aria-labelledby', 'bulk-retry-title');
     });
 
     it('should have visible title element', () => {
-      render(
-        <BulkRetryDialog
-          open={true}
-          onClose={vi.fn()}
-          selectedDocumentIds={['doc-1']}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<BulkRetryDialog open={true} onClose={vi.fn()} selectedDocumentIds={['doc-1']} />, {
+        wrapper: createWrapper(),
+      });
 
-      expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
-        'Confirm Retry'
-      );
+      expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Confirm Retry');
     });
   });
 });
@@ -331,20 +284,12 @@ describe('BulkRetryButton Component (Story 7-27, AC-7.27.6-7)', () => {
   }) => (
     <div data-testid="bulk-retry-controls">
       {failedCount > 0 && (
-        <button
-          onClick={onRetryAll}
-          disabled={disabled}
-          data-testid="retry-all-button"
-        >
+        <button onClick={onRetryAll} disabled={disabled} data-testid="retry-all-button">
           Retry All Failed ({failedCount})
         </button>
       )}
       {selectedCount > 0 && (
-        <button
-          onClick={onRetrySelected}
-          disabled={disabled}
-          data-testid="retry-selected-button"
-        >
+        <button onClick={onRetrySelected} disabled={disabled} data-testid="retry-selected-button">
           Retry Selected ({selectedCount})
         </button>
       )}

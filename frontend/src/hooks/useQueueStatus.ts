@@ -5,8 +5,8 @@
  * Uses React Query for caching and background refetch.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import type { QueueStatus } from "@/types/queue";
+import { useQuery } from '@tanstack/react-query';
+import type { QueueStatus } from '@/types/queue';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const REFETCH_INTERVAL = 10000; // 10 seconds
@@ -16,7 +16,7 @@ const REFETCH_INTERVAL = 10000; // 10 seconds
  */
 async function fetchQueueStatus(): Promise<QueueStatus[]> {
   const response = await fetch(`${API_BASE_URL}/api/v1/admin/queue/status`, {
-    credentials: "include",
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -33,7 +33,7 @@ async function fetchQueueStatus(): Promise<QueueStatus[]> {
  */
 export function useQueueStatus() {
   return useQuery({
-    queryKey: ["admin", "queue", "status"],
+    queryKey: ['admin', 'queue', 'status'],
     queryFn: fetchQueueStatus,
     refetchInterval: REFETCH_INTERVAL,
     staleTime: 5000, // Consider data stale after 5s (backend cache is 5min)

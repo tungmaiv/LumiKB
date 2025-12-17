@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { Download, X } from "lucide-react";
-import { useState } from "react";
-import { format } from "date-fns";
-import { AuditLogFilters } from "@/types/audit";
+import { Download, X } from 'lucide-react';
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { AuditLogFilters } from '@/types/audit';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface ExportAuditLogsModalProps {
   open: boolean;
@@ -14,7 +14,7 @@ interface ExportAuditLogsModalProps {
   recordCount: number;
 }
 
-type ExportFormat = "csv" | "json";
+type ExportFormat = 'csv' | 'json';
 
 export function ExportAuditLogsModal({
   open,
@@ -22,7 +22,7 @@ export function ExportAuditLogsModal({
   filters,
   recordCount,
 }: ExportAuditLogsModalProps) {
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("csv");
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('csv');
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,11 +34,11 @@ export function ExportAuditLogsModal({
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/audit/export`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        credentials: "include",
+        credentials: 'include',
         body: JSON.stringify({
           format: selectedFormat,
           filters: {
@@ -58,16 +58,16 @@ export function ExportAuditLogsModal({
       }
 
       // Get filename from Content-Disposition header or generate default
-      const contentDisposition = response.headers.get("Content-Disposition");
+      const contentDisposition = response.headers.get('Content-Disposition');
       const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
       const filename =
         filenameMatch?.[1] ||
-        `audit-log-export-${format(new Date(), "yyyyMMdd-HHmmss")}.${selectedFormat}`;
+        `audit-log-export-${format(new Date(), 'yyyyMMdd-HHmmss')}.${selectedFormat}`;
 
       // Download file
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
       a.download = filename;
       document.body.appendChild(a);
@@ -78,7 +78,7 @@ export function ExportAuditLogsModal({
       // Close modal on success
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      setError(err instanceof Error ? err.message : 'Export failed');
     } finally {
       setIsExporting(false);
     }
@@ -111,26 +111,21 @@ export function ExportAuditLogsModal({
           <h3 className="text-sm font-medium mb-2">Applied Filters:</h3>
           <div className="text-sm text-muted-foreground space-y-1">
             {filters.startDate && (
-              <p>
-                Start Date:{" "}
-                {format(new Date(filters.startDate), "MMM dd, yyyy")}
-              </p>
+              <p>Start Date: {format(new Date(filters.startDate), 'MMM dd, yyyy')}</p>
             )}
             {filters.endDate && (
-              <p>
-                End Date: {format(new Date(filters.endDate), "MMM dd, yyyy")}
-              </p>
+              <p>End Date: {format(new Date(filters.endDate), 'MMM dd, yyyy')}</p>
             )}
             {filters.userEmail && <p>User: {filters.userEmail}</p>}
             {filters.eventType && <p>Event Type: {filters.eventType}</p>}
-            {filters.resourceType && (
-              <p>Resource Type: {filters.resourceType}</p>
-            )}
+            {filters.resourceType && <p>Resource Type: {filters.resourceType}</p>}
             {!filters.startDate &&
               !filters.endDate &&
               !filters.userEmail &&
               !filters.eventType &&
-              !filters.resourceType && <p className="text-muted-foreground/50">No filters applied</p>}
+              !filters.resourceType && (
+                <p className="text-muted-foreground/50">No filters applied</p>
+              )}
           </div>
         </div>
 
@@ -143,8 +138,8 @@ export function ExportAuditLogsModal({
                 type="radio"
                 name="format"
                 value="csv"
-                checked={selectedFormat === "csv"}
-                onChange={() => setSelectedFormat("csv")}
+                checked={selectedFormat === 'csv'}
+                onChange={() => setSelectedFormat('csv')}
                 className="mr-2"
                 disabled={isExporting}
               />
@@ -155,8 +150,8 @@ export function ExportAuditLogsModal({
                 type="radio"
                 name="format"
                 value="json"
-                checked={selectedFormat === "json"}
-                onChange={() => setSelectedFormat("json")}
+                checked={selectedFormat === 'json'}
+                onChange={() => setSelectedFormat('json')}
                 className="mr-2"
                 disabled={isExporting}
               />

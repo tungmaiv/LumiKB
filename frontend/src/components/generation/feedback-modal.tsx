@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -11,17 +11,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 
 export type FeedbackType =
-  | "not_relevant"
-  | "wrong_format"
-  | "needs_more_detail"
-  | "low_confidence"
-  | "other";
+  | 'not_relevant'
+  | 'wrong_format'
+  | 'needs_more_detail'
+  | 'low_confidence'
+  | 'other';
 
 interface FeedbackOption {
   value: FeedbackType;
@@ -31,29 +31,29 @@ interface FeedbackOption {
 
 const FEEDBACK_OPTIONS: FeedbackOption[] = [
   {
-    value: "not_relevant",
-    label: "Results aren&apos;t relevant",
-    description: "Draft doesn&apos;t address my context",
+    value: 'not_relevant',
+    label: 'Results aren&apos;t relevant',
+    description: 'Draft doesn&apos;t address my context',
   },
   {
-    value: "wrong_format",
-    label: "Wrong format or structure",
-    description: "I need a different template",
+    value: 'wrong_format',
+    label: 'Wrong format or structure',
+    description: 'I need a different template',
   },
   {
-    value: "needs_more_detail",
-    label: "Needs more detail",
-    description: "Too high-level, missing specifics",
+    value: 'needs_more_detail',
+    label: 'Needs more detail',
+    description: 'Too high-level, missing specifics',
   },
   {
-    value: "low_confidence",
-    label: "Low confidence sources",
-    description: "Citations seem weak or off-topic",
+    value: 'low_confidence',
+    label: 'Low confidence sources',
+    description: 'Citations seem weak or off-topic',
   },
   {
-    value: "other",
-    label: "Other issue",
-    description: "Describe what went wrong",
+    value: 'other',
+    label: 'Other issue',
+    description: 'Describe what went wrong',
   },
 ];
 
@@ -71,7 +71,7 @@ export function FeedbackModal({
   isSubmitting = false,
 }: FeedbackModalProps) {
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
-  const [comments, setComments] = useState("");
+  const [comments, setComments] = useState('');
 
   const handleSubmit = () => {
     if (!selectedType) return;
@@ -80,13 +80,13 @@ export function FeedbackModal({
 
     // Reset form
     setSelectedType(null);
-    setComments("");
+    setComments('');
   };
 
   const handleClose = () => {
     // Reset form on close
     setSelectedType(null);
-    setComments("");
+    setComments('');
     onClose();
   };
 
@@ -110,27 +110,18 @@ export function FeedbackModal({
           >
             {FEEDBACK_OPTIONS.map((option) => (
               <div key={option.value} className="flex items-start space-x-3">
-                <RadioGroupItem
-                  value={option.value}
-                  id={option.value}
-                  className="mt-1"
-                />
+                <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                 <div className="grid gap-1">
-                  <Label
-                    htmlFor={option.value}
-                    className="cursor-pointer font-medium"
-                  >
+                  <Label htmlFor={option.value} className="cursor-pointer font-medium">
                     {option.label}
                   </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {option.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{option.description}</p>
                 </div>
               </div>
             ))}
           </RadioGroup>
 
-          {selectedType === "other" && (
+          {selectedType === 'other' && (
             <div className="space-y-2 pt-2">
               <Label htmlFor="comments">Comments</Label>
               <Textarea
@@ -153,11 +144,8 @@ export function FeedbackModal({
           <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedType || isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Submit"}
+          <Button onClick={handleSubmit} disabled={!selectedType || isSubmitting}>
+            {isSubmitting ? 'Submitting...' : 'Submit'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -97,10 +97,7 @@ async function createUserApi(data: UserCreate): Promise<UserRead> {
   return res.json();
 }
 
-async function updateUserApi(
-  id: string,
-  data: AdminUserUpdate
-): Promise<UserRead> {
+async function updateUserApi(id: string, data: AdminUserUpdate): Promise<UserRead> {
   const res = await fetch(`${API_BASE_URL}/api/v1/admin/users/${id}`, {
     method: 'PATCH',
     headers: {
@@ -132,12 +129,7 @@ export function useUsers({
 
   const queryKey = ['admin', 'users', page, pageSize, isActive];
 
-  const {
-    data,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey,
     queryFn: () => fetchUsers(page, pageSize, isActive),
     staleTime: 30 * 1000, // 30 seconds
@@ -154,8 +146,7 @@ export function useUsers({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: AdminUserUpdate }) =>
-      updateUserApi(id, data),
+    mutationFn: ({ id, data }: { id: string; data: AdminUserUpdate }) => updateUserApi(id, data),
     onMutate: async ({ id, data }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey });
@@ -167,9 +158,7 @@ export function useUsers({
       if (previousData) {
         queryClient.setQueryData<PaginatedResponse<UserRead>>(queryKey, {
           ...previousData,
-          data: previousData.data.map((user) =>
-            user.id === id ? { ...user, ...data } : user
-          ),
+          data: previousData.data.map((user) => (user.id === id ? { ...user, ...data } : user)),
         });
       }
 

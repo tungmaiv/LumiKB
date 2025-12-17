@@ -121,10 +121,9 @@ describe('useModelRegistry', () => {
       });
 
       // Act
-      const { result } = renderHook(
-        () => useModelRegistry({ type: 'embedding' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useModelRegistry({ type: 'embedding' }), {
+        wrapper: createWrapper(),
+      });
 
       // Assert
       await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -143,10 +142,9 @@ describe('useModelRegistry', () => {
       });
 
       // Act
-      const { result } = renderHook(
-        () => useModelRegistry({ provider: 'openai' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useModelRegistry({ provider: 'openai' }), {
+        wrapper: createWrapper(),
+      });
 
       // Assert
       await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -164,10 +162,9 @@ describe('useModelRegistry', () => {
       });
 
       // Act
-      const { result } = renderHook(
-        () => useModelRegistry({ status: 'deprecated' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useModelRegistry({ status: 'deprecated' }), {
+        wrapper: createWrapper(),
+      });
 
       // Assert
       await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -195,10 +192,7 @@ describe('useModelRegistry', () => {
       });
 
       // Assert
-      await waitFor(
-        () => expect(result.current.error).not.toBeNull(),
-        { timeout: 3000 }
-      );
+      await waitFor(() => expect(result.current.error).not.toBeNull(), { timeout: 3000 });
       expect(result.current.error?.message).toContain('Admin access required');
     });
 
@@ -220,10 +214,7 @@ describe('useModelRegistry', () => {
       });
 
       // Assert
-      await waitFor(
-        () => expect(result.current.error).not.toBeNull(),
-        { timeout: 3000 }
-      );
+      await waitFor(() => expect(result.current.error).not.toBeNull(), { timeout: 3000 });
       expect(result.current.error?.message).toContain('Authentication required');
     });
   });
@@ -679,10 +670,7 @@ describe('useModel', () => {
     });
 
     // Assert
-    await waitFor(
-      () => expect(result.current.isError).toBe(true),
-      { timeout: 3000 }
-    );
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 3000 });
     expect(result.current.error?.message).toContain('Model not found');
   });
 });

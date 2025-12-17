@@ -3,8 +3,8 @@
  * Higher levels inherit lower-level permissions (cumulative)
  */
 export enum PermissionLevel {
-  USER = 1,       // Basic access - search, view, generate
-  OPERATOR = 2,   // + upload/delete documents, create KBs
+  USER = 1, // Basic access - search, view, generate
+  OPERATOR = 2, // + upload/delete documents, create KBs
   ADMINISTRATOR = 3, // + delete KBs, manage users/groups
 }
 

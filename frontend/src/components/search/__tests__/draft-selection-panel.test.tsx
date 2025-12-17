@@ -15,9 +15,8 @@ vi.mock('sonner');
 
 // Mock GenerationModal to avoid complex dependency chain
 vi.mock('@/components/chat/generation-modal', () => ({
-  GenerationModal: ({ open }: { open: boolean }) => (
-    open ? <div data-testid="generation-modal">Modal Open</div> : null
-  ),
+  GenerationModal: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="generation-modal">Modal Open</div> : null,
 }));
 
 // Mock API call

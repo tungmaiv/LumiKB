@@ -62,6 +62,8 @@ from app.schemas.admin import (
     LLMHealthResponse,
     PaginatedAuditResponse,
     QueueStatus,
+    RewriterModelResponse,
+    RewriterModelUpdateRequest,
     TableCleanupResult,
     TaskInfo,
 )
@@ -1260,7 +1262,7 @@ async def bulk_retry_failed(
     },
 )
 async def get_system_config(
-    current_user: User = Depends(get_current_administrator),
+    _current_user: User = Depends(get_current_administrator),
     db: AsyncSession = Depends(get_async_session),
 ) -> dict[str, ConfigSetting]:
     """
@@ -1281,6 +1283,92 @@ async def get_system_config(
     config_service = ConfigService(db)
     settings = await config_service.get_all_settings()
     return {setting.key: setting for setting in settings}
+
+
+# =============================================================================
+# Query Rewriter Model Configuration (Story 8-0)
+# NOTE: These specific routes MUST be defined BEFORE /config/{key}
+# to avoid FastAPI matching the wrong route.
+# =============================================================================
+
+
+@router.get(
+    "/config/rewriter-model",
+    response_model=RewriterModelResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin (is_superuser=False)"},
+    },
+)
+async def get_rewriter_model(
+    _admin: User = Depends(get_current_administrator),
+    session: AsyncSession = Depends(get_async_session),
+) -> RewriterModelResponse:
+    """Get the configured query rewriter model (admin only).
+
+    Story 8-0: History-Aware Query Rewriting
+
+    Returns the currently configured query rewriter model ID.
+    If null, the system uses the default generation model for query rewriting.
+
+    **Permissions:** Requires is_superuser=True (403 for non-admin).
+
+    Returns:
+        RewriterModelResponse with model_id (UUID or null).
+    """
+    config_service = ConfigService(session)
+    model_id = await config_service.get_rewriter_model_id()
+    return RewriterModelResponse(model_id=model_id)
+
+
+@router.put(
+    "/config/rewriter-model",
+    response_model=RewriterModelResponse,
+    responses={
+        400: {"description": "Invalid model ID or model not found"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin (is_superuser=False)"},
+    },
+)
+async def update_rewriter_model(
+    request: RewriterModelUpdateRequest,
+    current_user: User = Depends(get_current_administrator),
+    session: AsyncSession = Depends(get_async_session),
+) -> RewriterModelResponse:
+    """Update the query rewriter model configuration (admin only).
+
+    Story 8-0: History-Aware Query Rewriting
+
+    Sets which LLM model to use for query rewriting. The model must be
+    a registered generation model. Set to null to use the default
+    generation model as fallback.
+
+    **Permissions:** Requires is_superuser=True (403 for non-admin).
+
+    **Validation:**
+    - If model_id is provided, validates it exists and is a generation model
+    - If model_id is null, clears the setting (uses default generation model)
+
+    Args:
+        request: RewriterModelUpdateRequest with model_id (UUID or null)
+
+    Returns:
+        RewriterModelResponse with the updated model_id.
+
+    Raises:
+        HTTPException 400: If model not found or not a generation model.
+    """
+    config_service = ConfigService(session)
+    try:
+        await config_service.set_rewriter_model_id(
+            model_id=request.model_id,
+            changed_by=current_user.email,
+        )
+        return RewriterModelResponse(model_id=request.model_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.put(
@@ -1359,7 +1447,7 @@ async def update_config_setting(
     },
 )
 async def get_restart_required_settings(
-    current_user: User = Depends(get_current_administrator),
+    _current_user: User = Depends(get_current_administrator),
     db: AsyncSession = Depends(get_async_session),
 ) -> list[str]:
     """

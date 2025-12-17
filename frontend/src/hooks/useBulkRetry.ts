@@ -4,8 +4,8 @@
  * Provides mutation for retrying failed documents in bulk.
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { BulkRetryRequest, BulkRetryResponse } from "@/types/queue";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { BulkRetryRequest, BulkRetryResponse } from '@/types/queue';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -17,7 +17,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 async function bulkRetryFailed(request: BulkRetryRequest): Promise<BulkRetryResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/admin/queue/retry-failed`, {
     method: 'POST',
-    credentials: "include",
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -44,7 +44,7 @@ export function useBulkRetry() {
     mutationFn: bulkRetryFailed,
     onSuccess: () => {
       // Invalidate queue-related queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["admin", "queue"] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'queue'] });
     },
   });
 }

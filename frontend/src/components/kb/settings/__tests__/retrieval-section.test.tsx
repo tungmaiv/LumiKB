@@ -46,18 +46,13 @@ function TestWrapper({ children, defaultValues, onSubmit }: TestWrapperProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>
-        {children(form)}
-      </form>
+      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>{children(form)}</form>
     </FormProvider>
   );
 }
 
 // Helper to render with form
-function renderWithForm(
-  defaultValues?: Partial<KBSettingsFormData>,
-  disabled = false
-) {
+function renderWithForm(defaultValues?: Partial<KBSettingsFormData>, disabled = false) {
   const onSubmit = vi.fn();
   const result = render(
     <TestWrapper defaultValues={defaultValues} onSubmit={onSubmit}>
@@ -321,23 +316,17 @@ describe('RetrievalSection', () => {
 
     it('shows similarity threshold description', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/minimum similarity score.*0\.0.*1\.0/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/minimum similarity score.*0\.0.*1\.0/i)).toBeInTheDocument();
     });
 
     it('shows method description', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/search strategy.*vector.*hybrid.*hyde/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/search strategy.*vector.*hybrid.*hyde/i)).toBeInTheDocument();
     });
 
     it('shows MMR description', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/diversify results to reduce redundancy/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/diversify results to reduce redundancy/i)).toBeInTheDocument();
     });
   });
 });

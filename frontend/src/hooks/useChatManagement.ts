@@ -4,7 +4,7 @@
  * Provides new chat, clear chat, and undo functionality per AC-1 and AC-2.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from 'react';
 
 interface ChatManagementCallbacks {
   /** Called when messages should be cleared */
@@ -116,22 +116,22 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
 
     try {
       const response = await fetch(`/api/v1/chat/new?kb_id=${kbId}`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to start new chat");
+        throw new Error(errorData.detail || 'Failed to start new chat');
       }
 
       // Clear messages via callback instead of page reload
       callbacks?.onMessagesClear?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       throw err;
     } finally {
@@ -148,16 +148,16 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
 
     try {
       const response = await fetch(`/api/v1/chat/clear?kb_id=${kbId}`, {
-        method: "DELETE",
+        method: 'DELETE',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to clear chat");
+        throw new Error(errorData.detail || 'Failed to clear chat');
       }
 
       const data = await response.json();
@@ -201,7 +201,7 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
         }, 30000);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       throw err;
     } finally {
@@ -219,19 +219,19 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
 
     try {
       const response = await fetch(`/api/v1/chat/undo-clear?kb_id=${kbId}`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
         if (response.status === 410) {
-          throw new Error("Undo window expired (30 seconds)");
+          throw new Error('Undo window expired (30 seconds)');
         }
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to undo clear");
+        throw new Error(errorData.detail || 'Failed to undo clear');
       }
 
       setUndoAvailable(false);
@@ -245,7 +245,7 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
       // Restore messages via callback instead of page reload
       callbacks?.onMessagesRestore?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       throw err;
     } finally {

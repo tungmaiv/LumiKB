@@ -112,7 +112,14 @@ function formatRelativeDate(dateString: string): string {
 /**
  * Single document row with status polling.
  */
-function DocumentListItem({ document, kbId, onRetry, onClick, onDeleted, canManage = false }: DocumentListItemProps) {
+function DocumentListItem({
+  document,
+  kbId,
+  onRetry,
+  onClick,
+  onDeleted,
+  canManage = false,
+}: DocumentListItemProps) {
   const router = useRouter();
   const [isRetrying, setIsRetrying] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);

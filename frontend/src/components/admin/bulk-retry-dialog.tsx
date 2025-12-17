@@ -85,11 +85,7 @@ export function BulkRetryDialog({
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleConfirm}
-            data-testid="confirm-button"
-            disabled={isLoading}
-          >
+          <Button onClick={handleConfirm} data-testid="confirm-button" disabled={isLoading}>
             {isLoading ? 'Retrying...' : 'Confirm Retry'}
           </Button>
         </DialogFooter>

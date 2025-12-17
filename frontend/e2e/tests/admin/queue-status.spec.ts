@@ -128,7 +128,13 @@ test.describe('Queue Status Dashboard - E2E', () => {
 
     // AND: Modal displays task table with all required columns
     const headers = queuePage.getTaskTableHeaders();
-    await expect(headers).toContainText(['Task ID', 'Task Name', 'Status', 'Started At', 'Estimated Duration']);
+    await expect(headers).toContainText([
+      'Task ID',
+      'Task Name',
+      'Status',
+      'Started At',
+      'Estimated Duration',
+    ]);
 
     // AND: Task rows are displayed
     const taskRows = page.locator('[data-testid="task-row"]');
@@ -137,14 +143,14 @@ test.describe('Queue Status Dashboard - E2E', () => {
     // AND: First task has all required fields
     const firstTask = taskRows.first();
     await expect(firstTask.locator('[data-testid="task-id"]')).toContainText(/^task-1/);
-    await expect(firstTask.locator('[data-testid="task-name"]')).toContainText(
-      'process_document'
-    );
+    await expect(firstTask.locator('[data-testid="task-name"]')).toContainText('process_document');
     await expect(firstTask.locator('[data-testid="task-status"]')).toContainText('active');
     await expect(firstTask.locator('[data-testid="task-started-at"]')).not.toContainText(
       'Not started yet'
     );
-    await expect(firstTask.locator('[data-testid="estimated-duration"]')).toContainText(/~\d+(\.\d+)?s/);
+    await expect(firstTask.locator('[data-testid="estimated-duration"]')).toContainText(
+      /~\d+(\.\d+)?s/
+    );
   });
 
   test('[P1] Admin clicks "View Pending Tasks" and sees pending task list - AC-5.4.3', async ({

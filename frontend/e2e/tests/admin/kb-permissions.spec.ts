@@ -162,7 +162,9 @@ test.describe('Story 5-20: KB Permission Management E2E Tests', () => {
     await mockApiResponse(page, '**/api/v1/admin/groups**', mockGroups);
   });
 
-  test('[P0] AC-5.20.1: KB Permission page displays user and group permissions', async ({ page }) => {
+  test('[P0] AC-5.20.1: KB Permission page displays user and group permissions', async ({
+    page,
+  }) => {
     /**
      * GIVEN: Admin user is authenticated
      * WHEN: Admin navigates to /admin/kb-permissions and selects a KB
@@ -641,7 +643,9 @@ test.describe('Story 5-20: KB Permission Management E2E Tests', () => {
     await expect(page).toHaveURL(/\/admin\/kb-permissions/);
   });
 
-  test('[P0] AC-5.20.6: Non-admin user is redirected from KB permissions page', async ({ page }) => {
+  test('[P0] AC-5.20.6: Non-admin user is redirected from KB permissions page', async ({
+    page,
+  }) => {
     /**
      * GIVEN: Non-admin user is authenticated
      * WHEN: User attempts to access /admin/kb-permissions
@@ -672,7 +676,9 @@ test.describe('Story 5-20: KB Permission Management E2E Tests', () => {
 
     // Wait for either outcome
     await Promise.race([
-      expect(accessDenied).toBeVisible({ timeout: 3000 }).catch(() => {}),
+      expect(accessDenied)
+        .toBeVisible({ timeout: 3000 })
+        .catch(() => {}),
       page.waitForURL(dashboardUrl, { timeout: 5000 }).catch(() => {}),
     ]);
 

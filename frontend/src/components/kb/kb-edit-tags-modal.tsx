@@ -83,8 +83,7 @@ export function KbEditTagsModal({
 
   // Check if tags have changed
   const hasChanges =
-    tags.length !== currentTags.length ||
-    tags.some((tag) => !currentTags.includes(tag));
+    tags.length !== currentTags.length || tags.some((tag) => !currentTags.includes(tag));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

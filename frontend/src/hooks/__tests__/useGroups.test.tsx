@@ -64,7 +64,12 @@ const mockPaginatedResponse: PaginatedGroupResponse = {
 const mockGroupWithMembers: GroupWithMembers = {
   ...mockGroups[0],
   members: [
-    { id: 'user-1', email: 'alice@example.com', is_active: true, joined_at: '2025-01-01T00:00:00Z' },
+    {
+      id: 'user-1',
+      email: 'alice@example.com',
+      is_active: true,
+      joined_at: '2025-01-01T00:00:00Z',
+    },
     { id: 'user-2', email: 'bob@example.com', is_active: true, joined_at: '2025-01-02T00:00:00Z' },
   ],
 };
@@ -420,7 +425,6 @@ describe('useGroups', () => {
         })
       );
     });
-
   });
 });
 

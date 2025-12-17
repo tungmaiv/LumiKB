@@ -1,0 +1,262 @@
+<story-context id="bmm/story-context/8-0" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>0</storyId>
+    <title>History-Aware Query Rewriting</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-0-history-aware-query-rewriting.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user engaging in multi-turn conversations with LumiKB</asA>
+    <iWant>my follow-up questions to automatically resolve pronouns and references from conversation context</iWant>
+    <soThat>I can have natural conversations where questions like "How old is he?" correctly become "What is Tim Cook's age?" before search</soThat>
+    <tasks>
+      <task id="1" title="QueryRewriterService Implementation" acs="AC-8.0.1, AC-8.0.5, AC-8.0.7, AC-8.0.8, AC-8.0.9">
+        <subtask id="1.1">Create backend/app/services/query_rewriter_service.py with RewriteResult dataclass</subtask>
+        <subtask id="1.2">Implement rewrite_with_history() method accepting query string and list[dict] history</subtask>
+        <subtask id="1.3">Design rewriter prompt with few-shot examples for pronoun resolution</subtask>
+        <subtask id="1.4">Add heuristic to detect if query needs rewriting - contains pronouns/references</subtask>
+        <subtask id="1.5">Implement timeout handling (5s default, &lt;500ms p95 target) with graceful fallback</subtask>
+        <subtask id="1.6">Use temperature=0 for deterministic outputs, max_tokens=200 for concise rewrites</subtask>
+        <subtask id="1.7">Write unit tests for rewriter service</subtask>
+      </task>
+      <task id="2" title="System Configuration - Rewriter Model Selection" acs="AC-8.0.2, AC-8.0.3">
+        <subtask id="2.1">Add query_rewriting_model_id field to system_config (JSON value)</subtask>
+        <subtask id="2.2">Create API endpoint GET/PUT /api/v1/admin/config/query-rewriter</subtask>
+        <subtask id="2.3">Add get_rewriter_model() method to ConfigService</subtask>
+        <subtask id="2.4">Update Admin Config page with "Query Rewriting Model" dropdown</subtask>
+        <subtask id="2.5">Filter dropdown to show only active generation/chat models</subtask>
+        <subtask id="2.6">Add "Recommended" badge to cheap/fast models</subtask>
+        <subtask id="2.7">Write integration tests for rewriter model config API</subtask>
+      </task>
+      <task id="3" title="ConversationService Integration" acs="AC-8.0.4, AC-8.0.9">
+        <subtask id="3.1">Inject QueryRewriterService into ConversationService constructor</subtask>
+        <subtask id="3.2">Add rewrite step in send_message() between history retrieval and search</subtask>
+        <subtask id="3.3">Add rewrite step in send_message_stream() between history retrieval and search</subtask>
+        <subtask id="3.4">Pass rewritten query to search_service.search() while preserving original for display</subtask>
+        <subtask id="3.5">Skip rewriting when history is empty (first message optimization)</subtask>
+        <subtask id="3.6">Write integration tests for conversation flow with rewriting</subtask>
+      </task>
+      <task id="4" title="Observability Integration" acs="AC-8.0.6, AC-8.0.10">
+        <subtask id="4.1">Add "query_rewrite" span to trace context when rewriting occurs</subtask>
+        <subtask id="4.2">Include original_query, rewritten_query, rewriter_model, rewrite_latency_ms in span attributes</subtask>
+        <subtask id="4.3">Include rewrite metrics in debug_info when KB debug_mode=true</subtask>
+        <subtask id="4.4">Add Prometheus metrics for query rewriting</subtask>
+        <subtask id="4.5">Write tests for observability span creation</subtask>
+      </task>
+      <task id="5" title="Frontend Debug Display" acs="AC-8.0.6">
+        <subtask id="5.1">Extend DebugInfo schema to include query_rewrite fields</subtask>
+        <subtask id="5.2">Update chat debug panel to display query rewriting info</subtask>
+        <subtask id="5.3">Write component tests for debug panel with rewrite info</subtask>
+      </task>
+      <task id="6" title="Tests">
+        <subtask id="6.1">Backend unit tests for QueryRewriterService</subtask>
+        <subtask id="6.2">Backend integration tests for rewriter config API</subtask>
+        <subtask id="6.3">Backend integration tests for conversation flow with rewriting</subtask>
+        <subtask id="6.4">Frontend component tests for config dropdown</subtask>
+        <subtask id="6.5">Frontend component tests for debug panel rewrite display</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-8.0.1">QueryRewriterService.rewrite_with_history() reformulates queries with resolved pronouns/references</ac>
+    <ac id="AC-8.0.2">Admin > System Configuration has "Query Rewriting Model" dropdown showing available chat models</ac>
+    <ac id="AC-8.0.3">System config stores query_rewriting_model_id and backend uses it for rewriting</ac>
+    <ac id="AC-8.0.4">conversation_service.send_message() rewrites query BEFORE search when history exists</ac>
+    <ac id="AC-8.0.5">Rewriter prompt correctly instructs LLM to reformulate without answering</ac>
+    <ac id="AC-8.0.6">Debug mode SSE event includes original_query, rewritten_query, rewriter_model, rewrite_latency_ms</ac>
+    <ac id="AC-8.0.7">Query rewriting completes in &lt;500ms (p95) with configurable timeout (default 5s)</ac>
+    <ac id="AC-8.0.8">Graceful degradation: original query used if rewriting fails (timeout, model unavailable)</ac>
+    <ac id="AC-8.0.9">Rewriting skipped when no history exists or query is already standalone</ac>
+    <ac id="AC-8.0.10">Observability traces include "query_rewrite" span with metrics; Prometheus metrics emitted</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification - GraphRAG Integration</title>
+        <section>QueryRewriterService Implementation (lines 711-854)</section>
+        <snippet>Contains full QueryRewriterService implementation pattern with RewriteResult dataclass, rewrite_with_history() method signature, _is_standalone() heuristic, and few-shot prompt design.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification</title>
+        <section>Story 8-0 Acceptance Criteria (lines 1262-1273)</section>
+        <snippet>Defines all 10 acceptance criteria for history-aware query rewriting including performance targets (&lt;500ms p95), graceful degradation, and observability requirements.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>LumiKB Architecture</title>
+        <section>Service Layer Patterns</section>
+        <snippet>Defines dependency injection patterns, service class structure, and async patterns used throughout the backend.</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing-backend-specification.md</path>
+        <title>Backend Testing Specification</title>
+        <section>Test Markers and Structure</section>
+        <snippet>Defines pytest markers (unit &lt;5s, integration &lt;30s, e2e &lt;90s), module-level pytestmark requirements, and testcontainers usage for isolation.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/app/services/conversation_service.py</path>
+        <kind>service</kind>
+        <symbol>ConversationService</symbol>
+        <reason>Main service to modify - inject QueryRewriterService, add rewrite step between get_history() and search(). Has send_message(), send_message_stream(), get_history() methods.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/config_service.py</path>
+        <kind>service</kind>
+        <symbol>ConfigService</symbol>
+        <reason>Needs new get_rewriter_model() method. Has existing patterns: get_llm_config(), _build_llm_config(), cache keys with 30s TTL.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/schemas/chat.py</path>
+        <kind>schema</kind>
+        <symbol>DebugInfo, TimingDebugInfo, KBParamsDebugInfo</symbol>
+        <reason>Contains debug info schemas that need extension for query_rewrite fields.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/integrations/litellm_client.py</path>
+        <kind>integration</kind>
+        <symbol>LiteLLMEmbeddingClient</symbol>
+        <reason>LLM client singleton with chat_completion() method. Supports model override, temperature parameter.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/api/v1/admin.py</path>
+        <kind>controller</kind>
+        <symbol>router</symbol>
+        <reason>Admin API routes - pattern reference for adding GET/PUT /api/v1/admin/config/query-rewriter endpoint.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/services/observability_service.py</path>
+        <kind>service</kind>
+        <symbol>ObservabilityService, TraceContext</symbol>
+        <reason>Tracing patterns for adding "query_rewrite" span. Has span() context manager, TraceContext dataclass.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/app/models/system_config.py</path>
+        <kind>model</kind>
+        <symbol>SystemConfig</symbol>
+        <reason>Database model for system configuration. Used to store query_rewriting_model_id.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/app/(protected)/admin/config/page.tsx</path>
+        <kind>page</kind>
+        <symbol>SystemConfigPage</symbol>
+        <reason>Admin config page - add "Query Rewriting Model" dropdown in LLM Settings section.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/components/chat/debug-panel.tsx</path>
+        <kind>component</kind>
+        <symbol>DebugPanel</symbol>
+        <reason>Chat debug panel - needs update to display query rewriting info when present.</reason>
+      </artifact>
+      <artifact>
+        <path>frontend/src/types/chat.ts</path>
+        <kind>type</kind>
+        <symbol>DebugInfo</symbol>
+        <reason>TypeScript type definitions - extend DebugInfo type to include query_rewrite fields.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <backend>
+        <package name="litellm" version=">=1.50.0">LLM proxy client for model routing</package>
+        <package name="langchain" version=">=0.3.0">RAG chain patterns</package>
+        <package name="fastapi" version=">=0.115.0">Web framework</package>
+        <package name="pydantic" version=">=2.10.0">Schema validation</package>
+        <package name="pytest" version=">=8.0.0">Testing framework</package>
+        <package name="pytest-asyncio" version=">=0.24.0">Async test support</package>
+        <package name="prometheus-client" version=">=0.21.0">Metrics</package>
+      </backend>
+      <frontend>
+        <package name="next" version="^16.0.0">React framework</package>
+        <package name="react" version="^19.0.0">UI library</package>
+        <package name="@radix-ui/react-select" version="^2.0.0">Dropdown component</package>
+        <package name="vitest" version="^3.0.0">Testing framework</package>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance">Query rewriting must complete in &lt;500ms (p95) with configurable timeout defaulting to 5 seconds</constraint>
+    <constraint type="reliability">Graceful degradation required - original query used if rewriting fails for any reason</constraint>
+    <constraint type="architecture">Service injection pattern - QueryRewriterService injected into ConversationService via constructor</constraint>
+    <constraint type="architecture">Config lookup at call time - rewriter model resolved from system_config, not cached long-term</constraint>
+    <constraint type="llm">Use temperature=0 for deterministic outputs, max_tokens=200 for concise rewrites</constraint>
+    <constraint type="routing">LiteLLM proxy routing with model path format: litellm_proxy/db-{model_uuid}</constraint>
+    <constraint type="testing">All new code requires unit tests; integration tests for API endpoints and service flows</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>QueryRewriterService.rewrite_with_history</name>
+      <kind>method</kind>
+      <signature>async def rewrite_with_history(self, query: str, chat_history: List[dict], kb_id: Optional[UUID] = None) -> RewriteResult</signature>
+      <path>backend/app/services/query_rewriter_service.py</path>
+    </interface>
+    <interface>
+      <name>RewriteResult</name>
+      <kind>dataclass</kind>
+      <signature>@dataclass class RewriteResult: original_query: str, rewritten_query: str, was_rewritten: bool, model_used: str, latency_ms: float</signature>
+      <path>backend/app/services/query_rewriter_service.py</path>
+    </interface>
+    <interface>
+      <name>ConfigService.get_rewriter_model</name>
+      <kind>method</kind>
+      <signature>async def get_rewriter_model(self, db: AsyncSession) -> Optional[LLMModelConfig]</signature>
+      <path>backend/app/services/config_service.py</path>
+    </interface>
+    <interface>
+      <name>LiteLLMEmbeddingClient.chat_completion</name>
+      <kind>method</kind>
+      <signature>async def chat_completion(self, messages: List[dict], model: Optional[str] = None, temperature: float = 0.7, max_tokens: int = 1000) -> str</signature>
+      <path>backend/app/integrations/litellm_client.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/admin/config/query-rewriter</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/admin/config/query-rewriter -> {model_id: UUID | null, model_name: str | null}</signature>
+      <path>backend/app/api/v1/admin.py</path>
+    </interface>
+    <interface>
+      <name>PUT /api/v1/admin/config/query-rewriter</name>
+      <kind>REST endpoint</kind>
+      <signature>PUT /api/v1/admin/config/query-rewriter {model_id: UUID} -> {success: bool}</signature>
+      <path>backend/app/api/v1/admin.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend uses pytest with pytest-asyncio (asyncio_mode="auto"). Tests organized into unit (&lt;5s), integration (&lt;30s), and e2e (&lt;90s) markers. Module-level pytestmark required. Frontend uses vitest with @testing-library/react for component tests.
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_query_rewriter_service.py</location>
+      <location>backend/tests/integration/test_query_rewriter_api.py</location>
+      <location>backend/tests/integration/test_conversation_rewriting.py</location>
+      <location>frontend/src/app/(protected)/admin/config/__tests__/</location>
+      <location>frontend/src/components/chat/__tests__/</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-8.0.1">Test pronoun resolution: "How old is he?" with history about Tim Cook -> "How old is Tim Cook?"</idea>
+      <idea ac="AC-8.0.1">Test reference expansion: "Does our system use it?" with OAuth 2.0 context -> "Does our system use OAuth 2.0?"</idea>
+      <idea ac="AC-8.0.5">Test that rewriter returns reformulated question, not an answer</idea>
+      <idea ac="AC-8.0.7">Test timeout behavior with mock slow LLM response</idea>
+      <idea ac="AC-8.0.8">Test graceful fallback when model unavailable</idea>
+      <idea ac="AC-8.0.9">Test standalone query detection - "What is the capital of France?" unchanged</idea>
+      <idea ac="AC-8.0.9">Test first message optimization - skip rewriting when history empty</idea>
+      <idea ac="AC-8.0.3">Test config API stores and retrieves query_rewriting_model_id</idea>
+      <idea ac="AC-8.0.4">Test conversation flow - rewritten query used for search, original for display</idea>
+      <idea ac="AC-8.0.10">Test observability span creation with correct attributes</idea>
+      <idea ac="AC-8.0.6">Test debug info includes rewrite metrics when debug_mode=true</idea>
+    </ideas>
+  </tests>
+</story-context>

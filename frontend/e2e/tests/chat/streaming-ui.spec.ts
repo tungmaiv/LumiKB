@@ -69,9 +69,7 @@ test.describe('Chat Streaming UI', () => {
     await page.click('[data-testid="send-button"]');
 
     // Wait for AI message to start appearing
-    const aiMessage = page
-      .locator('[data-testid="chat-message"][data-role="assistant"]')
-      .last();
+    const aiMessage = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
     await expect(aiMessage).toBeVisible({ timeout: 10000 });
 
     // Content should progressively appear (not all at once)
@@ -89,9 +87,7 @@ test.describe('Chat Streaming UI', () => {
     await page.click('[data-testid="send-button"]');
 
     // Wait for AI message
-    const aiMessage = page
-      .locator('[data-testid="chat-message"][data-role="assistant"]')
-      .last();
+    const aiMessage = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
     await expect(aiMessage).toBeVisible({ timeout: 10000 });
 
     // Check for citation badges
@@ -110,9 +106,7 @@ test.describe('Chat Streaming UI', () => {
     await page.fill('[data-testid="chat-input"]', 'Test query');
     await page.click('[data-testid="send-button"]');
 
-    const aiMessage = page
-      .locator('[data-testid="chat-message"][data-role="assistant"]')
-      .last();
+    const aiMessage = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
     await expect(aiMessage).toBeVisible({ timeout: 10000 });
 
     // Should be left-aligned
@@ -127,9 +121,7 @@ test.describe('Chat Streaming UI', () => {
     await page.fill('[data-testid="chat-input"]', 'What is PKCE?');
     await page.click('[data-testid="send-button"]');
 
-    const aiMessage = page
-      .locator('[data-testid="chat-message"][data-role="assistant"]')
-      .last();
+    const aiMessage = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
     await expect(aiMessage).toBeVisible({ timeout: 10000 });
 
     // Wait for streaming to complete (thinking indicator disappears)

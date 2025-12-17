@@ -53,13 +53,7 @@ describe('StatCard Component (Story 5-1)', () => {
     });
 
     it('should display description when provided', () => {
-      render(
-        <StatCard
-          title="Active Users"
-          value={80}
-          description="+10 from last week"
-        />
-      );
+      render(<StatCard title="Active Users" value={80} description="+10 from last week" />);
 
       expect(screen.getByText('+10 from last week')).toBeInTheDocument();
     });
@@ -74,9 +68,7 @@ describe('StatCard Component (Story 5-1)', () => {
 
   describe('[P1] Icon Display', () => {
     it('should display icon when provided', () => {
-      const { container } = render(
-        <StatCard title="Total Users" value={100} icon={Users} />
-      );
+      const { container } = render(<StatCard title="Total Users" value={100} icon={Users} />);
 
       // Icon should be rendered (lucide-react renders as SVG)
       const icon = container.querySelector('svg');
@@ -96,9 +88,7 @@ describe('StatCard Component (Story 5-1)', () => {
     it('should display sparkline chart when trend data provided', () => {
       const trendData = Array.from({ length: 30 }, (_, i) => 90 + i);
 
-      const { container } = render(
-        <StatCard title="Searches" value={3000} trend={trendData} />
-      );
+      const { container } = render(<StatCard title="Searches" value={3000} trend={trendData} />);
 
       // Recharts renders chart container
       const chart = container.querySelector('.recharts-responsive-container');
@@ -113,9 +103,7 @@ describe('StatCard Component (Story 5-1)', () => {
     });
 
     it('should not display chart when trend is empty array', () => {
-      const { container } = render(
-        <StatCard title="Total Users" value={100} trend={[]} />
-      );
+      const { container } = render(<StatCard title="Total Users" value={100} trend={[]} />);
 
       const chart = container.querySelector('.recharts-responsive-container');
       expect(chart).not.toBeInTheDocument();
@@ -126,14 +114,7 @@ describe('StatCard Component (Story 5-1)', () => {
       const customColor = '#10b981'; // green
       lastLineProps = null;
 
-      render(
-        <StatCard
-          title="Searches"
-          value={100}
-          trend={trendData}
-          trendColor={customColor}
-        />
-      );
+      render(<StatCard title="Searches" value={100} trend={trendData} trendColor={customColor} />);
 
       // Line component should receive custom color as stroke prop
       expect(lastLineProps).not.toBeNull();
@@ -156,9 +137,7 @@ describe('StatCard Component (Story 5-1)', () => {
     it('should call onClick handler when clicked', () => {
       const handleClick = vi.fn();
 
-      render(
-        <StatCard title="Total Users" value={100} onClick={handleClick} />
-      );
+      render(<StatCard title="Total Users" value={100} onClick={handleClick} />);
 
       const card = screen.getByText('Total Users').closest('.cursor-pointer');
       expect(card).toBeInTheDocument();
@@ -228,13 +207,7 @@ describe('StatCard Component (Story 5-1)', () => {
     });
 
     it('should have readable text hierarchy', () => {
-      render(
-        <StatCard
-          title="Total Users"
-          value={100}
-          description="Active users count"
-        />
-      );
+      render(<StatCard title="Total Users" value={100} description="Active users count" />);
 
       // Title should be visible
       expect(screen.getByText('Total Users')).toBeVisible();
@@ -247,9 +220,7 @@ describe('StatCard Component (Story 5-1)', () => {
 
   describe('[P2] Edge Cases', () => {
     it('should handle trend with single data point', () => {
-      const { container } = render(
-        <StatCard title="Searches" value={100} trend={[50]} />
-      );
+      const { container } = render(<StatCard title="Searches" value={100} trend={[50]} />);
 
       const chart = container.querySelector('.recharts-responsive-container');
       expect(chart).toBeInTheDocument();

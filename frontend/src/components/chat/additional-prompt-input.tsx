@@ -55,10 +55,8 @@ export function AdditionalPromptInput({
           className="absolute bottom-2 right-2 text-xs text-muted-foreground"
           data-testid="char-count"
         >
-          <span className={isNearLimit ? 'text-amber-600 font-medium' : ''}>
-            {charCount}
-          </span>
-          /{maxChars}
+          <span className={isNearLimit ? 'text-amber-600 font-medium' : ''}>{charCount}</span>/
+          {maxChars}
         </div>
       </div>
 
@@ -66,8 +64,8 @@ export function AdditionalPromptInput({
       <div className="flex items-start gap-2 text-xs text-muted-foreground">
         <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
         <p>
-          Provide specific requirements, tone, or sections to focus on.
-          This will refine the generated content.
+          Provide specific requirements, tone, or sections to focus on. This will refine the
+          generated content.
         </p>
       </div>
     </div>

@@ -23,10 +23,7 @@ export interface UseArchivedDocumentsOptions {
 /**
  * Fetch paginated archived documents with filtering
  */
-export function useArchivedDocuments({
-  filters,
-  enabled = true,
-}: UseArchivedDocumentsOptions) {
+export function useArchivedDocuments({ filters, enabled = true }: UseArchivedDocumentsOptions) {
   return useQuery({
     queryKey: ['archived-documents', filters],
     queryFn: async (): Promise<PaginatedArchivedDocumentsResponse> => {

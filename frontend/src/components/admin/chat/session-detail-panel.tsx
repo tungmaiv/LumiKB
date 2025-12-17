@@ -11,12 +11,7 @@ import { format } from 'date-fns';
 import { MessageCircle, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useChatMessages } from '@/hooks/useChatHistory';
 import { ConversationThread, ConversationThreadSkeleton } from './conversation-thread';
 import { ExportDialog } from './export-dialog';
@@ -26,10 +21,7 @@ interface SessionDetailPanelProps {
   onClose: () => void;
 }
 
-export function SessionDetailPanel({
-  sessionId,
-  onClose,
-}: SessionDetailPanelProps) {
+export function SessionDetailPanel({ sessionId, onClose }: SessionDetailPanelProps) {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useChatMessages(sessionId);
 
@@ -91,9 +83,7 @@ export function SessionDetailPanel({
                   <span className="mx-2">•</span>
                   <span>{total} messages</span>
                   <span className="mx-2">•</span>
-                  <span>
-                    {format(new Date(messages[0].created_at), 'MMM d, yyyy')}
-                  </span>
+                  <span>{format(new Date(messages[0].created_at), 'MMM d, yyyy')}</span>
                 </>
               )}
             </div>

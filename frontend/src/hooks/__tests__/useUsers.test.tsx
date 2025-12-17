@@ -101,7 +101,6 @@ describe('useUsers', () => {
         expect.any(Object)
       );
     });
-
   });
 
   describe('createUser', () => {

@@ -83,9 +83,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
     it('should render collapsed by default when isExpanded is false', () => {
       const steps = createProcessingSteps('chunk');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={false} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={false} onToggleExpand={vi.fn()} />);
 
       // Should show expand button, not the table
       expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
@@ -95,9 +93,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
     it('should render expanded when isExpanded is true', () => {
       const steps = createProcessingSteps('chunk');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // Should show the breakdown table
       expect(screen.getByTestId('step-breakdown')).toBeInTheDocument();
@@ -108,9 +104,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
       const onToggleExpand = vi.fn();
       const steps = createProcessingSteps('chunk');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={false} onToggleExpand={onToggleExpand} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={false} onToggleExpand={onToggleExpand} />);
 
       await user.click(screen.getByRole('button', { name: /expand/i }));
 
@@ -121,9 +115,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
       const onToggleExpand = vi.fn();
       const steps = createProcessingSteps('chunk');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={onToggleExpand} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={onToggleExpand} />);
 
       await user.click(screen.getByRole('button', { name: /collapse/i }));
 
@@ -135,9 +127,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
     it('should render all required column headers', () => {
       const steps = createProcessingSteps('chunk');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // Verify all 5 required columns from AC-7.27.2
       expect(screen.getByRole('columnheader', { name: /step/i })).toBeInTheDocument();
@@ -150,9 +140,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
     it('should display all processing steps (parse, chunk, embed, index)', () => {
       const steps = createProcessingSteps('embed');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // All 4 processing steps should be displayed
       expect(screen.getByTestId('step-row-parse')).toBeInTheDocument();
@@ -165,9 +153,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
       // Create steps where parse=done, chunk=done, embed=in_progress, index=pending
       const steps = createProcessingSteps('embed');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       expect(screen.getByTestId('step-status-parse')).toHaveTextContent('done');
       expect(screen.getByTestId('step-status-chunk')).toHaveTextContent('done');
@@ -178,9 +164,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
     it('should display duration for completed steps', () => {
       const steps = createProcessingSteps('embed');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // Completed steps should show duration
       const parseDuration = screen.getByTestId('step-duration-parse');
@@ -212,9 +196,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
         createStepInfo('index', 'pending'),
       ];
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // In-progress step should show elapsed time (implementation will update this)
       const chunkDuration = screen.getByTestId('step-duration-chunk');
@@ -241,9 +223,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
       vi.advanceTimersByTime(1000);
 
       // Rerender to simulate update (actual implementation will use useEffect)
-      rerender(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      rerender(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // The duration should reflect the elapsed time
       // (Implementation detail: actual component should show "6s" after 1s advance)
@@ -254,9 +234,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
 
   describe('[P2] Edge Cases', () => {
     it('should handle empty steps array', () => {
-      render(
-        <StepBreakdown steps={[]} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={[]} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // Table should still render with headers but no rows
       expect(screen.getByRole('table')).toBeInTheDocument();
@@ -272,9 +250,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
         }),
       ];
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // Should render without errors
       expect(screen.getByTestId('step-row-parse')).toBeInTheDocument();
@@ -283,9 +259,7 @@ describe('StepBreakdown Component (Story 7-27)', () => {
     it('should display all steps even when all are completed', () => {
       const steps = createProcessingSteps('completed');
 
-      render(
-        <StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />
-      );
+      render(<StepBreakdown steps={steps} isExpanded={true} onToggleExpand={vi.fn()} />);
 
       // All steps should have 'done' status
       expect(screen.getByTestId('step-status-parse')).toHaveTextContent('done');

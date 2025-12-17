@@ -240,9 +240,7 @@ describe('QueueStatusCard Component (Story 5-4)', () => {
       render(<QueueStatusCard queue={longNameQueue} />);
 
       expect(
-        screen.getByText(
-          'very_long_queue_name_that_might_wrap_to_multiple_lines'
-        )
+        screen.getByText('very_long_queue_name_that_might_wrap_to_multiple_lines')
       ).toBeInTheDocument();
     });
 

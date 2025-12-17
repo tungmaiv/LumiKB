@@ -85,13 +85,7 @@ export const EVENT_TYPES = [
 /**
  * Resource type enum values (from backend AuditResourceType)
  */
-export const RESOURCE_TYPES = [
-  'document',
-  'knowledge_base',
-  'draft',
-  'search',
-  'user',
-] as const;
+export const RESOURCE_TYPES = ['document', 'knowledge_base', 'draft', 'search', 'user'] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
 export type ResourceType = (typeof RESOURCE_TYPES)[number];

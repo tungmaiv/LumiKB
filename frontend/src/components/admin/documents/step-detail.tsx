@@ -61,21 +61,30 @@ export function StepDetail({ stepName, status, metrics, errorMessage }: StepDeta
       <div className="grid grid-cols-1 gap-1 text-sm">
         {stepName === 'upload' && (
           <>
-            <MetricItem label="File Size" value={metrics?.file_size ? formatBytes(metrics.file_size) : null} />
+            <MetricItem
+              label="File Size"
+              value={metrics?.file_size ? formatBytes(metrics.file_size) : null}
+            />
             <MetricItem label="MIME Type" value={metrics?.mime_type} />
           </>
         )}
         {stepName === 'parse' && (
           <>
             <MetricItem label="Pages Extracted" value={metrics?.pages_extracted} />
-            <MetricItem label="Text Length" value={metrics?.text_length ? formatNumber(metrics.text_length) : null} />
+            <MetricItem
+              label="Text Length"
+              value={metrics?.text_length ? formatNumber(metrics.text_length) : null}
+            />
             <MetricItem label="Parser" value={metrics?.parser_used} />
           </>
         )}
         {stepName === 'chunk' && (
           <>
             <MetricItem label="Chunks Created" value={metrics?.chunks_created} />
-            <MetricItem label="Avg Chunk Size" value={metrics?.avg_chunk_size ? formatNumber(metrics.avg_chunk_size) : null} />
+            <MetricItem
+              label="Avg Chunk Size"
+              value={metrics?.avg_chunk_size ? formatNumber(metrics.avg_chunk_size) : null}
+            />
           </>
         )}
         {stepName === 'embed' && (
@@ -93,9 +102,7 @@ export function StepDetail({ stepName, status, metrics, errorMessage }: StepDeta
 
         {/* Show no metrics message if no metrics available */}
         {!metrics && status !== 'failed' && (
-          <div className="text-muted-foreground text-center py-2">
-            No metrics available
-          </div>
+          <div className="text-muted-foreground text-center py-2">No metrics available</div>
         )}
       </div>
     </div>

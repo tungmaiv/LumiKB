@@ -26,9 +26,8 @@ export async function waitForStreamingComplete(
   const responsePromise = page.waitForResponse(
     (resp) => {
       const url = resp.url();
-      const matchesEndpoint = typeof endpoint === 'string'
-        ? url.includes(endpoint)
-        : endpoint.test(url);
+      const matchesEndpoint =
+        typeof endpoint === 'string' ? url.includes(endpoint) : endpoint.test(url);
       return matchesEndpoint && resp.status() === 200;
     },
     { timeout }
@@ -107,10 +106,7 @@ export async function clearBrowserState(page: Page): Promise<void> {
  * @param selector - Element selector
  * @returns Array of text content from matching elements
  */
-export async function getTextFromElements(
-  page: Page,
-  selector: string
-): Promise<string[]> {
+export async function getTextFromElements(page: Page, selector: string): Promise<string[]> {
   const elements = await page.locator(selector).all();
   const texts: string[] = [];
 
@@ -131,10 +127,7 @@ export async function getTextFromElements(
  * @param page - Playwright page instance
  * @param timeout - Maximum wait time in ms (default: 10000)
  */
-export async function waitForNetworkIdle(
-  page: Page,
-  timeout = 10000
-): Promise<void> {
+export async function waitForNetworkIdle(page: Page, timeout = 10000): Promise<void> {
   await page.waitForLoadState('networkidle', { timeout });
 }
 
@@ -166,10 +159,7 @@ export async function interceptAndGetRequestBody<T = unknown>(
  * @param page - Playwright page instance
  * @param name - Screenshot name (without extension)
  */
-export async function takeDebugScreenshot(
-  page: Page,
-  name: string
-): Promise<void> {
+export async function takeDebugScreenshot(page: Page, name: string): Promise<void> {
   await page.screenshot({
     path: `frontend/e2e/test-results/${name}-${Date.now()}.png`,
     fullPage: true,
@@ -235,14 +225,12 @@ export async function retryUntilSuccess<T>(
     } catch (error) {
       lastError = error as Error;
       if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
 
-  throw new Error(
-    `Action failed after ${maxAttempts} attempts. Last error: ${lastError?.message}`
-  );
+  throw new Error(`Action failed after ${maxAttempts} attempts. Last error: ${lastError?.message}`);
 }
 
 /**
@@ -290,9 +278,8 @@ export async function waitForApiResponse<T = unknown>(
   const response = await page.waitForResponse(
     (resp) => {
       const url = resp.url();
-      const matchesUrl = typeof urlPattern === 'string'
-        ? url.includes(urlPattern)
-        : urlPattern.test(url);
+      const matchesUrl =
+        typeof urlPattern === 'string' ? url.includes(urlPattern) : urlPattern.test(url);
       return matchesUrl && resp.status() === 200;
     },
     { timeout }

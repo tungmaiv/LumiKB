@@ -63,7 +63,8 @@ export function GenerationSection({
               />
             </FormControl>
             <FormDescription>
-              Controls randomness in responses. Lower values are more focused, higher values are more creative (0.0-2.0).
+              Controls randomness in responses. Lower values are more focused, higher values are
+              more creative (0.0-2.0).
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -92,7 +93,8 @@ export function GenerationSection({
               />
             </FormControl>
             <FormDescription>
-              Limits token selection to top probability mass (0.0-1.0). Lower values are more focused.
+              Limits token selection to top probability mass (0.0-1.0). Lower values are more
+              focused.
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -123,7 +125,9 @@ export function GenerationSection({
               />
             </FormControl>
             <FormDescription>
-              Maximum number of tokens in generated responses ({generation.max_tokens.min.toLocaleString()}-{generation.max_tokens.max.toLocaleString()}).
+              Maximum number of tokens in generated responses (
+              {generation.max_tokens.min.toLocaleString()}-
+              {generation.max_tokens.max.toLocaleString()}).
             </FormDescription>
             <FormMessage />
           </FormItem>

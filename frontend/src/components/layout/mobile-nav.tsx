@@ -20,6 +20,7 @@ import {
   Wrench,
   Shield,
   Cpu,
+  Bot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -37,7 +38,12 @@ interface MobileNavLinkProps {
   isActive: boolean;
 }
 
-function MobileNavLink({ href, icon: Icon, label, isActive }: MobileNavLinkProps): React.ReactElement {
+function MobileNavLink({
+  href,
+  icon: Icon,
+  label,
+  isActive,
+}: MobileNavLinkProps): React.ReactElement {
   return (
     <Link
       href={href}
@@ -109,6 +115,7 @@ export function MobileNav({ onSidebarOpen, onCitationsOpen }: MobileNavProps): R
     { href: '/admin/groups', icon: Users2, label: 'Groups' },
     { href: '/admin/kb-permissions', icon: Shield, label: 'KB Perms' },
     { href: '/admin/config', icon: Settings, label: 'Config' },
+    { href: '/admin/config/llm', icon: Bot, label: 'LLM' },
     { href: '/admin/models', icon: Cpu, label: 'Models' },
   ];
 
@@ -186,12 +193,7 @@ export function MobileNav({ onSidebarOpen, onCitationsOpen }: MobileNavProps): R
           isActive={isActive('/dashboard')}
         />
 
-        <MobileNavLink
-          href="/search"
-          icon={Search}
-          label="Search"
-          isActive={isActive('/search')}
-        />
+        <MobileNavLink href="/search" icon={Search} label="Search" isActive={isActive('/search')} />
 
         <MobileNavLink
           href="/chat"
@@ -210,7 +212,9 @@ export function MobileNav({ onSidebarOpen, onCitationsOpen }: MobileNavProps): R
               'flex flex-col gap-1 h-auto py-2 min-w-[56px] min-h-[44px]',
               isOnOperationsRoute && 'text-primary'
             )}
-            aria-label={menuOpen === 'operations' ? 'Close operations menu' : 'Open operations menu'}
+            aria-label={
+              menuOpen === 'operations' ? 'Close operations menu' : 'Open operations menu'
+            }
             aria-expanded={menuOpen === 'operations'}
           >
             <Wrench className="h-5 w-5" aria-hidden="true" />

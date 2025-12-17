@@ -62,9 +62,7 @@ function createWrapper() {
   });
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -115,9 +113,7 @@ describe('useAvailableModels', () => {
           createEmbeddingModel({ id: 'emb-1', name: 'Embedding Model 1' }),
           createEmbeddingModel({ id: 'emb-2', name: 'Embedding Model 2' }),
         ],
-        generation_models: [
-          createGenerationModel({ id: 'gen-1', name: 'Generation Model 1' }),
-        ],
+        generation_models: [createGenerationModel({ id: 'gen-1', name: 'Generation Model 1' })],
         ner_models: [createNerModel({ id: 'ner-1', name: 'NER Model 1' })],
       };
 

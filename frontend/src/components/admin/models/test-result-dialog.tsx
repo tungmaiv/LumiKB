@@ -5,7 +5,18 @@
 
 'use client';
 
-import { CheckCircle, XCircle, Clock, Info, Hash, MessageSquare, Cpu, CheckCheck, AlertCircle, Brain } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  Info,
+  Hash,
+  MessageSquare,
+  Cpu,
+  CheckCheck,
+  AlertCircle,
+  Brain,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -76,12 +87,7 @@ interface TestResultDialogProps {
   modelName: string;
 }
 
-export function TestResultDialog({
-  open,
-  onOpenChange,
-  result,
-  modelName,
-}: TestResultDialogProps) {
+export function TestResultDialog({ open, onOpenChange, result, modelName }: TestResultDialogProps) {
   if (!result) return null;
 
   return (
@@ -96,9 +102,7 @@ export function TestResultDialog({
             )}
             Connection Test {result.success ? 'Passed' : 'Failed'}
           </DialogTitle>
-          <DialogDescription>
-            Test results for {modelName}
-          </DialogDescription>
+          <DialogDescription>Test results for {modelName}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -110,9 +114,7 @@ export function TestResultDialog({
                 : 'bg-red-50 border border-red-200'
             }`}
           >
-            <p className={result.success ? 'text-green-800' : 'text-red-800'}>
-              {result.message}
-            </p>
+            <p className={result.success ? 'text-green-800' : 'text-red-800'}>{result.message}</p>
           </div>
 
           {/* Latency */}
@@ -132,15 +134,10 @@ export function TestResultDialog({
               </div>
               <div className="bg-muted/50 border rounded-lg divide-y">
                 {Object.entries(result.details).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex items-start gap-3 px-3 py-2.5"
-                  >
+                  <div key={key} className="flex items-start gap-3 px-3 py-2.5">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="mt-0.5 shrink-0">
-                          {getDetailIcon(key)}
-                        </div>
+                        <div className="mt-0.5 shrink-0">{getDetailIcon(key)}</div>
                       </TooltipTrigger>
                       <TooltipContent side="left">
                         <p>{key}</p>
@@ -150,9 +147,7 @@ export function TestResultDialog({
                       <div className="text-xs text-muted-foreground mb-0.5">
                         {formatDetailKey(key)}
                       </div>
-                      <div className="break-words">
-                        {formatDetailValue(key, value)}
-                      </div>
+                      <div className="break-words">{formatDetailValue(key, value)}</div>
                     </div>
                   </div>
                 ))}

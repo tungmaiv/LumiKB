@@ -55,9 +55,7 @@ export function TimelineStep({ event, isLast }: TimelineStepProps) {
       </div>
 
       {/* Connector line extension for non-last items */}
-      {!isLast && (
-        <div className="absolute -left-[11px] top-6 bottom-0 w-0.5 bg-border" />
-      )}
+      {!isLast && <div className="absolute -left-[11px] top-6 bottom-0 w-0.5 bg-border" />}
 
       {/* Step content */}
       <div
@@ -90,9 +88,7 @@ export function TimelineStep({ event, isLast }: TimelineStepProps) {
               </span>
             )}
           </div>
-          <span className="text-sm text-muted-foreground">
-            {formatDuration(event.duration_ms)}
-          </span>
+          <span className="text-sm text-muted-foreground">{formatDuration(event.duration_ms)}</span>
         </div>
 
         {/* Expanded detail */}

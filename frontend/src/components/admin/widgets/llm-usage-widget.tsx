@@ -17,13 +17,7 @@ import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { LLMUsageStats } from '@/hooks/useObservabilityStats';
 
@@ -99,12 +93,14 @@ export function LLMUsageWidget({ data, isLoading, error, onRetry, trend }: LLMUs
         {/* Model breakdown */}
         {data?.by_model && Object.keys(data.by_model).length > 0 && (
           <div className="mt-2 space-y-1">
-            {Object.entries(data.by_model).slice(0, 3).map(([model, stats]) => (
-              <div key={model} className="flex justify-between text-xs text-muted-foreground">
-                <span className="truncate max-w-[120px]">{model}</span>
-                <span>{formatNumber(stats.input_tokens + stats.output_tokens)}</span>
-              </div>
-            ))}
+            {Object.entries(data.by_model)
+              .slice(0, 3)
+              .map(([model, stats]) => (
+                <div key={model} className="flex justify-between text-xs text-muted-foreground">
+                  <span className="truncate max-w-[120px]">{model}</span>
+                  <span>{formatNumber(stats.input_tokens + stats.output_tokens)}</span>
+                </div>
+              ))}
           </div>
         )}
 
@@ -159,12 +155,8 @@ function LLMUsageWidgetError({ error, onRetry }: LLMUsageWidgetErrorProps) {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center justify-center py-4 text-center">
-          <p className="text-sm text-muted-foreground mb-2">
-            Failed to load LLM usage data
-          </p>
-          <p className="text-xs text-destructive mb-3 max-w-[200px] truncate">
-            {error.message}
-          </p>
+          <p className="text-sm text-muted-foreground mb-2">Failed to load LLM usage data</p>
+          <p className="text-xs text-destructive mb-3 max-w-[200px] truncate">{error.message}</p>
           {onRetry && (
             <Button
               variant="outline"

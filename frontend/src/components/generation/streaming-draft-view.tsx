@@ -98,21 +98,11 @@ export function StreamingDraftView({
 
         <div className="flex gap-2">
           {isGenerating && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              data-testid="cancel-button"
-            >
+            <Button variant="outline" size="sm" onClick={onCancel} data-testid="cancel-button">
               Cancel
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            data-testid="close-button"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} data-testid="close-button">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -145,16 +135,12 @@ export function StreamingDraftView({
         {/* Right Panel: Citations */}
         <div className="w-80 border-l bg-muted/30">
           <div className="p-4 border-b">
-            <h3 className="font-semibold text-sm">
-              Citations ({citations.length})
-            </h3>
+            <h3 className="font-semibold text-sm">Citations ({citations.length})</h3>
           </div>
           <ScrollArea className="h-[calc(100%-60px)]">
             <div className="p-4 space-y-3" data-testid="citations-panel">
               {citations.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No citations yet
-                </p>
+                <p className="text-sm text-muted-foreground italic">No citations yet</p>
               ) : (
                 citations.map((citation) => (
                   <Card
@@ -178,13 +164,9 @@ export function StreamingDraftView({
                           </p>
                         )}
                         {citation.section_header && (
-                          <p className="text-xs text-muted-foreground">
-                            {citation.section_header}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{citation.section_header}</p>
                         )}
-                        <p className="text-xs leading-relaxed">
-                          {citation.excerpt}
-                        </p>
+                        <p className="text-xs leading-relaxed">{citation.excerpt}</p>
                       </div>
                     </CardContent>
                   </Card>

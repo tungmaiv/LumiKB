@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,10 +9,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface VerificationDialogProps {
   open: boolean;
@@ -36,14 +36,14 @@ export function VerificationDialog({
   const [verified, setVerified] = useState(() => {
     if (typeof window === 'undefined') return false;
     const storageKey = `draft_export_verified_${draftId}`;
-    return sessionStorage.getItem(storageKey) === "true";
+    return sessionStorage.getItem(storageKey) === 'true';
   });
 
   const handleConfirm = () => {
     // Save verification state to session storage
     const storageKey = `draft_export_verified_${draftId}`;
     if (verified) {
-      sessionStorage.setItem(storageKey, "true");
+      sessionStorage.setItem(storageKey, 'true');
     }
     onConfirm();
   };
@@ -62,9 +62,7 @@ export function VerificationDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            Before exporting, we recommend:
-          </p>
+          <p className="text-sm text-muted-foreground">Before exporting, we recommend:</p>
           <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
             <li>Review all [{citationCount}] citations in the draft</li>
             <li>Check cited documents for accuracy</li>
@@ -73,8 +71,14 @@ export function VerificationDialog({
 
           <div className="rounded-lg border p-4 bg-muted/50">
             <p className="text-sm font-medium">
-              Sources: <span data-testid="document-count">{documentCount} {documentCount === 1 ? "document" : "documents"}</span>,{" "}
-              <span data-testid="citation-count">{citationCount} {citationCount === 1 ? "citation" : "citations"}</span>
+              Sources:{' '}
+              <span data-testid="document-count">
+                {documentCount} {documentCount === 1 ? 'document' : 'documents'}
+              </span>
+              ,{' '}
+              <span data-testid="citation-count">
+                {citationCount} {citationCount === 1 ? 'citation' : 'citations'}
+              </span>
             </p>
           </div>
 
@@ -98,7 +102,9 @@ export function VerificationDialog({
           <Button variant="outline" onClick={onCancel} data-testid="go-back-button">
             Go Back
           </Button>
-          <Button onClick={handleConfirm} data-testid="export-anyway-button">Export Anyway</Button>
+          <Button onClick={handleConfirm} data-testid="export-anyway-button">
+            Export Anyway
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

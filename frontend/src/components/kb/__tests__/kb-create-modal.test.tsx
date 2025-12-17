@@ -42,7 +42,9 @@ class MockResizeObserver {
 global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
 // Mock hasPointerCapture for Radix Select
-Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false) as (pointerId: number) => boolean;
+Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false) as (
+  pointerId: number
+) => boolean;
 
 // Mock scrollIntoView for Radix Select (JSDOM doesn't implement this)
 Element.prototype.scrollIntoView = vi.fn();
@@ -300,7 +302,7 @@ describe('KbCreateModal', () => {
       await waitFor(() => {
         // Use getAllByRole('option') to find dropdown items
         const options = screen.getAllByRole('option');
-        const optionTexts = options.map(o => o.textContent);
+        const optionTexts = options.map((o) => o.textContent);
         expect(optionTexts).toContain('text-embedding-3-small');
         expect(optionTexts).toContain('text-embedding-3-large');
       });
@@ -324,7 +326,7 @@ describe('KbCreateModal', () => {
       // Should show available generation models (use role='option')
       await waitFor(() => {
         const options = screen.getAllByRole('option');
-        const optionTexts = options.map(o => o.textContent);
+        const optionTexts = options.map((o) => o.textContent);
         expect(optionTexts).toContain('gpt-4o-mini');
         expect(optionTexts).toContain('gpt-4o');
       });
@@ -394,7 +396,9 @@ describe('KbCreateModal', () => {
         expect(options.length).toBeGreaterThan(0);
       });
       // Click the option with matching text
-      const option = screen.getAllByRole('option').find(o => o.textContent === 'text-embedding-3-small');
+      const option = screen
+        .getAllByRole('option')
+        .find((o) => o.textContent === 'text-embedding-3-small');
       expect(option).toBeDefined();
       await user.click(option!);
 
@@ -438,7 +442,7 @@ describe('KbCreateModal', () => {
         expect(options.length).toBeGreaterThan(0);
       });
       // Click the option with matching text
-      const option = screen.getAllByRole('option').find(o => o.textContent === 'gpt-4o');
+      const option = screen.getAllByRole('option').find((o) => o.textContent === 'gpt-4o');
       expect(option).toBeDefined();
       await user.click(option!);
 
@@ -480,7 +484,9 @@ describe('KbCreateModal', () => {
         const options = screen.getAllByRole('option');
         expect(options.length).toBeGreaterThan(0);
       });
-      const embOption = screen.getAllByRole('option').find(o => o.textContent === 'text-embedding-3-large');
+      const embOption = screen
+        .getAllByRole('option')
+        .find((o) => o.textContent === 'text-embedding-3-large');
       expect(embOption).toBeDefined();
       await user.click(embOption!);
 
@@ -490,7 +496,7 @@ describe('KbCreateModal', () => {
         const options = screen.getAllByRole('option');
         expect(options.length).toBeGreaterThan(0);
       });
-      const genOption = screen.getAllByRole('option').find(o => o.textContent === 'gpt-4o-mini');
+      const genOption = screen.getAllByRole('option').find((o) => o.textContent === 'gpt-4o-mini');
       expect(genOption).toBeDefined();
       await user.click(genOption!);
 
@@ -547,12 +553,8 @@ describe('KbCreateModal', () => {
        */
       render(<KbCreateModal {...defaultProps} />);
 
-      expect(
-        screen.getByText(/Model used for document embedding/)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Model used for document generation/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Model used for document embedding/)).toBeInTheDocument();
+      expect(screen.getByText(/Model used for document generation/)).toBeInTheDocument();
     });
 
     it('handles empty model lists gracefully', () => {
@@ -597,7 +599,9 @@ describe('KbCreateModal', () => {
         const options = screen.getAllByRole('option');
         expect(options.length).toBeGreaterThan(0);
       });
-      const option = screen.getAllByRole('option').find(o => o.textContent === 'text-embedding-3-small');
+      const option = screen
+        .getAllByRole('option')
+        .find((o) => o.textContent === 'text-embedding-3-small');
       expect(option).toBeDefined();
       await user.click(option!);
 

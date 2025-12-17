@@ -210,9 +210,7 @@ export default function FeedbackAnalyticsPage() {
               <MessageSquare className="h-6 w-6" />
               Feedback Analytics
             </h1>
-            <p className="text-muted-foreground">
-              User feedback on generated documents
-            </p>
+            <p className="text-muted-foreground">User feedback on generated documents</p>
           </div>
         </div>
         <div className="text-right">
@@ -265,14 +263,9 @@ export default function FeedbackAnalyticsPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value, name) => [
-                      value,
-                      getFeedbackTypeLabel(String(name)),
-                    ]}
+                    formatter={(value, name) => [value, getFeedbackTypeLabel(String(name))]}
                   />
-                  <Legend
-                    formatter={(value) => getFeedbackTypeLabel(String(value))}
-                  />
+                  <Legend formatter={(value) => getFeedbackTypeLabel(String(value))} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -313,11 +306,7 @@ export default function FeedbackAnalyticsPage() {
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={trendChartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 12 }}
-                    className="text-muted-foreground"
-                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} className="text-muted-foreground" />
                   <YAxis
                     tick={{ fontSize: 12 }}
                     className="text-muted-foreground"
@@ -357,9 +346,7 @@ export default function FeedbackAnalyticsPage() {
         </CardHeader>
         <CardContent>
           {data.recent.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No recent feedback
-            </div>
+            <div className="py-8 text-center text-muted-foreground">No recent feedback</div>
           ) : (
             <Table>
               <TableHeader>
@@ -381,9 +368,7 @@ export default function FeedbackAnalyticsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {item.user_email || (
-                        <span className="text-muted-foreground">Anonymous</span>
-                      )}
+                      {item.user_email || <span className="text-muted-foreground">Anonymous</span>}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -403,11 +388,7 @@ export default function FeedbackAnalyticsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedFeedback(item)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedFeedback(item)}>
                         View
                       </Button>
                     </TableCell>
@@ -420,16 +401,11 @@ export default function FeedbackAnalyticsPage() {
       </Card>
 
       {/* Feedback Detail Modal (AC-7.23.5) */}
-      <Dialog
-        open={!!selectedFeedback}
-        onOpenChange={(open) => !open && setSelectedFeedback(null)}
-      >
+      <Dialog open={!!selectedFeedback} onOpenChange={(open) => !open && setSelectedFeedback(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Feedback Details</DialogTitle>
-            <DialogDescription>
-              Detailed view of the feedback submission
-            </DialogDescription>
+            <DialogDescription>Detailed view of the feedback submission</DialogDescription>
           </DialogHeader>
           {selectedFeedback && (
             <div className="space-y-4">
@@ -457,9 +433,7 @@ export default function FeedbackAnalyticsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">User ID</p>
-                  <p className="text-xs font-mono truncate">
-                    {selectedFeedback.user_id || 'N/A'}
-                  </p>
+                  <p className="text-xs font-mono truncate">{selectedFeedback.user_id || 'N/A'}</p>
                 </div>
               </div>
 
@@ -474,17 +448,12 @@ export default function FeedbackAnalyticsPage() {
 
               {selectedFeedback.draft_id && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Related Draft
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Related Draft</p>
                   <div className="flex items-center gap-2">
                     <code className="text-xs bg-muted px-2 py-1 rounded">
                       {selectedFeedback.draft_id}
                     </code>
-                    <Link
-                      href={`/drafts/${selectedFeedback.draft_id}`}
-                      target="_blank"
-                    >
+                    <Link href={`/drafts/${selectedFeedback.draft_id}`} target="_blank">
                       <Button variant="ghost" size="sm">
                         <ExternalLink className="h-3 w-3 mr-1" />
                         View Draft
@@ -496,9 +465,7 @@ export default function FeedbackAnalyticsPage() {
 
               {selectedFeedback.related_request_id && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Request ID
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Request ID</p>
                   <code className="text-xs bg-muted px-2 py-1 rounded">
                     {selectedFeedback.related_request_id}
                   </code>

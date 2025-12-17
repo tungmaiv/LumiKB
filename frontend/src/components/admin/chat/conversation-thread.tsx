@@ -13,14 +13,22 @@
 
 import { useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Bot, Bug, ChevronDown, ChevronRight, Clock, FileText, Settings, User, Zap, ChevronsUpDown } from 'lucide-react';
+import {
+  Bot,
+  Bug,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FileText,
+  MessageSquareText,
+  Settings,
+  User,
+  Zap,
+  ChevronsUpDown,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -79,9 +87,9 @@ function getScoreColor(score: number): string {
 function DebugInfoSection({ debugInfo }: { debugInfo: ChatHistoryDebugInfo }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const { kb_params, chunks_retrieved, timing } = debugInfo;
+  const { kb_params, chunks_retrieved, timing, query_rewrite } = debugInfo;
   const totalTime = timing
-    ? timing.retrieval_ms + timing.context_assembly_ms
+    ? timing.retrieval_ms + timing.context_assembly_ms + (timing.query_rewrite_ms ?? 0)
     : 0;
   const chunkCount = chunks_retrieved?.length ?? 0;
 
@@ -143,11 +151,62 @@ function DebugInfoSection({ debugInfo }: { debugInfo: ChatHistoryDebugInfo }) {
                 {kb_params.system_prompt_preview && (
                   <div className="col-span-2 pt-1 border-t border-border/30">
                     <span className="text-muted-foreground">Prompt: </span>
-                    <span className="font-mono text-[10px] text-muted-foreground/80" title={kb_params.system_prompt_preview}>
+                    <span
+                      className="font-mono text-[10px] text-muted-foreground/80"
+                      title={kb_params.system_prompt_preview}
+                    >
                       {kb_params.system_prompt_preview.slice(0, 60)}...
                     </span>
                   </div>
                 )}
+              </div>
+            </section>
+          )}
+
+          {/* Query Rewrite (Story 8-0) */}
+          {query_rewrite && (
+            <section data-testid="debug-query-rewrite" className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <MessageSquareText className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Query Rewrite
+                </span>
+                <Badge
+                  variant={query_rewrite.was_rewritten ? 'default' : 'secondary'}
+                  className="text-[10px] h-5 px-1.5"
+                >
+                  {query_rewrite.was_rewritten ? 'rewritten' : 'unchanged'}
+                </Badge>
+              </div>
+              <div className="space-y-2 text-xs bg-background/40 rounded-md p-2">
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1">
+                    <span className="text-muted-foreground shrink-0">Original:</span>
+                    <span className="font-medium break-words">{query_rewrite.original_query}</span>
+                  </div>
+                  {query_rewrite.was_rewritten && (
+                    <div className="flex items-start gap-1">
+                      <span className="text-muted-foreground shrink-0">Rewritten:</span>
+                      <span className="font-medium text-primary break-words">
+                        {query_rewrite.rewritten_query}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-4 pt-1 border-t border-border/30">
+                  {query_rewrite.model_used && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Model:</span>
+                      <span className="font-mono text-[10px]">{query_rewrite.model_used}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Latency:</span>
+                    <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5">
+                      {formatMs(query_rewrite.latency_ms)}
+                    </Badge>
+                  </div>
+                </div>
               </div>
             </section>
           )}
@@ -161,7 +220,15 @@ function DebugInfoSection({ debugInfo }: { debugInfo: ChatHistoryDebugInfo }) {
                   Timing
                 </span>
               </div>
-              <div className="flex gap-4 text-xs bg-background/40 rounded-md p-2">
+              <div className="flex flex-wrap gap-4 text-xs bg-background/40 rounded-md p-2">
+                {timing.query_rewrite_ms !== undefined && timing.query_rewrite_ms > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">Rewrite:</span>
+                    <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5">
+                      {formatMs(timing.query_rewrite_ms)}
+                    </Badge>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Retrieval:</span>
                   <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5">
@@ -194,18 +261,27 @@ function DebugInfoSection({ debugInfo }: { debugInfo: ChatHistoryDebugInfo }) {
                     className="flex items-center justify-between text-xs bg-muted/30 rounded px-2.5 py-1.5 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-[10px] h-5 px-1.5 shrink-0"
+                      >
                         #{chunk.chunk_index}
                       </Badge>
                       {chunk.document_name && (
-                        <span className="truncate text-muted-foreground" title={chunk.document_name}>
+                        <span
+                          className="truncate text-muted-foreground"
+                          title={chunk.document_name}
+                        >
                           {chunk.document_name}
                         </span>
                       )}
                     </div>
                     <Badge
                       variant="secondary"
-                      className={cn('font-mono text-[10px] h-5 px-1.5 shrink-0', getScoreColor(chunk.relevance_score))}
+                      className={cn(
+                        'font-mono text-[10px] h-5 px-1.5 shrink-0',
+                        getScoreColor(chunk.relevance_score)
+                      )}
                     >
                       {(chunk.relevance_score * 100).toFixed(1)}%
                     </Badge>
@@ -229,14 +305,9 @@ export function ConversationThreadSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className={cn(
-            'flex flex-col gap-2',
-            i % 2 === 0 ? 'items-end' : 'items-start'
-          )}
+          className={cn('flex flex-col gap-2', i % 2 === 0 ? 'items-end' : 'items-start')}
         >
-          <Skeleton
-            className={cn('h-20 rounded-lg', i % 2 === 0 ? 'w-2/3' : 'w-3/4')}
-          />
+          <Skeleton className={cn('h-20 rounded-lg', i % 2 === 0 ? 'w-2/3' : 'w-3/4')} />
         </div>
       ))}
     </div>
@@ -256,9 +327,8 @@ function MessageContentView({
   onToggle: () => void;
 }) {
   const isLongContent = text.length > MAX_CONTENT_LENGTH;
-  const displayContent = isExpanded || !isLongContent
-    ? text
-    : text.slice(0, MAX_CONTENT_LENGTH) + '...';
+  const displayContent =
+    isExpanded || !isLongContent ? text : text.slice(0, MAX_CONTENT_LENGTH) + '...';
 
   return (
     <div className="relative">
@@ -308,11 +378,7 @@ function MessageBubble({ message }: { message: ChatMessageItem }) {
           isUser && 'flex-row-reverse'
         )}
       >
-        {isUser ? (
-          <User className="h-3 w-3" />
-        ) : (
-          <Bot className="h-3 w-3" />
-        )}
+        {isUser ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
         <span>{isUser ? 'User' : 'Assistant'}</span>
         {isLongContent && (
           <Badge variant="outline" className="text-[10px] h-4 px-1 ml-1">
@@ -341,9 +407,7 @@ function MessageBubble({ message }: { message: ChatMessageItem }) {
         )}
 
         {/* Debug info for assistant messages (Story 9-15) */}
-        {isAssistant && message.debug_info && (
-          <DebugInfoSection debugInfo={message.debug_info} />
-        )}
+        {isAssistant && message.debug_info && <DebugInfoSection debugInfo={message.debug_info} />}
       </div>
 
       {/* Metadata row */}
@@ -380,10 +444,7 @@ function MessageBubble({ message }: { message: ChatMessageItem }) {
   );
 }
 
-export function ConversationThread({
-  messages,
-  isLoading,
-}: ConversationThreadProps) {
+export function ConversationThread({ messages, isLoading }: ConversationThreadProps) {
   if (isLoading) {
     return <ConversationThreadSkeleton />;
   }

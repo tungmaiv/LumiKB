@@ -38,9 +38,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
 
     // GIVEN: Streaming in progress
     vi.mocked(useChatStream).mockReturnValue({
-      messages: [
-        { role: 'user', content: 'Test', timestamp: new Date(), citations: [] },
-      ],
+      messages: [{ role: 'user', content: 'Test', timestamp: new Date(), citations: [] }],
       isStreaming: true,
       sendMessage: vi.fn(),
       error: null,
@@ -89,7 +87,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       undoAvailable: true,
       undoSecondsRemaining: 25,
       isLoading: false,
-      error: 'Redis connection failed',  // Error state
+      error: 'Redis connection failed', // Error state
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -171,9 +169,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
 
     // GIVEN: Loading state
     vi.mocked(useChatStream).mockReturnValue({
-      messages: [
-        { role: 'user', content: 'Test', timestamp: new Date(), citations: [] },
-      ],
+      messages: [{ role: 'user', content: 'Test', timestamp: new Date(), citations: [] }],
       isStreaming: false,
       sendMessage: vi.fn(),
       error: null,
@@ -190,7 +186,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       undoClear: vi.fn(),
       undoAvailable: false,
       undoSecondsRemaining: 0,
-      isLoading: true,  // Loading state
+      isLoading: true, // Loading state
       error: null,
     });
 
@@ -209,7 +205,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       clearChat: vi.fn(),
       undoClear: vi.fn(),
       undoAvailable: true,
-      undoSecondsRemaining: 15,  // 15 seconds remaining
+      undoSecondsRemaining: 15, // 15 seconds remaining
       isLoading: false,
       error: null,
     });
@@ -227,7 +223,7 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       startNewChat: vi.fn(),
       clearChat: vi.fn(),
       undoClear: vi.fn(),
-      undoAvailable: false,  // Expired
+      undoAvailable: false, // Expired
       undoSecondsRemaining: 0,
       isLoading: false,
       error: null,

@@ -164,7 +164,11 @@ export function ArchivedTab({ kbId }: ArchivedTabProps) {
                 onValueChange={handlePageSizeChange}
                 disabled={isLoading}
               >
-                <SelectTrigger id="archived-page-size" className="w-[80px]" data-testid="page-size-select">
+                <SelectTrigger
+                  id="archived-page-size"
+                  className="w-[80px]"
+                  data-testid="page-size-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,7 +236,9 @@ export function ArchivedTab({ kbId }: ArchivedTabProps) {
           <Archive className="h-12 w-12 text-muted-foreground/50 mb-4" />
           <h3 className="text-lg font-medium mb-1">No archived documents</h3>
           <p className="text-sm text-muted-foreground">
-            {searchInput ? 'No documents match your search.' : 'Archived documents will appear here.'}
+            {searchInput
+              ? 'No documents match your search.'
+              : 'Archived documents will appear here.'}
           </p>
         </div>
       ) : (

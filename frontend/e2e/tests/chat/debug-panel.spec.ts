@@ -34,12 +34,14 @@ async function waitForChatResponse(page: Page, timeout = 30000) {
   });
 
   // Wait for streaming to complete (thinking indicator should disappear)
-  await page.waitForSelector('[data-testid="thinking-indicator"]', {
-    state: 'hidden',
-    timeout,
-  }).catch(() => {
-    // Thinking indicator might not appear for fast responses
-  });
+  await page
+    .waitForSelector('[data-testid="thinking-indicator"]', {
+      state: 'hidden',
+      timeout,
+    })
+    .catch(() => {
+      // Thinking indicator might not appear for fast responses
+    });
 }
 
 test.describe('Debug Panel UI (Story 9-15)', () => {

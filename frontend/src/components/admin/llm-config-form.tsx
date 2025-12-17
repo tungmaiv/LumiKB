@@ -26,11 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LLMConfig, LLMConfigUpdateRequest, LLMConfigSettings } from '@/types/llm-config';
 import type { LLMModelSummary } from '@/types/llm-model';
 import { useAvailableModels } from '@/hooks/useAvailableModels';
@@ -41,6 +37,10 @@ interface LLMConfigFormProps {
   isSubmitting: boolean;
   onRefetch: () => void;
   lastFetched: Date | null;
+  // Story 8-0: Query Rewriter Model
+  rewriterModelId?: string | null;
+  onRewriterModelChange?: (modelId: string | null) => Promise<void>;
+  isUpdatingRewriterModel?: boolean;
 }
 
 interface FormData {
@@ -49,6 +49,8 @@ interface FormData {
   temperature: number;
   max_tokens: number;
   top_p: number;
+  // Story 8-0: Track rewriter model changes in form state
+  rewriter_model_id: string;
 }
 
 export function LLMConfigForm({
@@ -57,6 +59,9 @@ export function LLMConfigForm({
   isSubmitting,
   onRefetch,
   lastFetched,
+  rewriterModelId,
+  onRewriterModelChange,
+  isUpdatingRewriterModel,
 }: LLMConfigFormProps) {
   const { embeddingModels, generationModels, isLoading: modelsLoading } = useAvailableModels();
   const [hasChanges, setHasChanges] = useState(false);
@@ -75,10 +80,12 @@ export function LLMConfigForm({
       temperature: config.generation_settings.temperature,
       max_tokens: config.generation_settings.max_tokens,
       top_p: config.generation_settings.top_p,
+      // Story 8-0: 'default' means use default generation model (null in API)
+      rewriter_model_id: rewriterModelId || 'default',
     },
   });
 
-  // Update form when config changes
+  // Update form when config changes (including rewriter model)
   useEffect(() => {
     reset({
       embedding_model_id: config.embedding_model?.model_id || '',
@@ -86,21 +93,25 @@ export function LLMConfigForm({
       temperature: config.generation_settings.temperature,
       max_tokens: config.generation_settings.max_tokens,
       top_p: config.generation_settings.top_p,
+      rewriter_model_id: rewriterModelId || 'default',
     });
     setHasChanges(false);
-  }, [config, reset]);
+  }, [config, rewriterModelId, reset]);
 
-  // Track changes
+  // Track changes (including rewriter model)
   const watchedValues = watch();
   useEffect(() => {
+    // Normalize rewriter model values for comparison
+    const currentRewriterValue = rewriterModelId || 'default';
     const changed =
       watchedValues.embedding_model_id !== (config.embedding_model?.model_id || '') ||
       watchedValues.generation_model_id !== (config.generation_model?.model_id || '') ||
       watchedValues.temperature !== config.generation_settings.temperature ||
       watchedValues.max_tokens !== config.generation_settings.max_tokens ||
-      watchedValues.top_p !== config.generation_settings.top_p;
+      watchedValues.top_p !== config.generation_settings.top_p ||
+      watchedValues.rewriter_model_id !== currentRewriterValue;
     setHasChanges(changed);
-  }, [watchedValues, config]);
+  }, [watchedValues, config, rewriterModelId]);
 
   const onFormSubmit = async (data: FormData) => {
     const request: LLMConfigUpdateRequest = {};
@@ -127,7 +138,16 @@ export function LLMConfigForm({
       };
     }
 
+    // Submit LLM config changes first
     await onSubmit(request);
+
+    // Story 8-0: Save rewriter model changes if changed
+    const currentRewriterValue = rewriterModelId || 'default';
+    if (onRewriterModelChange && data.rewriter_model_id !== currentRewriterValue) {
+      const newRewriterModelId =
+        data.rewriter_model_id === 'default' ? null : data.rewriter_model_id;
+      await onRewriterModelChange(newRewriterModelId);
+    }
   };
 
   const formatLastFetched = () => {
@@ -165,9 +185,7 @@ export function LLMConfigForm({
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <code className="rounded bg-muted px-2 py-1 text-sm">
-              {config.litellm_base_url}
-            </code>
+            <code className="rounded bg-muted px-2 py-1 text-sm">{config.litellm_base_url}</code>
             <span className="text-sm text-muted-foreground">
               All LLM requests route through this proxy
             </span>
@@ -193,7 +211,10 @@ export function LLMConfigForm({
                   <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <p>Used for converting documents and queries into vector embeddings for semantic search.</p>
+                  <p>
+                    Used for converting documents and queries into vector embeddings for semantic
+                    search.
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </Label>
@@ -203,7 +224,9 @@ export function LLMConfigForm({
               disabled={modelsLoading}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select embedding model'} />
+                <SelectValue
+                  placeholder={modelsLoading ? 'Loading models...' : 'Select embedding model'}
+                />
               </SelectTrigger>
               <SelectContent>
                 {embeddingModels.map((model: LLMModelSummary) => (
@@ -246,7 +269,9 @@ export function LLMConfigForm({
               disabled={modelsLoading}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select generation model'} />
+                <SelectValue
+                  placeholder={modelsLoading ? 'Loading models...' : 'Select generation model'}
+                />
               </SelectTrigger>
               <SelectContent>
                 {generationModels.map((model: LLMModelSummary) => (
@@ -272,6 +297,79 @@ export function LLMConfigForm({
         </CardContent>
       </Card>
 
+      {/* Query Rewriter Model - Story 8-0 */}
+      {onRewriterModelChange && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Query Rewriting</CardTitle>
+            <CardDescription>
+              Model used to reformulate follow-up questions into standalone queries for better
+              retrieval
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rewriter_model_id" className="flex items-center gap-1">
+                Query Rewriter Model
+                <Tooltip>
+                  <TooltipTrigger type="button" className="cursor-help">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="font-medium mb-1">Resolves conversational references</p>
+                    <p>
+                      Converts queries like &ldquo;What about it?&rdquo; into standalone questions
+                      by resolving pronouns and implicit references using conversation history.
+                    </p>
+                    <p className="mt-1 text-xs italic">
+                      Use a fast, cheap model for query rewriting.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </Label>
+              <Select
+                value={watch('rewriter_model_id')}
+                onValueChange={(value) => setValue('rewriter_model_id', value)}
+                disabled={modelsLoading || isUpdatingRewriterModel}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={modelsLoading ? 'Loading models...' : 'Select rewriter model'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">
+                    <span className="flex items-center gap-2">
+                      <span>Use Default Generation Model</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        Fallback
+                      </span>
+                    </span>
+                  </SelectItem>
+                  {generationModels.map((model: LLMModelSummary) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{model.name}</span>
+                        {model.is_default && (
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                            Default Gen
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {watch('rewriter_model_id') !== 'default'
+                  ? `Will use explicit model for query rewriting`
+                  : 'Will use default generation model for query rewriting'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Generation Settings */}
       <Card>
         <CardHeader>
@@ -292,9 +390,15 @@ export function LLMConfigForm({
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
                     <p className="font-medium mb-1">Controls randomness in responses</p>
-                    <p><strong>Low (0-0.3):</strong> Deterministic, focused</p>
-                    <p><strong>Medium (0.4-0.7):</strong> Balanced</p>
-                    <p><strong>High (0.8-2.0):</strong> Creative, varied</p>
+                    <p>
+                      <strong>Low (0-0.3):</strong> Deterministic, focused
+                    </p>
+                    <p>
+                      <strong>Medium (0.4-0.7):</strong> Balanced
+                    </p>
+                    <p>
+                      <strong>High (0.8-2.0):</strong> Creative, varied
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </Label>
@@ -324,7 +428,10 @@ export function LLMConfigForm({
                   <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <p>Maximum number of tokens in generated responses. Higher values allow longer responses but use more resources.</p>
+                  <p>
+                    Maximum number of tokens in generated responses. Higher values allow longer
+                    responses but use more resources.
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </Label>
@@ -354,9 +461,15 @@ export function LLMConfigForm({
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
                     <p className="font-medium mb-1">Controls token selection threshold</p>
-                    <p><strong>1.0:</strong> Consider all tokens (recommended)</p>
-                    <p><strong>0.9:</strong> Top 90% probable tokens</p>
-                    <p className="mt-1 text-xs italic">Usually keep at 1.0 and adjust Temperature instead.</p>
+                    <p>
+                      <strong>1.0:</strong> Consider all tokens (recommended)
+                    </p>
+                    <p>
+                      <strong>0.9:</strong> Top 90% probable tokens
+                    </p>
+                    <p className="mt-1 text-xs italic">
+                      Usually keep at 1.0 and adjust Temperature instead.
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </Label>

@@ -344,7 +344,7 @@ test.describe('Story 5-0: Navigation & Dashboard Edge Cases', () => {
 
     // Mock slow API response
     await page.route('**/api/v1/knowledge-bases**', async (route) => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -361,11 +361,18 @@ test.describe('Story 5-0: Navigation & Dashboard Edge Cases', () => {
 
     // THEN: Loading state is visible
     const loadingSkeleton = page.getByTestId('kb-loading-skeleton');
-    const loadingSpinner = page.locator('[data-testid*="loading"]').or(page.locator('.animate-spin'));
+    const loadingSpinner = page
+      .locator('[data-testid*="loading"]')
+      .or(page.locator('.animate-spin'));
 
     if (await loadingSkeleton.isVisible({ timeout: 1000 }).catch(() => false)) {
       await expect(loadingSkeleton).toBeVisible();
-    } else if (await loadingSpinner.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+    } else if (
+      await loadingSpinner
+        .first()
+        .isVisible({ timeout: 1000 })
+        .catch(() => false)
+    ) {
       await expect(loadingSpinner.first()).toBeVisible();
     }
 

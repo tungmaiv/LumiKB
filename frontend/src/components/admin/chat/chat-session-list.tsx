@@ -82,10 +82,7 @@ export function ChatSessionList({
         {sessions.map((session) => (
           <TableRow
             key={session.session_id}
-            className={cn(
-              'cursor-pointer',
-              selectedSessionId === session.session_id && 'bg-muted'
-            )}
+            className={cn('cursor-pointer', selectedSessionId === session.session_id && 'bg-muted')}
             onClick={() => onSelectSession(session.session_id)}
             data-testid={`session-row-${session.session_id}`}
           >
@@ -95,14 +92,10 @@ export function ChatSessionList({
             <TableCell>
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate max-w-[120px]">
-                  {session.user_name || 'Unknown'}
-                </span>
+                <span className="truncate max-w-[120px]">{session.user_name || 'Unknown'}</span>
               </div>
             </TableCell>
-            <TableCell className="truncate max-w-[150px]">
-              {session.kb_name || '-'}
-            </TableCell>
+            <TableCell className="truncate max-w-[150px]">{session.kb_name || '-'}</TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
                 <MessageCircle className="h-4 w-4 text-muted-foreground" />

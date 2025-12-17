@@ -41,13 +41,35 @@ export interface TimingDebugInfo {
   retrieval_ms: number;
   /** Time spent on context assembly in milliseconds */
   context_assembly_ms: number;
+  /** Time spent on query rewriting in milliseconds (Story 8-0) */
+  query_rewrite_ms?: number;
+}
+
+/**
+ * Debug information for query rewriting (Story 8-0)
+ *
+ * Shows the original query, rewritten query, and rewriting metadata.
+ * Only populated when chat history exists and rewriting is attempted.
+ */
+export interface QueryRewriteDebugInfo {
+  /** Original user query */
+  original_query: string;
+  /** Reformulated standalone query */
+  rewritten_query: string;
+  /** Whether the query was actually modified */
+  was_rewritten: boolean;
+  /** LLM model ID used for rewriting (empty if skipped) */
+  model_used: string;
+  /** Time spent on rewriting in milliseconds */
+  latency_ms: number;
 }
 
 /**
  * Complete debug information for RAG pipeline telemetry (AC-9.15.10-13)
  *
  * Emitted as SSE event type="debug" when KB debug_mode is enabled.
- * Contains KB parameters, retrieved chunks with scores, and timing metrics.
+ * Contains KB parameters, retrieved chunks with scores, timing metrics,
+ * and query rewriting information (Story 8-0).
  */
 export interface DebugInfo {
   /** KB prompt configuration parameters */
@@ -56,4 +78,6 @@ export interface DebugInfo {
   chunks_retrieved: ChunkDebugInfo[];
   /** Pipeline timing breakdown */
   timing: TimingDebugInfo;
+  /** Query rewriting info (Story 8-0) - present when history exists */
+  query_rewrite?: QueryRewriteDebugInfo | null;
 }

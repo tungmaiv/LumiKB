@@ -2,8 +2,8 @@
  * Modal for editing a system configuration setting.
  */
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -11,12 +11,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ConfigSetting } from "@/types/config";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ConfigSetting } from '@/types/config';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface EditConfigModalProps {
   isOpen: boolean;
@@ -33,11 +33,11 @@ export function EditConfigModal({
   onSave,
   isSaving,
 }: EditConfigModalProps) {
-  const [value, setValue] = useState<string>("");
+  const [value, setValue] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // Reset value when setting changes
-  if (setting && value === "") {
+  if (setting && value === '') {
     setValue(String(setting.value));
   }
 
@@ -51,10 +51,10 @@ export function EditConfigModal({
       let parsedValue: number | boolean | string;
 
       switch (setting.data_type) {
-        case "integer":
+        case 'integer':
           parsedValue = parseInt(value, 10);
           if (isNaN(parsedValue)) {
-            setError("Please enter a valid integer");
+            setError('Please enter a valid integer');
             return;
           }
           // Validate range
@@ -68,19 +68,19 @@ export function EditConfigModal({
           }
           break;
 
-        case "float":
+        case 'float':
           parsedValue = parseFloat(value);
           if (isNaN(parsedValue)) {
-            setError("Please enter a valid number");
+            setError('Please enter a valid number');
             return;
           }
           break;
 
-        case "boolean":
-          parsedValue = value.toLowerCase() === "true" || value === "1";
+        case 'boolean':
+          parsedValue = value.toLowerCase() === 'true' || value === '1';
           break;
 
-        case "string":
+        case 'string':
           parsedValue = value;
           break;
 
@@ -89,15 +89,15 @@ export function EditConfigModal({
       }
 
       await onSave(setting.key, parsedValue);
-      setValue("");
+      setValue('');
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save setting");
+      setError(err instanceof Error ? err.message : 'Failed to save setting');
     }
   };
 
   const handleClose = () => {
-    setValue("");
+    setValue('');
     setError(null);
     onClose();
   };
@@ -117,7 +117,9 @@ export function EditConfigModal({
             <Label htmlFor="value">Value</Label>
             <Input
               id="value"
-              type={setting.data_type === "integer" || setting.data_type === "float" ? "number" : "text"}
+              type={
+                setting.data_type === 'integer' || setting.data_type === 'float' ? 'number' : 'text'
+              }
               value={value}
               onChange={(e) => setValue(e.target.value)}
               disabled={isSaving}
@@ -151,7 +153,7 @@ export function EditConfigModal({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

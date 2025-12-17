@@ -35,10 +35,10 @@ describe('useSSEReconnection', () => {
     it('calculates correct backoff delays: 1s -> 2s -> 4s -> 8s', () => {
       const { result } = renderHook(() => useSSEReconnection());
 
-      expect(result.current.getBackoffDelay(0)).toBe(1000);  // 1s
-      expect(result.current.getBackoffDelay(1)).toBe(2000);  // 2s
-      expect(result.current.getBackoffDelay(2)).toBe(4000);  // 4s
-      expect(result.current.getBackoffDelay(3)).toBe(8000);  // 8s
+      expect(result.current.getBackoffDelay(0)).toBe(1000); // 1s
+      expect(result.current.getBackoffDelay(1)).toBe(2000); // 2s
+      expect(result.current.getBackoffDelay(2)).toBe(4000); // 4s
+      expect(result.current.getBackoffDelay(3)).toBe(8000); // 8s
       expect(result.current.getBackoffDelay(4)).toBe(16000); // 16s
     });
 
@@ -51,13 +51,11 @@ describe('useSSEReconnection', () => {
     });
 
     it('uses custom initial delay', () => {
-      const { result } = renderHook(() =>
-        useSSEReconnection({ initialDelay: 500 })
-      );
+      const { result } = renderHook(() => useSSEReconnection({ initialDelay: 500 }));
 
-      expect(result.current.getBackoffDelay(0)).toBe(500);   // 0.5s
-      expect(result.current.getBackoffDelay(1)).toBe(1000);  // 1s
-      expect(result.current.getBackoffDelay(2)).toBe(2000);  // 2s
+      expect(result.current.getBackoffDelay(0)).toBe(500); // 0.5s
+      expect(result.current.getBackoffDelay(1)).toBe(1000); // 1s
+      expect(result.current.getBackoffDelay(2)).toBe(2000); // 2s
     });
   });
 
@@ -127,9 +125,7 @@ describe('useSSEReconnection', () => {
 
     it('fires onReconnectAttempt callback', () => {
       const onReconnectAttempt = vi.fn();
-      const { result } = renderHook(() =>
-        useSSEReconnection({ onReconnectAttempt })
-      );
+      const { result } = renderHook(() => useSSEReconnection({ onReconnectAttempt }));
 
       act(() => {
         result.current.scheduleReconnect(() => {});
@@ -141,9 +137,7 @@ describe('useSSEReconnection', () => {
 
   describe('max retry limit (AC-7.22.4)', () => {
     it('sets maxRetriesExceeded after reaching limit', () => {
-      const { result } = renderHook(() =>
-        useSSEReconnection({ maxRetries: 3 })
-      );
+      const { result } = renderHook(() => useSSEReconnection({ maxRetries: 3 }));
       const reconnectFn = vi.fn();
 
       // Attempt 1
@@ -223,9 +217,7 @@ describe('useSSEReconnection', () => {
 
     it('fires onReconnectSuccess callback', () => {
       const onReconnectSuccess = vi.fn();
-      const { result } = renderHook(() =>
-        useSSEReconnection({ onReconnectSuccess })
-      );
+      const { result } = renderHook(() => useSSEReconnection({ onReconnectSuccess }));
 
       act(() => {
         result.current.scheduleReconnect(() => {});
@@ -291,9 +283,7 @@ describe('useSSEReconnection', () => {
 
   describe('manualRetry', () => {
     it('resets attempt count and schedules reconnect', () => {
-      const { result } = renderHook(() =>
-        useSSEReconnection({ maxRetries: 2 })
-      );
+      const { result } = renderHook(() => useSSEReconnection({ maxRetries: 2 }));
       const reconnectFn = vi.fn();
 
       // Exhaust retries
@@ -365,9 +355,7 @@ describe('useSSEReconnection', () => {
     });
 
     it('polls at configured interval', async () => {
-      const { result } = renderHook(() =>
-        useSSEReconnection({ pollingInterval: 2000 })
-      );
+      const { result } = renderHook(() => useSSEReconnection({ pollingInterval: 2000 }));
       const pollFn = vi.fn().mockResolvedValue(undefined);
 
       await act(async () => {

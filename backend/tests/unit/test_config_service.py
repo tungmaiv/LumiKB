@@ -991,3 +991,286 @@ class TestConfigServiceCacheKeys:
         THEN: LLM config channel is defined for hot-reload
         """
         assert ConfigService.LLM_CONFIG_CHANNEL == "llm:config:updated"
+
+
+class TestConfigServiceRewriterModel:
+    """Tests for ConfigService rewriter model methods (Story 8-0)."""
+
+    @pytest.mark.asyncio
+    async def test_get_rewriter_model_id_returns_none_when_not_set(self):
+        """
+        GIVEN: ConfigService with no rewriter model configured
+        WHEN: get_rewriter_model_id is called
+        THEN: Returns None
+        """
+        # GIVEN: Mock session with no config record
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = config_result
+
+        # WHEN: Get rewriter model ID
+        result = await service.get_rewriter_model_id()
+
+        # THEN: Returns None
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_rewriter_model_id_returns_uuid_when_set(self):
+        """
+        GIVEN: ConfigService with rewriter model configured
+        WHEN: get_rewriter_model_id is called
+        THEN: Returns the stored UUID
+        """
+        # GIVEN: Mock session with config record
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+
+        model_uuid = uuid4()
+        mock_config = MagicMock()
+        mock_config.value = str(model_uuid)
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = mock_config
+        mock_session.execute.return_value = config_result
+
+        # WHEN: Get rewriter model ID
+        result = await service.get_rewriter_model_id()
+
+        # THEN: Returns the UUID
+        assert result == model_uuid
+
+    @pytest.mark.asyncio
+    async def test_get_rewriter_model_id_returns_none_on_invalid_uuid(self):
+        """
+        GIVEN: ConfigService with invalid UUID stored
+        WHEN: get_rewriter_model_id is called
+        THEN: Returns None and logs warning
+        """
+        # GIVEN: Mock session with invalid UUID
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+
+        mock_config = MagicMock()
+        mock_config.value = "not-a-valid-uuid"
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = mock_config
+        mock_session.execute.return_value = config_result
+
+        # WHEN: Get rewriter model ID
+        result = await service.get_rewriter_model_id()
+
+        # THEN: Returns None (gracefully handles invalid data)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_set_rewriter_model_id_stores_uuid(self):
+        """
+        GIVEN: ConfigService
+        WHEN: set_rewriter_model_id is called with valid model UUID
+        THEN: Stores the UUID in SystemConfig
+        """
+        # GIVEN: Mock session with valid generation model
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+        service.audit_service = AsyncMock()
+
+        model_uuid = uuid4()
+        mock_model = MagicMock(spec=LLMModel)
+        mock_model.id = model_uuid
+        mock_model.type = ModelType.GENERATION.value
+        mock_model.name = "Test Generation Model"
+
+        # First query returns the model, second returns no existing config
+        model_result = MagicMock()
+        model_result.scalar_one_or_none.return_value = mock_model
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [model_result, config_result]
+
+        mock_redis = AsyncMock()
+
+        with patch(
+            "app.services.config_service.get_redis_client",
+            return_value=mock_redis,
+        ):
+            # WHEN: Set rewriter model ID
+            await service.set_rewriter_model_id(model_uuid, "admin@test.com")
+
+            # THEN: SystemConfig is created
+            mock_session.add.assert_called_once()
+            mock_session.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_set_rewriter_model_id_clears_when_none(self):
+        """
+        GIVEN: ConfigService with existing rewriter model
+        WHEN: set_rewriter_model_id is called with None
+        THEN: Updates the config to None value
+        """
+        # GIVEN: Mock session with existing config
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+        service.audit_service = AsyncMock()
+
+        mock_config = MagicMock()
+        mock_config.value = str(uuid4())
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = mock_config
+        mock_session.execute.return_value = config_result
+
+        mock_redis = AsyncMock()
+
+        with patch(
+            "app.services.config_service.get_redis_client",
+            return_value=mock_redis,
+        ):
+            # WHEN: Set rewriter model ID to None
+            await service.set_rewriter_model_id(None, "admin@test.com")
+
+            # THEN: Config is updated (not deleted - update sets value to None)
+            # Second execute call is the update statement
+            assert mock_session.execute.call_count == 2
+            mock_session.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_set_rewriter_model_id_raises_on_invalid_model(self):
+        """
+        GIVEN: ConfigService
+        WHEN: set_rewriter_model_id is called with non-existent model UUID
+        THEN: Raises ValueError
+        """
+        # GIVEN: Mock session with no model
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+        service.audit_service = AsyncMock()
+
+        model_result = MagicMock()
+        model_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = model_result
+
+        # WHEN/THEN: Raises ValueError
+        with pytest.raises(ValueError) as exc:
+            await service.set_rewriter_model_id(uuid4(), "admin@test.com")
+
+        assert "not found" in str(exc.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_set_rewriter_model_id_raises_on_wrong_type(self):
+        """
+        GIVEN: ConfigService
+        WHEN: set_rewriter_model_id is called with embedding model UUID
+        THEN: Raises ValueError (must be generation type)
+        """
+        # GIVEN: Mock session with embedding model
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+        service.audit_service = AsyncMock()
+
+        model_uuid = uuid4()
+        mock_model = MagicMock(spec=LLMModel)
+        mock_model.id = model_uuid
+        mock_model.type = ModelType.EMBEDDING.value  # Wrong type
+        mock_model.name = "Embedding Model"
+
+        model_result = MagicMock()
+        model_result.scalar_one_or_none.return_value = mock_model
+        mock_session.execute.return_value = model_result
+
+        # WHEN/THEN: Raises ValueError
+        with pytest.raises(ValueError) as exc:
+            await service.set_rewriter_model_id(model_uuid, "admin@test.com")
+
+        assert "generation" in str(exc.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_set_rewriter_model_id_invalidates_cache(self):
+        """
+        GIVEN: ConfigService with cached config
+        WHEN: set_rewriter_model_id is called
+        THEN: Cache is invalidated
+        """
+        # GIVEN: Mock session with valid generation model
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+        service.audit_service = AsyncMock()
+
+        model_uuid = uuid4()
+        mock_model = MagicMock(spec=LLMModel)
+        mock_model.id = model_uuid
+        mock_model.type = ModelType.GENERATION.value
+        mock_model.name = "Test Model"
+
+        model_result = MagicMock()
+        model_result.scalar_one_or_none.return_value = mock_model
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [model_result, config_result]
+
+        mock_redis = AsyncMock()
+
+        with patch(
+            "app.services.config_service.get_redis_client",
+            return_value=mock_redis,
+        ):
+            # WHEN: Set rewriter model ID
+            await service.set_rewriter_model_id(model_uuid, "admin@test.com")
+
+            # THEN: Cache is invalidated
+            mock_redis.delete.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_set_rewriter_model_id_updates_existing_config(self):
+        """
+        GIVEN: ConfigService with existing rewriter model config
+        WHEN: set_rewriter_model_id is called with new UUID
+        THEN: Updates the existing config record (not creates new)
+        """
+        # GIVEN: Mock session with existing config and valid model
+        mock_session = AsyncMock()
+        service = ConfigService(mock_session)
+        service.audit_service = AsyncMock()
+
+        old_uuid = uuid4()
+        new_uuid = uuid4()
+
+        mock_model = MagicMock(spec=LLMModel)
+        mock_model.id = new_uuid
+        mock_model.type = ModelType.GENERATION.value
+        mock_model.name = "New Model"
+
+        mock_config = MagicMock()
+        mock_config.value = str(old_uuid)
+
+        model_result = MagicMock()
+        model_result.scalar_one_or_none.return_value = mock_model
+
+        config_result = MagicMock()
+        config_result.scalar_one_or_none.return_value = mock_config
+
+        update_result = MagicMock()  # Result of update statement
+
+        # 1) model lookup, 2) config lookup, 3) update statement
+        mock_session.execute.side_effect = [model_result, config_result, update_result]
+
+        mock_redis = AsyncMock()
+
+        with patch(
+            "app.services.config_service.get_redis_client",
+            return_value=mock_redis,
+        ):
+            # WHEN: Set rewriter model ID
+            await service.set_rewriter_model_id(new_uuid, "admin@test.com")
+
+            # THEN: Existing config is updated via UPDATE statement (not add)
+            mock_session.add.assert_not_called()
+            assert mock_session.execute.call_count == 3  # model + config + update
+            mock_session.commit.assert_called_once()

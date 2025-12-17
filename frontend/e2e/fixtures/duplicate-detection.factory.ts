@@ -241,10 +241,7 @@ export function createSuccessfulReplaceResult(
 /**
  * Create failed replace result
  */
-export function createFailedReplaceResult(
-  oldDocId: string,
-  reason: string
-): ReplaceResult {
+export function createFailedReplaceResult(oldDocId: string, reason: string): ReplaceResult {
   return {
     success: false,
     old_document_id: oldDocId,

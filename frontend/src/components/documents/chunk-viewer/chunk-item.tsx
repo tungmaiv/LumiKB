@@ -50,9 +50,7 @@ export function ChunkItem({
   const isExpandable = chunk.text.length > PREVIEW_LENGTH;
 
   // Truncate text for preview (max 100 chars)
-  const previewText = isExpandable
-    ? `${chunk.text.slice(0, PREVIEW_LENGTH)}...`
-    : chunk.text;
+  const previewText = isExpandable ? `${chunk.text.slice(0, PREVIEW_LENGTH)}...` : chunk.text;
 
   const handleExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation(); // Don't trigger chunk selection
@@ -68,9 +66,7 @@ export function ChunkItem({
       className={cn(
         'w-full text-left p-3 rounded-lg border transition-colors',
         'hover:bg-muted/50',
-        isSelected
-          ? 'bg-primary/10 border-primary'
-          : 'bg-background border-border',
+        isSelected ? 'bg-primary/10 border-primary' : 'bg-background border-border',
         isSearchMatch && 'ring-1 ring-yellow-500/50'
       )}
       data-testid={`chunk-item-${chunk.chunk_index}`}
@@ -123,12 +119,7 @@ export function ChunkItem({
         className="w-full text-left focus:outline-none focus:ring-1 focus:ring-ring rounded"
         aria-pressed={isSelected}
       >
-        <p
-          className={cn(
-            'text-sm text-foreground',
-            !isExpanded && 'line-clamp-3'
-          )}
-        >
+        <p className={cn('text-sm text-foreground', !isExpanded && 'line-clamp-3')}>
           {isExpanded ? chunk.text : previewText}
         </p>
       </button>

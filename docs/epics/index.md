@@ -32,10 +32,10 @@ This document provides the complete epic and story breakdown for LumiKB, decompo
 | 5 | Administration & Polish | Full admin dashboard, onboarding wizard | 26 | [epic-5-admin.md](epic-5-admin.md) |
 | 6 | Document Lifecycle Management | Archive, restore, purge, duplicate detection | 9 | [epic-6-lifecycle.md](epic-6-lifecycle.md) |
 | 7 | Infrastructure & DevOps | CI/CD, monitoring, model registry, KB lifecycle | 26 | [epic-7-infrastructure.md](epic-7-infrastructure.md) |
-| 8 | GraphRAG Integration | Domain-driven knowledge graphs | 16 | [epic-8-graphrag.md](epic-8-graphrag.md) |
+| 8 | GraphRAG Integration | Domain-driven knowledge graphs, hybrid search | 18 | [epic-8-graphrag.md](epic-8-graphrag.md) |
 | 9 | Hybrid Observability Platform | Distributed tracing, chat history, LLM cost tracking | 14 | [epic-9-observability.md](epic-9-observability.md) |
 
-**Total Stories:** 126+ (including technical debt)
+**Total Stories:** 128+ (including technical debt)
 
 ---
 
@@ -164,14 +164,14 @@ This document provides the complete epic and story breakdown for LumiKB, decompo
 | **Epic 5: Administration & Polish** | FR47-52, FR58, FR8a-c, FR12b, FR12c-d | Admin dashboard, onboarding, audit UI |
 | **Epic 6: Document Lifecycle** | FR59-77 | Archive, restore, purge, duplicate detection |
 | **Epic 7: Infrastructure & DevOps** | Infrastructure (supports all FRs) | CI/CD, monitoring, model registry |
-| **Epic 8: GraphRAG** | FR78-92 | Domain-driven knowledge graphs |
+| **Epic 8: GraphRAG** | FR78-92, FR126-135 | Domain-driven knowledge graphs, history-aware query rewriting, hybrid BM25+vector search |
 | **Epic 9: Observability** | FR111-125 | Distributed tracing, chat persistence, LLM cost tracking |
 
 ---
 
 ## Summary
 
-This epic breakdown transforms the LumiKB PRD into 126+ implementable stories across 9 epics:
+This epic breakdown transforms the LumiKB PRD into 128+ implementable stories across 9 epics:
 
 | Epic | Stories | Key Deliverables |
 |------|---------|------------------|
@@ -182,7 +182,7 @@ This epic breakdown transforms the LumiKB PRD into 126+ implementable stories ac
 | **5. Admin & Polish** | 26 | Admin dashboard, integration, Docker E2E, User/Group management, Document tags/processing/filtering, Chunk Viewer, onboarding |
 | **6. Document Lifecycle** | 9 | Archive, restore, purge, clear failed, duplicate detection, replace documents |
 | **7. Infrastructure & DevOps** | 26 | Docker E2E, CI/CD, monitoring, model registry, KB model configuration, KB lifecycle management |
-| **8. GraphRAG Integration** | 16 | Neo4j, domain schemas, entity extraction, graph-augmented retrieval |
+| **8. GraphRAG Integration** | 18 | Neo4j, domain schemas, entity extraction, graph-augmented retrieval, history-aware query rewriting, hybrid BM25+vector search |
 | **9. Observability** | 14 | Distributed tracing, chat persistence, LLM cost tracking, admin observability dashboard |
 
 **Design Principles Applied:**

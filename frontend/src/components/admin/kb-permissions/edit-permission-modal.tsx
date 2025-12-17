@@ -3,10 +3,10 @@
  * Story 5.20: Role & KB Permission Management UI (AC-5.20.3)
  */
 
-"use client";
+'use client';
 
-import React, { useState, useCallback, useRef } from "react";
-import { Loader2, User, Users, AlertTriangle } from "lucide-react";
+import React, { useState, useCallback, useRef } from 'react';
+import { Loader2, User, Users, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,16 +14,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,13 +33,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import type {
-  PermissionLevel,
-  PermissionExtended,
-  PermissionUpdate,
-} from "@/types/permission";
-import { PERMISSION_LEVELS } from "@/types/permission";
+} from '@/components/ui/alert-dialog';
+import type { PermissionLevel, PermissionExtended, PermissionUpdate } from '@/types/permission';
+import { PERMISSION_LEVELS } from '@/types/permission';
 
 export interface EditPermissionModalProps {
   open: boolean;
@@ -60,7 +56,7 @@ export function EditPermissionModal({
   isUpdating = false,
   isDeleting = false,
 }: EditPermissionModalProps) {
-  const [permissionLevel, setPermissionLevel] = useState<PermissionLevel>("READ");
+  const [permissionLevel, setPermissionLevel] = useState<PermissionLevel>('READ');
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const lastPermissionId = useRef<string | null>(null);
@@ -95,7 +91,7 @@ export function EditPermissionModal({
         if (err instanceof Error) {
           setError(err.message);
         } else {
-          setError("Failed to update permission");
+          setError('Failed to update permission');
         }
       }
     },
@@ -113,7 +109,7 @@ export function EditPermissionModal({
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Failed to revoke permission");
+        setError('Failed to revoke permission');
       }
       setShowDeleteConfirm(false);
     }
@@ -126,7 +122,7 @@ export function EditPermissionModal({
 
   if (!permission) return null;
 
-  const isUser = permission.entity_type === "user";
+  const isUser = permission.entity_type === 'user';
   const EntityIcon = isUser ? User : Users;
 
   return (
@@ -136,8 +132,7 @@ export function EditPermissionModal({
           <DialogHeader>
             <DialogTitle>Edit Permission</DialogTitle>
             <DialogDescription>
-              Update or revoke the permission for this{" "}
-              {isUser ? "user" : "group"}.
+              Update or revoke the permission for this {isUser ? 'user' : 'group'}.
             </DialogDescription>
           </DialogHeader>
 
@@ -155,9 +150,7 @@ export function EditPermissionModal({
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate font-medium">{permission.entity_name}</p>
-                <p className="text-sm text-muted-foreground capitalize">
-                  {permission.entity_type}
-                </p>
+                <p className="text-sm text-muted-foreground capitalize">{permission.entity_type}</p>
               </div>
             </div>
 
@@ -166,9 +159,7 @@ export function EditPermissionModal({
               <Label htmlFor="permission-level">Permission Level</Label>
               <Select
                 value={permissionLevel}
-                onValueChange={(value) =>
-                  setPermissionLevel(value as PermissionLevel)
-                }
+                onValueChange={(value) => setPermissionLevel(value as PermissionLevel)}
               >
                 <SelectTrigger id="permission-level" className="w-full">
                   <SelectValue placeholder="Select permission level" />
@@ -178,9 +169,7 @@ export function EditPermissionModal({
                     <SelectItem key={level.value} value={level.value}>
                       <div className="flex flex-col">
                         <span>{level.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {level.description}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{level.description}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -188,8 +177,7 @@ export function EditPermissionModal({
               </Select>
               {!isUser && (
                 <p className="text-xs text-muted-foreground">
-                  Note: Users with direct permissions will override group
-                  permissions.
+                  Note: Users with direct permissions will override group permissions.
                 </p>
               )}
             </div>
@@ -202,9 +190,7 @@ export function EditPermissionModal({
                 disabled={isUpdating || isDeleting}
                 className="w-full sm:w-auto"
               >
-                {isDeleting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Revoke Access
               </Button>
               <div className="flex flex-1 justify-end gap-2">
@@ -219,14 +205,10 @@ export function EditPermissionModal({
                 <Button
                   type="submit"
                   disabled={
-                    isUpdating ||
-                    isDeleting ||
-                    permissionLevel === permission.permission_level
+                    isUpdating || isDeleting || permissionLevel === permission.permission_level
                   }
                 >
-                  {isUpdating && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
+                  {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Changes
                 </Button>
               </div>
@@ -244,11 +226,11 @@ export function EditPermissionModal({
               Revoke Permission
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to revoke access for{" "}
+              Are you sure you want to revoke access for{' '}
               <span className="font-medium">{permission.entity_name}</span>?
               {isUser
-                ? " This user will no longer have direct access to this Knowledge Base."
-                : " All members of this group will lose their group-based access to this Knowledge Base."}
+                ? ' This user will no longer have direct access to this Knowledge Base.'
+                : ' All members of this group will lose their group-based access to this Knowledge Base.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -258,9 +240,7 @@ export function EditPermissionModal({
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Revoke Access
             </AlertDialogAction>
           </AlertDialogFooter>

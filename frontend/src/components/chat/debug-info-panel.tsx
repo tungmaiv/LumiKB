@@ -12,14 +12,10 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Bug, Clock, FileText, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Bug, Clock, FileText, Settings, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { DebugInfo, ChunkDebugInfo } from '@/types/debug';
 
 interface DebugInfoPanelProps {
@@ -55,26 +51,17 @@ function ChunkItem({ chunk, index }: { chunk: ChunkDebugInfo; index: number }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      className="border rounded-md p-2 text-xs"
-      data-testid={`debug-chunk-${index}`}
-    >
+    <div className="border rounded-md p-2 text-xs" data-testid={`debug-chunk-${index}`}>
       <div
         className="flex items-center justify-between cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
           <button className="p-0.5">
-            {expanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
+            {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </button>
           <FileText className="h-3 w-3 text-muted-foreground" />
-          <span className="font-medium truncate max-w-[200px]">
-            {chunk.document_name}
-          </span>
+          <span className="font-medium truncate max-w-[200px]">{chunk.document_name}</span>
           {chunk.page_number && (
             <span className="text-muted-foreground">p.{chunk.page_number}</span>
           )}
@@ -105,8 +92,9 @@ function ChunkItem({ chunk, index }: { chunk: ChunkDebugInfo; index: number }) {
 export function DebugInfoPanel({ debugInfo, className }: DebugInfoPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const { kb_params, chunks_retrieved, timing } = debugInfo;
-  const totalTime = timing.retrieval_ms + timing.context_assembly_ms;
+  const { kb_params, chunks_retrieved, timing, query_rewrite } = debugInfo;
+  const queryRewriteMs = timing.query_rewrite_ms ?? 0;
+  const totalTime = timing.retrieval_ms + timing.context_assembly_ms + queryRewriteMs;
 
   return (
     <Collapsible
@@ -125,12 +113,14 @@ export function DebugInfoPanel({ debugInfo, className }: DebugInfoPanelProps) {
           <Badge variant="outline" className="text-xs font-mono">
             {formatMs(totalTime)}
           </Badge>
+          {query_rewrite?.was_rewritten && (
+            <Badge variant="outline" className="text-xs text-blue-600 dark:text-blue-400">
+              <RefreshCw className="h-3 w-3 mr-1" />
+              rewritten
+            </Badge>
+          )}
         </div>
-        {isOpen ? (
-          <ChevronDown className="h-4 w-4" />
-        ) : (
-          <ChevronRight className="h-4 w-4" />
-        )}
+        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
       </CollapsibleTrigger>
 
       <CollapsibleContent className="px-3 pb-3">
@@ -175,15 +165,83 @@ export function DebugInfoPanel({ debugInfo, className }: DebugInfoPanelProps) {
             </div>
           </section>
 
+          {/* Query Rewrite Section (Story 8-0) */}
+          {query_rewrite && (
+            <section data-testid="debug-query-rewrite">
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium uppercase text-muted-foreground">
+                  Query Rewrite
+                </span>
+                {query_rewrite.was_rewritten ? (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-green-600 dark:text-green-400"
+                  >
+                    rewritten
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                    unchanged
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground">Original Query</span>
+                  <span
+                    className="font-mono text-[11px] break-words"
+                    data-testid="debug-original-query"
+                  >
+                    {query_rewrite.original_query}
+                  </span>
+                </div>
+                {query_rewrite.was_rewritten && (
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground">Rewritten Query</span>
+                    <span
+                      className="font-mono text-[11px] break-words text-blue-600 dark:text-blue-400"
+                      data-testid="debug-rewritten-query"
+                    >
+                      {query_rewrite.rewritten_query}
+                    </span>
+                  </div>
+                )}
+                <div className="flex gap-4 text-[11px]">
+                  {query_rewrite.model_used && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Model:</span>
+                      <span className="font-mono" data-testid="debug-rewrite-model">
+                        {query_rewrite.model_used}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Time:</span>
+                    <span className="font-mono" data-testid="debug-rewrite-time">
+                      {formatMs(query_rewrite.latency_ms)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Timing Section (AC-9.15.17) */}
           <section data-testid="debug-timing">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium uppercase text-muted-foreground">
-                Timing
-              </span>
+              <span className="text-xs font-medium uppercase text-muted-foreground">Timing</span>
             </div>
-            <div className="flex gap-4 text-xs">
+            <div className="flex flex-wrap gap-4 text-xs">
+              {queryRewriteMs > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Rewrite:</span>
+                  <span className="font-mono font-medium" data-testid="debug-rewrite-timing">
+                    {formatMs(queryRewriteMs)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Retrieval:</span>
                 <span className="font-mono font-medium" data-testid="debug-retrieval-time">
@@ -218,9 +276,7 @@ export function DebugInfoPanel({ debugInfo, className }: DebugInfoPanelProps) {
                 <ChunkItem key={index} chunk={chunk} index={index} />
               ))}
               {chunks_retrieved.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">
-                  No chunks retrieved
-                </p>
+                <p className="text-xs text-muted-foreground italic">No chunks retrieved</p>
               )}
             </div>
           </section>

@@ -31,22 +31,14 @@ describe('CitationWarningBanner', () => {
   describe('rendering', () => {
     it('renders nothing when no warnings', () => {
       const { container } = render(
-        <CitationWarningBanner
-          warnings={[]}
-          onDismiss={mockOnDismiss}
-        />
+        <CitationWarningBanner warnings={[]} onDismiss={mockOnDismiss} />
       );
 
       expect(container).toBeEmptyDOMElement();
     });
 
     it('renders orphaned citation warning (AC-7.21.4)', () => {
-      render(
-        <CitationWarningBanner
-          warnings={[orphanedWarning]}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<CitationWarningBanner warnings={[orphanedWarning]} onDismiss={mockOnDismiss} />);
 
       expect(screen.getByText('Missing Citation Source')).toBeInTheDocument();
       expect(screen.getByText('Citation [5] references a missing source')).toBeInTheDocument();
@@ -79,12 +71,7 @@ describe('CitationWarningBanner', () => {
     });
 
     it('has correct test id for banner', () => {
-      render(
-        <CitationWarningBanner
-          warnings={[orphanedWarning]}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<CitationWarningBanner warnings={[orphanedWarning]} onDismiss={mockOnDismiss} />);
 
       expect(screen.getByTestId('citation-warning-banner')).toBeInTheDocument();
     });
@@ -92,12 +79,7 @@ describe('CitationWarningBanner', () => {
 
   describe('dismiss functionality (AC-7.21.5)', () => {
     it('calls onDismiss with correct type when dismiss button clicked', () => {
-      render(
-        <CitationWarningBanner
-          warnings={[orphanedWarning]}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<CitationWarningBanner warnings={[orphanedWarning]} onDismiss={mockOnDismiss} />);
 
       const dismissButton = screen.getByTestId('dismiss-orphaned_citation');
       fireEvent.click(dismissButton);
@@ -106,12 +88,7 @@ describe('CitationWarningBanner', () => {
     });
 
     it('calls onDismiss for unused citation warning', () => {
-      render(
-        <CitationWarningBanner
-          warnings={[unusedWarning]}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<CitationWarningBanner warnings={[unusedWarning]} onDismiss={mockOnDismiss} />);
 
       const dismissButton = screen.getByTestId('dismiss-unused_citation');
       fireEvent.click(dismissButton);
@@ -229,12 +206,7 @@ describe('CitationWarningBanner', () => {
 
   describe('styling', () => {
     it('uses amber/warning color scheme', () => {
-      render(
-        <CitationWarningBanner
-          warnings={[orphanedWarning]}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<CitationWarningBanner warnings={[orphanedWarning]} onDismiss={mockOnDismiss} />);
 
       const banner = screen.getByTestId('citation-warning-banner');
       const alert = banner.querySelector('[role="alert"]');
@@ -264,45 +236,25 @@ describe('CitationWarningInline', () => {
   });
 
   it('renders nothing when no warnings', () => {
-    const { container } = render(
-      <CitationWarningInline
-        warnings={[]}
-        onDismiss={mockOnDismiss}
-      />
-    );
+    const { container } = render(<CitationWarningInline warnings={[]} onDismiss={mockOnDismiss} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('shows total issue count', () => {
-    render(
-      <CitationWarningInline
-        warnings={warnings}
-        onDismiss={mockOnDismiss}
-      />
-    );
+    render(<CitationWarningInline warnings={warnings} onDismiss={mockOnDismiss} />);
 
     expect(screen.getByText('2 citation issues detected')).toBeInTheDocument();
   });
 
   it('uses singular text for single issue', () => {
-    render(
-      <CitationWarningInline
-        warnings={[warnings[0]]}
-        onDismiss={mockOnDismiss}
-      />
-    );
+    render(<CitationWarningInline warnings={[warnings[0]]} onDismiss={mockOnDismiss} />);
 
     expect(screen.getByText('1 citation issue detected')).toBeInTheDocument();
   });
 
   it('dismisses all warnings when X clicked', () => {
-    render(
-      <CitationWarningInline
-        warnings={warnings}
-        onDismiss={mockOnDismiss}
-      />
-    );
+    render(<CitationWarningInline warnings={warnings} onDismiss={mockOnDismiss} />);
 
     const dismissButton = screen.getByLabelText('Dismiss all warnings');
     fireEvent.click(dismissButton);
@@ -313,12 +265,7 @@ describe('CitationWarningInline', () => {
   });
 
   it('has correct test id', () => {
-    render(
-      <CitationWarningInline
-        warnings={warnings}
-        onDismiss={mockOnDismiss}
-      />
-    );
+    render(<CitationWarningInline warnings={warnings} onDismiss={mockOnDismiss} />);
 
     expect(screen.getByTestId('citation-warning-inline')).toBeInTheDocument();
   });

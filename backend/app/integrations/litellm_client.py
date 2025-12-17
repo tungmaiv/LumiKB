@@ -290,6 +290,7 @@ class LiteLLMEmbeddingClient:
         stream: bool = False,
         model: str | None = None,
         top_p: float | None = None,
+        timeout: float | None = None,
     ):
         """Generate chat completion via LiteLLM.
 
@@ -305,6 +306,8 @@ class LiteLLMEmbeddingClient:
             model: Optional model ID override for KB-specific generation (Story 7-10).
                 If None, uses settings.llm_model default.
             top_p: Nucleus sampling parameter (0.0-1.0). Controls token diversity.
+            timeout: Optional request timeout in seconds. If None, uses settings.llm_timeout.
+                Story 8-0: Allows model-specific timeout for query rewriting.
 
         Returns:
             If stream=False: Response dict with 'choices' containing generated text.
@@ -334,7 +337,8 @@ class LiteLLMEmbeddingClient:
                 "max_tokens": max_tokens,
                 "api_base": self.api_base,
                 "api_key": self.api_key,
-                "timeout": settings.llm_timeout,  # Use LLM-specific timeout (120s)
+                "timeout": timeout
+                or settings.llm_timeout,  # Use custom or default (120s)
                 "stream": stream,
                 "num_retries": 0,  # Disable retries to prevent duplicate streaming requests
             }

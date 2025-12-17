@@ -79,7 +79,7 @@ describe('useFeedback', () => {
     server.use(
       http.post('/api/v1/drafts/:draftId/feedback', async () => {
         // Delay to ensure isSubmitting can be observed
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
         return HttpResponse.json({
           alternatives: mockAlternatives,
           feedback_type: 'not_relevant',
@@ -113,10 +113,7 @@ describe('useFeedback', () => {
     // GIVEN: API configured to return error
     server.use(
       http.post('/api/v1/drafts/:draftId/feedback', () => {
-        return HttpResponse.json(
-          { detail: 'Internal server error occurred' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Internal server error occurred' }, { status: 500 });
       })
     );
 
@@ -204,10 +201,7 @@ describe('useFeedback', () => {
     // GIVEN: Hook with previous error
     server.use(
       http.post('/api/v1/drafts/:draftId/feedback', () => {
-        return HttpResponse.json(
-          { detail: 'Server error' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
       })
     );
 

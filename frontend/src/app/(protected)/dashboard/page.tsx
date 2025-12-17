@@ -32,13 +32,20 @@ function DocumentsPanelSkeleton() {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { Database, FileText, Search, MessageSquare, FolderOpen, Home, Tag, Pencil, Settings2, Archive, Settings } from 'lucide-react';
+  Database,
+  FileText,
+  Search,
+  MessageSquare,
+  FolderOpen,
+  Home,
+  Tag,
+  Pencil,
+  Settings2,
+  Archive,
+  Settings,
+} from 'lucide-react';
 import Link from 'next/link';
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -61,14 +68,13 @@ export default function DashboardPage(): React.ReactElement {
   const isAdmin = activeKb?.permission_level === 'ADMIN';
 
   // Check if user has WRITE or higher permission (for Processing tab - AC-5.23.4)
-  const canViewProcessing = activeKb?.permission_level === 'ADMIN' || activeKb?.permission_level === 'WRITE';
+  const canViewProcessing =
+    activeKb?.permission_level === 'ADMIN' || activeKb?.permission_level === 'WRITE';
 
   return (
     <DashboardLayout>
       {/* Onboarding Wizard - Show for first-time users */}
-      {!isOnboardingComplete && (
-        <OnboardingWizard onComplete={markOnboardingComplete} />
-      )}
+      {!isOnboardingComplete && <OnboardingWizard onComplete={markOnboardingComplete} />}
 
       <div className="p-6">
         {/* Active KB Header or Welcome Message */}
@@ -222,7 +228,10 @@ export default function DashboardPage(): React.ReactElement {
 
             <TabsContent value="documents" className="mt-0">
               <Suspense fallback={<DocumentsPanelSkeleton />}>
-                <DocumentsPanel kbId={activeKb.id} userPermission={activeKb.permission_level || 'READ'} />
+                <DocumentsPanel
+                  kbId={activeKb.id}
+                  userPermission={activeKb.permission_level || 'READ'}
+                />
               </Suspense>
             </TabsContent>
 
@@ -314,8 +323,8 @@ export default function DashboardPage(): React.ReactElement {
                       semantic search to find answers with citations
                     </p>
                     <p>
-                      <strong className="text-foreground">4. Chat with AI</strong> - Have conversations
-                      about your knowledge base with AI-powered responses
+                      <strong className="text-foreground">4. Chat with AI</strong> - Have
+                      conversations about your knowledge base with AI-powered responses
                     </p>
                   </div>
                 </CardContent>

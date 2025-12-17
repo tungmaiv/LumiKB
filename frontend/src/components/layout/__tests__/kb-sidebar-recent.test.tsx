@@ -443,9 +443,7 @@ describe('KbSidebar - Recent KBs Section', () => {
       expect(
         screen.getByLabelText('Open Recommended KB 2 - Popular in your organization')
       ).toBeInTheDocument();
-      expect(
-        screen.getByLabelText('Open Recommended KB 3 - Another reason')
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Open Recommended KB 3 - Another reason')).toBeInTheDocument();
       expect(
         screen.queryByLabelText('Open Recommended KB 4 - Yet another reason')
       ).not.toBeInTheDocument();

@@ -37,8 +37,9 @@ describe('FeedbackModal', () => {
 
     // WHEN: User selects "not_relevant" category (click the label text)
     // Note: Component uses &apos; HTML entity in string literals
-    const notRelevantLabel = screen.getByText((content) =>
-      content.toLowerCase().includes('results aren') && content.toLowerCase().includes('relevant')
+    const notRelevantLabel = screen.getByText(
+      (content) =>
+        content.toLowerCase().includes('results aren') && content.toLowerCase().includes('relevant')
     );
     await userEvent.click(notRelevantLabel);
 
@@ -119,9 +120,13 @@ describe('FeedbackModal', () => {
 
     // THEN: All 5 feedback types are visible as labels
     // Note: Component uses &apos; HTML entity in some strings
-    expect(screen.getByText((content) =>
-      content.toLowerCase().includes('results aren') && content.toLowerCase().includes('relevant')
-    )).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (content) =>
+          content.toLowerCase().includes('results aren') &&
+          content.toLowerCase().includes('relevant')
+      )
+    ).toBeInTheDocument();
     expect(screen.getByText(/wrong format or structure/i)).toBeInTheDocument();
     expect(screen.getByText(/needs more detail/i)).toBeInTheDocument();
     expect(screen.getByText(/low confidence sources/i)).toBeInTheDocument();

@@ -42,6 +42,15 @@ export interface ChatHistoryDebugInfo {
   timing?: {
     retrieval_ms: number;
     context_assembly_ms: number;
+    query_rewrite_ms?: number;
+  };
+  /** Query rewriting info (Story 8-0) - present when history exists */
+  query_rewrite?: {
+    original_query: string;
+    rewritten_query: string;
+    was_rewritten: boolean;
+    model_used: string;
+    latency_ms: number;
   };
 }
 

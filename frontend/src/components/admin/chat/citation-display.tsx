@@ -46,9 +46,7 @@ export function CitationDisplay({ citations }: CitationDisplayProps) {
               data-testid={`citation-link-${citation.index}`}
             >
               <span className="font-medium">[{citation.index}]</span>
-              <span className="truncate max-w-[150px]">
-                {citation.document_name || 'Document'}
-              </span>
+              <span className="truncate max-w-[150px]">{citation.document_name || 'Document'}</span>
               {citation.relevance_score !== null && (
                 <span className="text-muted-foreground">
                   {formatScore(citation.relevance_score)}

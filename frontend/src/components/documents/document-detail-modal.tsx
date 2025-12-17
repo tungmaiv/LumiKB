@@ -12,12 +12,7 @@ import {
   ActivityIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DocumentStatusBadge, type DocumentStatus } from './document-status-badge';
 import { DocumentTagsDisplay } from './document-tag-input';
@@ -160,10 +155,7 @@ export function DocumentDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className={cn(
-          'max-w-lg transition-all duration-200',
-          showTabs && 'max-w-2xl max-h-[85vh]'
-        )}
+        className={cn('max-w-lg transition-all duration-200', showTabs && 'max-w-2xl max-h-[85vh]')}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -333,7 +325,8 @@ function DocumentDetailsContent({
         <MetadataRow label="MIME Type">{document.mime_type}</MetadataRow>
 
         <MetadataRow label="File Size">
-          {formatBytes(document.file_size_bytes)} ({document.file_size_bytes.toLocaleString()} bytes)
+          {formatBytes(document.file_size_bytes)} ({document.file_size_bytes.toLocaleString()}{' '}
+          bytes)
         </MetadataRow>
 
         <MetadataRow label="Uploaded">
@@ -349,9 +342,7 @@ function DocumentDetailsContent({
           <>
             <MetadataRow label="Chunk Count">{document.chunk_count} chunks</MetadataRow>
 
-            {duration !== null && (
-              <MetadataRow label="Processing Time">{duration}s</MetadataRow>
-            )}
+            {duration !== null && <MetadataRow label="Processing Time">{duration}s</MetadataRow>}
           </>
         )}
       </div>
@@ -364,12 +355,7 @@ function DocumentDetailsContent({
             Tags
           </h4>
           {canEditTags && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1"
-              onClick={onEditTags}
-            >
+            <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={onEditTags}>
               <PencilIcon className="size-3" />
               Edit
             </Button>

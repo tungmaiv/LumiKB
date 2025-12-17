@@ -121,7 +121,9 @@ export default function OperationsDashboardPage() {
                     <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Processing Queue</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                      Processing Queue
+                    </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Monitor background task processing queues
                     </p>
@@ -136,7 +138,9 @@ export default function OperationsDashboardPage() {
                     <Database className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">KB Statistics</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                      KB Statistics
+                    </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       View detailed statistics for knowledge bases
                     </p>

@@ -19,9 +19,7 @@ export default function AdminKBStatsRedirectPage() {
   useEffect(() => {
     // Preserve query parameters in the redirect
     const kbId = searchParams.get('kb_id');
-    const targetUrl = kbId
-      ? `/operations/kb-stats?kb_id=${kbId}`
-      : '/operations/kb-stats';
+    const targetUrl = kbId ? `/operations/kb-stats?kb_id=${kbId}` : '/operations/kb-stats';
     router.replace(targetUrl);
   }, [router, searchParams]);
 

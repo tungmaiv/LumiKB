@@ -41,7 +41,9 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       expect(rowCount).toBeGreaterThanOrEqual(2); // Header + at least 1 data row
     });
 
-    test.skip('should display audit events sorted by timestamp DESC by default', async ({ page }) => {
+    test.skip('should display audit events sorted by timestamp DESC by default', async ({
+      page,
+    }) => {
       // Skipped: Sorting functionality not yet implemented
       // TODO: Implement after adding sorting to backend
     });
@@ -163,9 +165,7 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await page.waitForLoadState('networkidle');
 
       // WHEN: Admin clicks "View Details" for first event
-      const viewDetailsButton = page
-        .getByRole('button', { name: /view details/i })
-        .first();
+      const viewDetailsButton = page.getByRole('button', { name: /view details/i }).first();
       await viewDetailsButton.click();
 
       // THEN: Should open modal with event JSON
@@ -185,7 +185,10 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await page.waitForLoadState('networkidle');
 
       // WHEN: Admin opens event details modal
-      await page.getByRole('button', { name: /view details/i }).first().click();
+      await page
+        .getByRole('button', { name: /view details/i })
+        .first()
+        .click();
 
       // THEN: Should display redacted IP address
       const modal = page.getByRole('dialog');
@@ -201,7 +204,10 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await page.goto('/admin/audit');
       await page.waitForLoadState('networkidle');
 
-      await page.getByRole('button', { name: /view details/i }).first().click();
+      await page
+        .getByRole('button', { name: /view details/i })
+        .first()
+        .click();
 
       // WHEN: Admin clicks "Copy to Clipboard" button
       const modal = page.getByRole('dialog');
@@ -211,9 +217,7 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await expect(modal.getByText(/copied to clipboard/i)).toBeVisible();
 
       // Clipboard should contain JSON (verify via clipboard API)
-      const clipboardText = await page.evaluate(() =>
-        navigator.clipboard.readText()
-      );
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
       expect(clipboardText).toContain('"id"');
       expect(clipboardText).toContain('"event_type"');
     });
@@ -224,7 +228,10 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await page.goto('/admin/audit');
       await page.waitForLoadState('networkidle');
 
-      await page.getByRole('button', { name: /view details/i }).first().click();
+      await page
+        .getByRole('button', { name: /view details/i })
+        .first()
+        .click();
 
       const modal = page.getByRole('dialog');
       await expect(modal).toBeVisible();
@@ -242,7 +249,10 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await page.goto('/admin/audit');
       await page.waitForLoadState('networkidle');
 
-      await page.getByRole('button', { name: /view details/i }).first().click();
+      await page
+        .getByRole('button', { name: /view details/i })
+        .first()
+        .click();
 
       const modal = page.getByRole('dialog');
       await expect(modal).toBeVisible();
@@ -348,9 +358,7 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await expect(page).toHaveURL('/dashboard');
 
       // Should display error message
-      await expect(
-        page.getByText(/you do not have permission to access/i)
-      ).toBeVisible();
+      await expect(page.getByText(/you do not have permission to access/i)).toBeVisible();
     });
 
     test('should not display audit log navigation link for non-admin users', async ({ page }) => {
@@ -364,7 +372,9 @@ test.describe('Audit Log Viewer E2E Tests', () => {
   });
 
   test.describe('[P2] Edge cases and error handling', () => {
-    test('should display warning when result set is limited to 10,000 records', async ({ page }) => {
+    test('should display warning when result set is limited to 10,000 records', async ({
+      page,
+    }) => {
       // GIVEN: Admin applies broad filters matching > 10,000 events
       await adminPage.loginAsAdmin();
       await adminPage.seedAuditEvents([{ event_type: 'search', count: 12000 }]);
@@ -373,12 +383,8 @@ test.describe('Audit Log Viewer E2E Tests', () => {
       await page.waitForLoadState('networkidle');
 
       // THEN: Should display warning message
-      await expect(
-        page.getByText(/results limited to 10,000 records/i)
-      ).toBeVisible();
-      await expect(
-        page.getByText(/refine your filters for more specific results/i)
-      ).toBeVisible();
+      await expect(page.getByText(/results limited to 10,000 records/i)).toBeVisible();
+      await expect(page.getByText(/refine your filters for more specific results/i)).toBeVisible();
     });
 
     test('should display timeout error when query exceeds 30 seconds', async ({ page }) => {

@@ -60,12 +60,9 @@ describe('useQueueTasks', () => {
     });
 
     // Act
-    const { result } = renderHook(
-      () => useQueueTasks('document_processing', 'PROCESSING'),
-      {
-        wrapper: createWrapper(),
-      }
-    );
+    const { result } = renderHook(() => useQueueTasks('document_processing', 'PROCESSING'), {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -105,12 +102,9 @@ describe('useQueueTasks', () => {
     });
 
     // Act
-    const { result } = renderHook(
-      () => useQueueTasks('document_processing', 'PENDING'),
-      {
-        wrapper: createWrapper(),
-      }
-    );
+    const { result } = renderHook(() => useQueueTasks('document_processing', 'PENDING'), {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -134,12 +128,9 @@ describe('useQueueTasks', () => {
     });
 
     // Act
-    const { result } = renderHook(
-      () => useQueueTasks('document_processing', 'PROCESSING'),
-      {
-        wrapper: createWrapper(),
-      }
-    );
+    const { result } = renderHook(() => useQueueTasks('document_processing', 'PROCESSING'), {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isError).toBe(true));
@@ -149,17 +140,12 @@ describe('useQueueTasks', () => {
   it('[P2] should handle network errors', async () => {
     // Arrange
     localStorage.setItem('token', 'test-token');
-    (global.fetch as Mock).mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    (global.fetch as Mock).mockRejectedValueOnce(new Error('Network error'));
 
     // Act
-    const { result } = renderHook(
-      () => useQueueTasks('document_processing', 'PROCESSING'),
-      {
-        wrapper: createWrapper(),
-      }
-    );
+    const { result } = renderHook(() => useQueueTasks('document_processing', 'PROCESSING'), {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isError).toBe(true));

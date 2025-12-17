@@ -139,7 +139,7 @@ describe('ChatContainer - Management UI', () => {
     const { useChatStream } = await import('@/lib/hooks/use-chat-stream');
 
     vi.mocked(useChatStream).mockReturnValue({
-      messages: [],  // Empty messages
+      messages: [], // Empty messages
       isStreaming: false,
       sendMessage: vi.fn(),
       error: null,
@@ -333,7 +333,12 @@ describe('ChatContainer - Management UI', () => {
       // Populate localStorage with undo buffer
       const storedMessages = [
         { role: 'user', content: 'Stored Q', timestamp: new Date().toISOString(), citations: [] },
-        { role: 'assistant', content: 'Stored A', timestamp: new Date().toISOString(), citations: [] },
+        {
+          role: 'assistant',
+          content: 'Stored A',
+          timestamp: new Date().toISOString(),
+          citations: [],
+        },
       ];
       localStorage.setItem('chat-undo-buffer', JSON.stringify(storedMessages));
 
@@ -360,7 +365,10 @@ describe('ChatContainer - Management UI', () => {
       const { useChatManagement } = await import('@/hooks/useChatManagement');
 
       // Populate localStorage
-      localStorage.setItem('chat-undo-buffer', JSON.stringify([{ role: 'user', content: 'Old', timestamp: new Date().toISOString() }]));
+      localStorage.setItem(
+        'chat-undo-buffer',
+        JSON.stringify([{ role: 'user', content: 'Old', timestamp: new Date().toISOString() }])
+      );
 
       const mockStartNewChat = vi.fn().mockResolvedValue(undefined);
 

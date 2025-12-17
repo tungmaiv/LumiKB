@@ -1,5 +1,5 @@
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export function TrySearchStep() {
   return (
@@ -11,8 +11,7 @@ export function TrySearchStep() {
       <div className="space-y-3 text-center">
         <h2 className="text-2xl font-bold">Ask Your First Question</h2>
         <p className="text-muted-foreground max-w-md">
-          Search works with natural language. Try asking about anything in the
-          Sample KB!
+          Search works with natural language. Try asking about anything in the Sample KB!
         </p>
       </div>
 
@@ -20,19 +19,14 @@ export function TrySearchStep() {
         <div className="rounded-lg border bg-card p-4">
           <p className="mb-2 text-sm font-medium">Try this example query:</p>
           <div className="relative">
-            <Input
-              value="What are the key features of LumiKB?"
-              readOnly
-              className="pr-10"
-            />
+            <Input value="What are the key features of LumiKB?" readOnly className="pr-10" />
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           </div>
         </div>
 
         <div className="rounded-lg bg-muted p-3 text-center">
           <p className="text-xs text-muted-foreground">
-            💡 After completing this tutorial, you can try searching in the
-            Search page or Chat page
+            💡 After completing this tutorial, you can try searching in the Search page or Chat page
           </p>
         </div>
       </div>

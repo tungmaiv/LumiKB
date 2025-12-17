@@ -4,7 +4,17 @@
  */
 
 export type ModelType = 'embedding' | 'generation' | 'ner';
-export type ModelProvider = 'ollama' | 'openai' | 'azure' | 'gemini' | 'anthropic' | 'cohere' | 'deepseek' | 'qwen' | 'mistral' | 'lmstudio';
+export type ModelProvider =
+  | 'ollama'
+  | 'openai'
+  | 'azure'
+  | 'gemini'
+  | 'anthropic'
+  | 'cohere'
+  | 'deepseek'
+  | 'qwen'
+  | 'mistral'
+  | 'lmstudio';
 export type ModelStatus = 'active' | 'inactive' | 'deprecated';
 export type DistanceMetric = 'cosine' | 'dot' | 'euclidean';
 export type ResponseFormat = 'json' | 'text';
@@ -27,6 +37,7 @@ export interface GenerationModelConfig {
   temperature_default: number;
   temperature_range: [number, number];
   top_p_default: number;
+  timeout_seconds: number;
   cost_per_1m_input: number;
   cost_per_1m_output: number;
   tags: string[];
@@ -40,6 +51,7 @@ export interface NERModelConfig {
   response_format: ResponseFormat;
   logprobs_enabled: boolean;
   stop_sequences: string[];
+  timeout_seconds: number;
   cost_per_1m_input: number;
   cost_per_1m_output: number;
   tags: string[];
@@ -111,7 +123,10 @@ export interface ModelPublicInfo {
 }
 
 // Provider display names and metadata
-export const PROVIDER_INFO: Record<ModelProvider, { name: string; icon: string; description: string }> = {
+export const PROVIDER_INFO: Record<
+  ModelProvider,
+  { name: string; icon: string; description: string }
+> = {
   ollama: { name: 'Ollama', icon: 'ollama', description: 'Local models via Ollama' },
   openai: { name: 'OpenAI', icon: 'openai', description: 'GPT models' },
   azure: { name: 'Azure OpenAI', icon: 'azure', description: 'Azure-hosted OpenAI models' },

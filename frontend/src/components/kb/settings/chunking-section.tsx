@@ -59,11 +59,7 @@ export function ChunkingSection({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Strategy</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value}
-              disabled={disabled}
-            >
+            <Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select chunking strategy" />
@@ -77,9 +73,7 @@ export function ChunkingSection({
                 ))}
               </SelectContent>
             </Select>
-            <FormDescription>
-              Method used to split documents into chunks.
-            </FormDescription>
+            <FormDescription>Method used to split documents into chunks.</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -125,7 +119,8 @@ export function ChunkingSection({
               />
             </FormControl>
             <FormDescription>
-              Target size for each document chunk ({chunking.chunk_size.min}-{chunking.chunk_size.max} tokens).
+              Target size for each document chunk ({chunking.chunk_size.min}-
+              {chunking.chunk_size.max} tokens).
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -148,7 +143,10 @@ export function ChunkingSection({
                     const val = parseInt(e.target.value, 10);
                     if (!isNaN(val)) {
                       field.onChange(
-                        Math.max(chunking.chunk_overlap.min, Math.min(chunking.chunk_overlap.max, val))
+                        Math.max(
+                          chunking.chunk_overlap.min,
+                          Math.min(chunking.chunk_overlap.max, val)
+                        )
                       );
                     }
                   }}
@@ -172,7 +170,8 @@ export function ChunkingSection({
               />
             </FormControl>
             <FormDescription>
-              Number of overlapping tokens between adjacent chunks ({chunking.chunk_overlap.min}-{chunking.chunk_overlap.max}).
+              Number of overlapping tokens between adjacent chunks ({chunking.chunk_overlap.min}-
+              {chunking.chunk_overlap.max}).
             </FormDescription>
             <FormMessage />
           </FormItem>

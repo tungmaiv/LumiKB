@@ -6,13 +6,13 @@
  * RED PHASE: All tests are designed to FAIL until implementation is complete.
  */
 
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { vi, describe, it, expect, beforeEach } from "vitest";
-import { useRouter } from "next/navigation";
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { useRouter } from 'next/navigation';
 
 // Mock next/navigation
-vi.mock("next/navigation", () => ({
+vi.mock('next/navigation', () => ({
   useRouter: vi.fn(),
 }));
 
@@ -38,12 +38,10 @@ function renderWithProviders(ui: React.ReactElement) {
     },
   });
 
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
-describe("ProcessingPipelineWidget", () => {
+describe('ProcessingPipelineWidget', () => {
   const mockRouter = { push: vi.fn() };
 
   beforeEach(() => {
@@ -51,152 +49,122 @@ describe("ProcessingPipelineWidget", () => {
     (useRouter as ReturnType<typeof vi.fn>).mockReturnValue(mockRouter);
   });
 
-  describe("AC2: Documents processed, avg time, error rate", () => {
-    it("renders_documents_processed_count", async () => {
+  describe('AC2: Documents processed, avg time, error rate', () => {
+    it('renders_documents_processed_count', async () => {
       const data = createProcessingPipelineData();
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
+
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("processing-docs-count")).toBeInTheDocument();
+        expect(screen.getByTestId('processing-docs-count')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId("processing-docs-count")).toHaveTextContent(
-        "127"
-      );
+      expect(screen.getByTestId('processing-docs-count')).toHaveTextContent('127');
     });
 
-    it("renders_avg_processing_time", async () => {
+    it('renders_avg_processing_time', async () => {
       const data = createProcessingPipelineData();
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
+
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("processing-avg-time")).toBeInTheDocument();
+        expect(screen.getByTestId('processing-avg-time')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId("processing-avg-time")).toHaveTextContent(
-        "8.5s"
-      );
+      expect(screen.getByTestId('processing-avg-time')).toHaveTextContent('8.5s');
     });
 
-    it("renders_error_rate_percentage", async () => {
+    it('renders_error_rate_percentage', async () => {
       const data = createProcessingPipelineData();
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
+
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId("processing-error-rate")
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('processing-error-rate')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId("processing-error-rate")).toHaveTextContent(
-        "2.3%"
-      );
+      expect(screen.getByTestId('processing-error-rate')).toHaveTextContent('2.3%');
     });
 
-    it("shows_warning_indicator_for_high_error_rate", async () => {
+    it('shows_warning_indicator_for_high_error_rate', async () => {
       const data = createProcessingPipelineData({ errorRate: 15.5 });
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
 
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
+
       await waitFor(() => {
-        expect(
-          screen.getByTestId("processing-error-rate")
-        ).toHaveClass("text-destructive");
+        expect(screen.getByTestId('processing-error-rate')).toHaveClass('text-destructive');
       });
     });
   });
 
-  describe("AC7: Sparkline charts for trends", () => {
-    it("renders_sparkline_for_trend", async () => {
+  describe('AC7: Sparkline charts for trends', () => {
+    it('renders_sparkline_for_trend', async () => {
       const data = createProcessingPipelineData();
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
 
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
+
       await waitFor(() => {
-        expect(
-          screen.getByTestId("processing-sparkline")
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('processing-sparkline')).toBeInTheDocument();
       });
     });
   });
 
-  describe("AC8: Click navigation", () => {
-    it("navigates_to_document_timeline_on_click", async () => {
+  describe('AC8: Click navigation', () => {
+    it('navigates_to_document_timeline_on_click', async () => {
       const data = createProcessingPipelineData();
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
+
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("processing-widget")).toBeInTheDocument();
+        expect(screen.getByTestId('processing-widget')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId("processing-widget"));
+      fireEvent.click(screen.getByTestId('processing-widget'));
 
-      expect(mockRouter.push).toHaveBeenCalledWith(
-        "/admin/observability/documents"
-      );
+      expect(mockRouter.push).toHaveBeenCalledWith('/admin/observability/documents');
     });
   });
 
-  describe("Edge cases", () => {
-    it("handles_zero_documents_processed", async () => {
+  describe('Edge cases', () => {
+    it('handles_zero_documents_processed', async () => {
       const data = createProcessingPipelineData({
         documentsProcessed: 0,
         avgProcessingTimeMs: 0,
         errorRate: 0,
       });
 
-      const ProcessingPipelineWidget = await import(
-        "../processing-widget"
-      ).then((m) => m.ProcessingPipelineWidget);
-
-      renderWithProviders(
-        <ProcessingPipelineWidget data={data} period="day" />
+      const ProcessingPipelineWidget = await import('../processing-widget').then(
+        (m) => m.ProcessingPipelineWidget
       );
 
+      renderWithProviders(<ProcessingPipelineWidget data={data} period="day" />);
+
       await waitFor(() => {
-        expect(screen.getByTestId("processing-docs-count")).toHaveTextContent(
-          "0"
-        );
+        expect(screen.getByTestId('processing-docs-count')).toHaveTextContent('0');
       });
     });
   });

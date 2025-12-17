@@ -55,11 +55,17 @@ test.describe('Document Generation & Export', () => {
     await page.click('[data-testid="start-generation-button"]');
 
     // Wait for generation to complete
-    await expect(page.locator('[data-testid="generation-complete"]')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="generation-complete"]')).toBeVisible({
+      timeout: 30000,
+    });
 
     // Check for confidence indicators
-    const lowConfidenceSections = page.locator('[data-testid="draft-section"][data-confidence="low"]');
-    const mediumConfidenceSections = page.locator('[data-testid="draft-section"][data-confidence="medium"]');
+    const lowConfidenceSections = page.locator(
+      '[data-testid="draft-section"][data-confidence="low"]'
+    );
+    const mediumConfidenceSections = page.locator(
+      '[data-testid="draft-section"][data-confidence="medium"]'
+    );
 
     const lowCount = await lowConfidenceSections.count();
     const mediumCount = await mediumConfidenceSections.count();
@@ -184,8 +190,8 @@ test.describe('Document Generation & Export', () => {
       sections.push(await sectionList.nth(i).textContent());
     }
 
-    expect(sections.some(s => s?.toLowerCase().includes('executive summary'))).toBeTruthy();
-    expect(sections.some(s => s?.toLowerCase().includes('technical'))).toBeTruthy();
+    expect(sections.some((s) => s?.toLowerCase().includes('executive summary'))).toBeTruthy();
+    expect(sections.some((s) => s?.toLowerCase().includes('technical'))).toBeTruthy();
   });
 
   test('P1: draft generation shows progress indicator', async ({ page }) => {
@@ -210,7 +216,9 @@ test.describe('Document Generation & Export', () => {
     expect(progressText).toMatch(/generating|progress|\d+%/i);
 
     // Wait for completion
-    await expect(page.locator('[data-testid="generation-complete"]')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="generation-complete"]')).toBeVisible({
+      timeout: 30000,
+    });
 
     // Progress indicator should disappear
     await expect(page.locator('[data-testid="generation-progress"]')).toBeHidden();
@@ -277,7 +285,9 @@ test.describe('Document Generation & Export', () => {
     await generateDraft(page, 'Gap Analysis', 'Quantum authentication protocols');
 
     // Check if draft has low confidence sections
-    const lowConfSections = await page.locator('[data-testid="draft-section"][data-confidence="low"]').count();
+    const lowConfSections = await page
+      .locator('[data-testid="draft-section"][data-confidence="low"]')
+      .count();
 
     if (lowConfSections > 0) {
       await page.click('[data-testid="export-draft-button"]');
@@ -287,7 +297,9 @@ test.describe('Document Generation & Export', () => {
       await page.click('[data-testid="confirm-sources-verified"]');
 
       // CRITICAL: Additional warning for low confidence
-      const warningText = await page.locator('[data-testid="export-verification-modal"]').textContent();
+      const warningText = await page
+        .locator('[data-testid="export-verification-modal"]')
+        .textContent();
       expect(warningText?.toLowerCase()).toMatch(/low confidence|verify carefully/);
 
       // Additional checkbox should be required

@@ -77,13 +77,19 @@ export class ArchivePage extends BasePage {
   > {
     const rows = this.page.locator('[data-testid="archive-document-row"]');
     const count = await rows.count();
-    const documents: Array<{ id: string; name: string; status: string; archivedAt: string | null }> = [];
+    const documents: Array<{
+      id: string;
+      name: string;
+      status: string;
+      archivedAt: string | null;
+    }> = [];
 
     for (let i = 0; i < count; i++) {
       const row = rows.nth(i);
       const id = (await row.getAttribute('data-document-id')) || '';
       const name = (await row.locator('[data-testid="document-name"]').textContent())?.trim() || '';
-      const status = (await row.locator('[data-testid="document-status"]').textContent())?.trim() || '';
+      const status =
+        (await row.locator('[data-testid="document-status"]').textContent())?.trim() || '';
       const archivedAt = await row.locator('[data-testid="archived-at"]').textContent();
 
       documents.push({
@@ -100,7 +106,9 @@ export class ArchivePage extends BasePage {
    * Select a document by name
    */
   async selectDocument(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await row.locator('[data-testid="document-checkbox"]').click();
   }
 
@@ -137,7 +145,9 @@ export class ArchivePage extends BasePage {
    * Archive a single document
    */
   async archiveDocument(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await row.getByRole('button', { name: /archive/i }).click();
     await this.confirmAction();
   }
@@ -154,7 +164,9 @@ export class ArchivePage extends BasePage {
    * Check if document can be archived
    */
   async canArchiveDocument(documentName: string): Promise<boolean> {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     const archiveButton = row.getByRole('button', { name: /archive/i });
     return await archiveButton.isEnabled();
   }
@@ -167,7 +179,9 @@ export class ArchivePage extends BasePage {
    * Restore a single document
    */
   async restoreDocument(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await row.getByRole('button', { name: /restore/i }).click();
     await this.confirmAction();
   }
@@ -196,8 +210,10 @@ export class ArchivePage extends BasePage {
     existingDocumentName: string;
   }> {
     const warning = this.page.locator('[data-testid="name-collision-warning"]');
-    const archived = (await warning.locator('[data-testid="archived-name"]').textContent())?.trim() || '';
-    const existing = (await warning.locator('[data-testid="existing-name"]').textContent())?.trim() || '';
+    const archived =
+      (await warning.locator('[data-testid="archived-name"]').textContent())?.trim() || '';
+    const existing =
+      (await warning.locator('[data-testid="existing-name"]').textContent())?.trim() || '';
 
     return {
       archivedDocumentName: archived,
@@ -213,7 +229,9 @@ export class ArchivePage extends BasePage {
    * Purge (permanently delete) a document
    */
   async purgeDocument(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await row.getByRole('button', { name: /purge|delete permanently/i }).click();
     await this.confirmDangerousAction();
   }
@@ -251,7 +269,9 @@ export class ArchivePage extends BasePage {
    * Clear a failed document
    */
   async clearFailedDocument(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await row.getByRole('button', { name: /clear|remove/i }).click();
     await this.confirmAction();
   }
@@ -268,7 +288,9 @@ export class ArchivePage extends BasePage {
    * Get failed document error message
    */
   async getFailedDocumentError(documentName: string): Promise<string> {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     const error = await row.locator('[data-testid="failure-reason"]').textContent();
     return error?.trim() || '';
   }
@@ -294,8 +316,10 @@ export class ArchivePage extends BasePage {
     existingDocumentId: string;
   }> {
     const warning = this.page.locator('[data-testid="duplicate-warning"]');
-    const newFile = (await warning.locator('[data-testid="new-filename"]').textContent())?.trim() || '';
-    const existingFile = (await warning.locator('[data-testid="existing-filename"]').textContent())?.trim() || '';
+    const newFile =
+      (await warning.locator('[data-testid="new-filename"]').textContent())?.trim() || '';
+    const existingFile =
+      (await warning.locator('[data-testid="existing-filename"]').textContent())?.trim() || '';
     const existingId = (await warning.getAttribute('data-existing-document-id')) || '';
 
     return {
@@ -335,7 +359,9 @@ export class ArchivePage extends BasePage {
    * Open replace document dialog
    */
   async openReplaceDialog(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await row.getByRole('button', { name: /replace/i }).click();
     await this.page.getByRole('dialog').waitFor({ state: 'visible' });
   }
@@ -424,8 +450,13 @@ export class ArchivePage extends BasePage {
   /**
    * Assert document has specific status
    */
-  async expectDocumentStatus(documentName: string, status: 'active' | 'archived' | 'failed' | 'processing') {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+  async expectDocumentStatus(
+    documentName: string,
+    status: 'active' | 'archived' | 'failed' | 'processing'
+  ) {
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     const statusBadge = row.locator('[data-testid="document-status"]');
     await expect(statusBadge).toHaveText(new RegExp(status, 'i'));
   }
@@ -435,7 +466,9 @@ export class ArchivePage extends BasePage {
    */
   async expectDocumentArchived(documentName: string) {
     await this.expectDocumentStatus(documentName, 'archived');
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await expect(row.locator('[data-testid="archived-at"]')).toBeVisible();
   }
 
@@ -450,14 +483,18 @@ export class ArchivePage extends BasePage {
    * Assert document no longer exists (purged)
    */
   async expectDocumentPurged(documentName: string) {
-    const row = this.page.locator('[data-testid="archive-document-row"]').filter({ hasText: documentName });
+    const row = this.page
+      .locator('[data-testid="archive-document-row"]')
+      .filter({ hasText: documentName });
     await expect(row).not.toBeVisible();
   }
 
   /**
    * Assert success toast for operation
    */
-  async expectOperationSuccess(operation: 'archived' | 'restored' | 'purged' | 'cleared' | 'replaced') {
+  async expectOperationSuccess(
+    operation: 'archived' | 'restored' | 'purged' | 'cleared' | 'replaced'
+  ) {
     await this.waitForToast(new RegExp(operation, 'i'));
   }
 

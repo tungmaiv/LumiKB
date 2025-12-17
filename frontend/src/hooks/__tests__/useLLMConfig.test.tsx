@@ -12,11 +12,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { useLLMConfig } from '../useLLMConfig';
-import type {
-  LLMConfig,
-  LLMConfigUpdateResponse,
-  LLMHealthResponse,
-} from '@/types/llm-config';
+import type { LLMConfig, LLMConfigUpdateResponse, LLMHealthResponse } from '@/types/llm-config';
 
 // Mock fetch
 global.fetch = vi.fn();

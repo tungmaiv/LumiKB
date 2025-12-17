@@ -30,12 +30,9 @@ export function useKBStats(kbId: string | null) {
         throw new Error('KB ID is required');
       }
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/admin/knowledge-bases/${kbId}/stats`,
-        {
-          credentials: 'include',
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/api/v1/admin/knowledge-bases/${kbId}/stats`, {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         if (res.status === 404) {

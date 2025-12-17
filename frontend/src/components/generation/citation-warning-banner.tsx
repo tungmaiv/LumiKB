@@ -98,10 +98,7 @@ export function CitationWarningInline({
 }: Pick<CitationWarningBannerProps, 'warnings' | 'onDismiss'>) {
   if (warnings.length === 0) return null;
 
-  const totalIssues = warnings.reduce(
-    (sum, w) => sum + w.citationNumbers.length,
-    0
-  );
+  const totalIssues = warnings.reduce((sum, w) => sum + w.citationNumbers.length, 0);
 
   return (
     <div

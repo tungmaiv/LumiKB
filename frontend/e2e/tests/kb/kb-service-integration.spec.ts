@@ -140,14 +140,16 @@ test.describe('Story 7-17: Service Integration E2E Smoke Tests', () => {
       }
 
       // Navigate to search page or use search input
-      const searchInput = page.locator('[data-testid="search-input"]').or(page.getByRole('searchbox'));
+      const searchInput = page
+        .locator('[data-testid="search-input"]')
+        .or(page.getByRole('searchbox'));
       if (await searchInput.isVisible()) {
         await searchInput.fill('test query');
         await searchInput.press('Enter');
 
         // Wait for search to complete
-        await page.waitForResponse((response) =>
-          response.url().includes('/search') && response.status() === 200
+        await page.waitForResponse(
+          (response) => response.url().includes('/search') && response.status() === 200
         );
 
         // Verify search was made with KB context
@@ -224,7 +226,9 @@ test.describe('Story 7-17: Service Integration E2E Smoke Tests', () => {
       await page.waitForLoadState('networkidle');
 
       // Verify search page loads (if search page exists)
-      const searchPage = page.locator('[data-testid="search-page"]').or(page.locator('.search-container'));
+      const searchPage = page
+        .locator('[data-testid="search-page"]')
+        .or(page.locator('.search-container'));
       if (await searchPage.isVisible({ timeout: 2000 }).catch(() => false)) {
         // Search is accessible
         await expect(searchPage).toBeVisible();
@@ -282,7 +286,9 @@ test.describe('Story 7-17: Service Integration E2E Smoke Tests', () => {
       await page.waitForLoadState('networkidle');
 
       // If chat page is accessible and has generate functionality
-      const chatPage = page.locator('[data-testid="chat-page"]').or(page.locator('.chat-container'));
+      const chatPage = page
+        .locator('[data-testid="chat-page"]')
+        .or(page.locator('.chat-container'));
       if (await chatPage.isVisible({ timeout: 2000 }).catch(() => false)) {
         // Chat page is accessible - test can proceed
         await expect(chatPage).toBeVisible();
@@ -365,7 +371,9 @@ test.describe('Story 7-17: Service Integration E2E Smoke Tests', () => {
       await page.waitForLoadState('networkidle');
 
       // Verify chat page is accessible
-      const chatPage = page.locator('[data-testid="chat-page"]').or(page.locator('.chat-container'));
+      const chatPage = page
+        .locator('[data-testid="chat-page"]')
+        .or(page.locator('.chat-container'));
       if (await chatPage.isVisible({ timeout: 2000 }).catch(() => false)) {
         await expect(chatPage).toBeVisible();
       }

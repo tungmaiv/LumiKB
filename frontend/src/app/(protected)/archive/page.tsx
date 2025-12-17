@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Archive, RotateCcw, Trash2, Search, CheckSquare, Square, AlertTriangle } from 'lucide-react';
+import {
+  Archive,
+  RotateCcw,
+  Trash2,
+  Search,
+  CheckSquare,
+  Square,
+  AlertTriangle,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,8 +97,8 @@ function RestoreConfirmModal({
 
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This document will be restored to the knowledge base &quot;{document?.kb_name}&quot;
-            and will be searchable again.
+            This document will be restored to the knowledge base &quot;{document?.kb_name}&quot; and
+            will be searchable again.
           </p>
 
           {error && (
@@ -144,9 +152,7 @@ function PurgeConfirmModal({
         <DialogHeader>
           <DialogTitle className="text-destructive">Permanently Delete Document</DialogTitle>
           <DialogDescription>
-            {step === 'initial'
-              ? 'This action cannot be undone.'
-              : 'Are you absolutely sure?'}
+            {step === 'initial' ? 'This action cannot be undone.' : 'Are you absolutely sure?'}
           </DialogDescription>
         </DialogHeader>
 
@@ -159,8 +165,8 @@ function PurgeConfirmModal({
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  This will remove all associated data including chunks and embeddings.
-                  This action cannot be undone.
+                  This will remove all associated data including chunks and embeddings. This action
+                  cannot be undone.
                 </AlertDescription>
               </Alert>
             </div>
@@ -177,9 +183,7 @@ function PurgeConfirmModal({
         ) : (
           <>
             <div className="space-y-3">
-              <p className="text-sm font-medium">
-                Type the document name to confirm:
-              </p>
+              <p className="text-sm font-medium">Type the document name to confirm:</p>
               <p className="text-sm text-muted-foreground font-mono bg-muted p-2 rounded">
                 {document?.name}
               </p>
@@ -189,11 +193,7 @@ function PurgeConfirmModal({
               <Button variant="outline" onClick={handleClose} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button
-                variant="destructive"
-                onClick={onConfirm}
-                disabled={isLoading}
-              >
+              <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
                 {isLoading ? 'Deleting...' : 'Delete Permanently'}
               </Button>
             </DialogFooter>
@@ -236,9 +236,7 @@ function BulkPurgeModal({
             Permanently Delete {selectedCount} Documents
           </DialogTitle>
           <DialogDescription>
-            {step === 'initial'
-              ? 'This action cannot be undone.'
-              : 'Are you absolutely sure?'}
+            {step === 'initial' ? 'This action cannot be undone.' : 'Are you absolutely sure?'}
           </DialogDescription>
         </DialogHeader>
 
@@ -251,8 +249,8 @@ function BulkPurgeModal({
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  This will remove all associated data including chunks and embeddings.
-                  This action cannot be undone.
+                  This will remove all associated data including chunks and embeddings. This action
+                  cannot be undone.
                 </AlertDescription>
               </Alert>
             </div>
@@ -281,11 +279,7 @@ function BulkPurgeModal({
               <Button variant="outline" onClick={handleClose} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button
-                variant="destructive"
-                onClick={onConfirm}
-                disabled={isLoading}
-              >
+              <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
                 {isLoading ? 'Deleting...' : 'Delete All'}
               </Button>
             </DialogFooter>
@@ -503,11 +497,7 @@ export default function ArchivePage() {
         </div>
 
         {selectedIds.size > 0 && (
-          <Button
-            variant="destructive"
-            onClick={handleBulkPurge}
-            className="gap-2"
-          >
+          <Button variant="destructive" onClick={handleBulkPurge} className="gap-2">
             <Trash2 className="h-4 w-4" />
             Delete {selectedIds.size} Selected
           </Button>
@@ -657,8 +647,8 @@ export default function ArchivePage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
-                  {Math.min(page * PAGE_SIZE, total)} of {total} documents
+                  Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of{' '}
+                  {total} documents
                 </p>
                 <div className="flex gap-2">
                   <Button

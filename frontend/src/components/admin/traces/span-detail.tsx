@@ -21,13 +21,7 @@ import {
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { SpanDetail as SpanDetailType } from '@/hooks/useTraces';
 
@@ -63,11 +57,7 @@ function SpanStatusBadge({ status }: { status: string }) {
     in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
   };
 
-  return (
-    <Badge className={cn(variants[status] || variants.completed)}>
-      {status}
-    </Badge>
-  );
+  return <Badge className={cn(variants[status] || variants.completed)}>{status}</Badge>;
 }
 
 /**
@@ -87,9 +77,7 @@ function MetricRow({
   return (
     <div className="flex justify-between py-1">
       <span className="text-muted-foreground">{label}</span>
-      <span className={cn('font-mono', highlight && 'font-semibold text-primary')}>
-        {value}
-      </span>
+      <span className={cn('font-mono', highlight && 'font-semibold text-primary')}>{value}</span>
     </div>
   );
 }
@@ -118,9 +106,7 @@ function LLMMetrics({ span }: { span: SpanDetailType }) {
             highlight
           />
         )}
-        {cost !== undefined && (
-          <MetricRow label="Cost" value={`$${cost.toFixed(4)}`} highlight />
-        )}
+        {cost !== undefined && <MetricRow label="Cost" value={`$${cost.toFixed(4)}`} highlight />}
       </div>
     </div>
   );
@@ -197,9 +183,7 @@ function GenericMetadata({ metadata }: { metadata: Record<string, unknown> }) {
           />
         ))}
         {entries.length > 10 && (
-          <p className="text-xs text-muted-foreground pt-2">
-            +{entries.length - 10} more fields
-          </p>
+          <p className="text-xs text-muted-foreground pt-2">+{entries.length - 10} more fields</p>
         )}
       </div>
     </div>
@@ -229,9 +213,7 @@ export function SpanDetailCard({ span }: SpanDetailProps) {
 
   return (
     <Card
-      className={cn(
-        span.status === 'failed' && 'border-destructive'
-      )}
+      className={cn(span.status === 'failed' && 'border-destructive')}
       data-testid="span-detail-card"
     >
       <CardHeader className="pb-3">
@@ -261,15 +243,9 @@ export function SpanDetailCard({ span }: SpanDetailProps) {
         <div className="space-y-2">
           <h4 className="font-medium">Timing</h4>
           <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
-            <MetricRow
-              label="Started"
-              value={format(startTime, 'yyyy-MM-dd HH:mm:ss.SSS')}
-            />
+            <MetricRow label="Started" value={format(startTime, 'yyyy-MM-dd HH:mm:ss.SSS')} />
             {endTime && (
-              <MetricRow
-                label="Ended"
-                value={format(endTime, 'yyyy-MM-dd HH:mm:ss.SSS')}
-              />
+              <MetricRow label="Ended" value={format(endTime, 'yyyy-MM-dd HH:mm:ss.SSS')} />
             )}
             <MetricRow
               label="Duration"
@@ -294,9 +270,7 @@ export function SpanDetailCard({ span }: SpanDetailProps) {
         {/* Span IDs for debugging */}
         <div className="pt-2 border-t">
           <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer hover:text-foreground">
-              Span IDs
-            </summary>
+            <summary className="cursor-pointer hover:text-foreground">Span IDs</summary>
             <div className="mt-2 space-y-1 font-mono">
               <p>Span: {span.span_id}</p>
               {span.parent_span_id && <p>Parent: {span.parent_span_id}</p>}

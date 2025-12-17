@@ -74,10 +74,7 @@ export function UserMenu(): React.ReactElement | null {
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
               {THEMES.map((t) => (
-                <DropdownMenuItem
-                  key={t.value}
-                  onClick={() => setTheme(t.value)}
-                >
+                <DropdownMenuItem key={t.value} onClick={() => setTheme(t.value)}>
                   {theme === t.value ? (
                     <Check className="mr-2 h-4 w-4" />
                   ) : (

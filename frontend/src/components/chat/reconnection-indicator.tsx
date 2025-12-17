@@ -84,9 +84,7 @@ export function ReconnectionIndicator({
         data-testid="polling-indicator"
       >
         <Radio className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-pulse" />
-        <AlertTitle className="text-blue-900 dark:text-blue-100">
-          Polling Mode Active
-        </AlertTitle>
+        <AlertTitle className="text-blue-900 dark:text-blue-100">Polling Mode Active</AlertTitle>
         <AlertDescription className="text-blue-800 dark:text-blue-200">
           <p className="mb-2">
             Using polling fallback due to connection issues. Updates may be slightly delayed.
@@ -160,9 +158,7 @@ export function ReconnectionIndicator({
         data-testid="reconnecting-indicator"
       >
         <Loader2 className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-spin" />
-        <AlertTitle className="text-amber-900 dark:text-amber-100">
-          Reconnecting...
-        </AlertTitle>
+        <AlertTitle className="text-amber-900 dark:text-amber-100">Reconnecting...</AlertTitle>
         <AlertDescription className="text-amber-800 dark:text-amber-200">
           <p className="mb-2" data-testid="attempt-count">
             Attempt {attemptCount} of {maxRetries}

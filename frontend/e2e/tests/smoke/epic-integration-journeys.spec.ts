@@ -290,7 +290,9 @@ test.describe('Story 5-0: Epic Integration Smoke Tests', () => {
     expect(allMessages.length).toBe(4);
 
     // Verify second response maintains context (references "it" = OAuth)
-    const secondAiMessage = page.locator('[data-testid="chat-message"][data-role="assistant"]').nth(1);
+    const secondAiMessage = page
+      .locator('[data-testid="chat-message"][data-role="assistant"]')
+      .nth(1);
     const secondResponse = await secondAiMessage.textContent();
     expect(secondResponse?.toLowerCase()).toMatch(/implement|integration|oauth/);
   });

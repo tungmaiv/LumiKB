@@ -184,17 +184,13 @@ export function ChatMessage({
               </div>
               <span className="text-xs">{Math.round(confidence * 100)}%</span>
             </div>
-            {confidence < 0.5 && (
-              <span className="text-red-600 font-medium">Verify carefully</span>
-            )}
+            {confidence < 0.5 && <span className="text-red-600 font-medium">Verify carefully</span>}
           </div>
         )}
       </div>
 
       {/* Debug Info Panel (AC-9.15.14-17) - only for assistant messages with debug data */}
-      {showDebugPanel && debugInfo && (
-        <DebugInfoPanel debugInfo={debugInfo} className="w-full" />
-      )}
+      {showDebugPanel && debugInfo && <DebugInfoPanel debugInfo={debugInfo} className="w-full" />}
     </div>
   );
 }

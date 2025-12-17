@@ -11,16 +11,16 @@
  * Available to Operators (level 2+)
  */
 
-"use client";
+'use client';
 
-import { useState } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { Activity } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { QueueStatusCard } from "@/components/admin/queue-status-card";
-import { TaskListModal } from "@/components/admin/task-list-modal";
-import { useQueueStatus } from "@/hooks/useQueueStatus";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { Activity } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { QueueStatusCard } from '@/components/admin/queue-status-card';
+import { TaskListModal } from '@/components/admin/task-list-modal';
+import { useQueueStatus } from '@/hooks/useQueueStatus';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
 
 export default function OperationsQueuePage() {
   const { data: queues, isLoading, error, dataUpdatedAt } = useQueueStatus();
@@ -48,7 +48,7 @@ export default function OperationsQueuePage() {
           <h1 className="text-2xl font-bold mb-6">Queue Status</h1>
           <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
             <p className="text-sm text-destructive">
-              {error instanceof Error ? error.message : "Failed to load queue status"}
+              {error instanceof Error ? error.message : 'Failed to load queue status'}
             </p>
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function OperationsQueuePage() {
 
   const lastUpdated = dataUpdatedAt
     ? formatDistanceToNow(dataUpdatedAt, { addSuffix: true })
-    : "never";
+    : 'never';
 
   return (
     <DashboardLayout>
@@ -71,9 +71,7 @@ export default function OperationsQueuePage() {
           <p className="text-sm text-muted-foreground mt-1">
             Real-time monitoring of background task queues
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Last updated: {lastUpdated}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">Last updated: {lastUpdated}</p>
         </div>
 
         {queues && queues.length === 0 && (

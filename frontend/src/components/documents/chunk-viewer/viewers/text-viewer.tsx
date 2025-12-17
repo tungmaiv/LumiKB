@@ -99,10 +99,7 @@ export function TextViewer({
 
   if (isLoading) {
     return (
-      <div
-        className="flex items-center justify-center h-full"
-        data-testid="text-viewer-loading"
-      >
+      <div className="flex items-center justify-center h-full" data-testid="text-viewer-loading">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -168,17 +165,13 @@ export function TextViewer({
                       <span
                         ref={
                           line.lineNumber ===
-                          processedLines.find((l) => l.isHighlighted)
-                            ?.lineNumber
+                          processedLines.find((l) => l.isHighlighted)?.lineNumber
                             ? highlightRef
                             : undefined
                         }
                         className="bg-yellow-300 dark:bg-yellow-600 rounded px-0.5"
                       >
-                        {line.content.slice(
-                          line.highlightStart,
-                          line.highlightEnd
-                        )}
+                        {line.content.slice(line.highlightStart, line.highlightEnd)}
                       </span>
                       {line.content.slice(line.highlightEnd)}
                     </>

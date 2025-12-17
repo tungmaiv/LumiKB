@@ -123,7 +123,8 @@ export function RetrievalSection({
               />
             </FormControl>
             <FormDescription>
-              Minimum similarity score for results (0.0-1.0). Higher values return fewer, more relevant results.
+              Minimum similarity score for results (0.0-1.0). Higher values return fewer, more
+              relevant results.
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -137,11 +138,7 @@ export function RetrievalSection({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Retrieval Method</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value}
-              disabled={disabled}
-            >
+            <Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select retrieval method" />
@@ -156,7 +153,8 @@ export function RetrievalSection({
               </SelectContent>
             </Select>
             <FormDescription>
-              Search strategy: Vector (semantic), Hybrid (semantic + keyword), or HyDE (query expansion).
+              Search strategy: Vector (semantic), Hybrid (semantic + keyword), or HyDE (query
+              expansion).
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -176,11 +174,7 @@ export function RetrievalSection({
               </FormDescription>
             </div>
             <FormControl>
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             </FormControl>
           </FormItem>
         )}

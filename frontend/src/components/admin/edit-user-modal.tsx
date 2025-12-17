@@ -19,11 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { UserRead, AdminUserUpdate } from '@/types/user';
 
 export interface EditUserModalProps {
@@ -91,9 +87,7 @@ export function EditUserModal({
 
         <div className="space-y-6 py-4">
           {error && (
-            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-              {error}
-            </div>
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>
           )}
 
           {/* Email (read-only) */}
@@ -124,9 +118,7 @@ export function EditUserModal({
             <Label htmlFor="status-toggle">Account Status</Label>
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div>
-                <p className="text-sm font-medium">
-                  {isActive ? 'Active' : 'Inactive'}
-                </p>
+                <p className="text-sm font-medium">{isActive ? 'Active' : 'Inactive'}</p>
                 <p className="text-xs text-muted-foreground">
                   {isActive
                     ? 'User can log in and access the system'
@@ -167,10 +159,7 @@ export function EditUserModal({
           <Button type="button" variant="outline" onClick={handleClose} disabled={isUpdating}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isUpdating || (user.is_active === isActive)}
-          >
+          <Button onClick={handleSave} disabled={isUpdating || user.is_active === isActive}>
             {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes
           </Button>

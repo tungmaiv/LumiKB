@@ -97,7 +97,8 @@ describe('RecoveryModal', () => {
 
     // THEN: Dialog title or description provides context
     expect(
-      screen.getByText(/let's try something different/i) || screen.getByText(/based on your feedback/i)
+      screen.getByText(/let's try something different/i) ||
+        screen.getByText(/based on your feedback/i)
     ).toBeInTheDocument();
   });
 
@@ -129,12 +130,7 @@ describe('RecoveryModal', () => {
       },
     ];
 
-    render(
-      <RecoveryModal
-        {...defaultProps}
-        alternatives={templateAlternatives}
-      />
-    );
+    render(<RecoveryModal {...defaultProps} alternatives={templateAlternatives} />);
 
     // THEN: Template-related alternatives displayed (with numbering)
     expect(screen.getByText(/1\.\s*Choose a different template structure/i)).toBeInTheDocument();

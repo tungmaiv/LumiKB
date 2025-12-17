@@ -277,9 +277,9 @@ test.describe('Story 6-9: Duplicate Upload & Replace UI', () => {
       });
 
       // Should show auto-clear toast notification
-      await expect(
-        page.getByText(/previous failed upload was automatically cleared/i)
-      ).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/previous failed upload was automatically cleared/i)).toBeVisible(
+        { timeout: 5000 }
+      );
     });
   });
 

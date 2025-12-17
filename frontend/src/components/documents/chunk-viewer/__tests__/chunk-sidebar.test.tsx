@@ -91,13 +91,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByText('Document Chunks')).toBeInTheDocument();
@@ -119,13 +113,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByTestId('chunk-search-input')).toBeInTheDocument();
@@ -146,13 +134,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert - loading spinner should be visible
     expect(screen.getByTestId('chunk-sidebar')).toBeInTheDocument();
@@ -172,13 +154,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByText('Failed to load chunks')).toBeInTheDocument();
@@ -198,13 +174,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByText('No chunks found')).toBeInTheDocument();
@@ -225,14 +195,9 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-        onChunkClick={mockOnChunkClick}
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" onChunkClick={mockOnChunkClick} />, {
+      wrapper: createWrapper(),
+    });
 
     // Virtual scroll requires real DOM measurements, which aren't available in jsdom
     // This is a limitation of testing virtualized lists - we verify the component renders
@@ -256,13 +221,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByTestId('load-more-chunks')).toBeInTheDocument();
@@ -283,13 +242,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.queryByTestId('load-more-chunks')).not.toBeInTheDocument();
@@ -309,13 +262,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByText('1 chunk')).toBeInTheDocument();
@@ -335,14 +282,9 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-        selectedChunkIndex={1}
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" selectedChunkIndex={1} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('prev-chunk-btn')).toBeInTheDocument();
@@ -364,14 +306,9 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-        selectedChunkIndex={0}
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" selectedChunkIndex={0} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('prev-chunk-btn')).toBeDisabled();
@@ -391,14 +328,9 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-        selectedChunkIndex={2}
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" selectedChunkIndex={2} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('next-chunk-btn')).toBeDisabled();
@@ -418,13 +350,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Type in search
     fireEvent.change(screen.getByTestId('chunk-search-input'), {
@@ -452,13 +378,7 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" />, { wrapper: createWrapper() });
 
     // Assert
     expect(screen.getByTestId('chunk-sidebar')).toBeInTheDocument();
@@ -479,14 +399,9 @@ describe('ChunkSidebar', () => {
     });
 
     // Act
-    render(
-      <ChunkSidebar
-        kbId="kb-123"
-        documentId="doc-456"
-        width={400}
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<ChunkSidebar kbId="kb-123" documentId="doc-456" width={400} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     const sidebar = screen.getByTestId('chunk-sidebar');

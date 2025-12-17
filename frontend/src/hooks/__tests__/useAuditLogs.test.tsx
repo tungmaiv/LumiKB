@@ -96,10 +96,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       // THEN: Should be in loading state initially
       expect(result.current.isLoading).toBe(true);
@@ -148,10 +147,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered with filters
-      const { result } = renderHook(
-        () => useAuditLogs({ filters, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -182,10 +180,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       // THEN: Should be in loading state
       expect(result.current.isLoading).toBe(true);
@@ -203,10 +200,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       // THEN: Should transition from loading to loaded
       expect(result.current.isLoading).toBe(true);
@@ -231,10 +227,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       // THEN: Should have error set after query settles
       await waitFor(
@@ -259,10 +254,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       // THEN: Should have error set
       await waitFor(
@@ -282,10 +276,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       // THEN: Should have error set
       await waitFor(
@@ -402,10 +395,9 @@ describe('useAuditLogs Hook', () => {
 
       const { wrapper } = createWrapper();
 
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -444,10 +436,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -472,10 +463,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered for page 2
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 2, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 2, pageSize: 50 }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -503,10 +493,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 50 }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -532,10 +521,9 @@ describe('useAuditLogs Hook', () => {
       const { wrapper } = createWrapper();
 
       // WHEN: Hook is rendered
-      const { result } = renderHook(
-        () => useAuditLogs({ filters: {}, page: 1, pageSize: 10000 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useAuditLogs({ filters: {}, page: 1, pageSize: 10000 }), {
+        wrapper,
+      });
 
       // THEN: Should set timeout error (wait for error instead of isLoading)
       await waitFor(

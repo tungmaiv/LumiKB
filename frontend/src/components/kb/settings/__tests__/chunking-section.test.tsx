@@ -45,18 +45,13 @@ function TestWrapper({ children, defaultValues, onSubmit }: TestWrapperProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>
-        {children(form)}
-      </form>
+      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>{children(form)}</form>
     </FormProvider>
   );
 }
 
 // Helper to render with form
-function renderWithForm(
-  defaultValues?: Partial<KBSettingsFormData>,
-  disabled = false
-) {
+function renderWithForm(defaultValues?: Partial<KBSettingsFormData>, disabled = false) {
   const onSubmit = vi.fn();
   const result = render(
     <TestWrapper defaultValues={defaultValues} onSubmit={onSubmit}>
@@ -278,9 +273,7 @@ describe('ChunkingSection', () => {
   describe('[P2] Descriptions', () => {
     it('shows strategy description', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/method used to split documents into chunks/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/method used to split documents into chunks/i)).toBeInTheDocument();
     });
 
     it('shows chunk size description with range', () => {
@@ -292,9 +285,7 @@ describe('ChunkingSection', () => {
 
     it('shows chunk overlap description with range', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/number of overlapping tokens.*0.*500/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/number of overlapping tokens.*0.*500/i)).toBeInTheDocument();
     });
   });
 });

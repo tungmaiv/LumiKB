@@ -10,11 +10,7 @@
 import { useCallback, useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 
-import {
-  ChatSessionList,
-  ChatFilters,
-  SessionDetailPanel,
-} from '@/components/admin/chat';
+import { ChatSessionList, ChatFilters, SessionDetailPanel } from '@/components/admin/chat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -41,16 +37,10 @@ export default function ChatHistoryPage() {
   });
 
   const handleFiltersChange = useCallback(
-    (
-      filtersOrUpdater:
-        | ChatHistoryFilters
-        | ((prev: ChatHistoryFilters) => ChatHistoryFilters)
-    ) => {
+    (filtersOrUpdater: ChatHistoryFilters | ((prev: ChatHistoryFilters) => ChatHistoryFilters)) => {
       setFilters((prev) => {
         const newFilters =
-          typeof filtersOrUpdater === 'function'
-            ? filtersOrUpdater(prev)
-            : filtersOrUpdater;
+          typeof filtersOrUpdater === 'function' ? filtersOrUpdater(prev) : filtersOrUpdater;
         return newFilters;
       });
       setCurrentPage(1); // Reset to first page on filter change
@@ -102,10 +92,7 @@ export default function ChatHistoryPage() {
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <ChatFilters
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-            />
+            <ChatFilters filters={filters} onFiltersChange={handleFiltersChange} />
           </CardContent>
         </Card>
 
@@ -196,10 +183,7 @@ export default function ChatHistoryPage() {
         </div>
 
         {/* Session Detail Panel */}
-        <SessionDetailPanel
-          sessionId={selectedSessionId}
-          onClose={handleClosePanel}
-        />
+        <SessionDetailPanel sessionId={selectedSessionId} onClose={handleClosePanel} />
       </div>
     </DashboardLayout>
   );

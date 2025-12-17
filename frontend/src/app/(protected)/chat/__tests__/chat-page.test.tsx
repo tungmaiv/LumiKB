@@ -68,9 +68,7 @@ describe('Chat Page Route (Story 5-0, AC1)', () => {
       render(<ChatPage />);
 
       // Should prompt to select a KB
-      expect(
-        screen.getByText(/please select a knowledge base/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/please select a knowledge base/i)).toBeInTheDocument();
     });
 
     it('should render chat interface when KB is active', () => {

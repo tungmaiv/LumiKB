@@ -5,12 +5,7 @@
 
 'use client';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { AuditEvent } from '@/types/audit';
 
 export interface AuditEventDetailsModalProps {
@@ -19,11 +14,7 @@ export interface AuditEventDetailsModalProps {
   onClose: () => void;
 }
 
-export function AuditEventDetailsModal({
-  event,
-  isOpen,
-  onClose,
-}: AuditEventDetailsModalProps) {
+export function AuditEventDetailsModal({ event, isOpen, onClose }: AuditEventDetailsModalProps) {
   if (!event) {
     return null;
   }
@@ -57,77 +48,47 @@ export function AuditEventDetailsModal({
           {/* Basic Information */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Event ID
-              </label>
+              <label className="text-sm font-semibold text-muted-foreground">Event ID</label>
               <p className="mt-1 font-mono text-sm">{event.id}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Timestamp
-              </label>
-              <p className="mt-1 text-sm">
-                {formatTimestamp(event.timestamp)}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">Timestamp</label>
+              <p className="mt-1 text-sm">{formatTimestamp(event.timestamp)}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Event Type
-              </label>
+              <label className="text-sm font-semibold text-muted-foreground">Event Type</label>
               <p className="mt-1 text-sm">{event.action}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Status
-              </label>
-              <p className="mt-1 text-sm">
-                {event.status || 'N/A'}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">Status</label>
+              <p className="mt-1 text-sm">{event.status || 'N/A'}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                User ID
-              </label>
-              <p className="mt-1 font-mono text-sm">
-                {event.user_id || 'N/A'}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">User ID</label>
+              <p className="mt-1 font-mono text-sm">{event.user_id || 'N/A'}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                User Email
-              </label>
-              <p className="mt-1 text-sm">
-                {event.user_email || 'System'}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">User Email</label>
+              <p className="mt-1 text-sm">{event.user_email || 'System'}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Resource Type
-              </label>
-              <p className="mt-1 text-sm">
-                {event.resource_type || 'N/A'}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">Resource Type</label>
+              <p className="mt-1 text-sm">{event.resource_type || 'N/A'}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Resource ID
-              </label>
-              <p className="mt-1 font-mono text-sm">
-                {event.resource_id || 'N/A'}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">Resource ID</label>
+              <p className="mt-1 font-mono text-sm">{event.resource_id || 'N/A'}</p>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                Duration
-              </label>
+              <label className="text-sm font-semibold text-muted-foreground">Duration</label>
               <p className="mt-1 text-sm">
                 {event.duration_ms !== null && event.duration_ms !== undefined
                   ? `${event.duration_ms}ms`
@@ -136,29 +97,19 @@ export function AuditEventDetailsModal({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-muted-foreground">
-                IP Address
-              </label>
-              <p className="mt-1 font-mono text-sm">
-                {event.ip_address || 'N/A'}
-              </p>
+              <label className="text-sm font-semibold text-muted-foreground">IP Address</label>
+              <p className="mt-1 font-mono text-sm">{event.ip_address || 'N/A'}</p>
               {event.ip_address === 'XXX.XXX.XXX.XXX' && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  (PII redacted for privacy)
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">(PII redacted for privacy)</p>
               )}
             </div>
           </div>
 
           {/* Details JSON */}
           <div>
-            <label className="text-sm font-semibold text-muted-foreground">
-              Event Details
-            </label>
+            <label className="text-sm font-semibold text-muted-foreground">Event Details</label>
             <div className="mt-2 rounded-md border bg-muted p-4">
-              <pre className="overflow-x-auto text-xs">
-                {formatJson(event.details)}
-              </pre>
+              <pre className="overflow-x-auto text-xs">{formatJson(event.details)}</pre>
             </div>
             {event.details &&
               Object.keys(event.details).some((key) =>

@@ -75,14 +75,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
 
   describe('[P1] Table Structure - AC-5.4.3', () => {
     it('should render all required column headers', () => {
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       // Verify all 5 required columns
       expect(screen.getByText('Task ID')).toBeInTheDocument();
@@ -93,14 +88,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
     });
 
     it('should render task rows with truncated IDs', () => {
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       // Task ID should be truncated to first 8 chars + "..."
       expect(screen.getByText('task-123...')).toBeInTheDocument();
@@ -108,14 +98,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
     });
 
     it('should render task name simplified (last segment only)', () => {
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       // Task name shows only the function name after the last dot
       expect(screen.getByText('process_document')).toBeInTheDocument();
@@ -123,31 +108,19 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
     });
 
     it('should display queue name in modal title', () => {
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
-      expect(
-        screen.getByText(/Active Tasks.*document_processing/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Active Tasks.*document_processing/i)).toBeInTheDocument();
     });
   });
 
   describe('[P1] Modal Behavior', () => {
     it('should not render content when open is false', () => {
-      render(
-        <TaskListModal
-          open={false}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={false} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       // Modal content should not be visible
       expect(screen.queryByText('Task ID')).not.toBeInTheDocument();
@@ -156,14 +129,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
     it('should call onClose when dialog is closed', () => {
       const handleClose = vi.fn();
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={handleClose}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={handleClose} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       // Shadcn Dialog uses onOpenChange which triggers onClose
       // The close button should be accessible
@@ -174,18 +142,11 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
     });
 
     it('should display description about sorting', () => {
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
-      expect(
-        screen.getByText(/sorted by newest first/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/sorted by newest first/i)).toBeInTheDocument();
     });
   });
 
@@ -203,14 +164,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useQueueTasks>);
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByText(/loading tasks/i)).toBeInTheDocument();
     });
@@ -228,14 +184,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useQueueTasks>);
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByText(/failed to load tasks/i)).toBeInTheDocument();
     });
@@ -253,14 +204,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useQueueTasks>);
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByText(/no active tasks/i)).toBeInTheDocument();
     });
@@ -285,14 +231,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useQueueTasks>);
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByText('5s')).toBeInTheDocument();
     });
@@ -315,14 +256,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useQueueTasks>);
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByText('2m 5s')).toBeInTheDocument();
     });
@@ -345,14 +281,9 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useQueueTasks>);
 
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
       expect(screen.getByText('N/A')).toBeInTheDocument();
     });
@@ -360,37 +291,19 @@ describe('TaskListModal Component (Story 5-4, AC-5.4.3)', () => {
 
   describe('[P2] Hook Integration', () => {
     it('should pass correct parameters to useQueueTasks', () => {
-      render(
-        <TaskListModal
-          open={true}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={true} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
-      expect(mockUseQueueTasks).toHaveBeenCalledWith(
-        'document_processing',
-        'active',
-        true
-      );
+      expect(mockUseQueueTasks).toHaveBeenCalledWith('document_processing', 'active', true);
     });
 
     it('should disable query when modal is closed', () => {
-      render(
-        <TaskListModal
-          open={false}
-          onClose={vi.fn()}
-          queueName="document_processing"
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<TaskListModal open={false} onClose={vi.fn()} queueName="document_processing" />, {
+        wrapper: createWrapper(),
+      });
 
-      expect(mockUseQueueTasks).toHaveBeenCalledWith(
-        'document_processing',
-        'active',
-        false
-      );
+      expect(mockUseQueueTasks).toHaveBeenCalledWith('document_processing', 'active', false);
     });
   });
 });

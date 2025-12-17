@@ -290,7 +290,10 @@ test.describe('Story 6-7: Archive Management UI', () => {
       await page.getByRole('button', { name: /restore/i }).click();
 
       // Confirm in dialog
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|restore/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|restore/i })
+        .click();
 
       // Wait for dialog to close
       await expect(page.getByRole('dialog')).not.toBeVisible();
@@ -344,7 +347,10 @@ test.describe('Story 6-7: Archive Management UI', () => {
       await page.getByPlaceholder(/type.*delete/i).fill('DELETE');
 
       // Confirm button should be enabled
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|delete/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|delete/i })
+        .click();
 
       // Success toast
       await expect(page.getByText(/permanently deleted/i)).toBeVisible();
@@ -396,7 +402,10 @@ test.describe('Story 6-7: Archive Management UI', () => {
 
       await setupAuthenticatedUser(page, { is_admin: true });
       await setupArchivedDocuments(page, TEST_KB_ID, archivedDocs);
-      await setupBulkPurgeEndpoint(page, archivedDocs.map((d) => d.id));
+      await setupBulkPurgeEndpoint(
+        page,
+        archivedDocs.map((d) => d.id)
+      );
 
       await page.goto('/archive');
 
@@ -408,7 +417,10 @@ test.describe('Story 6-7: Archive Management UI', () => {
 
       // Type DELETE and confirm
       await page.getByPlaceholder(/type.*delete/i).fill('DELETE');
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|delete/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|delete/i })
+        .click();
 
       // All documents should be removed
       await expect(page.locator('[data-testid="archive-row"]')).toHaveCount(0);
@@ -442,7 +454,10 @@ test.describe('Story 6-7: Archive Management UI', () => {
 
       // Attempt restore
       await page.getByRole('button', { name: /restore/i }).click();
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|restore/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|restore/i })
+        .click();
 
       // Error message should be shown
       await expect(page.getByText(/document with this name already exists/i)).toBeVisible();

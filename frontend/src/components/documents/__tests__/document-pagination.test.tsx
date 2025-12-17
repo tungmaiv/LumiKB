@@ -20,19 +20,25 @@ describe('DocumentPagination', () => {
   it('renders pagination info', () => {
     render(<DocumentPagination {...defaultProps} />);
 
-    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Showing 1 to 25 of 100 documents');
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent(
+      'Showing 1 to 25 of 100 documents'
+    );
   });
 
   it('shows correct item range for middle page', () => {
     render(<DocumentPagination {...defaultProps} page={3} />);
 
-    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Showing 51 to 75 of 100 documents');
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent(
+      'Showing 51 to 75 of 100 documents'
+    );
   });
 
   it('shows correct item range for last page', () => {
     render(<DocumentPagination {...defaultProps} page={4} total={92} totalPages={4} />);
 
-    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Showing 76 to 92 of 92 documents');
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent(
+      'Showing 76 to 92 of 92 documents'
+    );
   });
 
   it('shows "No documents" when total is 0', () => {

@@ -50,9 +50,7 @@ function TestWrapper({ children, defaultValues }: TestWrapperProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(vi.fn())}>
-        {children(form)}
-      </form>
+      <form onSubmit={form.handleSubmit(vi.fn())}>{children(form)}</form>
     </FormProvider>
   );
 }
@@ -65,13 +63,7 @@ function renderWithForm(
   const { disabled = false, kbName = 'Test KB' } = options;
   const result = render(
     <TestWrapper defaultValues={defaultValues}>
-      {(form) => (
-        <PromptsPanel
-          form={form}
-          kbName={kbName}
-          disabled={disabled}
-        />
-      )}
+      {(form) => <PromptsPanel form={form} kbName={kbName} disabled={disabled} />}
     </TestWrapper>
   );
   return result;
@@ -344,7 +336,9 @@ describe('PromptsPanel', () => {
     it('shows description about language selection', () => {
       renderWithForm();
 
-      expect(screen.getByText(/ai responses and prompt templates will use this language/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/ai responses and prompt templates will use this language/i)
+      ).toBeInTheDocument();
     });
   });
 
@@ -600,7 +594,9 @@ describe('PromptsPanel', () => {
         // Strict Citations template uses INLINE citation style
         expect(screen.getByTestId('citation-style-trigger')).toHaveTextContent('Inline');
         // And REFUSE for uncertainty handling
-        expect(screen.getByTestId('uncertainty-handling-trigger')).toHaveTextContent('Refuse Response');
+        expect(screen.getByTestId('uncertainty-handling-trigger')).toHaveTextContent(
+          'Refuse Response'
+        );
       });
     });
   });

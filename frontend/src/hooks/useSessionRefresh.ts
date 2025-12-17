@@ -106,14 +106,7 @@ export function useSessionRefresh(): void {
     }
 
     // Activity events to track
-    const events = [
-      'mousemove',
-      'mousedown',
-      'keydown',
-      'touchstart',
-      'scroll',
-      'focus',
-    ] as const;
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'focus'] as const;
 
     // Throttled activity handler
     let rafId: number | null = null;

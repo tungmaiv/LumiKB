@@ -75,7 +75,10 @@ export function createMockDocumentsWithTags(count: number = 10): MockDocumentTag
 
   const fileTypes = [
     { ext: 'pdf', contentType: 'application/pdf' },
-    { ext: 'docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    {
+      ext: 'docx',
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    },
     { ext: 'txt', contentType: 'text/plain' },
     { ext: 'md', contentType: 'text/markdown' },
   ];

@@ -210,10 +210,7 @@ export function createFlatTrendAdminStats(): AdminStatsData {
 /**
  * Deep merge helper for partial overrides
  */
-function deepMerge(
-  target: AdminStatsData,
-  source: Partial<AdminStatsData>
-): AdminStatsData {
+function deepMerge(target: AdminStatsData, source: Partial<AdminStatsData>): AdminStatsData {
   const result = { ...target };
 
   for (const key in source) {

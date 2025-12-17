@@ -174,9 +174,7 @@ export function EnhancedMarkdownViewer({
                   components={{
                     // Custom heading styles
                     h1: ({ children }) => (
-                      <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b">
-                        {children}
-                      </h1>
+                      <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b">{children}</h1>
                     ),
                     h2: ({ children }) => (
                       <h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>
@@ -207,9 +205,7 @@ export function EnhancedMarkdownViewer({
                       );
                     },
                     pre: ({ children }) => (
-                      <pre className="bg-muted rounded-lg overflow-x-auto my-4">
-                        {children}
-                      </pre>
+                      <pre className="bg-muted rounded-lg overflow-x-auto my-4">{children}</pre>
                     ),
                     // Links
                     a: ({ href, children }) => (

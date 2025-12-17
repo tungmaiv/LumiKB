@@ -919,8 +919,12 @@ test.describe('KB Dashboard Filtering & Pagination - E2E', () => {
       await dashboardPage.filterByTags(['policy', 'finance']);
 
       // THEN: Selected tags appear as removable chips
-      await expect(page.locator('[data-testid="active-filter-chip"]').filter({ hasText: 'policy' })).toBeVisible();
-      await expect(page.locator('[data-testid="active-filter-chip"]').filter({ hasText: 'finance' })).toBeVisible();
+      await expect(
+        page.locator('[data-testid="active-filter-chip"]').filter({ hasText: 'policy' })
+      ).toBeVisible();
+      await expect(
+        page.locator('[data-testid="active-filter-chip"]').filter({ hasText: 'finance' })
+      ).toBeVisible();
     });
 
     test('[P1] User can remove individual tag filter', async ({ page }) => {
@@ -960,7 +964,9 @@ test.describe('KB Dashboard Filtering & Pagination - E2E', () => {
       await page.waitForTimeout(500);
 
       // WHEN: User removes one tag
-      const policyChip = page.locator('[data-testid="active-filter-chip"]').filter({ hasText: 'policy' });
+      const policyChip = page
+        .locator('[data-testid="active-filter-chip"]')
+        .filter({ hasText: 'policy' });
       await policyChip.locator('button').click();
 
       // THEN: Only remaining tag is in filter

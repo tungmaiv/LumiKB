@@ -5,16 +5,11 @@
  * Task 5: Integrate TemplateSelector into modal UI workflow
  */
 
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { TemplateSelector } from "./template-selector";
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { TemplateSelector } from './template-selector';
 
 interface GenerationModalProps {
   open: boolean;
@@ -22,27 +17,23 @@ interface GenerationModalProps {
   onGenerate: (params: { templateId: string; context: string }) => void;
 }
 
-export function GenerationModal({
-  open,
-  onClose,
-  onGenerate,
-}: GenerationModalProps) {
-  const [templateId, setTemplateId] = useState("rfp_response");
-  const [context, setContext] = useState("");
+export function GenerationModal({ open, onClose, onGenerate }: GenerationModalProps) {
+  const [templateId, setTemplateId] = useState('rfp_response');
+  const [context, setContext] = useState('');
 
   const handleGenerate = () => {
     onGenerate({ templateId, context });
     onClose();
     // Reset state after generation
-    setTemplateId("rfp_response");
-    setContext("");
+    setTemplateId('rfp_response');
+    setContext('');
   };
 
   const handleClose = () => {
     onClose();
     // Reset state on close
-    setTemplateId("rfp_response");
-    setContext("");
+    setTemplateId('rfp_response');
+    setContext('');
   };
 
   return (
@@ -62,8 +53,8 @@ export function GenerationModal({
             <h3 className="text-sm font-medium mb-2">Generation Context</h3>
             <Textarea
               placeholder={
-                templateId === "custom"
-                  ? "Provide your custom instructions for document generation..."
+                templateId === 'custom'
+                  ? 'Provide your custom instructions for document generation...'
                   : "E.g., 'Respond to section 4.2 about authentication requirements'"
               }
               value={context}

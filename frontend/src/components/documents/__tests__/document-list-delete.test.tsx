@@ -95,7 +95,10 @@ describe('DocumentList - Delete Functionality', () => {
   };
 
   // Helper to open dropdown menu for a document and click Delete
-  const openDropdownAndClickDelete = async (user: ReturnType<typeof userEvent.setup>, menuButtonIndex = 0) => {
+  const openDropdownAndClickDelete = async (
+    user: ReturnType<typeof userEvent.setup>,
+    menuButtonIndex = 0
+  ) => {
     const moreActionsButtons = screen.getAllByTitle('More actions');
     await user.click(moreActionsButtons[menuButtonIndex]);
 

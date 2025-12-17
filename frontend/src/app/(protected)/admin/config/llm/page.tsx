@@ -45,11 +45,15 @@ export default function LLMConfigPage() {
     testHealth,
     refetch,
     lastFetched,
+    // Story 8-0: Query Rewriter Model
+    rewriterModelId,
+    updateRewriterModel,
+    isUpdatingRewriterModel,
   } = useLLMConfig();
 
   // Dimension mismatch warning dialog state
   const [dimensionWarning, setDimensionWarning] = useState<DimensionMismatchWarning | null>(null);
-  const [pendingUpdate, setPendingUpdate] = useState<LLMConfigUpdateRequest | null>(null);
+  const [, setPendingUpdate] = useState<LLMConfigUpdateRequest | null>(null);
 
   // Hot-reload success indicator state
   const [showHotReloadSuccess, setShowHotReloadSuccess] = useState(false);
@@ -152,9 +156,12 @@ export default function LLMConfigPage() {
         {showHotReloadSuccess && (
           <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
             <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <AlertTitle className="text-green-700 dark:text-green-300">Hot-Reload Applied</AlertTitle>
+            <AlertTitle className="text-green-700 dark:text-green-300">
+              Hot-Reload Applied
+            </AlertTitle>
             <AlertDescription className="text-green-600 dark:text-green-400">
-              Configuration changes have been applied immediately without requiring a service restart.
+              Configuration changes have been applied immediately without requiring a service
+              restart.
             </AlertDescription>
           </Alert>
         )}
@@ -178,6 +185,22 @@ export default function LLMConfigPage() {
               isSubmitting={isUpdating}
               onRefetch={refetch}
               lastFetched={lastFetched}
+              rewriterModelId={rewriterModelId}
+              onRewriterModelChange={async (modelId) => {
+                try {
+                  await updateRewriterModel(modelId);
+                  toast.success(
+                    modelId
+                      ? 'Query rewriter model updated'
+                      : 'Query rewriter set to use default generation model'
+                  );
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error ? err.message : 'Failed to update rewriter model'
+                  );
+                }
+              }}
+              isUpdatingRewriterModel={isUpdatingRewriterModel}
             />
           </div>
 
@@ -221,7 +244,8 @@ export default function LLMConfigPage() {
                   </div>
                 )}
                 <p className="text-sm">
-                  <strong>Current dimensions:</strong> {dimensionWarning?.current_dimensions ?? 'N/A'}
+                  <strong>Current dimensions:</strong>{' '}
+                  {dimensionWarning?.current_dimensions ?? 'N/A'}
                   <br />
                   <strong>New dimensions:</strong> {dimensionWarning?.new_dimensions ?? 'N/A'}
                 </p>

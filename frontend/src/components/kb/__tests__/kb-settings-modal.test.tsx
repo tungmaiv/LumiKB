@@ -91,10 +91,9 @@ describe('KbSettingsModal', () => {
   it('[P0] should render KB settings modal with model dropdowns - AC-7.10.5', async () => {
     // Arrange & Act
     const user = userEvent.setup();
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Navigate to Models tab
     const modelsTab = screen.getByRole('tab', { name: /Models/i });
@@ -111,10 +110,9 @@ describe('KbSettingsModal', () => {
   it('[P0] should render two comboboxes for model selection - AC-7.10.6', async () => {
     // Arrange & Act
     const user = userEvent.setup();
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Navigate to Models tab
     const modelsTab = screen.getByRole('tab', { name: /Models/i });
@@ -129,10 +127,9 @@ describe('KbSettingsModal', () => {
 
   it('[P1] should disable Save button when no changes made', () => {
     // Arrange & Act
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     const saveButton = screen.getByRole('button', { name: /Save Settings/i });
@@ -148,10 +145,9 @@ describe('KbSettingsModal', () => {
     };
 
     // Act
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={kbWithModels} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={kbWithModels} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert - Save button should be disabled since no changes
     const saveButton = screen.getByRole('button', { name: /Save Settings/i });
@@ -161,10 +157,9 @@ describe('KbSettingsModal', () => {
   it('[P1] should call onOpenChange(false) when Cancel is clicked', () => {
     // Arrange
     const onOpenChange = vi.fn();
-    render(
-      <KbSettingsModal open={true} onOpenChange={onOpenChange} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={onOpenChange} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Act
     const cancelButton = screen.getByRole('button', { name: /Cancel/i });
@@ -177,10 +172,9 @@ describe('KbSettingsModal', () => {
   it('[P1] should have form description texts - AC-7.10.5', async () => {
     // Arrange & Act
     const user = userEvent.setup();
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Navigate to Models tab
     const modelsTab = screen.getByRole('tab', { name: /Models/i });
@@ -188,17 +182,20 @@ describe('KbSettingsModal', () => {
 
     // Assert - Check form descriptions
     await waitFor(() => {
-      expect(screen.getByText('Model used for embedding new documents in this KB.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Model used for embedding new documents in this KB.')
+      ).toBeInTheDocument();
     });
-    expect(screen.getByText('Model used for document generation from this KB.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Model used for document generation from this KB.')
+    ).toBeInTheDocument();
   });
 
   it('[P2] should not render when open is false', () => {
     // Arrange & Act
-    render(
-      <KbSettingsModal open={false} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={false} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.queryByText('KB Settings')).not.toBeInTheDocument();
@@ -206,10 +203,9 @@ describe('KbSettingsModal', () => {
 
   it('[P1] should render KB name in description', () => {
     // Arrange & Act
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByText(/Test KB/)).toBeInTheDocument();
@@ -227,10 +223,9 @@ describe('KbSettingsModal', () => {
     // Since Select interactions are complex in JSDOM, test that updateKb is available
     mockUpdateKb.mockResolvedValue(undefined);
 
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={kbWithModels} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={kbWithModels} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert - Form elements exist
     const form = document.querySelector('form');
@@ -242,10 +237,9 @@ describe('KbSettingsModal', () => {
 
   it('[P1] should render both Save Settings and Cancel buttons', () => {
     // Arrange & Act
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={mockKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByRole('button', { name: /Save Settings/i })).toBeInTheDocument();
@@ -262,10 +256,9 @@ describe('KbSettingsModal', () => {
     };
 
     // Act
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={lockedKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={lockedKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Navigate to Models tab
     const modelsTab = screen.getByRole('tab', { name: /Models/i });
@@ -276,7 +269,9 @@ describe('KbSettingsModal', () => {
       expect(screen.getByText('Embedding Model Locked')).toBeInTheDocument();
     });
     expect(screen.getByText(/This KB has documents with embeddings/)).toBeInTheDocument();
-    expect(screen.getByText(/Locked: KB has existing documents with embeddings/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Locked: KB has existing documents with embeddings/)
+    ).toBeInTheDocument();
   });
 
   it('[P1] should allow generation model change when embedding model is locked', async () => {
@@ -290,10 +285,9 @@ describe('KbSettingsModal', () => {
     };
 
     // Act
-    render(
-      <KbSettingsModal open={true} onOpenChange={vi.fn()} kb={lockedKb} />,
-      { wrapper: createWrapper() }
-    );
+    render(<KbSettingsModal open={true} onOpenChange={vi.fn()} kb={lockedKb} />, {
+      wrapper: createWrapper(),
+    });
 
     // Navigate to Models tab
     const modelsTab = screen.getByRole('tab', { name: /Models/i });
@@ -301,7 +295,9 @@ describe('KbSettingsModal', () => {
 
     // Assert - Generation model dropdown should not be disabled
     await waitFor(() => {
-      expect(screen.getByText('Model used for document generation from this KB.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Model used for document generation from this KB.')
+      ).toBeInTheDocument();
     });
     // The alert text indicates generation model can still be changed
     expect(screen.getByText(/generation model can still be changed/)).toBeInTheDocument();

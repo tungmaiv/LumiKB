@@ -57,9 +57,7 @@ describe('TextViewer', () => {
     const highlightRange = { start: 0, end: 5 }; // "Hello"
 
     // Act
-    render(
-      <TextViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<TextViewer content={content} highlightRange={highlightRange} />);
 
     // Assert - the highlight class should be applied
     const highlightedSpan = screen.getByText('Hello');
@@ -72,9 +70,7 @@ describe('TextViewer', () => {
     const highlightRange = { start: 14, end: 20 }; // Part of "Line 3"
 
     // Act
-    render(
-      <TextViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<TextViewer content={content} highlightRange={highlightRange} />);
 
     // Assert
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
@@ -115,9 +111,7 @@ describe('TextViewer', () => {
     const highlightRange = { start: 7, end: 20 }; // "Line 2\nLine 3"
 
     // Act
-    render(
-      <TextViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<TextViewer content={content} highlightRange={highlightRange} />);
 
     // Assert - both lines should have highlighting
     const textViewer = screen.getByTestId('text-viewer');
@@ -166,9 +160,7 @@ describe('TextViewer', () => {
     const highlightRange = { start: 6, end: 11 }; // "World"
 
     // Act
-    render(
-      <TextViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<TextViewer content={content} highlightRange={highlightRange} />);
 
     // Assert
     expect(screen.getByText('World')).toHaveClass('bg-yellow-300');

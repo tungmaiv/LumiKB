@@ -30,9 +30,12 @@ describe('useChatManagement - KB Switching Isolation (AC-5)', () => {
       localStorage.setItem('chat-undo-available', 'true');
       localStorage.setItem('chat-undo-kb-id', 'kb-a-id');
       localStorage.setItem('chat-undo-expires', String(Date.now() + 30000));
-      localStorage.setItem('chat-undo-buffer', JSON.stringify([
-        { role: 'user', content: 'KB-A message', timestamp: new Date().toISOString() }
-      ]));
+      localStorage.setItem(
+        'chat-undo-buffer',
+        JSON.stringify([
+          { role: 'user', content: 'KB-A message', timestamp: new Date().toISOString() },
+        ])
+      );
 
       // WHEN: Clear chat for KB-B (different KB)
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -98,9 +101,12 @@ describe('useChatManagement - KB Switching Isolation (AC-5)', () => {
 
     it('[P1] new chat for KB-A does not affect KB-B undo state', async () => {
       // GIVEN: Undo buffer for KB-B
-      localStorage.setItem('chat-undo-buffer', JSON.stringify([
-        { role: 'user', content: 'KB-B message', timestamp: new Date().toISOString() }
-      ]));
+      localStorage.setItem(
+        'chat-undo-buffer',
+        JSON.stringify([
+          { role: 'user', content: 'KB-B message', timestamp: new Date().toISOString() },
+        ])
+      );
       localStorage.setItem('chat-undo-kb-id', 'kb-b-id');
       localStorage.setItem('chat-undo-available', 'true');
       localStorage.setItem('chat-undo-expires', String(Date.now() + 30000));

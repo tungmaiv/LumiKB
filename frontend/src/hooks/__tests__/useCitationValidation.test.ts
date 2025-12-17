@@ -10,9 +10,33 @@ import type { Citation } from '@/types/citation';
 
 // Mock citations for testing
 const mockCitations: Citation[] = [
-  { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-  { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
-  { number: 3, document_id: 'doc-3', document_name: 'Doc 3', excerpt: 'Excerpt 3', char_start: 200, char_end: 300, confidence: 0.85 },
+  {
+    number: 1,
+    document_id: 'doc-1',
+    document_name: 'Doc 1',
+    excerpt: 'Excerpt 1',
+    char_start: 0,
+    char_end: 100,
+    confidence: 0.95,
+  },
+  {
+    number: 2,
+    document_id: 'doc-2',
+    document_name: 'Doc 2',
+    excerpt: 'Excerpt 2',
+    char_start: 100,
+    char_end: 200,
+    confidence: 0.9,
+  },
+  {
+    number: 3,
+    document_id: 'doc-3',
+    document_name: 'Doc 3',
+    excerpt: 'Excerpt 3',
+    char_start: 200,
+    char_end: 300,
+    confidence: 0.85,
+  },
 ];
 
 describe('useCitationValidation', () => {
@@ -54,7 +78,7 @@ describe('useCitationValidation', () => {
         vi.advanceTimersByTime(10);
       });
 
-      const warning = result.current.warnings.find(w => w.type === 'orphaned_citation');
+      const warning = result.current.warnings.find((w) => w.type === 'orphaned_citation');
       expect(warning?.message).toBe('Citation [5] references a missing source');
     });
 
@@ -69,7 +93,7 @@ describe('useCitationValidation', () => {
         vi.advanceTimersByTime(10);
       });
 
-      const warning = result.current.warnings.find(w => w.type === 'orphaned_citation');
+      const warning = result.current.warnings.find((w) => w.type === 'orphaned_citation');
       expect(warning?.message).toBe('Citations [5], [6] reference missing sources');
     });
   });
@@ -94,8 +118,24 @@ describe('useCitationValidation', () => {
 
     it('generates correct message for single unused citation', async () => {
       const citations: Citation[] = [
-        { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-        { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
+        {
+          number: 1,
+          document_id: 'doc-1',
+          document_name: 'Doc 1',
+          excerpt: 'Excerpt 1',
+          char_start: 0,
+          char_end: 100,
+          confidence: 0.95,
+        },
+        {
+          number: 2,
+          document_id: 'doc-2',
+          document_name: 'Doc 2',
+          excerpt: 'Excerpt 2',
+          char_start: 100,
+          char_end: 200,
+          confidence: 0.9,
+        },
       ];
       const content = 'Text with only [1] citation';
 
@@ -107,7 +147,7 @@ describe('useCitationValidation', () => {
         vi.advanceTimersByTime(10);
       });
 
-      const warning = result.current.warnings.find(w => w.type === 'unused_citation');
+      const warning = result.current.warnings.find((w) => w.type === 'unused_citation');
       expect(warning?.message).toBe('Source [2] is defined but never used');
     });
   });
@@ -181,7 +221,7 @@ describe('useCitationValidation', () => {
         result.current.dismissWarning('unused_citation');
       });
 
-      const unusedWarning = result.current.warnings.find(w => w.type === 'unused_citation');
+      const unusedWarning = result.current.warnings.find((w) => w.type === 'unused_citation');
       expect(unusedWarning).toBeUndefined();
     });
 
@@ -318,9 +358,33 @@ describe('renumberCitations', () => {
   it('removes specified citations and renumbers remaining', () => {
     const content = 'Text with [1] and [2] and [3] citations';
     const citations: Citation[] = [
-      { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-      { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
-      { number: 3, document_id: 'doc-3', document_name: 'Doc 3', excerpt: 'Excerpt 3', char_start: 200, char_end: 300, confidence: 0.85 },
+      {
+        number: 1,
+        document_id: 'doc-1',
+        document_name: 'Doc 1',
+        excerpt: 'Excerpt 1',
+        char_start: 0,
+        char_end: 100,
+        confidence: 0.95,
+      },
+      {
+        number: 2,
+        document_id: 'doc-2',
+        document_name: 'Doc 2',
+        excerpt: 'Excerpt 2',
+        char_start: 100,
+        char_end: 200,
+        confidence: 0.9,
+      },
+      {
+        number: 3,
+        document_id: 'doc-3',
+        document_name: 'Doc 3',
+        excerpt: 'Excerpt 3',
+        char_start: 200,
+        char_end: 300,
+        confidence: 0.85,
+      },
     ];
 
     const result = renumberCitations(content, citations, [2]);
@@ -336,9 +400,33 @@ describe('renumberCitations', () => {
   it('handles removing first citation', () => {
     const content = 'Start [1] middle [2] end [3]';
     const citations: Citation[] = [
-      { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-      { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
-      { number: 3, document_id: 'doc-3', document_name: 'Doc 3', excerpt: 'Excerpt 3', char_start: 200, char_end: 300, confidence: 0.85 },
+      {
+        number: 1,
+        document_id: 'doc-1',
+        document_name: 'Doc 1',
+        excerpt: 'Excerpt 1',
+        char_start: 0,
+        char_end: 100,
+        confidence: 0.95,
+      },
+      {
+        number: 2,
+        document_id: 'doc-2',
+        document_name: 'Doc 2',
+        excerpt: 'Excerpt 2',
+        char_start: 100,
+        char_end: 200,
+        confidence: 0.9,
+      },
+      {
+        number: 3,
+        document_id: 'doc-3',
+        document_name: 'Doc 3',
+        excerpt: 'Excerpt 3',
+        char_start: 200,
+        char_end: 300,
+        confidence: 0.85,
+      },
     ];
 
     const result = renumberCitations(content, citations, [1]);
@@ -354,10 +442,42 @@ describe('renumberCitations', () => {
   it('handles removing multiple citations', () => {
     const content = '[1] and [2] and [3] and [4]';
     const citations: Citation[] = [
-      { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-      { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
-      { number: 3, document_id: 'doc-3', document_name: 'Doc 3', excerpt: 'Excerpt 3', char_start: 200, char_end: 300, confidence: 0.85 },
-      { number: 4, document_id: 'doc-4', document_name: 'Doc 4', excerpt: 'Excerpt 4', char_start: 300, char_end: 400, confidence: 0.80 },
+      {
+        number: 1,
+        document_id: 'doc-1',
+        document_name: 'Doc 1',
+        excerpt: 'Excerpt 1',
+        char_start: 0,
+        char_end: 100,
+        confidence: 0.95,
+      },
+      {
+        number: 2,
+        document_id: 'doc-2',
+        document_name: 'Doc 2',
+        excerpt: 'Excerpt 2',
+        char_start: 100,
+        char_end: 200,
+        confidence: 0.9,
+      },
+      {
+        number: 3,
+        document_id: 'doc-3',
+        document_name: 'Doc 3',
+        excerpt: 'Excerpt 3',
+        char_start: 200,
+        char_end: 300,
+        confidence: 0.85,
+      },
+      {
+        number: 4,
+        document_id: 'doc-4',
+        document_name: 'Doc 4',
+        excerpt: 'Excerpt 4',
+        char_start: 300,
+        char_end: 400,
+        confidence: 0.8,
+      },
     ];
 
     const result = renumberCitations(content, citations, [2, 3]);
@@ -373,8 +493,24 @@ describe('renumberCitations', () => {
   it('handles empty numbersToRemove', () => {
     const content = 'Text [1] and [2]';
     const citations: Citation[] = [
-      { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-      { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
+      {
+        number: 1,
+        document_id: 'doc-1',
+        document_name: 'Doc 1',
+        excerpt: 'Excerpt 1',
+        char_start: 0,
+        char_end: 100,
+        confidence: 0.95,
+      },
+      {
+        number: 2,
+        document_id: 'doc-2',
+        document_name: 'Doc 2',
+        excerpt: 'Excerpt 2',
+        char_start: 100,
+        char_end: 200,
+        confidence: 0.9,
+      },
     ];
 
     const result = renumberCitations(content, citations, []);
@@ -386,8 +522,24 @@ describe('renumberCitations', () => {
   it('handles multiple occurrences of same citation', () => {
     const content = 'First [1] and again [1] then [2]';
     const citations: Citation[] = [
-      { number: 1, document_id: 'doc-1', document_name: 'Doc 1', excerpt: 'Excerpt 1', char_start: 0, char_end: 100, confidence: 0.95 },
-      { number: 2, document_id: 'doc-2', document_name: 'Doc 2', excerpt: 'Excerpt 2', char_start: 100, char_end: 200, confidence: 0.90 },
+      {
+        number: 1,
+        document_id: 'doc-1',
+        document_name: 'Doc 1',
+        excerpt: 'Excerpt 1',
+        char_start: 0,
+        char_end: 100,
+        confidence: 0.95,
+      },
+      {
+        number: 2,
+        document_id: 'doc-2',
+        document_name: 'Doc 2',
+        excerpt: 'Excerpt 2',
+        char_start: 100,
+        char_end: 200,
+        confidence: 0.9,
+      },
     ];
 
     const result = renumberCitations(content, citations, [1]);

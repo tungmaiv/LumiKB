@@ -48,8 +48,8 @@ export function ClearConfirmationModal({
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              This action is permanent. The failed document will be removed from the system
-              and cannot be recovered.
+              This action is permanent. The failed document will be removed from the system and
+              cannot be recovered.
             </AlertDescription>
           </Alert>
         </div>

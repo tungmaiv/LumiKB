@@ -358,11 +358,7 @@ describe('UserTable', () => {
 
       // WHEN: Render and click next
       render(
-        <UserTable
-          {...defaultProps}
-          pagination={multiPagePagination}
-          onPageChange={onPageChange}
-        />
+        <UserTable {...defaultProps} pagination={multiPagePagination} onPageChange={onPageChange} />
       );
 
       const nextButton = screen.getByRole('button', { name: /next/i });

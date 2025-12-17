@@ -5,7 +5,7 @@
  * Fetches template list from /api/v1/generate/templates endpoint
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from '@tanstack/react-query';
 
 export interface Template {
   id: string;
@@ -21,12 +21,12 @@ interface TemplateListResponse {
 }
 
 async function fetchTemplates(): Promise<Template[]> {
-  const response = await fetch("/api/v1/generate/templates", {
-    credentials: "include",
+  const response = await fetch('/api/v1/generate/templates', {
+    credentials: 'include',
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch templates");
+    throw new Error('Failed to fetch templates');
   }
 
   const data: TemplateListResponse = await response.json();
@@ -35,7 +35,7 @@ async function fetchTemplates(): Promise<Template[]> {
 
 export function useTemplates() {
   return useQuery({
-    queryKey: ["templates"],
+    queryKey: ['templates'],
     queryFn: fetchTemplates,
     staleTime: Infinity, // Templates don't change
   });
@@ -43,7 +43,7 @@ export function useTemplates() {
 
 async function fetchTemplate(templateId: string): Promise<Template> {
   const response = await fetch(`/api/v1/generate/templates/${templateId}`, {
-    credentials: "include",
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -55,7 +55,7 @@ async function fetchTemplate(templateId: string): Promise<Template> {
 
 export function useTemplate(templateId: string) {
   return useQuery({
-    queryKey: ["templates", templateId],
+    queryKey: ['templates', templateId],
     queryFn: () => fetchTemplate(templateId),
     enabled: !!templateId, // Only run when templateId provided
     staleTime: Infinity,

@@ -5,11 +5,10 @@
  * and error information.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import type { DocumentProcessingDetails } from "@/types/processing";
+import { useQuery } from '@tanstack/react-query';
+import type { DocumentProcessingDetails } from '@/types/processing';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const REFETCH_INTERVAL = 5000; // 5 seconds for active processing
 
 /**
@@ -22,19 +21,17 @@ async function fetchDocumentProcessingDetails(
   const url = `${API_BASE_URL}/api/v1/knowledge-bases/${kbId}/processing/${docId}`;
 
   const response = await fetch(url, {
-    credentials: "include",
+    credentials: 'include',
   });
 
   if (!response.ok) {
     if (response.status === 403) {
-      throw new Error("WRITE permission required to view processing details");
+      throw new Error('WRITE permission required to view processing details');
     }
     if (response.status === 404) {
-      throw new Error("Document not found");
+      throw new Error('Document not found');
     }
-    throw new Error(
-      `Failed to fetch processing details: ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch processing details: ${response.statusText}`);
   }
 
   return response.json();
@@ -84,7 +81,7 @@ export function useDocumentProcessingDetails({
   enabled = true,
 }: UseDocumentProcessingDetailsOptions) {
   return useQuery({
-    queryKey: ["kb", kbId, "processing", docId, "details"],
+    queryKey: ['kb', kbId, 'processing', docId, 'details'],
     queryFn: () => fetchDocumentProcessingDetails(kbId, docId),
     refetchInterval: autoRefresh ? refreshInterval : false,
     staleTime: 2000, // Consider data stale after 2s

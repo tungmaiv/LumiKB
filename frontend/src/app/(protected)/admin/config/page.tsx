@@ -2,20 +2,19 @@
  * System Configuration Management Page (Admin Only)
  */
 
-"use client";
+'use client';
 
-import { useState } from "react";
-import { ConfigSettingsTable } from "@/components/admin/config-settings-table";
-import { EditConfigModal } from "@/components/admin/edit-config-modal";
-import { RestartWarningBanner } from "@/components/admin/restart-warning-banner";
-import { useSystemConfig } from "@/hooks/useSystemConfig";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Settings } from "lucide-react";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { useState } from 'react';
+import { ConfigSettingsTable } from '@/components/admin/config-settings-table';
+import { EditConfigModal } from '@/components/admin/edit-config-modal';
+import { RestartWarningBanner } from '@/components/admin/restart-warning-banner';
+import { useSystemConfig } from '@/hooks/useSystemConfig';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, Settings } from 'lucide-react';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
 
 export default function SystemConfigPage() {
-  const { configs, isLoading, error, updateConfig, isUpdating, updateError } =
-    useSystemConfig();
+  const { configs, isLoading, error, updateConfig, isUpdating, updateError } = useSystemConfig();
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [restartRequired, setRestartRequired] = useState<string[]>([]);
@@ -67,42 +66,39 @@ export default function SystemConfigPage() {
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-2">
-          <Settings className="h-8 w-8" />
-          <h1 className="text-2xl font-bold">System Configuration</h1>
+        <div className="mb-6">
+          <div className="flex items-center gap-2">
+            <Settings className="h-8 w-8" />
+            <h1 className="text-2xl font-bold">System Configuration</h1>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage system-wide settings for security, processing, and rate limits
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage system-wide settings for security, processing, and rate limits
-        </p>
-      </div>
 
-      <RestartWarningBanner
-        changedKeys={restartRequired}
-        onDismiss={handleDismissWarning}
-      />
+        <RestartWarningBanner changedKeys={restartRequired} onDismiss={handleDismissWarning} />
 
-      {updateError && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Update Failed</AlertTitle>
-          <AlertDescription>{updateError.message}</AlertDescription>
-        </Alert>
-      )}
+        {updateError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Update Failed</AlertTitle>
+            <AlertDescription>{updateError.message}</AlertDescription>
+          </Alert>
+        )}
 
-      {configs && (
-        <>
-          <ConfigSettingsTable configs={configs} onEdit={handleEdit} />
+        {configs && (
+          <>
+            <ConfigSettingsTable configs={configs} onEdit={handleEdit} />
 
-          <EditConfigModal
-            isOpen={editingKey !== null}
-            onClose={() => setEditingKey(null)}
-            setting={editingKey ? configs[editingKey] : null}
-            onSave={handleSave}
-            isSaving={isUpdating}
-          />
-        </>
-      )}
+            <EditConfigModal
+              isOpen={editingKey !== null}
+              onClose={() => setEditingKey(null)}
+              setting={editingKey ? configs[editingKey] : null}
+              onSave={handleSave}
+              isSaving={isUpdating}
+            />
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

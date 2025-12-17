@@ -50,10 +50,7 @@ function ExpandableChunkItem({ chunk }: { chunk: DocumentChunk }) {
   const hasMoreContent = chunk.text.length > previewText.length - 3; // Account for "..."
 
   return (
-    <div
-      className="border rounded-lg bg-card"
-      data-testid={`chunk-item-${chunk.chunk_index}`}
-    >
+    <div className="border rounded-lg bg-card" data-testid={`chunk-item-${chunk.chunk_index}`}>
       <button
         type="button"
         onClick={() => hasMoreContent && setIsExpanded(!isExpanded)}
@@ -159,11 +156,7 @@ export function SimpleChunkList({ kbId, documentId }: SimpleChunkListProps) {
   }
 
   if (allChunks.length === 0) {
-    return (
-      <div className="p-4 text-center text-sm text-muted-foreground">
-        No chunks found
-      </div>
-    );
+    return <div className="p-4 text-center text-sm text-muted-foreground">No chunks found</div>;
   }
 
   return (

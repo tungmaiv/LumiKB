@@ -21,12 +21,7 @@ describe('ProcessingFilterBar', () => {
 
   it('[P0] should render search input - AC-5.23.2', () => {
     // Arrange & Act
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Assert
     expect(screen.getByPlaceholderText('Search documents...')).toBeInTheDocument();
@@ -34,12 +29,7 @@ describe('ProcessingFilterBar', () => {
 
   it('[P0] should render Filters toggle button - AC-5.23.2', () => {
     // Arrange & Act
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Assert
     expect(screen.getByText('Filters')).toBeInTheDocument();
@@ -48,12 +38,7 @@ describe('ProcessingFilterBar', () => {
   it('[P0] should show filter panel when Filters is clicked - AC-5.23.2', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Act - click the Filters button
     await user.click(screen.getByText('Filters'));
@@ -68,12 +53,7 @@ describe('ProcessingFilterBar', () => {
   it('[P0] should have Apply and Reset buttons in filter panel - AC-5.23.2', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Act - expand filters
     await user.click(screen.getByText('Filters'));
@@ -86,12 +66,7 @@ describe('ProcessingFilterBar', () => {
   it('[P0] should call onFiltersChange when Apply is clicked - AC-5.23.2', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Expand filters
     await user.click(screen.getByText('Filters'));
@@ -106,21 +81,14 @@ describe('ProcessingFilterBar', () => {
   it('[P0] should apply filters on Enter key in search - AC-5.23.2', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Act - type in search and press Enter
     const searchInput = screen.getByPlaceholderText('Search documents...');
     await user.type(searchInput, 'test.pdf{Enter}');
 
     // Assert
-    expect(mockOnFiltersChange).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'test.pdf' })
-    );
+    expect(mockOnFiltersChange).toHaveBeenCalledWith(expect.objectContaining({ name: 'test.pdf' }));
   });
 
   it('[P0] should reset filters when Reset is clicked - AC-5.23.2', async () => {
@@ -132,10 +100,7 @@ describe('ProcessingFilterBar', () => {
       file_type: 'pdf',
     };
     render(
-      <ProcessingFilterBar
-        filters={filtersWithValues}
-        onFiltersChange={mockOnFiltersChange}
-      />
+      <ProcessingFilterBar filters={filtersWithValues} onFiltersChange={mockOnFiltersChange} />
     );
 
     // Expand filters
@@ -151,12 +116,7 @@ describe('ProcessingFilterBar', () => {
   it('[P1] should show active filter count badge - AC-5.23.2', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Expand and type in search
     const searchInput = screen.getByPlaceholderText('Search documents...');
@@ -171,12 +131,7 @@ describe('ProcessingFilterBar', () => {
     const filtersWithName: ProcessingFilters = { name: 'existing-search' };
 
     // Act
-    render(
-      <ProcessingFilterBar
-        filters={filtersWithName}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={filtersWithName} onFiltersChange={mockOnFiltersChange} />);
 
     // Assert
     const searchInput = screen.getByPlaceholderText('Search documents...');
@@ -186,12 +141,7 @@ describe('ProcessingFilterBar', () => {
   it('[P1] should trim whitespace from search when applying - AC-5.23.2', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Type search with whitespace
     const searchInput = screen.getByPlaceholderText('Search documents...');
@@ -202,20 +152,13 @@ describe('ProcessingFilterBar', () => {
     await user.click(screen.getByRole('button', { name: 'Apply Filters' }));
 
     // Assert - should be trimmed
-    expect(mockOnFiltersChange).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'test.pdf' })
-    );
+    expect(mockOnFiltersChange).toHaveBeenCalledWith(expect.objectContaining({ name: 'test.pdf' }));
   });
 
   it('[P2] should have filter labels for accessibility', async () => {
     // Arrange
     const user = userEvent.setup();
-    render(
-      <ProcessingFilterBar
-        filters={defaultFilters}
-        onFiltersChange={mockOnFiltersChange}
-      />
-    );
+    render(<ProcessingFilterBar filters={defaultFilters} onFiltersChange={mockOnFiltersChange} />);
 
     // Expand filters
     await user.click(screen.getByText('Filters'));

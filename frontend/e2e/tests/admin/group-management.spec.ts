@@ -552,7 +552,9 @@ test.describe('Story 5-19: Group Management E2E Tests', () => {
 
     // Wait for either outcome
     await Promise.race([
-      expect(accessDenied).toBeVisible({ timeout: 3000 }).catch(() => {}),
+      expect(accessDenied)
+        .toBeVisible({ timeout: 3000 })
+        .catch(() => {}),
       page.waitForURL(dashboardUrl, { timeout: 5000 }).catch(() => {}),
     ]);
 

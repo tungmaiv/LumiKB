@@ -155,7 +155,12 @@ export function createDocumentProcessingDetails(
   const id = options.id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const status = options.status || 'processing';
   const currentStep = options.current_step || 'parse';
-  const steps = options.steps || createStepsForStage(currentStep, status === 'ready' ? 'done' : status === 'failed' ? 'error' : 'processing');
+  const steps =
+    options.steps ||
+    createStepsForStage(
+      currentStep,
+      status === 'ready' ? 'done' : status === 'failed' ? 'error' : 'processing'
+    );
 
   // Calculate total duration from completed steps
   const totalDuration = steps
@@ -209,7 +214,7 @@ export function createPaginatedProcessingResponse(
         original_filename: `document_${i + 1}.pdf`,
         status,
         current_step: currentStep,
-        file_size: 1024 * 1024 * (1 + i % 5),
+        file_size: 1024 * 1024 * (1 + (i % 5)),
         chunk_count: status === 'ready' ? 20 + i * 2 : null,
       })
     );

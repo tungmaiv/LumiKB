@@ -66,12 +66,7 @@ export interface GenerationModalProps {
  *   onSubmit={handleGenerate}
  * />
  */
-export function GenerationModal({
-  open,
-  onOpenChange,
-  kbId,
-  onSubmit,
-}: GenerationModalProps) {
+export function GenerationModal({ open, onOpenChange, kbId, onSubmit }: GenerationModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -96,8 +91,7 @@ export function GenerationModal({
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to generate document';
+      const message = error instanceof Error ? error.message : 'Failed to generate document';
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
@@ -118,8 +112,8 @@ export function GenerationModal({
         <DialogHeader>
           <DialogTitle>Generate Document</DialogTitle>
           <DialogDescription>
-            Create a professional document using AI-powered synthesis of your knowledge
-            base sources.
+            Create a professional document using AI-powered synthesis of your knowledge base
+            sources.
           </DialogDescription>
         </DialogHeader>
 
@@ -149,10 +143,7 @@ export function GenerationModal({
                 <FormItem>
                   <FormLabel>Template</FormLabel>
                   <FormControl>
-                    <TemplateSelector
-                      value={field.value}
-                      onChange={field.onChange}
-                    />
+                    <TemplateSelector value={field.value} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

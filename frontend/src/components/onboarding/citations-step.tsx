@@ -1,4 +1,4 @@
-import { FileText, CheckCircle2 } from "lucide-react";
+import { FileText, CheckCircle2 } from 'lucide-react';
 
 export function CitationsStep() {
   return (
@@ -10,8 +10,8 @@ export function CitationsStep() {
       <div className="space-y-3 text-center">
         <h2 className="text-2xl font-bold">Citations Build Trust</h2>
         <p className="text-muted-foreground max-w-md">
-          Every answer shows its sources. Click any citation number to see the
-          exact document passage.
+          Every answer shows its sources. Click any citation number to see the exact document
+          passage.
         </p>
       </div>
 
@@ -19,10 +19,9 @@ export function CitationsStep() {
         <div className="rounded-lg border bg-card p-4">
           <div className="space-y-3">
             <p className="text-sm">
-              LumiKB provides semantic search with citations{" "}
-              <sup className="text-xs text-primary font-medium">[1]</sup>. All
-              answers are traceable to source documents{" "}
-              <sup className="text-xs text-primary font-medium">[2]</sup>.
+              LumiKB provides semantic search with citations{' '}
+              <sup className="text-xs text-primary font-medium">[1]</sup>. All answers are traceable
+              to source documents <sup className="text-xs text-primary font-medium">[2]</sup>.
             </p>
 
             <div className="space-y-2 text-xs text-muted-foreground">

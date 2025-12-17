@@ -150,14 +150,7 @@ describe('StepDetail', () => {
 
   describe('No metrics', () => {
     it('shows no metrics message when metrics is null', () => {
-      render(
-        <StepDetail
-          stepName="parse"
-          status="completed"
-          metrics={null}
-          errorMessage={null}
-        />
-      );
+      render(<StepDetail stepName="parse" status="completed" metrics={null} errorMessage={null} />);
 
       expect(screen.getByText('No metrics available')).toBeInTheDocument();
     });

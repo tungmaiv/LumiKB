@@ -37,14 +37,12 @@ export default function SettingsPage(): React.ReactElement {
             <Construction className="h-5 w-5 text-muted-foreground" />
             Coming Soon
           </CardTitle>
-          <CardDescription>
-            Settings functionality is currently under development
-          </CardDescription>
+          <CardDescription>Settings functionality is currently under development</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            We&apos;re working on bringing you a comprehensive settings experience.
-            This will include:
+            We&apos;re working on bringing you a comprehensive settings experience. This will
+            include:
           </p>
           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
             <li>Profile management</li>

@@ -32,9 +32,7 @@ describe('DocumentEditTagsModal', () => {
       render(<DocumentEditTagsModal {...defaultProps} />);
 
       expect(screen.getByText('Edit Document Tags')).toBeInTheDocument();
-      expect(
-        screen.getByText(/Manage tags for "Test Document"/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Manage tags for "Test Document"/)).toBeInTheDocument();
     });
 
     it('displays current tags', () => {
@@ -48,9 +46,7 @@ describe('DocumentEditTagsModal', () => {
       render(<DocumentEditTagsModal {...defaultProps} />);
 
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: /save changes/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
     });
 
     it('disables Save Changes when no changes made', () => {
@@ -123,9 +119,7 @@ describe('DocumentEditTagsModal', () => {
         json: () => Promise.resolve({ tags: ['python', 'api', 'newtag'] }),
       });
 
-      render(
-        <DocumentEditTagsModal {...defaultProps} onTagsUpdated={onTagsUpdated} />
-      );
+      render(<DocumentEditTagsModal {...defaultProps} onTagsUpdated={onTagsUpdated} />);
 
       const input = screen.getByRole('textbox');
       await user.type(input, 'newtag{Enter}');
@@ -164,8 +158,7 @@ describe('DocumentEditTagsModal', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 403,
-        json: () =>
-          Promise.resolve({ detail: { message: 'Permission denied' } }),
+        json: () => Promise.resolve({ detail: { message: 'Permission denied' } }),
       });
 
       render(<DocumentEditTagsModal {...defaultProps} />);

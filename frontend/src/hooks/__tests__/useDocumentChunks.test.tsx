@@ -290,9 +290,7 @@ describe('useDocumentChunks', () => {
 
   it('[P2] should handle network errors gracefully', async () => {
     // Arrange
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
 
     // Act
     const { result } = renderHook(

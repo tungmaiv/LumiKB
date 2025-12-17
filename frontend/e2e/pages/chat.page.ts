@@ -173,7 +173,9 @@ export class ChatPage extends BasePage {
    * @returns Array of citation numbers (e.g., [1, 2, 3])
    */
   async getCitationsFromLastMessage(): Promise<number[]> {
-    const lastAssistantMessage = this.messageList.locator('[data-testid="message-assistant"]').last();
+    const lastAssistantMessage = this.messageList
+      .locator('[data-testid="message-assistant"]')
+      .last();
     const citations = await lastAssistantMessage.locator('[data-testid^="citation-"]').all();
 
     const citationNumbers: number[] = [];
@@ -193,7 +195,9 @@ export class ChatPage extends BasePage {
    * @param citationNumber - Citation number to click (e.g., 1 for [1])
    */
   async clickCitation(citationNumber: number) {
-    const lastAssistantMessage = this.messageList.locator('[data-testid="message-assistant"]').last();
+    const lastAssistantMessage = this.messageList
+      .locator('[data-testid="message-assistant"]')
+      .last();
     const citation = lastAssistantMessage.locator(`[data-testid="citation-${citationNumber}"]`);
     await citation.click();
   }

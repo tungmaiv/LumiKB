@@ -84,7 +84,10 @@ export function DuplicateDialog({
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open: boolean) => !open && !isReplacing && onCancel()}>
+    <AlertDialog
+      open={isOpen}
+      onOpenChange={(open: boolean) => !open && !isReplacing && onCancel()}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Document Already Exists</AlertDialogTitle>

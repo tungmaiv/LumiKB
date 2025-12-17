@@ -65,7 +65,9 @@ test.describe('System Configuration E2E Tests', () => {
       await expect(table.getByText(/data type/i)).toBeVisible();
 
       // Verify data types are displayed (e.g., "integer")
-      const dataTypeCells = await table.getByText(/integer|float|boolean|string/i).allTextContents();
+      const dataTypeCells = await table
+        .getByText(/integer|float|boolean|string/i)
+        .allTextContents();
       expect(dataTypeCells.length).toBeGreaterThan(0);
     });
   });
@@ -170,8 +172,13 @@ test.describe('System Configuration E2E Tests', () => {
       await expect(modal).toBeVisible(); // Modal should stay open
       // Note: Browser HTML5 validation may prevent this, or server returns 400
       // Check for either client-side validation or error message after API call
-      const hasValidationError = await page.getByText(/invalid|error|must be a number/i).isVisible().catch(() => false);
-      const isInputInvalid = await valueInput.evaluate((el) => (el as HTMLInputElement).validity.valid).catch(() => true);
+      const hasValidationError = await page
+        .getByText(/invalid|error|must be a number/i)
+        .isVisible()
+        .catch(() => false);
+      const isInputInvalid = await valueInput
+        .evaluate((el) => (el as HTMLInputElement).validity.valid)
+        .catch(() => true);
 
       expect(hasValidationError || !isInputInvalid).toBeTruthy();
 
@@ -213,7 +220,9 @@ test.describe('System Configuration E2E Tests', () => {
       }
 
       // THEN: Warning banner should appear on page
-      await expect(page.getByText(/restart|configuration changes require/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/restart|configuration changes require/i)).toBeVisible({
+        timeout: 5000,
+      });
       await expect(page.getByText(/default.*chunk.*size/i)).toBeVisible();
     });
 
@@ -265,7 +274,9 @@ test.describe('System Configuration E2E Tests', () => {
       await expect(page).not.toHaveURL('/admin/config', { timeout: 5000 });
 
       // Should display error message
-      await expect(page.getByText(/permission|access denied|admin/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/permission|access denied|admin/i)).toBeVisible({
+        timeout: 5000,
+      });
     });
   });
 
@@ -292,7 +303,9 @@ test.describe('System Configuration E2E Tests', () => {
       await page.goto('/admin/audit');
 
       // THEN: Should display audit event for config.update
-      await expect(page.getByText(/config\.update|configuration update/i)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/config\.update|configuration update/i)).toBeVisible({
+        timeout: 10000,
+      });
 
       // Should display setting key in audit details
       await expect(page.getByText(/login_rate_limit_per_hour/i)).toBeVisible();

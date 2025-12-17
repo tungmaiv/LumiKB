@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { WelcomeStep } from "./welcome-step";
-import { ExploreKBStep } from "./explore-kb-step";
-import { TrySearchStep } from "./try-search-step";
-import { CitationsStep } from "./citations-step";
-import { CompletionStep } from "./completion-step";
+import { useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { WelcomeStep } from './welcome-step';
+import { ExploreKBStep } from './explore-kb-step';
+import { TrySearchStep } from './try-search-step';
+import { CitationsStep } from './citations-step';
+import { CompletionStep } from './completion-step';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -81,10 +81,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   key={index}
                   className={`h-2 w-2 rounded-full ${
                     index + 1 === currentStep
-                      ? "bg-primary"
+                      ? 'bg-primary'
                       : index + 1 < currentStep
-                        ? "bg-primary/50"
-                        : "bg-gray-300"
+                        ? 'bg-primary/50'
+                        : 'bg-gray-300'
                   }`}
                 />
               ))}
@@ -100,11 +100,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
             {/* Navigation controls */}
             <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                onClick={handleBack}
-                disabled={currentStep === 1}
-              >
+              <Button variant="ghost" onClick={handleBack} disabled={currentStep === 1}>
                 Back
               </Button>
 
@@ -131,8 +127,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Skip Tutorial?</h2>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to skip the tutorial? You can restart it
-              later from Settings.
+              Are you sure you want to skip the tutorial? You can restart it later from Settings.
             </p>
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={handleCancelSkip}>

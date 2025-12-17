@@ -69,9 +69,9 @@ describe('ErrorRecoveryDialog', () => {
     // WHEN: User clicks retry recovery option
     const recoveryButtons = screen.getAllByRole('button');
     // Find the retry button (first recovery option, not Cancel/Dismiss)
-    const retryButton = recoveryButtons.find(btn =>
-      btn.textContent?.includes('Retry generation') ||
-      btn.className?.includes('hover:bg-muted')
+    const retryButton = recoveryButtons.find(
+      (btn) =>
+        btn.textContent?.includes('Retry generation') || btn.className?.includes('hover:bg-muted')
     );
 
     if (retryButton) {
@@ -88,9 +88,10 @@ describe('ErrorRecoveryDialog', () => {
 
     // WHEN: User clicks template recovery option (second option)
     const recoveryButtons = screen.getAllByRole('button');
-    const templateButton = recoveryButtons.find(btn =>
-      btn.textContent?.includes('structured template') ||
-      (btn.className?.includes('hover:bg-muted') && btn.textContent?.includes('template'))
+    const templateButton = recoveryButtons.find(
+      (btn) =>
+        btn.textContent?.includes('structured template') ||
+        (btn.className?.includes('hover:bg-muted') && btn.textContent?.includes('template'))
     );
 
     if (templateButton) {
@@ -107,9 +108,10 @@ describe('ErrorRecoveryDialog', () => {
 
     // WHEN: User clicks search recovery option (third option)
     const recoveryButtons = screen.getAllByRole('button');
-    const searchButton = recoveryButtons.find(btn =>
-      btn.textContent?.includes('Search for more sources') ||
-      (btn.className?.includes('hover:bg-muted') && btn.textContent?.includes('Search'))
+    const searchButton = recoveryButtons.find(
+      (btn) =>
+        btn.textContent?.includes('Search for more sources') ||
+        (btn.className?.includes('hover:bg-muted') && btn.textContent?.includes('Search'))
     );
 
     if (searchButton) {
@@ -173,12 +175,14 @@ describe('ErrorRecoveryDialog', () => {
       },
     ];
 
-    render(<ErrorRecoveryDialog
-      {...defaultProps}
-      errorMessage="Too many requests. Please wait and try again."
-      errorType="RateLimitError"
-      recoveryOptions={rateLimitOptions}
-    />);
+    render(
+      <ErrorRecoveryDialog
+        {...defaultProps}
+        errorMessage="Too many requests. Please wait and try again."
+        errorType="RateLimitError"
+        recoveryOptions={rateLimitOptions}
+      />
+    );
 
     // THEN: Rate limit message displayed
     expect(screen.getByText('Too many requests. Please wait and try again.')).toBeInTheDocument();
@@ -202,22 +206,20 @@ describe('ErrorRecoveryDialog', () => {
       },
     ];
 
-    render(<ErrorRecoveryDialog
-      {...defaultProps}
-      errorMessage="Not enough sources found to generate content."
-      errorType="InsufficientSources"
-      recoveryOptions={insufficientSourcesOptions}
-    />);
+    render(
+      <ErrorRecoveryDialog
+        {...defaultProps}
+        errorMessage="Not enough sources found to generate content."
+        errorType="InsufficientSources"
+        recoveryOptions={insufficientSourcesOptions}
+      />
+    );
 
     // THEN: Error message displayed
-    expect(
-      screen.getByText('Not enough sources found to generate content.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Not enough sources found to generate content.')).toBeInTheDocument();
 
     // AND: Search option prioritized
-    expect(
-      screen.getByText('Search for more sources with different query')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Search for more sources with different query')).toBeInTheDocument();
   });
 
   it('[P1] should be keyboard accessible', async () => {
@@ -227,9 +229,7 @@ describe('ErrorRecoveryDialog', () => {
 
     // WHEN: User navigates to first recovery button
     const allButtons = screen.getAllByRole('button');
-    const firstRecoveryButton = allButtons.find(btn =>
-      btn.className?.includes('hover:bg-muted')
-    );
+    const firstRecoveryButton = allButtons.find((btn) => btn.className?.includes('hover:bg-muted'));
 
     if (firstRecoveryButton) {
       firstRecoveryButton.focus();
@@ -247,12 +247,14 @@ describe('ErrorRecoveryDialog', () => {
 
   it('[P1] should handle empty recovery options gracefully', () => {
     // GIVEN: ErrorRecoveryDialog with no recovery options
-    render(<ErrorRecoveryDialog
-      {...defaultProps}
-      errorMessage="Unknown error occurred."
-      errorType="UnknownError"
-      recoveryOptions={[]}
-    />);
+    render(
+      <ErrorRecoveryDialog
+        {...defaultProps}
+        errorMessage="Unknown error occurred."
+        errorType="UnknownError"
+        recoveryOptions={[]}
+      />
+    );
 
     // THEN: Error message still displayed
     expect(screen.getByText('Unknown error occurred.')).toBeInTheDocument();

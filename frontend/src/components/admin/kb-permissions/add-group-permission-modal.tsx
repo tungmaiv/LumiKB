@@ -3,10 +3,10 @@
  * Story 5.20: Role & KB Permission Management UI (AC-5.20.2)
  */
 
-"use client";
+'use client';
 
-import React, { useState, useCallback, useMemo } from "react";
-import { Loader2, Search, Users } from "lucide-react";
+import React, { useState, useCallback, useMemo } from 'react';
+import { Loader2, Search, Users } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,20 +14,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import type { PermissionLevel, PermissionCreate } from "@/types/permission";
-import { PERMISSION_LEVELS } from "@/types/permission";
-import type { Group } from "@/types/group";
+} from '@/components/ui/select';
+import type { PermissionLevel, PermissionCreate } from '@/types/permission';
+import { PERMISSION_LEVELS } from '@/types/permission';
+import type { Group } from '@/types/group';
 
 export interface AddGroupPermissionModalProps {
   open: boolean;
@@ -49,9 +49,9 @@ export function AddGroupPermissionModal({
   groupsLoading = false,
   existingGroupIds = [],
 }: AddGroupPermissionModalProps) {
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
-  const [permissionLevel, setPermissionLevel] = useState<PermissionLevel>("READ");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [permissionLevel, setPermissionLevel] = useState<PermissionLevel>('READ');
+  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Filter groups: exclude already-permitted groups and apply search
@@ -67,8 +67,7 @@ export function AddGroupPermissionModal({
     const query = searchQuery.toLowerCase();
     return availableGroups.filter(
       (group) =>
-        group.name.toLowerCase().includes(query) ||
-        group.description?.toLowerCase().includes(query)
+        group.name.toLowerCase().includes(query) || group.description?.toLowerCase().includes(query)
     );
   }, [groups, existingGroupIds, searchQuery]);
 
@@ -83,7 +82,7 @@ export function AddGroupPermissionModal({
       setError(null);
 
       if (!selectedGroupId) {
-        setError("Please select a group");
+        setError('Please select a group');
         return;
       }
 
@@ -93,15 +92,15 @@ export function AddGroupPermissionModal({
           permission_level: permissionLevel,
         });
         // Reset form on success
-        setSelectedGroupId("");
-        setPermissionLevel("READ");
-        setSearchQuery("");
+        setSelectedGroupId('');
+        setPermissionLevel('READ');
+        setSearchQuery('');
         onOpenChange(false);
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
         } else {
-          setError("Failed to grant permission");
+          setError('Failed to grant permission');
         }
       }
     },
@@ -109,9 +108,9 @@ export function AddGroupPermissionModal({
   );
 
   const handleClose = useCallback(() => {
-    setSelectedGroupId("");
-    setPermissionLevel("READ");
-    setSearchQuery("");
+    setSelectedGroupId('');
+    setPermissionLevel('READ');
+    setSearchQuery('');
     setError(null);
     onOpenChange(false);
   }, [onOpenChange]);
@@ -122,16 +121,14 @@ export function AddGroupPermissionModal({
         <DialogHeader>
           <DialogTitle>Add Group Permission</DialogTitle>
           <DialogDescription>
-            Grant a group access to this Knowledge Base. All members of the group
-            will inherit this permission level.
+            Grant a group access to this Knowledge Base. All members of the group will inherit this
+            permission level.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-              {error}
-            </div>
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>
           )}
 
           {/* Group Search & Selection */}
@@ -154,15 +151,13 @@ export function AddGroupPermissionModal({
               {groupsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    Loading groups...
-                  </span>
+                  <span className="ml-2 text-sm text-muted-foreground">Loading groups...</span>
                 </div>
               ) : filteredGroups.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   {searchQuery
-                    ? "No groups found matching your search"
-                    : "No available groups to add"}
+                    ? 'No groups found matching your search'
+                    : 'No available groups to add'}
                 </div>
               ) : (
                 <div className="divide-y">
@@ -172,19 +167,17 @@ export function AddGroupPermissionModal({
                       type="button"
                       onClick={() => setSelectedGroupId(group.id)}
                       className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-accent ${
-                        selectedGroupId === group.id ? "bg-accent" : ""
+                        selectedGroupId === group.id ? 'bg-accent' : ''
                       }`}
                     >
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                         <Users className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="flex-1 overflow-hidden">
-                        <p className="truncate text-sm font-medium">
-                          {group.name}
-                        </p>
+                        <p className="truncate text-sm font-medium">{group.name}</p>
                         <p className="truncate text-xs text-muted-foreground">
                           {group.member_count} member
-                          {group.member_count !== 1 ? "s" : ""}
+                          {group.member_count !== 1 ? 's' : ''}
                           {group.description && ` • ${group.description}`}
                         </p>
                       </div>
@@ -199,9 +192,9 @@ export function AddGroupPermissionModal({
 
             {selectedGroup && (
               <p className="text-sm text-muted-foreground">
-                Selected: <span className="font-medium">{selectedGroup.name}</span>
-                {" "}({selectedGroup.member_count} member
-                {selectedGroup.member_count !== 1 ? "s" : ""})
+                Selected: <span className="font-medium">{selectedGroup.name}</span> (
+                {selectedGroup.member_count} member
+                {selectedGroup.member_count !== 1 ? 's' : ''})
               </p>
             )}
           </div>
@@ -211,9 +204,7 @@ export function AddGroupPermissionModal({
             <Label htmlFor="permission-level">Permission Level</Label>
             <Select
               value={permissionLevel}
-              onValueChange={(value) =>
-                setPermissionLevel(value as PermissionLevel)
-              }
+              onValueChange={(value) => setPermissionLevel(value as PermissionLevel)}
             >
               <SelectTrigger id="permission-level" className="w-full">
                 <SelectValue placeholder="Select permission level" />
@@ -223,9 +214,7 @@ export function AddGroupPermissionModal({
                   <SelectItem key={level.value} value={level.value}>
                     <div className="flex flex-col">
                       <span>{level.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {level.description}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{level.description}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -237,18 +226,10 @@ export function AddGroupPermissionModal({
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isGranting}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isGranting}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isGranting || !selectedGroupId}
-            >
+            <Button type="submit" disabled={isGranting || !selectedGroupId}>
               {isGranting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Grant Permission
             </Button>

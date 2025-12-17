@@ -5,33 +5,29 @@
  * Follows the same UI pattern as DocumentsPanel with search and pagination bar.
  */
 
-"use client";
+'use client';
 
-import { useState, useCallback } from "react";
-import { RefreshCw, Loader2, Search, X, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useCallback } from 'react';
+import { RefreshCw, Loader2, Search, X, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { DocumentProcessingTable } from "./document-processing-table";
-import { ProcessingDetailsModal } from "./processing-details-modal";
-import { useDocumentProcessing } from "@/hooks/useDocumentProcessing";
-import type { ProcessingFilters, DocumentStatus, ProcessingStep } from "@/types/processing";
-import {
-  DOC_STATUS_LABELS,
-  STEP_LABELS,
-  PROCESSING_STEPS_ORDER,
-} from "@/types/processing";
-import { useDebounce } from "@/hooks/useDebounce";
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { DocumentProcessingTable } from './document-processing-table';
+import { ProcessingDetailsModal } from './processing-details-modal';
+import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
+import type { ProcessingFilters, DocumentStatus, ProcessingStep } from '@/types/processing';
+import { DOC_STATUS_LABELS, STEP_LABELS, PROCESSING_STEPS_ORDER } from '@/types/processing';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 25, 50, 100];
-const DOCUMENT_STATUSES: DocumentStatus[] = ["pending", "processing", "ready", "failed"];
+const DOCUMENT_STATUSES: DocumentStatus[] = ['pending', 'processing', 'ready', 'failed'];
 
 export interface ProcessingTabProps {
   /** Knowledge Base ID */
@@ -40,7 +36,7 @@ export interface ProcessingTabProps {
 
 export function ProcessingTab({ kbId }: ProcessingTabProps) {
   // Filter state
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [status, setStatus] = useState<DocumentStatus | undefined>(undefined);
@@ -63,12 +59,7 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
   };
 
   // Fetch documents with processing status
-  const {
-    data,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useDocumentProcessing({
+  const { data, isLoading, isFetching, refetch } = useDocumentProcessing({
     kbId,
     filters,
     autoRefresh: true, // AC-5.23.5: 10-second auto-refresh
@@ -84,7 +75,7 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
   }, []);
 
   const handleClearSearch = useCallback(() => {
-    setSearchInput("");
+    setSearchInput('');
     setPage(1);
   }, []);
 
@@ -96,19 +87,19 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
 
   // Handle status change
   const handleStatusChange = useCallback((value: string) => {
-    setStatus(value === "all" ? undefined : (value as DocumentStatus));
+    setStatus(value === 'all' ? undefined : (value as DocumentStatus));
     setPage(1);
   }, []);
 
   // Handle step change
   const handleStepChange = useCallback((value: string) => {
-    setCurrentStep(value === "all" ? undefined : (value as ProcessingStep));
+    setCurrentStep(value === 'all' ? undefined : (value as ProcessingStep));
     setPage(1);
   }, []);
 
   // Handle reset filters
   const handleResetFilters = useCallback(() => {
-    setSearchInput("");
+    setSearchInput('');
     setStatus(undefined);
     setCurrentStep(undefined);
     setPage(1);
@@ -169,7 +160,7 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
         </div>
 
         {/* Status filter */}
-        <Select value={status || "all"} onValueChange={handleStatusChange}>
+        <Select value={status || 'all'} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-[140px]" data-testid="status-filter">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -185,7 +176,7 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
 
         {/* Advanced filters toggle */}
         <Button
-          variant={showAdvanced ? "secondary" : "outline"}
+          variant={showAdvanced ? 'secondary' : 'outline'}
           size="sm"
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="gap-2"
@@ -233,12 +224,15 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
 
       {/* Advanced filters panel */}
       {showAdvanced && (
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-4" data-testid="advanced-filters-panel">
+        <div
+          className="rounded-lg border bg-muted/30 p-4 space-y-4"
+          data-testid="advanced-filters-panel"
+        >
           <div className="flex flex-wrap items-center gap-4">
             {/* Processing Step Filter */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Processing Step:</span>
-              <Select value={currentStep || "all"} onValueChange={handleStepChange}>
+              <Select value={currentStep || 'all'} onValueChange={handleStepChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="All steps" />
                 </SelectTrigger>
@@ -277,7 +271,10 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
               {currentStep && (
                 <Badge variant="secondary" className="gap-1">
                   Step: {STEP_LABELS[currentStep]}
-                  <button onClick={() => setCurrentStep(undefined)} className="hover:text-foreground">
+                  <button
+                    onClick={() => setCurrentStep(undefined)}
+                    className="hover:text-foreground"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -304,7 +301,11 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
                 onValueChange={handlePageSizeChange}
                 disabled={isLoading}
               >
-                <SelectTrigger id="processing-page-size" className="w-[80px]" data-testid="page-size-select">
+                <SelectTrigger
+                  id="processing-page-size"
+                  className="w-[80px]"
+                  data-testid="page-size-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -321,11 +322,11 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
             {/* Results Info */}
             <p className="text-sm text-muted-foreground" data-testid="pagination-info">
               {total === 0 ? (
-                "No documents"
+                'No documents'
               ) : (
                 <>
-                  Showing <span className="font-medium">{startItem}</span> to{" "}
-                  <span className="font-medium">{endItem}</span> of{" "}
+                  Showing <span className="font-medium">{startItem}</span> to{' '}
+                  <span className="font-medium">{endItem}</span> of{' '}
                   <span className="font-medium">{total}</span> documents
                 </>
               )}
@@ -345,7 +346,7 @@ export function ProcessingTab({ kbId }: ProcessingTabProps) {
               Previous
             </Button>
             <span className="text-sm text-muted-foreground px-2" data-testid="page-indicator">
-              Page <span className="font-medium">{page}</span> of{" "}
+              Page <span className="font-medium">{page}</span> of{' '}
               <span className="font-medium">{totalPages}</span>
             </span>
             <Button

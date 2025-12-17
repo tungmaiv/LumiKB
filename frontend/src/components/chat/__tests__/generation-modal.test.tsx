@@ -268,9 +268,7 @@ describe('GenerationModal', () => {
     it('shows loading state during submission', async () => {
       mockWithSelectedSources(); // Enable button
       const user = userEvent.setup();
-      mockOnSubmit.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
+      mockOnSubmit.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
 
       render(<GenerationModal {...defaultProps} />);
 
@@ -417,9 +415,7 @@ describe('GenerationModal', () => {
     it('disables form controls during submission', async () => {
       mockWithSelectedSources(); // Enable button
       const user = userEvent.setup();
-      mockOnSubmit.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
+      mockOnSubmit.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
 
       render(<GenerationModal {...defaultProps} />);
 
@@ -435,9 +431,7 @@ describe('GenerationModal', () => {
     it('prevents modal close during submission', async () => {
       mockWithSelectedSources(); // Enable button
       const user = userEvent.setup();
-      mockOnSubmit.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
+      mockOnSubmit.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
 
       render(<GenerationModal {...defaultProps} />);
 

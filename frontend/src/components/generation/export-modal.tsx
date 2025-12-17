@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { FileDown, FileText, FileCode } from "lucide-react";
+import { useState } from 'react';
+import { FileDown, FileText, FileCode } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +9,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-export type ExportFormat = "docx" | "pdf" | "markdown";
+export type ExportFormat = 'docx' | 'pdf' | 'markdown';
 
 interface FormatOption {
   value: ExportFormat;
@@ -26,25 +26,25 @@ interface FormatOption {
 
 const FORMAT_OPTIONS: FormatOption[] = [
   {
-    value: "docx",
-    label: "Microsoft Word",
-    description: "Best for editing and collaboration",
+    value: 'docx',
+    label: 'Microsoft Word',
+    description: 'Best for editing and collaboration',
     icon: <FileText className="h-5 w-5" />,
-    estimatedSize: "~50KB",
+    estimatedSize: '~50KB',
   },
   {
-    value: "pdf",
-    label: "PDF",
-    description: "Best for sharing and printing",
+    value: 'pdf',
+    label: 'PDF',
+    description: 'Best for sharing and printing',
     icon: <FileDown className="h-5 w-5" />,
-    estimatedSize: "~75KB",
+    estimatedSize: '~75KB',
   },
   {
-    value: "markdown",
-    label: "Markdown",
-    description: "Best for developers and version control",
+    value: 'markdown',
+    label: 'Markdown',
+    description: 'Best for developers and version control',
     icon: <FileCode className="h-5 w-5" />,
-    estimatedSize: "~10KB",
+    estimatedSize: '~10KB',
   },
 ];
 
@@ -63,7 +63,7 @@ export function ExportModal({
   citationCount,
   isExporting = false,
 }: ExportModalProps) {
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("docx");
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('docx');
 
   const handleExport = () => {
     onExport(selectedFormat);
@@ -75,8 +75,7 @@ export function ExportModal({
         <DialogHeader>
           <DialogTitle>Export Draft</DialogTitle>
           <DialogDescription>
-            Choose a format to export your draft. Citations ({citationCount}) will be
-            preserved.
+            Choose a format to export your draft. Citations ({citationCount}) will be preserved.
           </DialogDescription>
         </DialogHeader>
 
@@ -96,16 +95,11 @@ export function ExportModal({
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     {option.icon}
-                    <Label
-                      htmlFor={option.value}
-                      className="font-medium cursor-pointer"
-                    >
+                    <Label htmlFor={option.value} className="font-medium cursor-pointer">
                       {option.label}
                     </Label>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {option.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Estimated size: {option.estimatedSize}
                   </p>
@@ -124,12 +118,8 @@ export function ExportModal({
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleExport}
-            disabled={isExporting}
-            data-testid="export-modal-submit"
-          >
-            {isExporting ? "Exporting..." : "Export"}
+          <Button onClick={handleExport} disabled={isExporting} data-testid="export-modal-submit">
+            {isExporting ? 'Exporting...' : 'Export'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -63,7 +63,12 @@ interface DocumentsPanelProps {
  *   showFilters
  * />
  */
-export function DocumentsPanel({ kbId, userPermission = 'READ', className, showFilters = true }: DocumentsPanelProps) {
+export function DocumentsPanel({
+  kbId,
+  userPermission = 'READ',
+  className,
+  showFilters = true,
+}: DocumentsPanelProps) {
   const [selectedDocument, setSelectedDocument] = useState<DocumentForList | null>(null);
 
   // Use filter state from URL (Story 5-24)
@@ -79,7 +84,14 @@ export function DocumentsPanel({ kbId, userPermission = 'READ', className, showF
       dateFrom: filters.dateFrom,
       dateTo: filters.dateTo,
     }),
-    [filters.search, filters.status, filters.mimeType, filters.tags, filters.dateFrom, filters.dateTo]
+    [
+      filters.search,
+      filters.status,
+      filters.mimeType,
+      filters.tags,
+      filters.dateFrom,
+      filters.dateTo,
+    ]
   );
 
   const { documents, total, totalPages, isLoading, error, refetch } = useDocuments({

@@ -39,7 +39,9 @@ interface ModelTableProps {
   testingModelId: string | null;
 }
 
-function getStatusBadgeVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function getStatusBadgeVariant(
+  status: string
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
     case 'active':
       return 'default';
@@ -79,13 +81,27 @@ export function ModelTable({
           <TableBody>
             {Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-36" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-32" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-20" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-36" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-16" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-12" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-8" />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -125,15 +141,11 @@ export function ModelTable({
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
                   {model.name}
-                  {model.is_default && (
-                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                  )}
+                  {model.is_default && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">
-                  {MODEL_TYPE_INFO[model.type]?.name || model.type}
-                </Badge>
+                <Badge variant="outline">{MODEL_TYPE_INFO[model.type]?.name || model.type}</Badge>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
@@ -146,9 +158,7 @@ export function ModelTable({
                 </div>
               </TableCell>
               <TableCell>
-                <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                  {model.model_id}
-                </code>
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">{model.model_id}</code>
               </TableCell>
               <TableCell>
                 <Badge variant={getStatusBadgeVariant(model.status)}>

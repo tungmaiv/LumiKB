@@ -3,8 +3,8 @@
 **Epic ID:** 8
 **Created:** 2025-12-08
 **Status:** BACKLOG
-**Total Story Points:** 63
-**Number of Stories:** 15
+**Total Story Points:** 81
+**Number of Stories:** 18
 
 ---
 
@@ -14,11 +14,13 @@ Epic 8 introduces Knowledge Graph-Augmented Retrieval (GraphRAG) to LumiKB, enab
 
 ### Key Capabilities
 
-1. **Domain Schema Management** - Define custom entity types and relationships per use case
-2. **LLM-Based Entity Extraction** - Extract entities and relationships using LiteLLM-routed models
-3. **Graph Storage** - Neo4j Community Edition for entity/relationship persistence
-4. **Graph-Augmented Retrieval** - Combine vector search with graph context for enhanced results
-5. **Schema Evolution** - Version tracking, drift detection, and batch re-extraction
+1. **History-Aware Query Rewriting** - Reformulate follow-up questions to resolve pronouns and references before search (Story 8.0)
+2. **Domain Schema Management** - Define custom entity types and relationships per use case
+3. **LLM-Based Entity Extraction** - Extract entities and relationships using LiteLLM-routed models
+4. **Graph Storage** - Neo4j Community Edition for entity/relationship persistence
+5. **Graph-Augmented Retrieval** - Combine vector search with graph context for enhanced results
+6. **Schema Evolution** - Version tracking, drift detection, and batch re-extraction
+7. **Hybrid BM25 + Vector Retrieval** - Combine lexical and semantic search for improved results (Story 8.17)
 
 ---
 
@@ -705,6 +707,152 @@ class GraphQueryService:
             return entities
 ```
 
+### QueryRewriterService (Story 8.0)
+
+```python
+# backend/app/services/query_rewriter_service.py
+from typing import Optional, List
+from uuid import UUID
+from dataclasses import dataclass
+from app.integrations.litellm_client import LiteLLMClient
+from app.services.config_service import ConfigService
+from app.core.observability import ObservabilityService
+
+@dataclass
+class RewriteResult:
+    original_query: str
+    rewritten_query: str
+    was_rewritten: bool
+    model_used: str
+    latency_ms: float
+
+class QueryRewriterService:
+    """History-aware query rewriting for conversational RAG."""
+
+    REWRITE_PROMPT = """Given a chat history and the latest user question which might reference context in the chat history, formulate a standalone question which can be understood without the chat history.
+
+Rules:
+- Resolve all pronouns (he/she/it/they) to specific entities mentioned in history
+- Expand implicit references ("the same thing", "that") to actual topics
+- Do NOT answer the question, only reformulate it
+- If the question is already standalone, return it unchanged
+- Keep the reformulated question concise
+
+Chat History:
+{chat_history}
+
+Latest Question: {question}
+
+Standalone Question:"""
+
+    def __init__(
+        self,
+        llm_client: LiteLLMClient,
+        config_service: ConfigService,
+        observability: ObservabilityService
+    ):
+        self.llm = llm_client
+        self.config = config_service
+        self.observability = observability
+
+    async def rewrite_with_history(
+        self,
+        query: str,
+        chat_history: List[dict],
+        kb_id: Optional[UUID] = None
+    ) -> RewriteResult:
+        """Rewrite query using conversation history context."""
+
+        start_time = time.time()
+
+        # Skip if no history (first message)
+        if not chat_history:
+            return RewriteResult(
+                original_query=query,
+                rewritten_query=query,
+                was_rewritten=False,
+                model_used="",
+                latency_ms=0
+            )
+
+        # Skip if query appears standalone (heuristic: no pronouns)
+        if self._is_standalone(query):
+            return RewriteResult(
+                original_query=query,
+                rewritten_query=query,
+                was_rewritten=False,
+                model_used="",
+                latency_ms=0
+            )
+
+        # Get configured rewriter model (cheap LLM)
+        rewriter_model = await self.config.get_rewriter_model()
+
+        # Format chat history
+        history_text = self._format_history(chat_history)
+
+        # Build prompt
+        prompt = self.REWRITE_PROMPT.format(
+            chat_history=history_text,
+            question=query
+        )
+
+        try:
+            async with self.observability.span("query_rewrite") as span:
+                response = await self.llm.chat_completion(
+                    model=rewriter_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0,
+                    max_tokens=200,
+                    timeout=5.0  # 5 second timeout
+                )
+
+                rewritten = response.choices[0].message.content.strip()
+                latency_ms = (time.time() - start_time) * 1000
+
+                span.set_attributes({
+                    "input_query": query,
+                    "output_query": rewritten,
+                    "model_used": rewriter_model,
+                    "latency_ms": latency_ms
+                })
+
+                return RewriteResult(
+                    original_query=query,
+                    rewritten_query=rewritten,
+                    was_rewritten=True,
+                    model_used=rewriter_model,
+                    latency_ms=latency_ms
+                )
+
+        except Exception as e:
+            # Graceful degradation: return original query
+            logger.warning(f"Query rewriting failed: {e}")
+            return RewriteResult(
+                original_query=query,
+                rewritten_query=query,
+                was_rewritten=False,
+                model_used=rewriter_model,
+                latency_ms=(time.time() - start_time) * 1000
+            )
+
+    def _is_standalone(self, query: str) -> bool:
+        """Heuristic check if query needs rewriting."""
+        pronouns = {'he', 'she', 'it', 'they', 'them', 'his', 'her', 'its', 'their'}
+        references = {'this', 'that', 'these', 'those', 'the same', 'above', 'previous'}
+
+        words = set(query.lower().split())
+        return not bool(words & (pronouns | references))
+
+    def _format_history(self, history: List[dict]) -> str:
+        """Format chat history for prompt."""
+        lines = []
+        for msg in history[-5:]:  # Last 5 messages only
+            role = "Human" if msg["role"] == "user" else "Assistant"
+            lines.append(f"{role}: {msg['content'][:500]}")
+        return "\n".join(lines)
+```
+
 ### GraphAugmentedRetriever
 
 ```python
@@ -1111,6 +1259,18 @@ volumes:
 
 ## Acceptance Criteria (Authoritative)
 
+### Story 8-0: History-Aware Query Rewriting
+1. **AC-8.0.1**: QueryRewriterService.rewrite_with_history() reformulates queries with resolved pronouns/references
+2. **AC-8.0.2**: Admin > LLM Configuration (`/admin/config/llm`) has "Query Rewriter Model" dropdown showing available generation models
+3. **AC-8.0.3**: System config stores query_rewriting_model_id and backend uses it for rewriting
+4. **AC-8.0.4**: conversation_service.send_message() rewrites query BEFORE search when history exists
+5. **AC-8.0.5**: Rewriter prompt correctly instructs LLM to reformulate without answering
+6. **AC-8.0.6**: Debug mode SSE event includes original_query, rewritten_query, rewriter_model, rewrite_latency_ms
+7. **AC-8.0.7**: Query rewriting completes in < 500ms (p95) with configurable timeout (default 5s)
+8. **AC-8.0.8**: Graceful degradation: original query used if rewriting fails (timeout, model unavailable)
+9. **AC-8.0.9**: Rewriting skipped when no history exists or query is already standalone
+10. **AC-8.0.10**: Langfuse trace includes "query_rewrite" span with metrics; Prometheus metrics emitted
+
 ### Story 8-1: Neo4j Docker Infrastructure
 1. **AC-8.1.1**: Neo4j 5 Community Edition container starts via docker-compose
 2. **AC-8.1.2**: APOC plugin enabled and functional
@@ -1230,6 +1390,27 @@ volumes:
 5. **AC-8.15.5**: Job cancellation supported via Celery revoke
 6. **AC-8.15.6**: Failed documents logged but don't block job completion
 
+### Story 8-16: E2E Test Automation
+1. **AC-8.16.1**: Playwright Docker configuration (playwright.config.e2e.ts) with proper test isolation
+2. **AC-8.16.2**: Dockerfile.playwright for test runner container
+3. **AC-8.16.3**: GitHub Actions E2E workflow (.github/workflows/e2e-tests.yml) runs on PR
+4. **AC-8.16.4**: 70+ E2E tests covering Epic 3-8 features pass consistently
+5. **AC-8.16.5**: Test artifacts (screenshots, traces) uploaded on CI failures
+
+### Story 8-17: Hybrid BM25 + Vector Retrieval
+1. **AC-8.17.1**: Elasticsearch/OpenSearch added to Docker infrastructure with data persistence
+2. **AC-8.17.2**: BM25 index per Knowledge Base (`lumikb_kb_{kb_id}`) with appropriate analyzers
+3. **AC-8.17.3**: Document chunks indexed in both Qdrant (vector) AND Elasticsearch (BM25)
+4. **AC-8.17.4**: "hybrid_bm25_vector" strategy registered in RetrievalStrategyRegistry
+5. **AC-8.17.5**: BM25 and vector search execute in parallel (async), combined latency ≈ max(bm25, vector)
+6. **AC-8.17.6**: Results merged using RRF with configurable weights (bm25_weight: 0.3, vector_weight: 0.7)
+7. **AC-8.17.7**: KB-level hybrid configuration: enable/disable per KB, weight overrides
+8. **AC-8.17.8**: Admin UI "Hybrid Retrieval" section with enable toggle and weight sliders
+9. **AC-8.17.9**: Graceful degradation: falls back to vector-only if Elasticsearch unavailable
+10. **AC-8.17.10**: Document deletion/update synchronizes BM25 and Qdrant entries
+11. **AC-8.17.11**: Total retrieval time < 150ms additional latency; BM25 queries < 50ms (p95)
+12. **AC-8.17.12**: Observability metrics (bm25_query_duration, hybrid_retrieval_duration) and Langfuse spans
+
 ---
 
 ## Test Strategy
@@ -1238,6 +1419,7 @@ volumes:
 
 | Story | Test Area | Target Coverage |
 |-------|-----------|-----------------|
+| 8-0 | Query rewriting, standalone detection | 90% |
 | 8-2 | Domain models, schemas | 90% |
 | 8-4 | LLM recommendation parsing | 85% |
 | 8-5 | Domain CRUD validation | 90% |
@@ -1248,11 +1430,13 @@ volumes:
 | 8-13 | Enrichment detection | 80% |
 | 8-14 | Version comparison | 85% |
 | 8-15 | Progress calculation | 80% |
+| 8-17 | BM25 indexing, RRF scoring | 90% |
 
 ### Integration Tests
 
 | Story | Test Area | Dependencies |
 |-------|-----------|--------------|
+| 8-0 | Query rewriting with LLM | LiteLLM + conversation flow |
 | 8-1 | Neo4j connectivity | Docker Neo4j |
 | 8-3 | Template seeding | PostgreSQL + migrations |
 | 8-5 | API endpoint coverage | FastAPI TestClient |
@@ -1261,6 +1445,7 @@ volumes:
 | 8-9 | Celery task execution | Redis + Celery |
 | 8-11 | Full retrieval flow | All services |
 | 8-14 | Re-extraction job | Celery + Neo4j |
+| 8-17 | Hybrid search end-to-end | Elasticsearch + Qdrant |
 
 ### E2E Tests
 
@@ -1288,6 +1473,10 @@ volumes:
 ## Story Dependencies
 
 ```
+8-0 (History-Aware Query Rewriting) [INDEPENDENT - Can start immediately]
+  └── Prerequisites: Story 7.9 (LLM Model Registry), Story 9.15 (Debug Mode)
+  └── No GraphRAG dependencies
+
 8-1 (Neo4j Infrastructure)
   └── 8-2 (Domain Data Model)
         └── 8-3 (System Templates)
@@ -1300,9 +1489,13 @@ volumes:
                           └── 8-10 (Graph Query)
                                 └── 8-11 (Graph-Augmented Retrieval)
                                       └── 8-12 (Strategy Abstraction)
+                                            └── 8-17 (Hybrid BM25 + Vector)
                           └── 8-13 (Schema Enrichment)
                           └── 8-14 (Schema Evolution)
                                 └── 8-15 (Batch Worker)
+
+8-16 (E2E Test Automation)
+  └── Prerequisites: Story 7-1 (Docker E2E Infrastructure)
 ```
 
 ---
@@ -1311,6 +1504,7 @@ volumes:
 
 | Requirement | Stories | Description |
 |-------------|---------|-------------|
+| FR-RAG-MEMORY | 8-0 | History-aware query rewriting for conversational RAG |
 | FR-GRAPH-1 | 8-1 | Neo4j infrastructure |
 | FR-GRAPH-2 | 8-2, 8-5 | Domain schema management |
 | FR-GRAPH-3 | 8-3 | Pre-built domain templates |
@@ -1322,6 +1516,8 @@ volumes:
 | FR-GRAPH-9 | 8-12 | Strategy abstraction |
 | FR-GRAPH-10 | 8-13 | Schema enrichment suggestions |
 | FR-GRAPH-11 | 8-14, 8-15 | Schema evolution and re-extraction |
+| FR-E2E-TEST | 8-16 | E2E test automation |
+| FR-HYBRID-SEARCH | 8-17 | Hybrid BM25 + vector retrieval |
 
 ---
 
@@ -1343,6 +1539,10 @@ volumes:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-12-08
+**Document Version:** 1.1
+**Last Updated:** 2025-12-17
 **Author:** BMAD Agent Collaboration
+
+**Change Log:**
+- v1.1 (2025-12-17): Added Story 8.0 (History-Aware Query Rewriting), Story 8.17 (Hybrid BM25 + Vector Retrieval). Updated story count to 18, total SP to 81.
+- v1.0 (2025-12-08): Initial tech spec with Stories 8.1-8.16.

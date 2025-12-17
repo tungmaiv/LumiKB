@@ -127,9 +127,7 @@ describe('useKBStats', () => {
     );
 
     expect(result.current.error).toBeInstanceOf(Error);
-    expect((result.current.error as Error).message).toBe(
-      'Unauthorized: Admin access required'
-    );
+    expect((result.current.error as Error).message).toBe('Unauthorized: Admin access required');
   });
 
   it('should handle 401 error when not authenticated', async () => {

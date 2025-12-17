@@ -61,10 +61,7 @@ function computeViewMode(markdownAvailable: boolean): ViewMode {
 export function useViewModePreference(markdownAvailable: boolean) {
   // Use useMemo to compute initial value based on markdownAvailable changes
   // This avoids the need for useEffect + setState pattern
-  const computedMode = useMemo(
-    () => computeViewMode(markdownAvailable),
-    [markdownAvailable]
-  );
+  const computedMode = useMemo(() => computeViewMode(markdownAvailable), [markdownAvailable]);
 
   // State tracks user's explicit selection within the session
   const [userSelectedMode, setUserSelectedMode] = useState<ViewMode | null>(null);

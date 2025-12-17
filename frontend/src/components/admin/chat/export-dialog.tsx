@@ -107,11 +107,7 @@ function exportAsCSV(messages: ChatMessageItem[], sessionId: string) {
   downloadFile(csv, `chat-session-${sessionId.slice(0, 8)}.csv`, 'text/csv');
 }
 
-export function ExportDialog({
-  messages,
-  sessionId,
-  trigger,
-}: ExportDialogProps) {
+export function ExportDialog({ messages, sessionId, trigger }: ExportDialogProps) {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>('json');
 
@@ -151,10 +147,7 @@ export function ExportDialog({
           >
             <div className="flex items-center space-x-3">
               <RadioGroupItem value="json" id="format-json" />
-              <Label
-                htmlFor="format-json"
-                className="flex items-center gap-2 cursor-pointer"
-              >
+              <Label htmlFor="format-json" className="flex items-center gap-2 cursor-pointer">
                 <FileJson className="h-4 w-4 text-blue-500" />
                 <div>
                   <div className="font-medium">JSON</div>
@@ -166,10 +159,7 @@ export function ExportDialog({
             </div>
             <div className="flex items-center space-x-3">
               <RadioGroupItem value="csv" id="format-csv" />
-              <Label
-                htmlFor="format-csv"
-                className="flex items-center gap-2 cursor-pointer"
-              >
+              <Label htmlFor="format-csv" className="flex items-center gap-2 cursor-pointer">
                 <FileSpreadsheet className="h-4 w-4 text-green-500" />
                 <div>
                   <div className="font-medium">CSV</div>

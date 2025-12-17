@@ -41,7 +41,8 @@ const PERMISSION_LEVEL_LABELS: Record<PermissionLevel, string> = {
 const PERMISSION_LEVEL_COLORS: Record<PermissionLevel, string> = {
   [PermissionLevel.USER]: 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-500/30',
   [PermissionLevel.OPERATOR]: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30',
-  [PermissionLevel.ADMINISTRATOR]: 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30',
+  [PermissionLevel.ADMINISTRATOR]:
+    'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30',
 };
 
 type SortField = 'name' | 'member_count' | 'is_active' | 'created_at' | 'permission_level';
@@ -431,7 +432,9 @@ export function GroupTable({
                               Loading members...
                             </div>
                           ) : expandedMembers.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No members in this group</p>
+                            <p className="text-sm text-muted-foreground">
+                              No members in this group
+                            </p>
                           ) : (
                             <div className="space-y-2">
                               <p className="text-xs font-medium text-muted-foreground uppercase">
@@ -439,11 +442,7 @@ export function GroupTable({
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {expandedMembers.slice(0, 5).map((member) => (
-                                  <Badge
-                                    key={member.id}
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
+                                  <Badge key={member.id} variant="secondary" className="text-xs">
                                     {member.email}
                                     {!member.is_active && (
                                       <span className="ml-1 text-destructive">(inactive)</span>

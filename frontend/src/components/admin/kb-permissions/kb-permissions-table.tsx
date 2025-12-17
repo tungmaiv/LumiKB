@@ -3,35 +3,27 @@
  * Story 5.20: Role & KB Permission Management UI (AC-5.20.1)
  */
 
-"use client";
+'use client';
 
-import React, { useState, useMemo } from "react";
-import { format } from "date-fns";
-import {
-  ChevronUp,
-  ChevronDown,
-  Pencil,
-  Search,
-  User,
-  Users,
-  Trash2,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useMemo } from 'react';
+import { format } from 'date-fns';
+import { ChevronUp, ChevronDown, Pencil, Search, User, Users, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import type { PermissionExtended, PermissionLevel } from "@/types/permission";
+} from '@/components/ui/select';
+import type { PermissionExtended, PermissionLevel } from '@/types/permission';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
-type SortField = "entity_name" | "entity_type" | "permission_level" | "created_at";
-type SortDirection = "asc" | "desc";
+type SortField = 'entity_name' | 'entity_type' | 'permission_level' | 'created_at';
+type SortDirection = 'asc' | 'desc';
 
 export interface KBPermissionsTableProps {
   permissions: PermissionExtended[];
@@ -49,14 +41,14 @@ export interface KBPermissionsTableProps {
 
 function getPermissionBadgeClass(level: PermissionLevel): string {
   switch (level) {
-    case "ADMIN":
-      return "bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-500/30";
-    case "WRITE":
-      return "bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30";
-    case "READ":
-      return "bg-green-500/20 text-green-600 border-green-500/30 hover:bg-green-500/30";
+    case 'ADMIN':
+      return 'bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-500/30';
+    case 'WRITE':
+      return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30';
+    case 'READ':
+      return 'bg-green-500/20 text-green-600 border-green-500/30 hover:bg-green-500/30';
     default:
-      return "";
+      return '';
   }
 }
 
@@ -73,8 +65,8 @@ export function KBPermissionsTable({
   searchValue,
   onSearchChange,
 }: KBPermissionsTableProps) {
-  const [sortField, setSortField] = useState<SortField>("created_at");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Filter by search (client-side)
   const filteredPermissions = useMemo(() => {
@@ -93,41 +85,40 @@ export function KBPermissionsTable({
       let comparison = 0;
 
       switch (sortField) {
-        case "entity_name":
+        case 'entity_name':
           comparison = a.entity_name.localeCompare(b.entity_name);
           break;
-        case "entity_type":
+        case 'entity_type':
           comparison = a.entity_type.localeCompare(b.entity_type);
           break;
-        case "permission_level": {
+        case 'permission_level': {
           const levels: Record<PermissionLevel, number> = { READ: 1, WRITE: 2, ADMIN: 3 };
           comparison = levels[a.permission_level] - levels[b.permission_level];
           break;
         }
-        case "created_at":
-          comparison =
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'created_at':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;
       }
 
-      return sortDirection === "asc" ? comparison : -comparison;
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [filteredPermissions, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection("asc");
+      setSortDirection('asc');
     }
   };
 
   const formatDate = (dateString: string): string => {
     try {
-      return format(new Date(dateString), "MMM d, yyyy");
+      return format(new Date(dateString), 'MMM d, yyyy');
     } catch {
-      return "Invalid date";
+      return 'Invalid date';
     }
   };
 
@@ -135,7 +126,7 @@ export function KBPermissionsTable({
     if (sortField !== field) {
       return <span className="ml-1 text-muted-foreground/50 w-4" />;
     }
-    return sortDirection === "asc" ? (
+    return sortDirection === 'asc' ? (
       <ChevronUp className="ml-1 h-4 w-4" />
     ) : (
       <ChevronDown className="ml-1 h-4 w-4" />
@@ -202,7 +193,7 @@ export function KBPermissionsTable({
 
           {/* Results Info */}
           <p className="text-sm text-muted-foreground">
-            Showing <span className="font-medium">{sortedPermissions.length}</span> of{" "}
+            Showing <span className="font-medium">{sortedPermissions.length}</span> of{' '}
             <span className="font-medium">{total}</span> permissions
           </p>
         </div>
@@ -217,7 +208,7 @@ export function KBPermissionsTable({
             Previous
           </Button>
           <span className="text-sm text-muted-foreground px-2">
-            Page <span className="font-medium">{page}</span> of{" "}
+            Page <span className="font-medium">{page}</span> of{' '}
             <span className="font-medium">{totalPages || 1}</span>
           </span>
           <Button
@@ -237,8 +228,8 @@ export function KBPermissionsTable({
             <p className="text-lg font-medium">No permissions found</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {searchValue
-                ? "Try adjusting your search term"
-                : "Add users or groups to grant access"}
+                ? 'Try adjusting your search term'
+                : 'Add users or groups to grant access'}
             </p>
           </div>
         </div>
@@ -252,41 +243,41 @@ export function KBPermissionsTable({
                   <th
                     scope="col"
                     className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort("entity_type")}
+                    onClick={() => handleSort('entity_type')}
                   >
                     <div className="flex items-center">
                       Type
-                      {renderSortIcon("entity_type")}
+                      {renderSortIcon('entity_type')}
                     </div>
                   </th>
                   <th
                     scope="col"
                     className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort("entity_name")}
+                    onClick={() => handleSort('entity_name')}
                   >
                     <div className="flex items-center">
                       Name
-                      {renderSortIcon("entity_name")}
+                      {renderSortIcon('entity_name')}
                     </div>
                   </th>
                   <th
                     scope="col"
                     className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort("permission_level")}
+                    onClick={() => handleSort('permission_level')}
                   >
                     <div className="flex items-center">
                       Permission
-                      {renderSortIcon("permission_level")}
+                      {renderSortIcon('permission_level')}
                     </div>
                   </th>
                   <th
                     scope="col"
                     className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort("created_at")}
+                    onClick={() => handleSort('created_at')}
                   >
                     <div className="flex items-center">
                       Granted
-                      {renderSortIcon("created_at")}
+                      {renderSortIcon('created_at')}
                     </div>
                   </th>
                   <th
@@ -302,7 +293,7 @@ export function KBPermissionsTable({
                   <tr key={permission.id} className="hover:bg-muted/50">
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <span className="inline-flex items-center gap-1.5">
-                        {permission.entity_type === "user" ? (
+                        {permission.entity_type === 'user' ? (
                           <>
                             <User className="h-4 w-4 text-blue-500" />
                             <span className="text-blue-600 font-medium">User</span>

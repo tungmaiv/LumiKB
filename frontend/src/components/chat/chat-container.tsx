@@ -29,18 +29,11 @@ export interface ChatContainerProps {
  * Manages message list, streaming, and input
  */
 export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerProps) {
-  const {
-    messages,
-    isStreaming,
-    sendMessage,
-    error,
-    clearMessages,
-    restoreMessages,
-    abortStream,
-  } = useChatStream({
-    kbId,
-    conversationId,
-  });
+  const { messages, isStreaming, sendMessage, error, clearMessages, restoreMessages, abortStream } =
+    useChatStream({
+      kbId,
+      conversationId,
+    });
 
   // Undo buffer state (stores cleared messages for 30s)
   // Initialize from localStorage to survive page reload (Option A fix)
@@ -222,9 +215,7 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
             <>
               <div>{Math.floor(messages.length / 2)} messages</div>
               {messages[0]?.timestamp && (
-                <div>
-                  Started {formatDistanceToNow(messages[0].timestamp, { addSuffix: true })}
-                </div>
+                <div>Started {formatDistanceToNow(messages[0].timestamp, { addSuffix: true })}</div>
               )}
             </>
           ) : (
@@ -234,10 +225,7 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
       </div>
 
       {/* Message List */}
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-4"
-        data-testid="chat-messages-container"
-      >
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages-container">
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground mt-8">
             <p>Start a conversation by asking a question about this Knowledge Base.</p>

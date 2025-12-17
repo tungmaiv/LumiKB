@@ -54,8 +54,7 @@ export function RestoreKBDialog({
                 </span>
               )}
               <span className="block">
-                The Knowledge Base will be returned to the active list and become
-                searchable again.
+                The Knowledge Base will be returned to the active list and become searchable again.
               </span>
             </div>
           </AlertDialogDescription>

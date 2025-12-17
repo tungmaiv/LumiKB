@@ -144,12 +144,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -165,12 +160,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -190,12 +180,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -215,12 +200,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -245,12 +225,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -274,12 +249,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -300,12 +270,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -326,12 +291,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -345,12 +305,7 @@ describe('ProcessingDetailsModal', () => {
   it('[P0] should not render content when closed', () => {
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={false}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={false} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -367,12 +322,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -391,12 +341,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -416,12 +361,7 @@ describe('ProcessingDetailsModal', () => {
     });
 
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 
@@ -446,12 +386,7 @@ describe('ProcessingDetailsModal', () => {
 
     // Act
     render(
-      <ProcessingDetailsModal
-        kbId="kb-123"
-        docId="doc-123"
-        isOpen={true}
-        onClose={mockOnClose}
-      />,
+      <ProcessingDetailsModal kbId="kb-123" docId="doc-123" isOpen={true} onClose={mockOnClose} />,
       { wrapper: createWrapper() }
     );
 

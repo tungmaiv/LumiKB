@@ -53,11 +53,7 @@ export function ProcessingSection({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Document Parser</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value}
-              disabled={disabled}
-            >
+            <Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select document parser" />
@@ -77,8 +73,8 @@ export function ProcessingSection({
               </SelectContent>
             </Select>
             <FormDescription>
-              Parser used for extracting text from PDF, DOCX, and other documents.
-              Docling provides better table extraction and layout analysis.
+              Parser used for extracting text from PDF, DOCX, and other documents. Docling provides
+              better table extraction and layout analysis.
             </FormDescription>
             <FormMessage />
           </FormItem>

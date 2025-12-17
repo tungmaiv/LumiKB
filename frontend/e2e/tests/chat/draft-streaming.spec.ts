@@ -35,7 +35,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     await page.click('[data-testid="chat-tab"]');
   });
 
-  test('[P0] complete streaming flow: modal → stream → complete → view draft', async ({ authenticatedPage: page }) => {
+  test('[P0] complete streaming flow: modal → stream → complete → view draft', async ({
+    authenticatedPage: page,
+  }) => {
     /**
      * AC1: SSE Streaming Endpoint Implementation
      * AC2: StreamingDraftView Component
@@ -61,7 +63,7 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     // STEP 3: Start generation (triggers SSE stream)
     // Network-first: Intercept BEFORE triggering action
     const streamRequestPromise = page.waitForRequest(
-      request => request.url().includes('/api/v1/generate') && request.method() === 'POST'
+      (request) => request.url().includes('/api/v1/generate') && request.method() === 'POST'
     );
 
     await page.click('[data-testid="start-generation-button"]');
@@ -79,7 +81,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
 
     // Header panel
     await expect(page.locator('[data-testid="draft-header"]')).toBeVisible();
-    await expect(page.locator('[data-testid="draft-title"]')).toContainText(/RFP Response|Generating/i);
+    await expect(page.locator('[data-testid="draft-title"]')).toContainText(
+      /RFP Response|Generating/i
+    );
 
     // Main content panel (left 70%)
     await expect(page.locator('[data-testid="draft-content-panel"]')).toBeVisible();
@@ -110,7 +114,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     }
 
     // STEP 9: Wait for generation to complete
-    await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({ timeout: 45000 });
+    await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({
+      timeout: 45000,
+    });
 
     // STEP 10: Progress indicator updates to "Complete"
     const finalProgress = await page.locator('[data-testid="generation-progress"]').textContent();
@@ -131,7 +137,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     expect(citationCountText).toMatch(/\d+ citations?/i);
   });
 
-  test('[P1] progressive citation accumulation during streaming', async ({ authenticatedPage: page }) => {
+  test('[P1] progressive citation accumulation during streaming', async ({
+    authenticatedPage: page,
+  }) => {
     /**
      * AC3: Progressive Citation Accumulation
      *
@@ -177,14 +185,18 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
 
     // Verify citation card is highlighted or scrolled into view
     // (Check for data-highlighted attribute or CSS class)
-    const highlightedCitation = citationsPanel.locator('[data-testid="citation-card"][data-highlighted="true"]');
+    const highlightedCitation = citationsPanel.locator(
+      '[data-testid="citation-card"][data-highlighted="true"]'
+    );
     const isHighlighted = await highlightedCitation.isVisible().catch(() => false);
 
     // Either highlighted or scrolled to (acceptable behavior)
     expect(isHighlighted || firstCitation).toBeTruthy();
 
     // Wait for generation to complete
-    await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({ timeout: 45000 });
+    await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({
+      timeout: 45000,
+    });
 
     // Count final citations
     const totalCitations = await citationsPanel.locator('[data-testid="citation-card"]').count();
@@ -197,7 +209,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     expect(citationMarkers).toBeLessThanOrEqual(totalCitations);
   });
 
-  test('[P1] cancellation: stop button halts streaming and preserves partial draft', async ({ authenticatedPage: page }) => {
+  test('[P1] cancellation: stop button halts streaming and preserves partial draft', async ({
+    authenticatedPage: page,
+  }) => {
     /**
      * AC4: Cancellation and Error Handling
      *
@@ -213,7 +227,10 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     await page.click('[data-testid="generate-document-button"]');
     await page.click('[data-testid="template-select"]');
     await page.click('[data-testid="template-option-checklist"]');
-    await page.fill('[data-testid="generation-context"]', 'Security checklist for OAuth implementation');
+    await page.fill(
+      '[data-testid="generation-context"]',
+      'Security checklist for OAuth implementation'
+    );
     await page.click('[data-testid="start-generation-button"]');
 
     await page.waitForURL(/\/kb\/.+\/drafts\/.+/);
@@ -232,7 +249,10 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     await stopButton.click();
 
     // UI should transition to "Generation Cancelled" state
-    await expect(page.locator('[data-testid="generation-status"]')).toContainText(/cancelled|stopped/i, { timeout: 3000 });
+    await expect(page.locator('[data-testid="generation-status"]')).toContainText(
+      /cancelled|stopped/i,
+      { timeout: 3000 }
+    );
 
     // Streaming cursor should disappear
     await expect(page.locator('[data-testid="streaming-cursor"]')).toBeHidden({ timeout: 2000 });
@@ -246,7 +266,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     expect(contentAfterCancel).toBe(contentBeforeCancel); // Content unchanged
 
     // Citations up to cancellation point should be preserved
-    const partialCitations = await page.locator('[data-testid="citations-panel"] [data-testid="citation-card"]').count();
+    const partialCitations = await page
+      .locator('[data-testid="citations-panel"] [data-testid="citation-card"]')
+      .count();
     // Should have at least some citations if streaming progressed
     if (partialCitations > 0) {
       expect(partialCitations).toBeGreaterThan(0);
@@ -263,7 +285,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     await expect(discardButton).toBeEnabled();
   });
 
-  test('[P1] error recovery: network interruption → retry → success', async ({ authenticatedPage: page }) => {
+  test('[P1] error recovery: network interruption → retry → success', async ({
+    authenticatedPage: page,
+  }) => {
     /**
      * AC4: Cancellation and Error Handling - Network interruption scenario
      *
@@ -299,7 +323,9 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
     await page.waitForURL(/\/kb\/.+\/drafts\/.+/);
 
     // Wait for streaming to start
-    await expect(page.locator('[data-testid="streaming-draft-content"]')).toContainText(/.+/, { timeout: 10000 });
+    await expect(page.locator('[data-testid="streaming-draft-content"]')).toContainText(/.+/, {
+      timeout: 10000,
+    });
 
     // Simulate network interruption by aborting the connection
     // (In real scenario, this would be a network failure - here we test UI resilience)
@@ -328,14 +354,21 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
       await retryButton.click();
 
       // Generation should restart
-      await expect(page.locator('[data-testid="generation-progress"]')).toContainText(/generating|progress/i, { timeout: 5000 });
+      await expect(page.locator('[data-testid="generation-progress"]')).toContainText(
+        /generating|progress/i,
+        { timeout: 5000 }
+      );
     } else {
       // No error occurred (happy path) - generation should complete successfully
-      await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({ timeout: 45000 });
+      await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({
+        timeout: 45000,
+      });
     }
   });
 
-  test('[P2] streaming performance: first chunk < 5s, smooth rendering', async ({ authenticatedPage: page }) => {
+  test('[P2] streaming performance: first chunk < 5s, smooth rendering', async ({
+    authenticatedPage: page,
+  }) => {
     /**
      * AC5: Generation Performance and Streaming Quality
      *
@@ -377,10 +410,14 @@ test.describe('Draft Generation Streaming (Story 4.5)', () => {
 
     // Wait for at least 3 citations to appear (validates streaming progress)
     const citationsPanel = page.locator('[data-testid="citations-panel"]');
-    await expect(citationsPanel.locator('[data-testid="citation-card"]')).toHaveCount(3, { timeout: 20000 });
+    await expect(citationsPanel.locator('[data-testid="citation-card"]')).toHaveCount(3, {
+      timeout: 20000,
+    });
 
     // Wait for generation to complete
-    await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({ timeout: 60000 });
+    await expect(page.locator('[data-testid="generation-complete-indicator"]')).toBeVisible({
+      timeout: 60000,
+    });
 
     // Measure total generation time
     const totalTime = Date.now() - startTime;

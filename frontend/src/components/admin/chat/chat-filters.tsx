@@ -110,10 +110,7 @@ export function ChatFilters({
   }, [onFiltersChange]);
 
   const hasActiveFilters =
-    !!filters.searchQuery ||
-    !!filters.userId ||
-    !!filters.kbId ||
-    !!filters.startDate;
+    !!filters.searchQuery || !!filters.userId || !!filters.kbId || !!filters.startDate;
 
   return (
     <div className="space-y-4">
@@ -132,10 +129,7 @@ export function ChatFilters({
       {/* Filters Row - Below search */}
       <div className="flex flex-wrap items-center gap-3">
         {/* User Filter */}
-        <Select
-          value={filters.userId || 'all'}
-          onValueChange={handleUserChange}
-        >
+        <Select value={filters.userId || 'all'} onValueChange={handleUserChange}>
           <SelectTrigger className="w-[160px]" data-testid="user-filter">
             <SelectValue placeholder="All Users" />
           </SelectTrigger>

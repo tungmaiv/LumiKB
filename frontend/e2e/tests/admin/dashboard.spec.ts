@@ -236,7 +236,7 @@ test.describe('Story 5-1: Admin Dashboard E2E Tests', () => {
 
     // Mock slow API response
     await page.route('**/api/v1/admin/stats', async (route) => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -247,7 +247,10 @@ test.describe('Story 5-1: Admin Dashboard E2E Tests', () => {
     await page.goto('/admin');
 
     // THEN: Loading skeleton is visible
-    const skeleton = page.locator('[data-testid^="skeleton-"]').or(page.locator('.animate-pulse')).first();
+    const skeleton = page
+      .locator('[data-testid^="skeleton-"]')
+      .or(page.locator('.animate-pulse'))
+      .first();
     if (await skeleton.isVisible({ timeout: 500 }).catch(() => false)) {
       await expect(skeleton).toBeVisible();
     }
@@ -270,9 +273,10 @@ test.describe('Story 5-1: Admin Dashboard E2E Tests', () => {
     await waitForNetworkIdle(page);
 
     // THEN: Timestamp is visible
-    const timestamp = page.locator('[data-testid="last-updated-timestamp"]').or(
-      page.locator('text=/last updated|updated.*ago/i')
-    ).first();
+    const timestamp = page
+      .locator('[data-testid="last-updated-timestamp"]')
+      .or(page.locator('text=/last updated|updated.*ago/i'))
+      .first();
 
     if (await timestamp.isVisible({ timeout: 2000 }).catch(() => false)) {
       await expect(timestamp).toBeVisible();

@@ -13,7 +13,7 @@ export interface WorkerInfo {
   worker_id: string;
 
   /** Worker status (online if heartbeat <= 60s, offline otherwise) */
-  status: "online" | "offline";
+  status: 'online' | 'offline';
 
   /** Number of active tasks for this worker */
   active_tasks: number;
@@ -33,7 +33,7 @@ export interface QueueStatus {
   workers: WorkerInfo[];
 
   /** Queue status (unavailable if Celery broker unreachable) */
-  status: "available" | "unavailable";
+  status: 'available' | 'unavailable';
 }
 
 export interface TaskInfo {
@@ -44,7 +44,7 @@ export interface TaskInfo {
   task_name: string;
 
   /** Task status (always "active" for Celery inspect API) */
-  status: "active";
+  status: 'active';
 
   /** Task start time (ISO 8601) */
   started_at: string | null;

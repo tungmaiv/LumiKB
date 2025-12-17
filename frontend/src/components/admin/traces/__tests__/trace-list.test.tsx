@@ -53,13 +53,7 @@ describe('TraceList', () => {
   it('renders traces correctly with all columns', () => {
     const onSelectTrace = vi.fn();
 
-    render(
-      <TraceList
-        traces={mockTraces}
-        selectedTraceId={null}
-        onSelectTrace={onSelectTrace}
-      />
-    );
+    render(<TraceList traces={mockTraces} selectedTraceId={null} onSelectTrace={onSelectTrace} />);
 
     // Check table headers
     expect(screen.getByText('Operation')).toBeInTheDocument();
@@ -88,13 +82,7 @@ describe('TraceList', () => {
   it('calls onSelectTrace when a trace row is clicked', () => {
     const onSelectTrace = vi.fn();
 
-    render(
-      <TraceList
-        traces={mockTraces}
-        selectedTraceId={null}
-        onSelectTrace={onSelectTrace}
-      />
-    );
+    render(<TraceList traces={mockTraces} selectedTraceId={null} onSelectTrace={onSelectTrace} />);
 
     const traceRow = screen.getByTestId(`trace-row-${mockTraces[0].trace_id}`);
     fireEvent.click(traceRow);
@@ -123,13 +111,7 @@ describe('TraceList', () => {
   it('displays empty state when no traces', () => {
     const onSelectTrace = vi.fn();
 
-    render(
-      <TraceList
-        traces={[]}
-        selectedTraceId={null}
-        onSelectTrace={onSelectTrace}
-      />
-    );
+    render(<TraceList traces={[]} selectedTraceId={null} onSelectTrace={onSelectTrace} />);
 
     expect(screen.getByText('No traces found matching filters')).toBeInTheDocument();
   });
@@ -137,13 +119,7 @@ describe('TraceList', () => {
   it('formats duration correctly', () => {
     const onSelectTrace = vi.fn();
 
-    render(
-      <TraceList
-        traces={mockTraces}
-        selectedTraceId={null}
-        onSelectTrace={onSelectTrace}
-      />
-    );
+    render(<TraceList traces={mockTraces} selectedTraceId={null} onSelectTrace={onSelectTrace} />);
 
     // 1234ms should display as 1.2s
     expect(screen.getByText('1.2s')).toBeInTheDocument();

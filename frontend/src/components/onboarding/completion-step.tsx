@@ -1,4 +1,4 @@
-import { Rocket, Upload, Search, FileEdit } from "lucide-react";
+import { Rocket, Upload, Search, FileEdit } from 'lucide-react';
 
 export function CompletionStep() {
   return (
@@ -10,8 +10,7 @@ export function CompletionStep() {
       <div className="space-y-3 text-center">
         <h2 className="text-2xl font-bold">You&apos;re All Set!</h2>
         <p className="text-muted-foreground max-w-md">
-          Start exploring the Sample KB, or create your own Knowledge Base and
-          upload documents.
+          Start exploring the Sample KB, or create your own Knowledge Base and upload documents.
         </p>
       </div>
 

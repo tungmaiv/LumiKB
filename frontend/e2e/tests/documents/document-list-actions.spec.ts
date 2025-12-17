@@ -46,7 +46,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Archive option should be visible
       await expect(page.getByRole('menuitem', { name: /archive/i })).toBeVisible();
@@ -65,7 +68,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Archive option should be visible for admin
       await expect(page.getByRole('menuitem', { name: /archive/i })).toBeVisible();
@@ -86,7 +92,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open menu and click Archive
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /archive/i }).click();
 
       // Confirmation dialog should appear
@@ -111,7 +120,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open menu and click Archive
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /archive/i }).click();
 
       // Click cancel
@@ -140,11 +152,17 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open menu and archive
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /archive/i }).click();
 
       // Confirm archive
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|archive/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|archive/i })
+        .click();
 
       // Success toast should appear
       await expect(page.getByText(/document archived/i)).toBeVisible({ timeout: 5000 });
@@ -170,9 +188,15 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await expect(page.getByText(/3 documents/i)).toBeVisible();
 
       // Archive first document
-      await page.locator('[data-testid="document-row-doc-1"]').getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator('[data-testid="document-row-doc-1"]')
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /archive/i }).click();
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|archive/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|archive/i })
+        .click();
 
       // Count should update to 2
       await expect(page.getByText(/2 documents/i)).toBeVisible({ timeout: 5000 });
@@ -193,7 +217,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Clear option should be visible
       await expect(page.getByRole('menuitem', { name: /clear/i })).toBeVisible();
@@ -212,7 +239,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Clear option should be visible
       await expect(page.getByRole('menuitem', { name: /clear/i })).toBeVisible();
@@ -235,7 +265,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open menu and click Clear
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /clear/i }).click();
 
       // Confirmation dialog should appear
@@ -263,11 +296,17 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open menu and clear
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /clear/i }).click();
 
       // Confirm clear
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|clear/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|clear/i })
+        .click();
 
       // Success toast should appear
       await expect(page.getByText(/failed document cleared/i)).toBeVisible({ timeout: 5000 });
@@ -293,9 +332,15 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await expect(page.getByText(/3 documents/i)).toBeVisible();
 
       // Clear first failed document
-      await page.locator('[data-testid="document-row-doc-2"]').getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator('[data-testid="document-row-doc-2"]')
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /clear/i }).click();
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|clear/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|clear/i })
+        .click();
 
       // Count should update to 2
       await expect(page.getByText(/2 documents/i)).toBeVisible({ timeout: 5000 });
@@ -316,7 +361,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Archive option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /archive/i })).not.toBeVisible();
@@ -335,7 +383,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Clear option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /clear/i })).not.toBeVisible();
@@ -356,7 +407,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Archive option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /archive/i })).not.toBeVisible();
@@ -375,7 +429,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Archive option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /archive/i })).not.toBeVisible();
@@ -394,7 +451,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Clear option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /clear/i })).not.toBeVisible();
@@ -413,7 +473,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Clear option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /clear/i })).not.toBeVisible();
@@ -434,7 +497,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Cancel Processing option should be visible
       await expect(page.getByRole('menuitem', { name: /cancel processing/i })).toBeVisible();
@@ -453,7 +519,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Cancel Processing option should be visible
       await expect(page.getByRole('menuitem', { name: /cancel processing/i })).toBeVisible();
@@ -472,7 +541,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Cancel Processing option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /cancel processing/i })).not.toBeVisible();
@@ -491,7 +563,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Cancel Processing option should NOT be visible
       await expect(page.getByRole('menuitem', { name: /cancel processing/i })).not.toBeVisible();
@@ -513,7 +588,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open menu and click Cancel Processing
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /cancel processing/i }).click();
 
       // Success toast should appear
@@ -552,24 +630,33 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       });
 
       // Setup cancel endpoint
-      await page.route(`**/api/v1/knowledge-bases/${TEST_KB_ID}/documents/${TEST_DOC_ID}/cancel`, async (route) => {
-        cancelled = true;
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(createSuccessfulCancelOperation(TEST_DOC_ID)),
-        });
-      });
+      await page.route(
+        `**/api/v1/knowledge-bases/${TEST_KB_ID}/documents/${TEST_DOC_ID}/cancel`,
+        async (route) => {
+          cancelled = true;
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(createSuccessfulCancelOperation(TEST_DOC_ID)),
+          });
+        }
+      );
 
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Cancel the processing document
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /cancel processing/i }).click();
 
       // Wait for list to refresh and re-open menu
       await page.waitForTimeout(1000);
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Now Clear option should be visible (for failed documents)
       await expect(page.getByRole('menuitem', { name: /clear/i })).toBeVisible();
@@ -590,7 +677,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Delete option should be disabled
       const deleteItem = page.getByRole('menuitem', { name: /delete/i });
@@ -611,7 +701,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Delete option should be disabled
       const deleteItem = page.getByRole('menuitem', { name: /delete/i });
@@ -632,7 +725,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Delete option should be enabled
       const deleteItem = page.getByRole('menuitem', { name: /delete/i });
@@ -653,7 +749,10 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Open document actions menu
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
 
       // Delete option should be enabled
       const deleteItem = page.getByRole('menuitem', { name: /delete/i });
@@ -677,9 +776,15 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Try to archive
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /archive/i }).click();
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|archive/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|archive/i })
+        .click();
 
       // Error toast should appear
       await expect(page.getByText(/failed to archive/i)).toBeVisible({ timeout: 5000 });
@@ -702,9 +807,15 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Try to clear
-      await page.locator(`[data-testid="document-row-${TEST_DOC_ID}"]`).getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator(`[data-testid="document-row-${TEST_DOC_ID}"]`)
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await page.getByRole('menuitem', { name: /clear/i }).click();
-      await page.getByRole('dialog').getByRole('button', { name: /confirm|clear/i }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /confirm|clear/i })
+        .click();
 
       // Error toast should appear
       await expect(page.getByText(/failed to clear/i)).toBeVisible({ timeout: 5000 });
@@ -719,7 +830,11 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       const documents = [
         createActiveDocument({ id: 'completed-doc', kb_id: TEST_KB_ID, name: 'completed.pdf' }),
         createFailedDocument('Error', { id: 'failed-doc', kb_id: TEST_KB_ID, name: 'failed.pdf' }),
-        createProcessingDocument({ id: 'processing-doc', kb_id: TEST_KB_ID, name: 'processing.pdf' }),
+        createProcessingDocument({
+          id: 'processing-doc',
+          kb_id: TEST_KB_ID,
+          name: 'processing.pdf',
+        }),
       ];
 
       await setupAuthenticatedUser(page, { is_admin: true });
@@ -728,19 +843,28 @@ test.describe('Story 6-8: Document List Archive/Clear Actions UI', () => {
       await page.goto(`/dashboard?kb=${TEST_KB_ID}`);
 
       // Check completed document - should have Archive
-      await page.locator('[data-testid="document-row-completed-doc"]').getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator('[data-testid="document-row-completed-doc"]')
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await expect(page.getByRole('menuitem', { name: /archive/i })).toBeVisible();
       await expect(page.getByRole('menuitem', { name: /clear/i })).not.toBeVisible();
       await page.keyboard.press('Escape');
 
       // Check failed document - should have Clear
-      await page.locator('[data-testid="document-row-failed-doc"]').getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator('[data-testid="document-row-failed-doc"]')
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await expect(page.getByRole('menuitem', { name: /clear/i })).toBeVisible();
       await expect(page.getByRole('menuitem', { name: /archive/i })).not.toBeVisible();
       await page.keyboard.press('Escape');
 
       // Check processing document - should have Cancel Processing only
-      await page.locator('[data-testid="document-row-processing-doc"]').getByRole('button', { name: /more|actions/i }).click();
+      await page
+        .locator('[data-testid="document-row-processing-doc"]')
+        .getByRole('button', { name: /more|actions/i })
+        .click();
       await expect(page.getByRole('menuitem', { name: /archive/i })).not.toBeVisible();
       await expect(page.getByRole('menuitem', { name: /clear/i })).not.toBeVisible();
       await expect(page.getByRole('menuitem', { name: /cancel processing/i })).toBeVisible();
@@ -819,21 +943,24 @@ async function setupDocumentListWithCount(page: Page, kbId: string, docs: Archiv
 }
 
 async function setupArchiveEndpoint(page: Page, kbId: string, docId: string, success: boolean) {
-  await page.route(`**/api/v1/knowledge-bases/${kbId}/documents/${docId}/archive`, async (route) => {
-    if (success) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(createSuccessfulArchiveOperation(docId)),
-      });
-    } else {
-      await route.fulfill({
-        status: 400,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Failed to archive document' }),
-      });
+  await page.route(
+    `**/api/v1/knowledge-bases/${kbId}/documents/${docId}/archive`,
+    async (route) => {
+      if (success) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(createSuccessfulArchiveOperation(docId)),
+        });
+      } else {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to archive document' }),
+        });
+      }
     }
-  });
+  );
 }
 
 async function setupClearEndpoint(page: Page, kbId: string, docId: string, success: boolean) {

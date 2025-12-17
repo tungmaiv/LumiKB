@@ -4,10 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type {
-  AuditLogFilter,
-  PaginatedAuditResponse,
-} from '@/types/audit';
+import type { AuditLogFilter, PaginatedAuditResponse } from '@/types/audit';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

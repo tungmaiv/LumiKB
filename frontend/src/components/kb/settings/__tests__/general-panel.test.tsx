@@ -47,9 +47,7 @@ function TestWrapper({ children, defaultValues, onSubmit }: TestWrapperProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>
-        {children(form)}
-      </form>
+      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>{children(form)}</form>
     </FormProvider>
   );
 }
@@ -64,11 +62,7 @@ function renderWithForm(
   const result = render(
     <TestWrapper defaultValues={defaultValues} onSubmit={onSubmit}>
       {(form) => (
-        <GeneralPanel
-          form={form}
-          disabled={disabled}
-          onResetToDefaults={onResetToDefaults}
-        />
+        <GeneralPanel form={form} disabled={disabled} onResetToDefaults={onResetToDefaults} />
       )}
     </TestWrapper>
   );

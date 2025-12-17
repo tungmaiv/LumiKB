@@ -602,9 +602,7 @@ test.describe('Document Tags - E2E', () => {
         const allDocs = createMockDocumentsWithTags(10);
         const filteredDocs =
           lastTagsFilter.length > 0
-            ? allDocs.filter((doc) =>
-                lastTagsFilter.some((tag) => doc.metadata.tags.includes(tag))
-              )
+            ? allDocs.filter((doc) => lastTagsFilter.some((tag) => doc.metadata.tags.includes(tag)))
             : allDocs;
 
         await route.fulfill({

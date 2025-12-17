@@ -128,13 +128,7 @@ describe('ViewModeToggle Component', () => {
 
   it('[P1] should disable Markdown option when markdown not available - AC-7.31.3', () => {
     // GIVEN: Markdown is not available
-    render(
-      <ViewModeToggle
-        {...defaultProps}
-        markdownAvailable={false}
-        value="original"
-      />
-    );
+    render(<ViewModeToggle {...defaultProps} markdownAvailable={false} value="original" />);
 
     // THEN: Markdown button should be disabled
     const markdownButton = screen.getByRole('radio', { name: /markdown/i });
@@ -143,13 +137,7 @@ describe('ViewModeToggle Component', () => {
 
   it('[P1] should not disable Original option regardless of markdown availability - AC-7.31.3', () => {
     // GIVEN: Markdown is not available
-    render(
-      <ViewModeToggle
-        {...defaultProps}
-        markdownAvailable={false}
-        value="original"
-      />
-    );
+    render(<ViewModeToggle {...defaultProps} markdownAvailable={false} value="original" />);
 
     // THEN: Original button should still be enabled
     const originalButton = screen.getByRole('radio', { name: /original/i });
@@ -158,13 +146,7 @@ describe('ViewModeToggle Component', () => {
 
   it('[P1] should show tooltip when Markdown disabled - AC-7.31.3', async () => {
     // GIVEN: Markdown is not available
-    render(
-      <ViewModeToggle
-        {...defaultProps}
-        markdownAvailable={false}
-        value="original"
-      />
-    );
+    render(<ViewModeToggle {...defaultProps} markdownAvailable={false} value="original" />);
 
     // WHEN: User hovers over disabled Markdown option
     const markdownButton = screen.getByRole('radio', { name: /markdown/i });

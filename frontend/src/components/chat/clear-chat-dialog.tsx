@@ -38,8 +38,8 @@ export function ClearChatDialog({ open, onOpenChange, onConfirm }: ClearChatDial
         <AlertDialogHeader>
           <AlertDialogTitle>Clear chat history?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will remove all messages from the current conversation.
-            You can undo this action for 30 seconds.
+            This will remove all messages from the current conversation. You can undo this action
+            for 30 seconds.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

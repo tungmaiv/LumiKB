@@ -35,7 +35,10 @@ const STATUS_OPTIONS: { value: DocumentStatus; label: string }[] = [
 
 const MIME_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'application/pdf', label: 'PDF' },
-  { value: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX' },
+  {
+    value: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    label: 'DOCX',
+  },
   { value: 'text/markdown', label: 'Markdown' },
 ];
 
@@ -136,10 +139,7 @@ export function DocumentFilterBar({
         </div>
 
         {/* Status filter */}
-        <Select
-          value={filters.status || 'all'}
-          onValueChange={handleStatusChange}
-        >
+        <Select value={filters.status || 'all'} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-[140px]" data-testid="status-filter">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -154,10 +154,7 @@ export function DocumentFilterBar({
         </Select>
 
         {/* MIME type filter */}
-        <Select
-          value={filters.mimeType || 'all'}
-          onValueChange={handleMimeTypeChange}
-        >
+        <Select value={filters.mimeType || 'all'} onValueChange={handleMimeTypeChange}>
           <SelectTrigger className="w-[130px]" data-testid="type-filter">
             <FileType className="mr-2 h-4 w-4" />
             <SelectValue placeholder="Type" />
@@ -293,7 +290,9 @@ export function DocumentFilterBar({
               )}
               {filters.mimeType && (
                 <Badge variant="secondary" className="gap-1">
-                  Type: {MIME_TYPE_OPTIONS.find((o) => o.value === filters.mimeType)?.label || filters.mimeType}
+                  Type:{' '}
+                  {MIME_TYPE_OPTIONS.find((o) => o.value === filters.mimeType)?.label ||
+                    filters.mimeType}
                   <button
                     onClick={() => actions.setMimeType(undefined)}
                     className="hover:text-foreground"
@@ -305,10 +304,7 @@ export function DocumentFilterBar({
               {filters.tags?.map((tag) => (
                 <Badge key={tag} variant="secondary" className="gap-1">
                   Tag: {tag}
-                  <button
-                    onClick={() => handleTagToggle(tag)}
-                    className="hover:text-foreground"
-                  >
+                  <button onClick={() => handleTagToggle(tag)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>

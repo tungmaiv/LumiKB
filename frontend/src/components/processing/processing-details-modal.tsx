@@ -3,7 +3,7 @@
  * Story 5-23 (AC-5.23.3): Shows step-by-step processing details with timing
  */
 
-"use client";
+'use client';
 
 import {
   CheckCircle2,
@@ -14,23 +14,19 @@ import {
   AlertCircle,
   SkipForward,
   Timer,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { useDocumentProcessingDetails } from "@/hooks/useDocumentProcessingDetails";
-import type { ProcessingStepInfo, StepStatus } from "@/types/processing";
-import {
-  STEP_LABELS,
-  DOC_STATUS_LABELS,
-  PROCESSING_STEPS_ORDER,
-} from "@/types/processing";
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { useDocumentProcessingDetails } from '@/hooks/useDocumentProcessingDetails';
+import type { ProcessingStepInfo, StepStatus } from '@/types/processing';
+import { STEP_LABELS, DOC_STATUS_LABELS, PROCESSING_STEPS_ORDER } from '@/types/processing';
 
 export interface ProcessingDetailsModalProps {
   kbId: string;
@@ -44,15 +40,15 @@ export interface ProcessingDetailsModalProps {
  */
 function getStepStatusIcon(status: StepStatus) {
   switch (status) {
-    case "done":
+    case 'done':
       return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-    case "in_progress":
+    case 'in_progress':
       return <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />;
-    case "error":
+    case 'error':
       return <XCircle className="h-5 w-5 text-red-600" />;
-    case "skipped":
+    case 'skipped':
       return <SkipForward className="h-5 w-5 text-gray-400" />;
-    case "pending":
+    case 'pending':
     default:
       return <Clock className="h-5 w-5 text-gray-400" />;
   }
@@ -62,7 +58,7 @@ function getStepStatusIcon(status: StepStatus) {
  * Format duration in milliseconds to human-readable string
  */
 function formatDuration(ms: number | null): string {
-  if (ms === null) return "-";
+  if (ms === null) return '-';
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   const mins = Math.floor(ms / 60000);
@@ -74,12 +70,12 @@ function formatDuration(ms: number | null): string {
  * Format timestamp for display
  */
 function formatTimestamp(dateStr: string | null): string {
-  if (!dateStr) return "-";
+  if (!dateStr) return '-';
   const date = new Date(dateStr);
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -95,9 +91,7 @@ function formatFileSize(bytes: number): string {
 /**
  * Convert steps array to a map for easier lookup
  */
-function stepsToMap(
-  steps: ProcessingStepInfo[]
-): Map<string, ProcessingStepInfo> {
+function stepsToMap(steps: ProcessingStepInfo[]): Map<string, ProcessingStepInfo> {
   const map = new Map<string, ProcessingStepInfo>();
   for (const step of steps) {
     map.set(step.step, step);
@@ -115,9 +109,9 @@ function calculateOverallProgress(steps: ProcessingStepInfo[]): number {
 
   for (const step of PROCESSING_STEPS_ORDER) {
     const stepInfo = stepsMap.get(step);
-    if (stepInfo?.status === "done" || stepInfo?.status === "skipped") {
+    if (stepInfo?.status === 'done' || stepInfo?.status === 'skipped') {
       completed++;
-    } else if (stepInfo?.status === "in_progress") {
+    } else if (stepInfo?.status === 'in_progress') {
       completed += 0.5;
     }
   }
@@ -133,7 +127,7 @@ export function ProcessingDetailsModal({
 }: ProcessingDetailsModalProps) {
   const { data, isLoading, error } = useDocumentProcessingDetails({
     kbId,
-    docId: docId || "",
+    docId: docId || '',
     enabled: isOpen && !!docId,
   });
 
@@ -161,7 +155,7 @@ export function ProcessingDetailsModal({
             <AlertCircle className="h-12 w-12 mb-4" />
             <p className="text-lg font-medium">Error loading details</p>
             <p className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "Unknown error"}
+              {error instanceof Error ? error.message : 'Unknown error'}
             </p>
           </div>
         )}
@@ -172,10 +166,7 @@ export function ProcessingDetailsModal({
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h3
-                    className="font-medium break-words"
-                    title={data.original_filename}
-                  >
+                  <h3 className="font-medium break-words" title={data.original_filename}>
                     {data.original_filename}
                   </h3>
                   <div className="mt-1 flex flex-wrap gap-2 text-sm text-muted-foreground">
@@ -185,24 +176,21 @@ export function ProcessingDetailsModal({
                       </Badge>
                     </span>
                     <span>{formatFileSize(data.file_size)}</span>
-                    {data.chunk_count !== null && (
-                      <span>{data.chunk_count} chunks</span>
-                    )}
+                    {data.chunk_count !== null && <span>{data.chunk_count} chunks</span>}
                   </div>
                 </div>
                 <Badge
                   variant={
-                    data.status.toLowerCase() === "ready"
-                      ? "default"
-                      : data.status.toLowerCase() === "failed"
-                        ? "destructive"
-                        : "secondary"
+                    data.status.toLowerCase() === 'ready'
+                      ? 'default'
+                      : data.status.toLowerCase() === 'failed'
+                        ? 'destructive'
+                        : 'secondary'
                   }
-                  className={
-                    data.status.toLowerCase() === "ready" ? "bg-green-600" : undefined
-                  }
+                  className={data.status.toLowerCase() === 'ready' ? 'bg-green-600' : undefined}
                 >
-                  {DOC_STATUS_LABELS[data.status.toLowerCase() as keyof typeof DOC_STATUS_LABELS] || data.status}
+                  {DOC_STATUS_LABELS[data.status.toLowerCase() as keyof typeof DOC_STATUS_LABELS] ||
+                    data.status}
                 </Badge>
               </div>
 
@@ -210,14 +198,9 @@ export function ProcessingDetailsModal({
               <div className="mt-4 space-y-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Overall Progress</span>
-                  <span className="font-medium">
-                    {calculateOverallProgress(data.steps)}%
-                  </span>
+                  <span className="font-medium">{calculateOverallProgress(data.steps)}%</span>
                 </div>
-                <Progress
-                  value={calculateOverallProgress(data.steps)}
-                  className="h-2"
-                />
+                <Progress value={calculateOverallProgress(data.steps)} className="h-2" />
               </div>
 
               {/* Total Duration */}
@@ -242,34 +225,30 @@ export function ProcessingDetailsModal({
                     return (
                       <div
                         key={step}
-                        className={`flex items-start gap-4 p-4 ${
-                          !isLast ? "border-b" : ""
-                        }`}
+                        className={`flex items-start gap-4 p-4 ${!isLast ? 'border-b' : ''}`}
                       >
                         {/* Status Icon */}
                         <div className="flex-shrink-0 mt-0.5">
-                          {getStepStatusIcon(stepInfo?.status || "pending")}
+                          {getStepStatusIcon(stepInfo?.status || 'pending')}
                         </div>
 
                         {/* Step Details */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">
-                              {STEP_LABELS[step]}
-                            </span>
+                            <span className="font-medium">{STEP_LABELS[step]}</span>
                             <Badge
                               variant="outline"
                               className={`text-xs ${
-                                stepInfo?.status === "done"
-                                  ? "border-green-600 text-green-600"
-                                  : stepInfo?.status === "in_progress"
-                                    ? "border-blue-600 text-blue-600"
-                                    : stepInfo?.status === "error"
-                                      ? "border-red-600 text-red-600"
-                                      : ""
+                                stepInfo?.status === 'done'
+                                  ? 'border-green-600 text-green-600'
+                                  : stepInfo?.status === 'in_progress'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : stepInfo?.status === 'error'
+                                      ? 'border-red-600 text-red-600'
+                                      : ''
                               }`}
                             >
-                              {stepInfo?.status || "pending"}
+                              {stepInfo?.status || 'pending'}
                             </Badge>
                           </div>
 
@@ -277,14 +256,10 @@ export function ProcessingDetailsModal({
                           {stepInfo && (stepInfo.started_at || stepInfo.duration_ms !== null) && (
                             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                               {stepInfo.started_at && (
-                                <span>
-                                  Started: {formatTimestamp(stepInfo.started_at)}
-                                </span>
+                                <span>Started: {formatTimestamp(stepInfo.started_at)}</span>
                               )}
                               {stepInfo.completed_at && (
-                                <span>
-                                  Completed: {formatTimestamp(stepInfo.completed_at)}
-                                </span>
+                                <span>Completed: {formatTimestamp(stepInfo.completed_at)}</span>
                               )}
                               {stepInfo.duration_ms !== null && (
                                 <span className="font-medium">
@@ -315,9 +290,7 @@ export function ProcessingDetailsModal({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Created:</span>
-                  <span className="ml-2">
-                    {new Date(data.created_at).toLocaleString()}
-                  </span>
+                  <span className="ml-2">{new Date(data.created_at).toLocaleString()}</span>
                 </div>
                 {data.processing_completed_at && (
                   <div>

@@ -63,11 +63,7 @@ export function DocumentTagInput({
 
   const addTag = (tag: string) => {
     const normalizedTag = normalizeTag(tag);
-    if (
-      normalizedTag &&
-      !tags.includes(normalizedTag) &&
-      tags.length < MAX_TAGS_PER_DOCUMENT
-    ) {
+    if (normalizedTag && !tags.includes(normalizedTag) && tags.length < MAX_TAGS_PER_DOCUMENT) {
       onTagsChange([...tags, normalizedTag]);
     }
     setInputValue('');
@@ -128,7 +124,8 @@ export function DocumentTagInput({
         aria-label="Add tags"
       />
       <p className="text-xs text-muted-foreground">
-        Press Enter or comma to add a tag. Maximum {MAX_TAGS_PER_DOCUMENT} tags, {MAX_TAG_LENGTH} characters each.
+        Press Enter or comma to add a tag. Maximum {MAX_TAGS_PER_DOCUMENT} tags, {MAX_TAG_LENGTH}{' '}
+        characters each.
       </p>
     </div>
   );

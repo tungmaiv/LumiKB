@@ -117,7 +117,7 @@ export class DocumentPage extends BasePage {
    */
   async isChunkSelected(chunkIndex: number): Promise<boolean> {
     const chunk = this.page.locator(`[data-testid="chunk-item"][data-chunk-index="${chunkIndex}"]`);
-    return await chunk.getAttribute('data-selected') === 'true';
+    return (await chunk.getAttribute('data-selected')) === 'true';
   }
 
   /**
@@ -142,7 +142,9 @@ export class DocumentPage extends BasePage {
    * Get search result count
    */
   async getSearchResultCount(): Promise<number> {
-    const resultText = await this.page.locator('[data-testid="chunk-search-results"]').textContent();
+    const resultText = await this.page
+      .locator('[data-testid="chunk-search-results"]')
+      .textContent();
     const match = resultText?.match(/(\d+)/);
     return match ? parseInt(match[1]) : 0;
   }
@@ -205,7 +207,9 @@ export class DocumentPage extends BasePage {
    * Get document content type indicator
    */
   async getContentType(): Promise<string> {
-    const contentType = await this.page.locator('[data-testid="document-content-type"]').textContent();
+    const contentType = await this.page
+      .locator('[data-testid="document-content-type"]')
+      .textContent();
     return contentType?.trim() || '';
   }
 
@@ -319,7 +323,9 @@ export class DocumentPage extends BasePage {
     const charStart = await panel.locator('[data-testid="detail-char-start"]').textContent();
     const charEnd = await panel.locator('[data-testid="detail-char-end"]').textContent();
     const pageNumber = await panel.locator('[data-testid="detail-page-number"]').textContent();
-    const paragraphIndex = await panel.locator('[data-testid="detail-paragraph-index"]').textContent();
+    const paragraphIndex = await panel
+      .locator('[data-testid="detail-paragraph-index"]')
+      .textContent();
     const fullText = await panel.locator('[data-testid="detail-full-text"]').textContent();
 
     return {
@@ -400,7 +406,9 @@ export class DocumentPage extends BasePage {
    */
   async expectChunkHighlighted(chunkIndex: number) {
     await expect(
-      this.page.locator(`[data-testid="chunk-item"][data-chunk-index="${chunkIndex}"][data-selected="true"]`)
+      this.page.locator(
+        `[data-testid="chunk-item"][data-chunk-index="${chunkIndex}"][data-selected="true"]`
+      )
     ).toBeVisible();
     await expect(this.page.locator('[data-testid="chunk-highlight"]')).toBeVisible();
   }

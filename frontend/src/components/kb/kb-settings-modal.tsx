@@ -14,7 +14,16 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertTriangle, Loader2, Settings, Cpu, Sliders, MessageSquare, Lock, Bug } from 'lucide-react';
+import {
+  AlertTriangle,
+  Loader2,
+  Settings,
+  Cpu,
+  Sliders,
+  MessageSquare,
+  Lock,
+  Bug,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,7 +33,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -35,11 +52,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useKBStore } from '@/lib/stores/kb-store';
 import { useAvailableModels } from '@/hooks/useAvailableModels';
 import { useKBSettings } from '@/hooks/useKBSettings';
@@ -67,9 +80,6 @@ import {
 // =============================================================================
 // Schema Definitions (AC-7.14.7)
 // =============================================================================
-
-// Radix Select does not allow empty string values, use a sentinel value
-const SYSTEM_DEFAULT = '__SYSTEM_DEFAULT__';
 
 // Combined schema for the entire settings form
 // Using merge() for proper type inference with react-hook-form
@@ -138,31 +148,44 @@ export function KbSettingsModal({
     chunking: {
       strategy: settings?.chunking?.strategy ?? defaultGeneralPanelValues.chunking.strategy,
       chunk_size: settings?.chunking?.chunk_size ?? defaultGeneralPanelValues.chunking.chunk_size,
-      chunk_overlap: settings?.chunking?.chunk_overlap ?? defaultGeneralPanelValues.chunking.chunk_overlap,
+      chunk_overlap:
+        settings?.chunking?.chunk_overlap ?? defaultGeneralPanelValues.chunking.chunk_overlap,
     },
     retrieval: {
       top_k: settings?.retrieval?.top_k ?? defaultGeneralPanelValues.retrieval.top_k,
-      similarity_threshold: settings?.retrieval?.similarity_threshold ?? defaultGeneralPanelValues.retrieval.similarity_threshold,
+      similarity_threshold:
+        settings?.retrieval?.similarity_threshold ??
+        defaultGeneralPanelValues.retrieval.similarity_threshold,
       method: settings?.retrieval?.method ?? defaultGeneralPanelValues.retrieval.method,
-      mmr_enabled: settings?.retrieval?.mmr_enabled ?? defaultGeneralPanelValues.retrieval.mmr_enabled,
+      mmr_enabled:
+        settings?.retrieval?.mmr_enabled ?? defaultGeneralPanelValues.retrieval.mmr_enabled,
       mmr_lambda: settings?.retrieval?.mmr_lambda ?? defaultGeneralPanelValues.retrieval.mmr_lambda,
     },
     generation: {
-      temperature: settings?.generation?.temperature ?? defaultGeneralPanelValues.generation.temperature,
+      temperature:
+        settings?.generation?.temperature ?? defaultGeneralPanelValues.generation.temperature,
       top_p: settings?.generation?.top_p ?? defaultGeneralPanelValues.generation.top_p,
-      max_tokens: settings?.generation?.max_tokens ?? defaultGeneralPanelValues.generation.max_tokens,
+      max_tokens:
+        settings?.generation?.max_tokens ?? defaultGeneralPanelValues.generation.max_tokens,
     },
     // Story 7-32: Document Processing settings (AC-7.32.3)
     processing: {
-      parser_backend: settings?.processing?.parser_backend ?? defaultGeneralPanelValues.processing.parser_backend,
+      parser_backend:
+        settings?.processing?.parser_backend ?? defaultGeneralPanelValues.processing.parser_backend,
     },
     // Story 7-15: Prompts settings
     prompts: {
-      system_prompt: settings?.prompts?.system_prompt ?? defaultPromptsPanelValues.prompts.system_prompt,
-      context_template: settings?.prompts?.context_template ?? defaultPromptsPanelValues.prompts.context_template,
-      citation_style: settings?.prompts?.citation_style ?? defaultPromptsPanelValues.prompts.citation_style,
-      uncertainty_handling: settings?.prompts?.uncertainty_handling ?? defaultPromptsPanelValues.prompts.uncertainty_handling,
-      response_language: settings?.prompts?.response_language ?? defaultPromptsPanelValues.prompts.response_language,
+      system_prompt:
+        settings?.prompts?.system_prompt ?? defaultPromptsPanelValues.prompts.system_prompt,
+      context_template:
+        settings?.prompts?.context_template ?? defaultPromptsPanelValues.prompts.context_template,
+      citation_style:
+        settings?.prompts?.citation_style ?? defaultPromptsPanelValues.prompts.citation_style,
+      uncertainty_handling:
+        settings?.prompts?.uncertainty_handling ??
+        defaultPromptsPanelValues.prompts.uncertainty_handling,
+      response_language:
+        settings?.prompts?.response_language ?? defaultPromptsPanelValues.prompts.response_language,
     },
     // Story 9-15: Debug mode (AC-9.15.2)
     debug_mode: settings?.debug_mode ?? false,
@@ -178,15 +201,14 @@ export function KbSettingsModal({
   // Reset form when KB or settings change
   useEffect(() => {
     form.reset(buildDefaultValues());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kb, settings]);
 
   // Story 7-10: Check if embedding model is being changed (AC-7.10.7)
   const currentEmbeddingModelId = form.watch('embedding_model_id');
   const originalEmbeddingModelId = kb.embedding_model?.id ?? kb.embedding_model_id ?? undefined;
   const isEmbeddingModelChanging =
-    currentEmbeddingModelId !== originalEmbeddingModelId &&
-    currentEmbeddingModelId !== undefined;
+    currentEmbeddingModelId !== originalEmbeddingModelId && currentEmbeddingModelId !== undefined;
 
   // Story 7-14: Handle form submission (AC-7.14.6)
   const handleSubmit = async (data: KbSettingsFormValues) => {
@@ -240,31 +262,50 @@ export function KbSettingsModal({
     formValues.generation_model_id !== currentGenerationId;
 
   const hasGeneralChanges =
-    formValues.chunking?.strategy !== (settings?.chunking?.strategy ?? defaultGeneralPanelValues.chunking.strategy) ||
-    formValues.chunking?.chunk_size !== (settings?.chunking?.chunk_size ?? defaultGeneralPanelValues.chunking.chunk_size) ||
-    formValues.chunking?.chunk_overlap !== (settings?.chunking?.chunk_overlap ?? defaultGeneralPanelValues.chunking.chunk_overlap) ||
-    formValues.retrieval?.top_k !== (settings?.retrieval?.top_k ?? defaultGeneralPanelValues.retrieval.top_k) ||
-    formValues.retrieval?.similarity_threshold !== (settings?.retrieval?.similarity_threshold ?? defaultGeneralPanelValues.retrieval.similarity_threshold) ||
-    formValues.retrieval?.method !== (settings?.retrieval?.method ?? defaultGeneralPanelValues.retrieval.method) ||
-    formValues.retrieval?.mmr_enabled !== (settings?.retrieval?.mmr_enabled ?? defaultGeneralPanelValues.retrieval.mmr_enabled) ||
-    formValues.retrieval?.mmr_lambda !== (settings?.retrieval?.mmr_lambda ?? defaultGeneralPanelValues.retrieval.mmr_lambda) ||
-    formValues.generation?.temperature !== (settings?.generation?.temperature ?? defaultGeneralPanelValues.generation.temperature) ||
-    formValues.generation?.top_p !== (settings?.generation?.top_p ?? defaultGeneralPanelValues.generation.top_p) ||
-    formValues.generation?.max_tokens !== (settings?.generation?.max_tokens ?? defaultGeneralPanelValues.generation.max_tokens) ||
+    formValues.chunking?.strategy !==
+      (settings?.chunking?.strategy ?? defaultGeneralPanelValues.chunking.strategy) ||
+    formValues.chunking?.chunk_size !==
+      (settings?.chunking?.chunk_size ?? defaultGeneralPanelValues.chunking.chunk_size) ||
+    formValues.chunking?.chunk_overlap !==
+      (settings?.chunking?.chunk_overlap ?? defaultGeneralPanelValues.chunking.chunk_overlap) ||
+    formValues.retrieval?.top_k !==
+      (settings?.retrieval?.top_k ?? defaultGeneralPanelValues.retrieval.top_k) ||
+    formValues.retrieval?.similarity_threshold !==
+      (settings?.retrieval?.similarity_threshold ??
+        defaultGeneralPanelValues.retrieval.similarity_threshold) ||
+    formValues.retrieval?.method !==
+      (settings?.retrieval?.method ?? defaultGeneralPanelValues.retrieval.method) ||
+    formValues.retrieval?.mmr_enabled !==
+      (settings?.retrieval?.mmr_enabled ?? defaultGeneralPanelValues.retrieval.mmr_enabled) ||
+    formValues.retrieval?.mmr_lambda !==
+      (settings?.retrieval?.mmr_lambda ?? defaultGeneralPanelValues.retrieval.mmr_lambda) ||
+    formValues.generation?.temperature !==
+      (settings?.generation?.temperature ?? defaultGeneralPanelValues.generation.temperature) ||
+    formValues.generation?.top_p !==
+      (settings?.generation?.top_p ?? defaultGeneralPanelValues.generation.top_p) ||
+    formValues.generation?.max_tokens !==
+      (settings?.generation?.max_tokens ?? defaultGeneralPanelValues.generation.max_tokens) ||
     // Story 7-32: Document Processing changes (AC-7.32.3)
-    formValues.processing?.parser_backend !== (settings?.processing?.parser_backend ?? defaultGeneralPanelValues.processing.parser_backend);
+    formValues.processing?.parser_backend !==
+      (settings?.processing?.parser_backend ?? defaultGeneralPanelValues.processing.parser_backend);
 
   // Story 7-15: Check if prompts settings have changed
   const hasPromptsChanges =
-    formValues.prompts?.system_prompt !== (settings?.prompts?.system_prompt ?? defaultPromptsPanelValues.prompts.system_prompt) ||
-    formValues.prompts?.citation_style !== (settings?.prompts?.citation_style ?? defaultPromptsPanelValues.prompts.citation_style) ||
-    formValues.prompts?.uncertainty_handling !== (settings?.prompts?.uncertainty_handling ?? defaultPromptsPanelValues.prompts.uncertainty_handling) ||
-    formValues.prompts?.response_language !== (settings?.prompts?.response_language ?? defaultPromptsPanelValues.prompts.response_language);
+    formValues.prompts?.system_prompt !==
+      (settings?.prompts?.system_prompt ?? defaultPromptsPanelValues.prompts.system_prompt) ||
+    formValues.prompts?.citation_style !==
+      (settings?.prompts?.citation_style ?? defaultPromptsPanelValues.prompts.citation_style) ||
+    formValues.prompts?.uncertainty_handling !==
+      (settings?.prompts?.uncertainty_handling ??
+        defaultPromptsPanelValues.prompts.uncertainty_handling) ||
+    formValues.prompts?.response_language !==
+      (settings?.prompts?.response_language ?? defaultPromptsPanelValues.prompts.response_language);
 
   // Story 9-15: Check if debug mode has changed (AC-9.15.2)
   const hasAdvancedChanges = formValues.debug_mode !== (settings?.debug_mode ?? false);
 
-  const hasChanges = hasModelChanges || hasGeneralChanges || hasPromptsChanges || hasAdvancedChanges;
+  const hasChanges =
+    hasModelChanges || hasGeneralChanges || hasPromptsChanges || hasAdvancedChanges;
   // Story 7-16: Track if form has custom changes for preset confirmation (AC-7.16.7)
   const hasCustomChanges = hasGeneralChanges || hasPromptsChanges;
   const isDisabled = isSubmitting || isSaving;
@@ -275,9 +316,7 @@ export function KbSettingsModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>KB Settings</DialogTitle>
-          <DialogDescription>
-            Configure settings for &quot;{kb.name}&quot;.
-          </DialogDescription>
+          <DialogDescription>Configure settings for &quot;{kb.name}&quot;.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -336,8 +375,8 @@ export function KbSettingsModal({
                     <AlertTitle>Embedding Model Locked</AlertTitle>
                     <AlertDescription>
                       This KB has documents with embeddings. The embedding model cannot be changed
-                      because existing documents use the current model&apos;s vector dimensions.
-                      The generation model can still be changed.
+                      because existing documents use the current model&apos;s vector dimensions. The
+                      generation model can still be changed.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -349,8 +388,8 @@ export function KbSettingsModal({
                     <AlertTitle>Warning: Embedding Model Change</AlertTitle>
                     <AlertDescription>
                       Changing the embedding model will only affect newly uploaded documents.
-                      Existing documents will retain their current embeddings. For consistent
-                      search results, consider re-processing existing documents.
+                      Existing documents will retain their current embeddings. For consistent search
+                      results, consider re-processing existing documents.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -361,9 +400,7 @@ export function KbSettingsModal({
                   name="embedding_model_id"
                   render={({ field }) => {
                     // Find the currently selected model for display
-                    const selectedModel = field.value
-                      ? embeddingModels.find((m) => m.id === field.value)
-                      : defaultEmbeddingModel;
+                    const selectedModel = embeddingModels.find((m) => m.id === field.value);
                     return (
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
@@ -373,8 +410,8 @@ export function KbSettingsModal({
                           )}
                         </FormLabel>
                         <Select
-                          onValueChange={(val) => field.onChange(val === SYSTEM_DEFAULT ? undefined : val)}
-                          value={field.value ?? SYSTEM_DEFAULT}
+                          onValueChange={field.onChange}
+                          value={field.value}
                           disabled={isDisabled || isLoadingModels || kb.embedding_model_locked}
                         >
                           <FormControl>
@@ -383,18 +420,12 @@ export function KbSettingsModal({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={SYSTEM_DEFAULT}>
-                              {defaultEmbeddingModel
-                                ? `System Default: ${defaultEmbeddingModel.name}`
-                                : 'Use system default'}
-                            </SelectItem>
-                            {embeddingModels
-                              .filter((m) => !m.is_default)
-                              .map((model) => (
-                                <SelectItem key={model.id} value={model.id}>
-                                  {model.name}
-                                </SelectItem>
-                              ))}
+                            {embeddingModels.map((model) => (
+                              <SelectItem key={model.id} value={model.id}>
+                                {model.name}
+                                {model.is_default && ' (Default)'}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
@@ -402,7 +433,8 @@ export function KbSettingsModal({
                             'Locked: KB has existing documents with embeddings.'
                           ) : selectedModel ? (
                             <>
-                              Using: <strong>{selectedModel.name}</strong> ({selectedModel.provider})
+                              Using: <strong>{selectedModel.name}</strong> ({selectedModel.provider}
+                              )
                             </>
                           ) : (
                             'No embedding model configured'
@@ -420,15 +452,13 @@ export function KbSettingsModal({
                   name="generation_model_id"
                   render={({ field }) => {
                     // Find the currently selected model for display
-                    const selectedModel = field.value
-                      ? generationModels.find((m) => m.id === field.value)
-                      : defaultGenerationModel;
+                    const selectedModel = generationModels.find((m) => m.id === field.value);
                     return (
                       <FormItem>
                         <FormLabel>Generation Model</FormLabel>
                         <Select
-                          onValueChange={(val) => field.onChange(val === SYSTEM_DEFAULT ? undefined : val)}
-                          value={field.value ?? SYSTEM_DEFAULT}
+                          onValueChange={field.onChange}
+                          value={field.value}
                           disabled={isDisabled || isLoadingModels}
                         >
                           <FormControl>
@@ -437,24 +467,19 @@ export function KbSettingsModal({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={SYSTEM_DEFAULT}>
-                              {defaultGenerationModel
-                                ? `System Default: ${defaultGenerationModel.name}`
-                                : 'Use system default'}
-                            </SelectItem>
-                            {generationModels
-                              .filter((m) => !m.is_default)
-                              .map((model) => (
-                                <SelectItem key={model.id} value={model.id}>
-                                  {model.name}
-                                </SelectItem>
-                              ))}
+                            {generationModels.map((model) => (
+                              <SelectItem key={model.id} value={model.id}>
+                                {model.name}
+                                {model.is_default && ' (Default)'}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
                           {selectedModel ? (
                             <>
-                              Using: <strong>{selectedModel.name}</strong> ({selectedModel.provider})
+                              Using: <strong>{selectedModel.name}</strong> ({selectedModel.provider}
+                              )
                             </>
                           ) : (
                             'No generation model configured'
@@ -505,7 +530,8 @@ export function KbSettingsModal({
                             </Tooltip>
                           </FormLabel>
                           <FormDescription>
-                            Show detailed RAG pipeline information in chat responses for troubleshooting.
+                            Show detailed RAG pipeline information in chat responses for
+                            troubleshooting.
                           </FormDescription>
                         </div>
                       </FormItem>

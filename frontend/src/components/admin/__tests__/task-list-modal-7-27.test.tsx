@@ -69,11 +69,13 @@ const TaskListModalEnhanced = ({
 }) => {
   const { data: tasks, isLoading, error } = useQueueTasks(queueName, 'PROCESSING', open);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
-  const [activeFilter, setActiveFilter] = React.useState<'all' | 'active' | 'pending' | 'failed'>('all');
+  const [activeFilter, setActiveFilter] = React.useState<'all' | 'active' | 'pending' | 'failed'>(
+    'all'
+  );
   const [expandedRows, setExpandedRows] = React.useState<Set<string>>(new Set());
 
   const tasksWithSteps = tasks as TaskInfoWithSteps[] | undefined;
-  const failedCount = tasksWithSteps?.filter(t => t.document_status === 'FAILED').length ?? 0;
+  const failedCount = tasksWithSteps?.filter((t) => t.document_status === 'FAILED').length ?? 0;
 
   const toggleRowExpand = (taskId: string) => {
     const newSet = new Set(expandedRows);
@@ -86,10 +88,8 @@ const TaskListModalEnhanced = ({
   };
 
   const toggleSelection = (taskId: string) => {
-    setSelectedIds(prev =>
-      prev.includes(taskId)
-        ? prev.filter(id => id !== taskId)
-        : [...prev, taskId]
+    setSelectedIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
     );
   };
 
@@ -120,14 +120,10 @@ const TaskListModalEnhanced = ({
       {/* Bulk retry controls (AC-7.27.6-7) */}
       <div data-testid="bulk-retry-controls">
         {failedCount > 0 && (
-          <button data-testid="retry-all-button">
-            Retry All Failed ({failedCount})
-          </button>
+          <button data-testid="retry-all-button">Retry All Failed ({failedCount})</button>
         )}
         {selectedIds.length > 0 && (
-          <button data-testid="retry-selected-button">
-            Retry Selected ({selectedIds.length})
-          </button>
+          <button data-testid="retry-selected-button">Retry Selected ({selectedIds.length})</button>
         )}
       </div>
 
@@ -138,7 +134,9 @@ const TaskListModalEnhanced = ({
         <table>
           <thead>
             <tr>
-              <th><input type="checkbox" data-testid="select-all-checkbox" /></th>
+              <th>
+                <input type="checkbox" data-testid="select-all-checkbox" />
+              </th>
               <th>Task ID</th>
               <th>Status</th>
               <th>Started</th>
@@ -221,11 +219,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P0] AC-7.27.1: Expandable task rows', () => {
     it('should expand row when task row is clicked', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -239,11 +233,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should collapse row when expanded row is clicked again', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -264,11 +254,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should show step breakdown when row is expanded', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -281,11 +267,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should allow multiple rows to be expanded simultaneously', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -306,11 +288,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P0] AC-7.27.6: Retry All Failed button', () => {
     it('should show Retry All Failed button when failed tasks exist', () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -320,7 +298,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should hide Retry All Failed button when no failed tasks', () => {
       mockUseQueueTasks.mockReturnValue({
-        data: mockTasksWithSteps.filter(t => t.document_status !== 'FAILED'),
+        data: mockTasksWithSteps.filter((t) => t.document_status !== 'FAILED'),
         isLoading: false,
         error: null,
         isError: false,
@@ -332,11 +310,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
       } as unknown as ReturnType<typeof useQueueTasks>);
 
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -347,11 +321,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P0] AC-7.27.7: Selective retry checkboxes', () => {
     it('should render checkbox for each task row', () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -362,11 +332,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should toggle checkbox selection on click', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -382,11 +348,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should show Retry Selected button when tasks are selected', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -403,11 +365,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should update selected count when multiple tasks are selected', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -419,11 +377,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should not expand row when checkbox is clicked', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -440,11 +394,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P0] AC-7.27.11: Filter tabs', () => {
     it('should render all four filter tabs', () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -456,11 +406,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should highlight All tab by default', () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -471,11 +417,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P0] AC-7.27.12: Failed count badge', () => {
     it('should show failed count badge on Failed tab', () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -487,11 +429,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P1] AC-7.27.13: Filter updates task list', () => {
     it('should update active tab when filter is clicked', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -505,11 +443,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
   describe('[P2] Integration', () => {
     it('should maintain selections when expanding rows', async () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 
@@ -527,11 +461,7 @@ describe('TaskListModal Story 7-27 Extensions', () => {
 
     it('should render select-all checkbox in header', () => {
       render(
-        <TaskListModalEnhanced
-          queueName="document_processing"
-          open={true}
-          onClose={vi.fn()}
-        />,
+        <TaskListModalEnhanced queueName="document_processing" open={true} onClose={vi.fn()} />,
         { wrapper: createWrapper() }
       );
 

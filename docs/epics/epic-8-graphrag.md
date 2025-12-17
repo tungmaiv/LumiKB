@@ -21,6 +21,95 @@
 
 ---
 
+## Story 8.0: History-Aware Query Rewriting
+
+**Description:** As a user, I want my follow-up questions to understand conversation context so that pronouns and references ("he", "it", "that") are resolved correctly before search.
+
+**Story Points:** 5
+
+**User Value:** Users can have natural multi-turn conversations where follow-up questions like "How old is he?" correctly resolve to "What is Tim Cook's age?" based on conversation history. This dramatically improves chat quality without requiring GraphRAG infrastructure.
+
+**Acceptance Criteria:**
+
+**AC-8.0.1: Query rewriting service created**
+**Given** a user query and conversation history
+**When** QueryRewriterService.rewrite_with_history() is called
+**Then** the query is reformulated to be standalone (all pronouns and references resolved)
+**And** if no history exists, original query is returned unchanged
+
+**AC-8.0.2: Cheap LLM model configuration in admin UI**
+**Given** I navigate to Admin > System Configuration
+**Then** I see a "Query Rewriting Model" dropdown in the LLM Settings section
+**And** dropdown shows available models from model registry (filtered by type: chat/completion)
+**And** recommended models are highlighted (e.g., gpt-3.5-turbo, ollama/llama3.2, claude-3-haiku)
+
+**AC-8.0.3: System config stores rewriter model**
+**Given** I select a model in "Query Rewriting Model" dropdown
+**When** I save configuration
+**Then** the setting is persisted to system_config table
+**And** backend uses this model for query rewriting
+
+**AC-8.0.4: Integration with conversation flow**
+**Given** conversation_service.send_message() is called
+**When** chat_history contains previous messages
+**Then** query is rewritten BEFORE search is executed
+**And** search uses the rewritten query
+**And** original query is preserved for display to user
+
+**AC-8.0.5: Rewriter prompt engineering**
+**Given** a query with conversation history
+**Then** rewriter prompt instructs LLM to:
+- Reformulate to standalone question
+- Resolve pronouns (he/she/it/they) to specific entities
+- Expand implicit references ("the same thing" → actual topic)
+- NOT answer the question, only reformulate it
+- Return original if already standalone
+
+**AC-8.0.6: Debug mode shows rewritten query**
+**Given** KB has debug_mode=true
+**When** query rewriting occurs
+**Then** DebugInfo SSE event includes:
+- original_query: "How old is he?"
+- rewritten_query: "What is Tim Cook's age?"
+- rewriter_model: "ollama/llama3.2"
+- rewrite_latency_ms: 150
+
+**AC-8.0.7: Performance constraints**
+**Given** query rewriting is enabled
+**Then** rewriting completes in < 500ms (p95)
+**And** cheap model is used to minimize cost
+**And** timeout is configurable (default: 5 seconds)
+
+**AC-8.0.8: Graceful degradation**
+**Given** query rewriting fails (timeout, model unavailable)
+**Then** original query is used for search
+**And** warning is logged
+**And** user experience is not degraded
+
+**AC-8.0.9: Skip rewriting when not needed**
+**Given** conversation has no history (first message)
+**Or** query is already standalone (no pronouns/references detected)
+**Then** rewriting step is skipped
+**And** latency is not added
+
+**AC-8.0.10: Observability integration**
+**Given** query rewriting executes
+**Then** Langfuse trace includes "query_rewrite" span with:
+- input_query, output_query, model_used, latency_ms
+**And** metrics emitted: lumikb_query_rewrite_duration_seconds, lumikb_query_rewrite_skipped_total
+
+**Prerequisites:** Story 7.9 (LLM Model Registry), Story 9.15 (Debug Mode)
+
+**Technical Notes:**
+- Create backend/app/services/query_rewriter_service.py
+- Update backend/app/services/conversation_service.py (insert rewrite step before search)
+- Add query_rewriting_model_id column to system_config or use settings JSONB
+- Frontend: Add dropdown to frontend/src/app/(protected)/admin/config/page.tsx
+- Use existing LiteLLMEmbeddingClient.chat_completion() for rewriting
+- Consider caching rewritten queries (same history + query = same rewrite)
+
+---
+
 ## Story 8.1: Neo4j Docker Infrastructure
 
 **Description:** As a developer, I want Neo4j added to the Docker infrastructure so GraphRAG can store and query knowledge graphs.
@@ -769,31 +858,173 @@
 
 ---
 
+## Story 8.17: Hybrid BM25 + Vector Retrieval
+
+**Description:** As a user, I want search to combine lexical (BM25) and semantic (vector) retrieval so that exact keyword matches and semantic similarity both contribute to finding relevant content.
+
+**Story Points:** 8
+
+**User Value:** Users get better search results for queries that contain specific terms (product names, error codes, technical terminology) that may not have good semantic embeddings, while still benefiting from semantic understanding for conceptual queries.
+
+**Acceptance Criteria:**
+
+**AC-8.17.1: Elasticsearch/OpenSearch added to Docker infrastructure**
+**Given** I run docker-compose up
+**Then** Elasticsearch (or OpenSearch) starts alongside other services
+**And** exposes HTTP port (9200)
+**And** data persists via mounted volume
+
+**AC-8.17.2: BM25 index per Knowledge Base**
+**Given** a Knowledge Base exists
+**Then** a corresponding Elasticsearch index exists: `lumikb_kb_{kb_id}`
+**And** index is configured with appropriate analyzers (standard, english)
+
+**AC-8.17.3: Document chunks indexed in BM25**
+**Given** document processing completes
+**Then** chunks are indexed in both Qdrant (vector) AND Elasticsearch (BM25)
+**And** BM25 index contains: chunk_id, text, document_id, kb_id, metadata
+
+**AC-8.17.4: Hybrid retrieval strategy registered**
+**Given** RetrievalStrategyRegistry is initialized
+**Then** "hybrid_bm25_vector" strategy is registered
+**And** can be selected via KB configuration or API parameter
+
+**AC-8.17.5: Parallel search execution**
+**Given** hybrid retrieval is triggered
+**Then** BM25 search and vector search execute in parallel (async)
+**And** combined latency is approximately max(bm25_time, vector_time), not sum
+
+**AC-8.17.6: Result fusion with configurable weights**
+**Given** BM25 results and vector results are available
+**Then** results are merged using Reciprocal Rank Fusion (RRF) or weighted scoring
+**And** weights are configurable: bm25_weight (default: 0.3), vector_weight (default: 0.7)
+**And** duplicates are deduplicated by chunk_id
+
+**AC-8.17.7: KB-level hybrid configuration**
+**Given** I configure a Knowledge Base
+**Then** I can enable/disable hybrid retrieval for that KB
+**And** I can adjust BM25/vector weights per KB
+**And** defaults to vector-only if Elasticsearch is unavailable
+
+**AC-8.17.8: Admin UI configuration**
+**Given** I navigate to Admin > System Configuration
+**Then** I see "Hybrid Retrieval" section with:
+- Enable/disable toggle
+- BM25 weight slider (0.0 - 1.0)
+- Vector weight slider (0.0 - 1.0)
+**And** KB settings can override system defaults
+
+**AC-8.17.9: Graceful degradation**
+**Given** Elasticsearch is unavailable
+**Then** system falls back to vector-only retrieval
+**And** warning is logged
+**And** user experience is not degraded
+
+**AC-8.17.10: Chunk synchronization**
+**Given** a document is deleted or updated
+**Then** corresponding BM25 entries are deleted/updated
+**And** BM25 and Qdrant remain in sync
+
+**AC-8.17.11: Performance targets**
+**Given** hybrid retrieval executes
+**Then** total retrieval time < 150ms additional latency over vector-only
+**And** BM25 queries return in < 50ms (p95)
+
+**AC-8.17.12: Observability integration**
+**Given** hybrid retrieval executes
+**Then** metrics emitted:
+- lumikb_bm25_query_duration_seconds
+- lumikb_hybrid_retrieval_duration_seconds
+- lumikb_retrieval_strategy_used (label: strategy_name)
+**And** Langfuse trace includes "bm25_search" and "vector_search" spans
+
+**Prerequisites:** Story 8.12 (Retrieval Strategy Abstraction)
+
+**Technical Notes:**
+- Add elasticsearch service to infrastructure/docker/docker-compose.yml
+- Create backend/app/integrations/elasticsearch_client.py
+- Create backend/app/services/retrieval/hybrid_bm25_vector.py
+- Update document processing pipeline to dual-index chunks
+- Consider using OpenSearch as open-source alternative to Elasticsearch
+- RRF formula: score = Σ 1/(k + rank_i) where k=60 typically
+- Alternative: Linear combination with normalized scores
+
+**Infrastructure Addition:**
+```yaml
+elasticsearch:
+  image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+  container_name: lumikb-elasticsearch
+  environment:
+    - discovery.type=single-node
+    - xpack.security.enabled=false
+    - ES_JAVA_OPTS=-Xms512m -Xmx512m
+  ports:
+    - "9200:9200"
+  volumes:
+    - lumikb-elasticsearch-data:/usr/share/elasticsearch/data
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+```
+
+---
+
 ## Summary
 
 Epic 8 establishes the GraphRAG integration for enhanced semantic retrieval in LumiKB:
 
-| Story | Points | Key Deliverable |
-|-------|--------|-----------------|
-| 8.1 | 2 | Neo4j Docker infrastructure |
-| 8.2 | 3 | Domain data model & migrations |
-| 8.3 | 3 | System domain templates |
-| 8.4 | 5 | LLM domain recommendation service |
-| 8.5 | 5 | Domain management API |
-| 8.6 | 8 | Domain management UI |
-| 8.7 | 3 | KB-Domain linking |
-| 8.8 | 5 | Per-KB entity extraction service |
-| 8.9 | 5 | Document processing graph integration |
-| 8.10 | 3 | Graph query service |
-| 8.11 | 5 | Graph-augmented retrieval |
-| 8.12 | 3 | Retrieval strategy abstraction |
-| 8.13 | 5 | LLM schema enrichment suggestions |
-| 8.14 | 5 | Schema evolution & re-extraction |
-| 8.15 | 3 | Batch re-processing worker |
-| 8.16 | 5 | E2E test automation |
+| Story | Points | Key Deliverable | Priority |
+|-------|--------|-----------------|----------|
+| **8.0** | **5** | **History-aware query rewriting (chat memory)** | **P0 - Immediate** |
+| 8.1 | 2 | Neo4j Docker infrastructure | P1 - Foundation |
+| 8.2 | 3 | Domain data model & migrations | P1 - Foundation |
+| 8.3 | 3 | System domain templates | P1 - Foundation |
+| 8.4 | 5 | LLM domain recommendation service | P1 - Foundation |
+| 8.5 | 5 | Domain management API | P1 - Foundation |
+| 8.6 | 8 | Domain management UI | P1 - Foundation |
+| 8.7 | 3 | KB-Domain linking | P1 - Foundation |
+| 8.8 | 5 | Per-KB entity extraction service | P2 - Extraction |
+| 8.9 | 5 | Document processing graph integration | P2 - Extraction |
+| 8.10 | 3 | Graph query service | P2 - Extraction |
+| 8.11 | 5 | Graph-augmented retrieval | P3 - Retrieval |
+| 8.12 | 3 | Retrieval strategy abstraction | P3 - Retrieval |
+| 8.13 | 5 | LLM schema enrichment suggestions | P4 - Evolution |
+| 8.14 | 5 | Schema evolution & re-extraction | P4 - Evolution |
+| 8.15 | 3 | Batch re-processing worker | P4 - Evolution |
+| 8.16 | 5 | E2E test automation | P4 - Evolution |
+| **8.17** | **8** | **Hybrid BM25 + Vector retrieval** | **P5 - Advanced** |
 
-**Total Stories:** 16
-**Total Story Points:** 68
+**Total Stories:** 18
+**Total Story Points:** 81
+
+### Execution Phases
+
+**Phase 0: Chat Memory Enhancement (Story 8.0)** - 5 SP
+- Can start immediately, no GraphRAG dependencies
+- Delivers immediate value for multi-turn conversations
+- Uses existing LiteLLM infrastructure
+
+**Phase 1: GraphRAG Foundation (Stories 8.1-8.7)** - 29 SP
+- Neo4j infrastructure and domain management
+- Prerequisites for entity extraction
+
+**Phase 2: Graph Extraction (Stories 8.8-8.10)** - 13 SP
+- Entity and relationship extraction pipeline
+- Graph query capabilities
+
+**Phase 3: Retrieval Enhancement (Stories 8.11-8.12)** - 8 SP
+- Graph-augmented search
+- Strategy abstraction for extensibility
+
+**Phase 4: Schema Evolution (Stories 8.13-8.16)** - 18 SP
+- Schema suggestions and versioning
+- Batch re-processing and E2E tests
+
+**Phase 5: Advanced Retrieval (Story 8.17)** - 8 SP
+- Hybrid BM25 + Vector search
+- Evaluate after GraphRAG proven
 
 ---
 

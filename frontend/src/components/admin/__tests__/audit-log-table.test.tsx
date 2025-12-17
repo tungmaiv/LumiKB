@@ -213,8 +213,8 @@ describe('AuditLogTable Component', () => {
 
       // THEN: Should display resource columns (verify both headers exist)
       const headers = screen.getAllByRole('columnheader');
-      const headerTexts = headers.map(h => h.textContent?.toLowerCase());
-      expect(headerTexts.some(t => t?.includes('resource'))).toBe(true);
+      const headerTexts = headers.map((h) => h.textContent?.toLowerCase());
+      expect(headerTexts.some((t) => t?.includes('resource'))).toBe(true);
 
       // Should display resource data
       expect(screen.getByText('knowledge_base')).toBeInTheDocument();

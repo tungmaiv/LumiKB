@@ -788,6 +788,294 @@ class ConfigService:
             ),
         )
 
+    async def get_rewriter_model(self) -> str:
+        """Get the model ID for query rewriting.
+
+        Story 8-0: Query rewriting uses a cheap/fast model for reformulating
+        follow-up questions into standalone queries.
+
+        Order of precedence:
+        1. SystemConfig "rewriter_model_uuid" -> lookup LLMModel.model_id
+        2. SystemConfig "rewriter_model_id" (legacy string setting)
+        3. Default generation model (fallback)
+        4. Hardcoded default "ollama/llama3.2" (final fallback)
+
+        Returns:
+            Model ID string (e.g., "ollama/llama3.2", "gpt-4o-mini")
+        """
+        # Check for rewriter_model_uuid (set by admin UI)
+        uuid_query = select(SystemConfig).where(
+            SystemConfig.key == "rewriter_model_uuid"
+        )
+        uuid_result = await self.db.execute(uuid_query)
+        uuid_record = uuid_result.scalar_one_or_none()
+
+        if uuid_record and uuid_record.value:
+            try:
+                # UUID is stored as JSON string with quotes, strip them
+                model_uuid_str = str(uuid_record.value).strip('"')
+                model_uuid = UUID(model_uuid_str)
+
+                # Verify the model exists
+                model_query = select(LLMModel.model_id).where(LLMModel.id == model_uuid)
+                model_result = await self.db.execute(model_query)
+                model_id = model_result.scalar_one_or_none()
+
+                if model_id:
+                    # Return the proxy-compatible model name (db-{uuid})
+                    # This matches the model name registered in LiteLLM proxy
+                    proxy_model_name = f"db-{model_uuid}"
+                    logger.info(
+                        "using_configured_rewriter_model_from_uuid",
+                        model_uuid=str(model_uuid),
+                        model_id=model_id,
+                        proxy_model_name=proxy_model_name,
+                    )
+                    return proxy_model_name
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    "invalid_rewriter_model_uuid",
+                    value=uuid_record.value,
+                    error=str(e),
+                )
+
+        # Check for explicit rewriter model config (legacy)
+        query = select(SystemConfig).where(SystemConfig.key == "rewriter_model_id")
+        result = await self.db.execute(query)
+        config_record = result.scalar_one_or_none()
+
+        if config_record and config_record.value:
+            logger.debug(
+                "using_configured_rewriter_model",
+                model_id=config_record.value,
+            )
+            return config_record.value
+
+        # Fallback to default generation model
+        generation_query = (
+            select(LLMModel.id, LLMModel.model_id)
+            .where(LLMModel.type == ModelType.GENERATION.value)
+            .where(LLMModel.is_default == True)  # noqa: E712
+            .where(LLMModel.status == ModelStatus.ACTIVE.value)
+        )
+        gen_result = await self.db.execute(generation_query)
+        gen_row = gen_result.first()
+
+        if gen_row:
+            gen_uuid, gen_model_id = gen_row
+            # Return proxy-compatible model name (db-{uuid})
+            proxy_model_name = f"db-{gen_uuid}"
+            logger.debug(
+                "using_default_generation_model_for_rewriter",
+                model_id=gen_model_id,
+                proxy_model_name=proxy_model_name,
+            )
+            return proxy_model_name
+
+        # Final fallback - use ollama-llama3.2 which is configured in litellm_config.yaml
+        default_model = "ollama-llama3.2"
+        logger.warning(
+            "using_hardcoded_fallback_rewriter_model",
+            model_id=default_model,
+        )
+        return default_model
+
+    async def set_rewriter_model(self, model_id: str, changed_by: str) -> None:
+        """Set the model ID for query rewriting.
+
+        Story 8-0: Admin can configure a specific model for query rewriting.
+
+        Args:
+            model_id: LiteLLM model identifier (e.g., "ollama/llama3.2")
+            changed_by: Email of admin making the change
+        """
+        query = select(SystemConfig).where(SystemConfig.key == "rewriter_model_id")
+        result = await self.db.execute(query)
+        config_record = result.scalar_one_or_none()
+
+        if config_record:
+            update_stmt = (
+                update(SystemConfig)
+                .where(SystemConfig.key == "rewriter_model_id")
+                .values(
+                    value=model_id,
+                    updated_by=changed_by,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+            await self.db.execute(update_stmt)
+        else:
+            new_config = SystemConfig(
+                key="rewriter_model_id",
+                value=model_id,
+                updated_by=changed_by,
+                updated_at=datetime.now(UTC),
+            )
+            self.db.add(new_config)
+
+        await self.db.commit()
+
+        # Invalidate cache
+        redis = await get_redis_client()
+        await redis.delete(self.CACHE_KEY)
+
+        # Log audit event
+        await self.audit_service.log_event(
+            action="config.update",
+            resource_type="system_config",
+            resource_id=None,
+            details={
+                "setting_key": "rewriter_model_id",
+                "new_value": model_id,
+                "changed_by": changed_by,
+            },
+        )
+
+        logger.info(
+            "rewriter_model_updated",
+            model_id=model_id,
+            changed_by=changed_by,
+        )
+
+    async def get_rewriter_model_id(self) -> UUID | None:
+        """Get the configured query rewriter model UUID.
+
+        Story 8-0: Returns the UUID of the configured query rewriter model,
+        or None if using the default generation model fallback.
+
+        Returns:
+            UUID of configured rewriter model, or None for default fallback.
+        """
+        query = select(SystemConfig).where(SystemConfig.key == "rewriter_model_uuid")
+        result = await self.db.execute(query)
+        config_record = result.scalar_one_or_none()
+
+        if config_record and config_record.value:
+            try:
+                return UUID(str(config_record.value))
+            except (ValueError, TypeError):
+                logger.warning(
+                    "invalid_rewriter_model_uuid",
+                    value=config_record.value,
+                )
+                return None
+
+        return None
+
+    async def get_rewriter_timeout(self) -> float:
+        """Get timeout for the query rewriter model.
+
+        Story 8-0: Returns the timeout_seconds from the configured rewriter model's
+        config, or a sensible default (5.0s) for fast query rewriting.
+
+        Returns:
+            Timeout in seconds for query rewriter LLM calls.
+        """
+        model_id = await self.get_rewriter_model_id()
+        if model_id:
+            # Look up model config
+            model_query = select(LLMModel).where(LLMModel.id == model_id)
+            model_result = await self.db.execute(model_query)
+            model = model_result.scalar_one_or_none()
+
+            if model and model.config:
+                # Get timeout_seconds from model config JSONB
+                timeout = model.config.get("timeout_seconds")
+                if timeout is not None:
+                    logger.debug(
+                        "rewriter_timeout_from_model_config",
+                        model_id=str(model_id),
+                        timeout=timeout,
+                    )
+                    return float(timeout)
+
+        # Default timeout for fast query rewriting (5 seconds)
+        logger.debug("rewriter_timeout_using_default", timeout=5.0)
+        return 5.0
+
+    async def set_rewriter_model_id(
+        self,
+        model_id: UUID | None,
+        changed_by: str,
+    ) -> None:
+        """Set the query rewriter model by UUID.
+
+        Story 8-0: Admin can configure a specific generation model for query
+        rewriting via the LLM config UI.
+
+        Args:
+            model_id: UUID of a generation model, or None to use default fallback
+            changed_by: Email of admin making the change
+
+        Raises:
+            ValueError: If model_id is provided but not found or not a generation model
+        """
+        # Validate model if specified
+        if model_id:
+            model_query = select(LLMModel).where(LLMModel.id == model_id)
+            model_result = await self.db.execute(model_query)
+            model = model_result.scalar_one_or_none()
+
+            if not model:
+                raise ValueError(f"Model not found: {model_id}")
+            if model.type != ModelType.GENERATION.value:
+                raise ValueError(
+                    f"Model {model_id} is not a generation model. "
+                    "Query rewriter requires a generation/chat model."
+                )
+
+        # Get or create config record
+        query = select(SystemConfig).where(SystemConfig.key == "rewriter_model_uuid")
+        result = await self.db.execute(query)
+        config_record = result.scalar_one_or_none()
+
+        value_to_store = str(model_id) if model_id else None
+
+        if config_record:
+            update_stmt = (
+                update(SystemConfig)
+                .where(SystemConfig.key == "rewriter_model_uuid")
+                .values(
+                    value=value_to_store,
+                    updated_by=changed_by,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+            await self.db.execute(update_stmt)
+        else:
+            new_config = SystemConfig(
+                key="rewriter_model_uuid",
+                value=value_to_store,
+                updated_by=changed_by,
+                updated_at=datetime.now(UTC),
+            )
+            self.db.add(new_config)
+
+        await self.db.commit()
+
+        # Invalidate cache
+        redis = await get_redis_client()
+        await redis.delete(self.CACHE_KEY)
+        await redis.delete(self.LLM_CONFIG_CACHE_KEY)
+
+        # Log audit event
+        await self.audit_service.log_event(
+            action="config.update",
+            resource_type="system_config",
+            resource_id=None,
+            details={
+                "setting_key": "rewriter_model_uuid",
+                "new_value": str(model_id) if model_id else None,
+                "changed_by": changed_by,
+            },
+        )
+
+        logger.info(
+            "rewriter_model_uuid_updated",
+            model_id=str(model_id) if model_id else None,
+            changed_by=changed_by,
+        )
+
     async def test_model_health(
         self,
         model_type: str | None = None,

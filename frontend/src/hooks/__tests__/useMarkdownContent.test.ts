@@ -187,9 +187,7 @@ describe('useMarkdownContent Hook', () => {
 
   it('[P2] should handle network errors gracefully', async () => {
     // GIVEN: Network error occurs
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
 
     // WHEN: Hook is rendered
     const { result } = renderHook(

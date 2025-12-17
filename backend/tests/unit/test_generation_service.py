@@ -295,6 +295,7 @@ class TestKBSpecificGeneration:
         kb.id = uuid.UUID("12345678-1234-1234-1234-123456789012")
         kb.temperature = 0.5
         kb.generation_model = MagicMock()
+        kb.generation_model.id = uuid.UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
         kb.generation_model.model_id = "openai/gpt-4o"
         kb.generation_model.config = {"max_tokens": 3000}
         return kb
@@ -326,7 +327,8 @@ class TestKBSpecificGeneration:
             "12345678-1234-1234-1234-123456789012",
         )
 
-        assert config.model_id == "openai/gpt-4o"
+        # Model ID should be proxy alias format for LiteLLM routing
+        assert config.model_id == "db-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
         assert config.temperature == 0.5
         assert config.max_tokens == 3000
 
@@ -407,10 +409,10 @@ class TestKBSpecificGeneration:
             ):
                 events.append(event)
 
-            # Verify chat_completion was called with KB-specific model
+            # Verify chat_completion was called with KB-specific model (proxy alias format)
             mock_chat.assert_called_once()
             call_kwargs = mock_chat.call_args.kwargs
-            assert call_kwargs["model"] == "openai/gpt-4o"
+            assert call_kwargs["model"] == "db-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
             assert call_kwargs["temperature"] == 0.5
             assert call_kwargs["max_tokens"] == 3000
 

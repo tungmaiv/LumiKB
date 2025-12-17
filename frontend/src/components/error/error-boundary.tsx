@@ -63,9 +63,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </div>
             <div>
               <CardTitle>Something went wrong</CardTitle>
-              <CardDescription>
-                An error occurred while loading this content
-              </CardDescription>
+              <CardDescription>An error occurred while loading this content</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -105,12 +103,7 @@ export function InlineErrorFallback({
       <AlertTriangle className="h-4 w-4" />
       <span>{message}</span>
       {onRetry && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRetry}
-          className="ml-auto h-7 px-2"
-        >
+        <Button variant="ghost" size="sm" onClick={onRetry} className="ml-auto h-7 px-2">
           <RefreshCw className="h-3 w-3" />
         </Button>
       )}

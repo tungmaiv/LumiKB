@@ -125,9 +125,7 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
   };
 
   test.describe('[P0] AC-7.10.1: Model Selection During KB Creation', () => {
-    test('shows model selection dropdowns in KB create modal', async ({
-      authenticatedPage,
-    }) => {
+    test('shows model selection dropdowns in KB create modal', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is authenticated and on dashboard
        * WHEN: Opening the KB create modal
@@ -228,11 +226,16 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
       await page.getByRole('option', { name: 'text-embedding-3-small' }).click();
 
       // Submit form
-      await page.getByRole('button', { name: /create/i }).last().click();
+      await page
+        .getByRole('button', { name: /create/i })
+        .last()
+        .click();
 
       // Verify request included embedding_model_id
       await expect.poll(() => createRequestBody).not.toBeNull();
-      expect((createRequestBody as unknown as Record<string, unknown>)?.embedding_model_id).toBe('emb-model-uuid-1');
+      expect((createRequestBody as unknown as Record<string, unknown>)?.embedding_model_id).toBe(
+        'emb-model-uuid-1'
+      );
     });
 
     test('creates KB without model selection uses system default', async ({
@@ -274,7 +277,10 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
       await createBtn.click();
 
       await page.getByLabel('Name').fill('Test KB Default Models');
-      await page.getByRole('button', { name: /create/i }).last().click();
+      await page
+        .getByRole('button', { name: /create/i })
+        .last()
+        .click();
 
       await expect.poll(() => createRequestBody).not.toBeNull();
       // Should not include model IDs or they should be null/undefined
@@ -285,9 +291,7 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
   });
 
   test.describe('[P0] AC-7.10.2: Active Models Only in Dropdown', () => {
-    test('only shows active models in selection dropdowns', async ({
-      authenticatedPage,
-    }) => {
+    test('only shows active models in selection dropdowns', async ({ authenticatedPage }) => {
       /**
        * GIVEN: Model registry has both active and inactive models
        * WHEN: Opening model selection dropdown
@@ -326,9 +330,7 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
   });
 
   test.describe('[P0] AC-7.10.5: KB Settings Modal Model Configuration', () => {
-    test('displays current model configuration in KB settings', async ({
-      authenticatedPage,
-    }) => {
+    test('displays current model configuration in KB settings', async ({ authenticatedPage }) => {
       /**
        * GIVEN: KB has model configuration
        * WHEN: Opening KB settings modal
@@ -383,9 +385,7 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
       await expect(page.getByText('KB Settings')).toBeVisible();
     });
 
-    test('allows updating generation model in settings', async ({
-      authenticatedPage,
-    }) => {
+    test('allows updating generation model in settings', async ({ authenticatedPage }) => {
       /**
        * GIVEN: KB settings modal is open
        * WHEN: Changing generation model and saving
@@ -438,9 +438,7 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
   });
 
   test.describe('[P0] AC-7.10.6: Embedding Model Lock', () => {
-    test('locks embedding model after document upload', async ({
-      authenticatedPage,
-    }) => {
+    test('locks embedding model after document upload', async ({ authenticatedPage }) => {
       /**
        * GIVEN: KB has documents uploaded
        * WHEN: Viewing KB settings
@@ -546,9 +544,7 @@ test.describe('Story 7-10: KB Model Configuration E2E Tests', () => {
   });
 
   test.describe('[P1] AC-7.10.3: Model Info Display', () => {
-    test('displays model descriptions in configuration section', async ({
-      authenticatedPage,
-    }) => {
+    test('displays model descriptions in configuration section', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on KB create modal
        * WHEN: Viewing model configuration section

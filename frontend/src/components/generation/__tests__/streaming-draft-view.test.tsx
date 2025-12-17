@@ -55,11 +55,7 @@ describe('StreamingDraftView', () => {
 
   it('should display status message when generating', () => {
     render(
-      <StreamingDraftView
-        {...defaultProps}
-        status="Preparing sources..."
-        isGenerating={true}
-      />
+      <StreamingDraftView {...defaultProps} status="Preparing sources..." isGenerating={true} />
     );
 
     expect(screen.getByText('Preparing sources...')).toBeInTheDocument();
@@ -146,11 +142,7 @@ describe('StreamingDraftView', () => {
 
   it('should display loading spinner when generating', () => {
     render(
-      <StreamingDraftView
-        {...defaultProps}
-        isGenerating={true}
-        status="Generating draft..."
-      />
+      <StreamingDraftView {...defaultProps} isGenerating={true} status="Generating draft..." />
     );
 
     // Spinner should be present (via Loader2 icon)

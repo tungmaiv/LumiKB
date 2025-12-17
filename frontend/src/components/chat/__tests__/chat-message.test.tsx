@@ -25,12 +25,7 @@ describe('ChatMessage Component', () => {
      * THEN: Message appears right-aligned with user styling
      */
     render(
-      <ChatMessage
-        role="user"
-        content="What is OAuth 2.0?"
-        timestamp={new Date()}
-        citations={[]}
-      />
+      <ChatMessage role="user" content="What is OAuth 2.0?" timestamp={new Date()} citations={[]} />
     );
 
     const message = screen.getByTestId('chat-message');
@@ -85,12 +80,7 @@ describe('ChatMessage Component', () => {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
 
     render(
-      <ChatMessage
-        role="user"
-        content="Test message"
-        timestamp={twoMinutesAgo}
-        citations={[]}
-      />
+      <ChatMessage role="user" content="Test message" timestamp={twoMinutesAgo} citations={[]} />
     );
 
     const timestamp = screen.getByTestId('message-timestamp');
@@ -105,14 +95,7 @@ describe('ChatMessage Component', () => {
      */
     const justNow = new Date(Date.now() - 5000); // 5 seconds ago
 
-    render(
-      <ChatMessage
-        role="assistant"
-        content="Response"
-        timestamp={justNow}
-        citations={[]}
-      />
-    );
+    render(<ChatMessage role="assistant" content="Response" timestamp={justNow} citations={[]} />);
 
     const timestamp = screen.getByTestId('message-timestamp');
     expect(timestamp).toHaveTextContent(/just now/i);
@@ -191,12 +174,7 @@ describe('ChatMessage Component', () => {
      * THEN: No confidence indicator shown (only for AI)
      */
     render(
-      <ChatMessage
-        role="user"
-        content="User question"
-        timestamp={new Date()}
-        citations={[]}
-      />
+      <ChatMessage role="user" content="User question" timestamp={new Date()} citations={[]} />
     );
 
     const confidenceIndicator = screen.queryByTestId('confidence-indicator');
@@ -210,9 +188,7 @@ describe('ChatMessage Component', () => {
      * THEN: onCitationClick callback fired with citation data
      */
     const onCitationClick = vi.fn();
-    const citations = [
-      { number: 1, documentName: 'Test Doc', excerpt: 'Excerpt...' },
-    ];
+    const citations = [{ number: 1, documentName: 'Test Doc', excerpt: 'Excerpt...' }];
 
     render(
       <ChatMessage

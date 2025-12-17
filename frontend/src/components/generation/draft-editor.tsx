@@ -11,7 +11,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Save, X, Loader2, CheckCircle2, Undo2, Redo2, FileDown, MessageSquare } from 'lucide-react';
+import {
+  Save,
+  X,
+  Loader2,
+  CheckCircle2,
+  Undo2,
+  Redo2,
+  FileDown,
+  MessageSquare,
+} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDraftEditor } from '@/hooks/useDraftEditor';
 import { useDraftUndo } from '@/hooks/useDraftUndo';
@@ -75,23 +84,15 @@ export function DraftEditor({
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
-  const {
-    content,
-    setContent,
-    citations,
-    setCitations,
-    isSaving,
-    lastSaved,
-    saveNow,
-    isDirty,
-  } = useDraftEditor({
-    draftId: draft.id,
-    initialContent: draft.content,
-    initialCitations: draft.citations,
-    autoSaveInterval: 5000, // AC4: 5s auto-save
-    onSaveSuccess,
-    onSaveError,
-  });
+  const { content, setContent, citations, setCitations, isSaving, lastSaved, saveNow, isDirty } =
+    useDraftEditor({
+      draftId: draft.id,
+      initialContent: draft.content,
+      initialCitations: draft.citations,
+      autoSaveInterval: 5000, // AC4: 5s auto-save
+      onSaveSuccess,
+      onSaveError,
+    });
 
   const { handleExport, isExporting } = useExport({
     draftId: draft.id,
@@ -120,18 +121,19 @@ export function DraftEditor({
   );
 
   // Citation validation (Story 7-21, AC-7.21.1 - AC-7.21.5)
-  const {
-    warnings,
-    hasWarnings,
-    dismissWarning,
-  } = useCitationValidation(content, citations, { debounceMs: 500 });
+  const { warnings, hasWarnings, dismissWarning } = useCitationValidation(content, citations, {
+    debounceMs: 500,
+  });
 
   // Handle auto-fix for unused citations (Story 7-21, AC-7.21.5)
-  const handleAutoFixCitations = useCallback((numbersToRemove: number[]) => {
-    const result = renumberCitations(content, citations, numbersToRemove);
-    setContent(result.content);
-    setCitations(result.citations);
-  }, [content, citations, setContent, setCitations]);
+  const handleAutoFixCitations = useCallback(
+    (numbersToRemove: number[]) => {
+      const result = renumberCitations(content, citations, numbersToRemove);
+      setContent(result.content);
+      setCitations(result.citations);
+    },
+    [content, citations, setContent, setCitations]
+  );
 
   // Track previous values for snapshot recording
   const prevContentRef = useRef(content);
@@ -219,7 +221,24 @@ export function DraftEditor({
 
     // Sanitize HTML to prevent XSS attacks
     return DOMPurify.sanitize(htmlWithMarkers, {
-      ALLOWED_TAGS: ['span', 'br', 'p', 'div', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li'],
+      ALLOWED_TAGS: [
+        'span',
+        'br',
+        'p',
+        'div',
+        'strong',
+        'em',
+        'u',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'ul',
+        'ol',
+        'li',
+      ],
       ALLOWED_ATTR: ['class', 'data-citation-number', 'contenteditable', 'style'],
       KEEP_CONTENT: true,
     });
@@ -344,14 +363,13 @@ export function DraftEditor({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-background"
-      data-testid="draft-editor"
-    >
+    <div className="fixed inset-0 z-50 bg-background" data-testid="draft-editor">
       {/* Header Bar */}
       <div className="border-b p-4 flex items-center gap-4">
         <div className="flex-1">
-          <h2 className="text-lg font-semibold" data-testid="draft-title">{draft.title}</h2>
+          <h2 className="text-lg font-semibold" data-testid="draft-title">
+            {draft.title}
+          </h2>
           <p className="text-sm text-muted-foreground">
             {draft.word_count} words • {citations.length} citations
           </p>
@@ -399,7 +417,7 @@ export function DraftEditor({
             variant="outline"
             size="sm"
             onClick={handleExportClick}
-            disabled={isExporting || draft.status !== 'complete' && draft.status !== 'editing'}
+            disabled={isExporting || (draft.status !== 'complete' && draft.status !== 'editing')}
             data-testid="export-button"
           >
             <FileDown className="h-4 w-4 mr-2" />
@@ -432,12 +450,7 @@ export function DraftEditor({
           </TooltipProvider>
 
           {/* Close button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            data-testid="close-button"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} data-testid="close-button">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -512,16 +525,12 @@ export function DraftEditor({
         {/* Right Panel: Citations */}
         <div className="w-80 border-l bg-muted/30">
           <div className="p-4 border-b">
-            <h3 className="font-semibold text-sm">
-              Citations ({citations.length})
-            </h3>
+            <h3 className="font-semibold text-sm">Citations ({citations.length})</h3>
           </div>
           <ScrollArea className="h-[calc(100vh-140px)]">
             <div className="p-4 space-y-3">
               {citations.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No citations in this draft.
-                </p>
+                <p className="text-sm text-muted-foreground italic">No citations in this draft.</p>
               ) : (
                 citations.map((citation) => (
                   <Card

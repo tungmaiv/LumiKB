@@ -55,7 +55,10 @@ describe('MainNav', () => {
     it('[P0] core links have correct href attributes', () => {
       render(<MainNav />);
 
-      expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/dashboard');
+      expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute(
+        'href',
+        '/dashboard'
+      );
       expect(screen.getByRole('link', { name: /search/i })).toHaveAttribute('href', '/search');
       expect(screen.getByRole('link', { name: /chat/i })).toHaveAttribute('href', '/chat');
     });
@@ -129,7 +132,7 @@ describe('MainNav', () => {
         const menuItems = within(menu).getAllByRole('menuitem');
 
         // Find the actual anchor elements inside menu items
-        const links = menuItems.map(item => item.closest('a') || item.querySelector('a') || item);
+        const links = menuItems.map((item) => item.closest('a') || item.querySelector('a') || item);
 
         expect(links[0]).toHaveAttribute('href', '/operations');
         expect(links[1]).toHaveAttribute('href', '/operations/audit');
@@ -185,7 +188,7 @@ describe('MainNav', () => {
         const menuItems = within(menu).getAllByRole('menuitem');
 
         // Find the actual anchor elements inside menu items
-        const links = menuItems.map(item => item.closest('a') || item.querySelector('a') || item);
+        const links = menuItems.map((item) => item.closest('a') || item.querySelector('a') || item);
 
         expect(links[0]).toHaveAttribute('href', '/admin');
         expect(links[1]).toHaveAttribute('href', '/admin/users');
@@ -281,7 +284,9 @@ describe('MainNav', () => {
 
       render(<MainNav />);
 
-      expect(screen.getByRole('button', { name: /operations menu/i })).toHaveAttribute('aria-label');
+      expect(screen.getByRole('button', { name: /operations menu/i })).toHaveAttribute(
+        'aria-label'
+      );
       expect(screen.getByRole('button', { name: /admin menu/i })).toHaveAttribute('aria-label');
     });
   });

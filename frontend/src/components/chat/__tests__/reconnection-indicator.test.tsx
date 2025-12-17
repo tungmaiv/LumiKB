@@ -5,10 +5,7 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import {
-  ReconnectionIndicator,
-  ReconnectionIndicatorInline,
-} from '../reconnection-indicator';
+import { ReconnectionIndicator, ReconnectionIndicatorInline } from '../reconnection-indicator';
 
 describe('ReconnectionIndicator', () => {
   const defaultProps = {
@@ -35,13 +32,7 @@ describe('ReconnectionIndicator', () => {
 
   describe('reconnecting state (AC-7.22.1, AC-7.22.2)', () => {
     it('shows reconnecting indicator when isReconnecting is true', () => {
-      render(
-        <ReconnectionIndicator
-          {...defaultProps}
-          isReconnecting={true}
-          attemptCount={2}
-        />
-      );
+      render(<ReconnectionIndicator {...defaultProps} isReconnecting={true} attemptCount={2} />);
 
       expect(screen.getByTestId('reconnecting-indicator')).toBeInTheDocument();
       expect(screen.getByText('Reconnecting...')).toBeInTheDocument();
@@ -105,11 +96,7 @@ describe('ReconnectionIndicator', () => {
     it('shows retry button when connection lost', () => {
       const onRetry = vi.fn();
       render(
-        <ReconnectionIndicator
-          {...defaultProps}
-          maxRetriesExceeded={true}
-          onRetry={onRetry}
-        />
+        <ReconnectionIndicator {...defaultProps} maxRetriesExceeded={true} onRetry={onRetry} />
       );
 
       const retryButton = screen.getByTestId('retry-button');
@@ -138,9 +125,7 @@ describe('ReconnectionIndicator', () => {
     });
 
     it('does not show "Use Polling" button when onEnablePolling not provided', () => {
-      render(
-        <ReconnectionIndicator {...defaultProps} maxRetriesExceeded={true} />
-      );
+      render(<ReconnectionIndicator {...defaultProps} maxRetriesExceeded={true} />);
 
       expect(screen.queryByTestId('enable-polling-button')).not.toBeInTheDocument();
     });
@@ -182,13 +167,7 @@ describe('ReconnectionIndicator', () => {
 
   describe('state priority', () => {
     it('shows polling state over reconnecting state', () => {
-      render(
-        <ReconnectionIndicator
-          {...defaultProps}
-          isReconnecting={true}
-          isPolling={true}
-        />
-      );
+      render(<ReconnectionIndicator {...defaultProps} isReconnecting={true} isPolling={true} />);
 
       expect(screen.getByTestId('polling-indicator')).toBeInTheDocument();
       expect(screen.queryByTestId('reconnecting-indicator')).not.toBeInTheDocument();
@@ -196,11 +175,7 @@ describe('ReconnectionIndicator', () => {
 
     it('shows error state over reconnecting state', () => {
       render(
-        <ReconnectionIndicator
-          {...defaultProps}
-          isReconnecting={true}
-          maxRetriesExceeded={true}
-        />
+        <ReconnectionIndicator {...defaultProps} isReconnecting={true} maxRetriesExceeded={true} />
       );
 
       expect(screen.getByTestId('connection-lost-indicator')).toBeInTheDocument();
@@ -224,9 +199,7 @@ describe('ReconnectionIndicatorInline', () => {
   });
 
   it('renders nothing when connection is normal', () => {
-    const { container } = render(
-      <ReconnectionIndicatorInline {...defaultProps} />
-    );
+    const { container } = render(<ReconnectionIndicatorInline {...defaultProps} />);
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -247,11 +220,7 @@ describe('ReconnectionIndicatorInline', () => {
   it('shows compact disconnected indicator with retry button', () => {
     const onRetry = vi.fn();
     render(
-      <ReconnectionIndicatorInline
-        {...defaultProps}
-        maxRetriesExceeded={true}
-        onRetry={onRetry}
-      />
+      <ReconnectionIndicatorInline {...defaultProps} maxRetriesExceeded={true} onRetry={onRetry} />
     );
 
     expect(screen.getByTestId('connection-lost-inline')).toBeInTheDocument();
@@ -263,9 +232,7 @@ describe('ReconnectionIndicatorInline', () => {
   });
 
   it('shows compact polling indicator', () => {
-    render(
-      <ReconnectionIndicatorInline {...defaultProps} isPolling={true} />
-    );
+    render(<ReconnectionIndicatorInline {...defaultProps} isPolling={true} />);
 
     expect(screen.getByTestId('polling-indicator-inline')).toBeInTheDocument();
     expect(screen.getByText('Polling')).toBeInTheDocument();

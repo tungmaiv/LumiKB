@@ -17,19 +17,13 @@ describe('DocumentTagInput', () => {
 
     it('renders with custom placeholder', () => {
       render(
-        <DocumentTagInput
-          tags={[]}
-          onTagsChange={() => {}}
-          placeholder="Custom placeholder"
-        />
+        <DocumentTagInput tags={[]} onTagsChange={() => {}} placeholder="Custom placeholder" />
       );
       expect(screen.getByPlaceholderText('Custom placeholder')).toBeInTheDocument();
     });
 
     it('displays existing tags as chips', () => {
-      render(
-        <DocumentTagInput tags={['python', 'api', 'testing']} onTagsChange={() => {}} />
-      );
+      render(<DocumentTagInput tags={['python', 'api', 'testing']} onTagsChange={() => {}} />);
       expect(screen.getByText('python')).toBeInTheDocument();
       expect(screen.getByText('api')).toBeInTheDocument();
       expect(screen.getByText('testing')).toBeInTheDocument();
@@ -147,9 +141,7 @@ describe('DocumentTagInput', () => {
       const onTagsChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
-        <DocumentTagInput tags={['python', 'api']} onTagsChange={onTagsChange} />
-      );
+      render(<DocumentTagInput tags={['python', 'api']} onTagsChange={onTagsChange} />);
 
       const removeButton = screen.getByRole('button', { name: /remove python/i });
       await user.click(removeButton);
@@ -161,9 +153,7 @@ describe('DocumentTagInput', () => {
       const onTagsChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
-        <DocumentTagInput tags={['first', 'second']} onTagsChange={onTagsChange} />
-      );
+      render(<DocumentTagInput tags={['first', 'second']} onTagsChange={onTagsChange} />);
 
       const input = screen.getByRole('textbox');
       await user.type(input, '{Backspace}');
@@ -209,9 +199,7 @@ describe('DocumentTagInput', () => {
     });
 
     it('disables remove buttons when disabled', () => {
-      render(
-        <DocumentTagInput tags={['python']} onTagsChange={() => {}} disabled />
-      );
+      render(<DocumentTagInput tags={['python']} onTagsChange={() => {}} disabled />);
 
       const removeButton = screen.getByRole('button', { name: /remove python/i });
       expect(removeButton).toBeDisabled();
@@ -233,12 +221,7 @@ describe('DocumentTagsDisplay', () => {
   });
 
   it('shows +N more when over maxVisible', () => {
-    render(
-      <DocumentTagsDisplay
-        tags={['tag1', 'tag2', 'tag3', 'tag4', 'tag5']}
-        maxVisible={3}
-      />
-    );
+    render(<DocumentTagsDisplay tags={['tag1', 'tag2', 'tag3', 'tag4', 'tag5']} maxVisible={3} />);
 
     expect(screen.getByText('tag1')).toBeInTheDocument();
     expect(screen.getByText('tag2')).toBeInTheDocument();
@@ -249,9 +232,7 @@ describe('DocumentTagsDisplay', () => {
   });
 
   it('applies custom className', () => {
-    render(
-      <DocumentTagsDisplay tags={['python']} className="custom-class" />
-    );
+    render(<DocumentTagsDisplay tags={['python']} className="custom-class" />);
 
     const container = screen.getByText('python').parentElement;
     expect(container).toHaveClass('custom-class');

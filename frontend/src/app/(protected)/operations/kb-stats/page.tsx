@@ -98,16 +98,19 @@ export default function OperationsKBStatsPage() {
     }
   }, [activeKb, kbId, searchParams, router]);
 
-  const handleKBChange = useCallback((newKbId: string) => {
-    setKbId(newKbId);
-    router.push(`/operations/kb-stats?kb_id=${newKbId}`);
+  const handleKBChange = useCallback(
+    (newKbId: string) => {
+      setKbId(newKbId);
+      router.push(`/operations/kb-stats?kb_id=${newKbId}`);
 
-    // Sync with sidebar
-    const kbToSelect = storeKbs.find((kb) => kb.id === newKbId);
-    if (kbToSelect) {
-      setActiveKb(kbToSelect);
-    }
-  }, [router, storeKbs, setActiveKb]);
+      // Sync with sidebar
+      const kbToSelect = storeKbs.find((kb) => kb.id === newKbId);
+      if (kbToSelect) {
+        setActiveKb(kbToSelect);
+      }
+    },
+    [router, storeKbs, setActiveKb]
+  );
 
   if (!kbId) {
     return (
@@ -131,9 +134,7 @@ export default function OperationsKBStatsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Select Knowledge Base</CardTitle>
-              <CardDescription>
-                Choose a knowledge base to view statistics
-              </CardDescription>
+              <CardDescription>Choose a knowledge base to view statistics</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingKBs ? (
@@ -194,145 +195,149 @@ export default function OperationsKBStatsPage() {
   }
 
   if (!stats) {
-    return <DashboardLayout><div className="container mx-auto p-6" /></DashboardLayout>;
+    return (
+      <DashboardLayout>
+        <div className="container mx-auto p-6" />
+      </DashboardLayout>
+    );
   }
 
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <Database className="h-8 w-8" />
-            <h1 className="text-2xl font-bold">{stats.kb_name}</h1>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <Database className="h-8 w-8" />
+              <h1 className="text-2xl font-bold">{stats.kb_name}</h1>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Knowledge Base Statistics</p>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Knowledge Base Statistics
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {loadingKBs ? (
-            <Skeleton className="h-10 w-64" />
-          ) : (
-            <Select value={kbId || undefined} onValueChange={handleKBChange}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Switch KB" />
-              </SelectTrigger>
-              <SelectContent>
-                {knowledgeBases.map((kb) => (
-                  <SelectItem key={kb.id} value={kb.id}>
-                    {kb.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Button variant="outline" onClick={() => router.push('/operations')}>
-            Back to Operations
-          </Button>
-        </div>
-      </div>
-
-      {/* Document & Storage Metrics */}
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-4">Documents & Storage</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            title="Total Documents"
-            value={stats.document_count}
-            description="Documents in this KB"
-            icon={FileText}
-          />
-          <StatCard
-            title="Storage Used"
-            value={formatBytes(stats.storage_bytes)}
-            description={stats.document_count > 0 ? `Avg: ${formatBytes(stats.storage_bytes / stats.document_count)}` : 'No documents'}
-            icon={HardDrive}
-          />
-          <StatCard
-            title="Vector Chunks"
-            value={stats.total_chunks}
-            description={`${stats.total_embeddings} embeddings`}
-            icon={Database}
-          />
-        </div>
-      </section>
-
-      {/* Usage Metrics (Last 30 Days) */}
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-4">Usage (Last 30 Days)</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            title="Searches"
-            value={stats.searches_30d}
-            description="Search queries performed"
-            icon={Search}
-          />
-          <StatCard
-            title="Generations"
-            value={stats.generations_30d}
-            description="Documents generated"
-            icon={FileSearch}
-          />
-          <StatCard
-            title="Unique Users"
-            value={stats.unique_users_30d}
-            description="Active users"
-            icon={Users}
-          />
-        </div>
-      </section>
-
-      {/* Top Documents */}
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-4">Top Accessed Documents (Last 30 Days)</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Most Popular Documents
-            </CardTitle>
-            <CardDescription>
-              Documents with the highest access count
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {stats.top_documents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No document access data available for the last 30 days.
-              </p>
+          <div className="flex items-center gap-2">
+            {loadingKBs ? (
+              <Skeleton className="h-10 w-64" />
             ) : (
-              <div className="space-y-4">
-                {stats.top_documents.map((doc, index) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between border-b pb-3 last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{doc.filename}</p>
-                        <p className="text-xs text-muted-foreground">ID: {doc.id}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{doc.access_count}</p>
-                      <p className="text-xs text-muted-foreground">accesses</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Select value={kbId || undefined} onValueChange={handleKBChange}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Switch KB" />
+                </SelectTrigger>
+                <SelectContent>
+                  {knowledgeBases.map((kb) => (
+                    <SelectItem key={kb.id} value={kb.id}>
+                      {kb.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
-          </CardContent>
-        </Card>
-      </section>
+            <Button variant="outline" onClick={() => router.push('/operations')}>
+              Back to Operations
+            </Button>
+          </div>
+        </div>
 
-      {/* Metadata */}
-      <div className="text-xs text-muted-foreground">
-        Last updated: {new Date(stats.last_updated).toLocaleString()}
-      </div>
+        {/* Document & Storage Metrics */}
+        <section className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Documents & Storage</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              title="Total Documents"
+              value={stats.document_count}
+              description="Documents in this KB"
+              icon={FileText}
+            />
+            <StatCard
+              title="Storage Used"
+              value={formatBytes(stats.storage_bytes)}
+              description={
+                stats.document_count > 0
+                  ? `Avg: ${formatBytes(stats.storage_bytes / stats.document_count)}`
+                  : 'No documents'
+              }
+              icon={HardDrive}
+            />
+            <StatCard
+              title="Vector Chunks"
+              value={stats.total_chunks}
+              description={`${stats.total_embeddings} embeddings`}
+              icon={Database}
+            />
+          </div>
+        </section>
+
+        {/* Usage Metrics (Last 30 Days) */}
+        <section className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Usage (Last 30 Days)</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              title="Searches"
+              value={stats.searches_30d}
+              description="Search queries performed"
+              icon={Search}
+            />
+            <StatCard
+              title="Generations"
+              value={stats.generations_30d}
+              description="Documents generated"
+              icon={FileSearch}
+            />
+            <StatCard
+              title="Unique Users"
+              value={stats.unique_users_30d}
+              description="Active users"
+              icon={Users}
+            />
+          </div>
+        </section>
+
+        {/* Top Documents */}
+        <section className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Top Accessed Documents (Last 30 Days)</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Most Popular Documents
+              </CardTitle>
+              <CardDescription>Documents with the highest access count</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats.top_documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No document access data available for the last 30 days.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {stats.top_documents.map((doc, index) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between border-b pb-3 last:border-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{doc.filename}</p>
+                          <p className="text-xs text-muted-foreground">ID: {doc.id}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{doc.access_count}</p>
+                        <p className="text-xs text-muted-foreground">accesses</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Metadata */}
+        <div className="text-xs text-muted-foreground">
+          Last updated: {new Date(stats.last_updated).toLocaleString()}
+        </div>
       </div>
     </DashboardLayout>
   );

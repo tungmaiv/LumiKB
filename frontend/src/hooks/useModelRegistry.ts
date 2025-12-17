@@ -222,8 +222,7 @@ export function useModelRegistry(options: UseModelRegistryOptions = {}): UseMode
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: LLMModelUpdate }) =>
-      updateModelApi(id, data),
+    mutationFn: ({ id, data }: { id: string; data: LLMModelUpdate }) => updateModelApi(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'models'] });
     },
@@ -258,8 +257,7 @@ export function useModelRegistry(options: UseModelRegistryOptions = {}): UseMode
       updateMutation.mutateAsync({ id, data: updateData }),
     deleteModel: deleteMutation.mutateAsync,
     setDefault: setDefaultMutation.mutateAsync,
-    testConnection: (id: string, testInput?: string) =>
-      testMutation.mutateAsync({ id, testInput }),
+    testConnection: (id: string, testInput?: string) => testMutation.mutateAsync({ id, testInput }),
     refetch,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,

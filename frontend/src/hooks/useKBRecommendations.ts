@@ -31,14 +31,11 @@ export function useKBRecommendations() {
     queryKey: ['users', 'me', 'kb-recommendations'],
     queryFn: async (): Promise<KBRecommendation[]> => {
       const token = localStorage.getItem('token');
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/users/me/kb-recommendations`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/api/v1/users/me/kb-recommendations`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!res.ok) {
         if (res.status === 401) {

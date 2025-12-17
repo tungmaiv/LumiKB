@@ -50,11 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   CitationStyle,
   UncertaintyHandling,
@@ -92,7 +88,8 @@ const UNCERTAINTY_HANDLING_DESCRIPTIONS: Record<UncertaintyHandling, string> = {
 
 // Sample values for preview (AC-7.15.7)
 const PREVIEW_SAMPLE_VALUES = {
-  context: 'Sample document chunk content from your knowledge base...\n\nThis is relevant information that was retrieved based on the user\'s query.',
+  context:
+    "Sample document chunk content from your knowledge base...\n\nThis is relevant information that was retrieved based on the user's query.",
   query: 'What is the meaning of X?',
 };
 
@@ -104,7 +101,10 @@ export const promptsPanelSchema = z.object({
   prompts: z.object({
     system_prompt: z
       .string()
-      .max(MAX_SYSTEM_PROMPT_LENGTH, `System prompt must be at most ${MAX_SYSTEM_PROMPT_LENGTH} characters`),
+      .max(
+        MAX_SYSTEM_PROMPT_LENGTH,
+        `System prompt must be at most ${MAX_SYSTEM_PROMPT_LENGTH} characters`
+      ),
     context_template: z.string().optional(),
     citation_style: z.nativeEnum(CitationStyle),
     uncertainty_handling: z.nativeEnum(UncertaintyHandling),
@@ -153,7 +153,8 @@ export function PromptsPanel({
 
   const systemPrompt = form.watch('prompts.system_prompt') ?? '';
   const characterCount = systemPrompt.length;
-  const currentLanguage = (form.watch('prompts.response_language') || 'en') as SupportedLanguageCode;
+  const currentLanguage = (form.watch('prompts.response_language') ||
+    'en') as SupportedLanguageCode;
 
   // Track previous language to detect changes (initialized to null to detect first meaningful change)
   const prevLanguageRef = useRef<SupportedLanguageCode | null>(null);
@@ -208,7 +209,9 @@ export function PromptsPanel({
     if (template) {
       form.setValue('prompts.system_prompt', template.system_prompt, { shouldDirty: true });
       form.setValue('prompts.citation_style', template.citation_style, { shouldDirty: true });
-      form.setValue('prompts.uncertainty_handling', template.uncertainty_handling, { shouldDirty: true });
+      form.setValue('prompts.uncertainty_handling', template.uncertainty_handling, {
+        shouldDirty: true,
+      });
     }
     setPendingTemplate(null);
   };
@@ -269,7 +272,9 @@ export function PromptsPanel({
               </FormControl>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span
-                  className={characterCount > MAX_SYSTEM_PROMPT_LENGTH * 0.9 ? 'text-amber-500' : ''}
+                  className={
+                    characterCount > MAX_SYSTEM_PROMPT_LENGTH * 0.9 ? 'text-amber-500' : ''
+                  }
                   data-testid="character-count"
                 >
                   {characterCount} / {MAX_SYSTEM_PROMPT_LENGTH}
@@ -291,20 +296,20 @@ export function PromptsPanel({
             >
               <Info className="h-3 w-3" />
               Available Variables
-              {isHelpOpen ? (
-                <ChevronUp className="h-3 w-3" />
-              ) : (
-                <ChevronDown className="h-3 w-3" />
-              )}
+              {isHelpOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2">
             <div className="rounded-md border bg-muted/50 p-3 text-xs space-y-2">
               <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
                 <code className="font-mono text-primary">{'{context}'}</code>
-                <span className="text-muted-foreground">Retrieved document chunks relevant to the query</span>
+                <span className="text-muted-foreground">
+                  Retrieved document chunks relevant to the query
+                </span>
                 <code className="font-mono text-primary">{'{query}'}</code>
-                <span className="text-muted-foreground">The user&apos;s question or search query</span>
+                <span className="text-muted-foreground">
+                  The user&apos;s question or search query
+                </span>
                 <code className="font-mono text-primary">{'{kb_name}'}</code>
                 <span className="text-muted-foreground">Name of the current Knowledge Base</span>
               </div>
@@ -320,11 +325,7 @@ export function PromptsPanel({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Citation Style</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value}
-              disabled={disabled}
-            >
+            <Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
               <FormControl>
                 <SelectTrigger data-testid="citation-style-trigger">
                   <SelectValue placeholder="Select citation style" />
@@ -340,9 +341,7 @@ export function PromptsPanel({
                 ))}
               </SelectContent>
             </Select>
-            <FormDescription>
-              {CITATION_STYLE_DESCRIPTIONS[field.value]}
-            </FormDescription>
+            <FormDescription>{CITATION_STYLE_DESCRIPTIONS[field.value]}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -355,11 +354,7 @@ export function PromptsPanel({
         render={({ field }) => (
           <FormItem>
             <FormLabel>When uncertain, the AI should:</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value}
-              disabled={disabled}
-            >
+            <Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
               <FormControl>
                 <SelectTrigger data-testid="uncertainty-handling-trigger">
                   <SelectValue placeholder="Select uncertainty handling" />
@@ -373,9 +368,7 @@ export function PromptsPanel({
                 ))}
               </SelectContent>
             </Select>
-            <FormDescription>
-              {UNCERTAINTY_HANDLING_DESCRIPTIONS[field.value]}
-            </FormDescription>
+            <FormDescription>{UNCERTAINTY_HANDLING_DESCRIPTIONS[field.value]}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -388,11 +381,7 @@ export function PromptsPanel({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Response Language</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value || 'en'}
-              disabled={disabled}
-            >
+            <Select onValueChange={field.onChange} value={field.value || 'en'} disabled={disabled}>
               <FormControl>
                 <SelectTrigger className="max-w-[200px]" data-testid="response-language-trigger">
                   <SelectValue placeholder="Select language" />
@@ -419,20 +408,26 @@ export function PromptsPanel({
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Prompt Preview</DialogTitle>
-            <DialogDescription>
-              Preview with sample values substituted
-            </DialogDescription>
+            <DialogDescription>Preview with sample values substituted</DialogDescription>
           </DialogHeader>
           <div className="mt-4">
             <div className="rounded-md border bg-muted/30 p-4 font-mono text-sm whitespace-pre-wrap">
-              {getPreviewPrompt() || <span className="text-muted-foreground italic">No prompt entered</span>}
+              {getPreviewPrompt() || (
+                <span className="text-muted-foreground italic">No prompt entered</span>
+              )}
             </div>
             <div className="mt-3 text-xs text-muted-foreground">
               <p className="font-medium mb-1">Sample values used:</p>
               <ul className="list-disc list-inside space-y-0.5">
-                <li><code>{'{kb_name}'}</code> → &quot;{kbName}&quot;</li>
-                <li><code>{'{context}'}</code> → Sample document content</li>
-                <li><code>{'{query}'}</code> → &quot;{PREVIEW_SAMPLE_VALUES.query}&quot;</li>
+                <li>
+                  <code>{'{kb_name}'}</code> → &quot;{kbName}&quot;
+                </li>
+                <li>
+                  <code>{'{context}'}</code> → Sample document content
+                </li>
+                <li>
+                  <code>{'{query}'}</code> → &quot;{PREVIEW_SAMPLE_VALUES.query}&quot;
+                </li>
               </ul>
             </div>
           </div>
@@ -440,12 +435,16 @@ export function PromptsPanel({
       </Dialog>
 
       {/* Template Confirmation Dialog (AC-7.15.8) */}
-      <AlertDialog open={!!pendingTemplate} onOpenChange={(open) => !open && setPendingTemplate(null)}>
+      <AlertDialog
+        open={!!pendingTemplate}
+        onOpenChange={(open) => !open && setPendingTemplate(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Load Template?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have existing prompt content. Loading a template will replace your current system prompt and settings. This action cannot be undone.
+              You have existing prompt content. Loading a template will replace your current system
+              prompt and settings. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

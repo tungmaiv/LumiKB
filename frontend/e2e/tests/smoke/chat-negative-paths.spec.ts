@@ -28,99 +28,96 @@ test.describe('Story 5-0: Chat Negative Paths', () => {
     chatPage = new ChatPage(page);
   });
 
-  errorTest('[P0] Chat API 500 error displays user-friendly error message', async ({
-    page,
-    mockApiError,
-  }) => {
-    /**
-     * GIVEN: User is on chat page with KB selected
-     * WHEN: Chat API returns 500 Internal Server Error
-     * THEN: User sees friendly error message, can retry
-     */
+  errorTest(
+    '[P0] Chat API 500 error displays user-friendly error message',
+    async ({ page, mockApiError }) => {
+      /**
+       * GIVEN: User is on chat page with KB selected
+       * WHEN: Chat API returns 500 Internal Server Error
+       * THEN: User sees friendly error message, can retry
+       */
 
-    // GIVEN: Set up error response BEFORE navigation (network-first)
-    await mockApiError(page, '**/api/v1/chat/stream', ERROR_RESPONSES.INTERNAL_SERVER_ERROR);
+      // GIVEN: Set up error response BEFORE navigation (network-first)
+      await mockApiError(page, '**/api/v1/chat/stream', ERROR_RESPONSES.INTERNAL_SERVER_ERROR);
 
-    await chatPage.goto();
-    await page.waitForLoadState('networkidle');
+      await chatPage.goto();
+      await page.waitForLoadState('networkidle');
 
-    // Select KB
-    const kbSelector = page.getByTestId('kb-selector');
-    await kbSelector.click();
-    const firstKb = page.getByRole('option').first();
-    await firstKb.click();
+      // Select KB
+      const kbSelector = page.getByTestId('kb-selector');
+      await kbSelector.click();
+      const firstKb = page.getByRole('option').first();
+      await firstKb.click();
 
-    // WHEN: Send message
-    const chatInput = page.getByTestId('chat-input');
-    await chatInput.fill('Test message');
+      // WHEN: Send message
+      const chatInput = page.getByTestId('chat-input');
+      await chatInput.fill('Test message');
 
-    const sendButton = page.getByTestId('send-message-button');
-    await sendButton.click();
+      const sendButton = page.getByTestId('send-message-button');
+      await sendButton.click();
 
-    // THEN: Error message is displayed
-    const errorMessage = page.getByTestId('chat-error-message');
-    await expect(errorMessage).toBeVisible({ timeout: 10000 });
+      // THEN: Error message is displayed
+      const errorMessage = page.getByTestId('chat-error-message');
+      await expect(errorMessage).toBeVisible({ timeout: 10000 });
 
-    // THEN: Error message is user-friendly (not raw API error)
-    const errorText = await errorMessage.textContent();
-    expect(errorText).toMatch(/try again|error|failed|something went wrong/i);
-    expect(errorText).not.toContain('500');
-    expect(errorText).not.toContain('Internal Server Error');
-
-    // THEN: Retry button is available
-    const retryButton = page.getByTestId('retry-button');
-    if (await retryButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await expect(retryButton).toBeEnabled();
-    }
-  });
-
-  errorTest('[P0] Chat API 403 Forbidden shows access denied message', async ({
-    page,
-    mockApiError,
-  }) => {
-    /**
-     * GIVEN: User attempts to access chat for KB they don't have access to
-     * WHEN: Chat API returns 403 Forbidden
-     * THEN: User sees access denied message, redirected or prompted to select different KB
-     */
-
-    // GIVEN: Set up forbidden response
-    await mockApiError(page, '**/api/v1/chat/stream', ERROR_RESPONSES.FORBIDDEN);
-
-    await chatPage.goto();
-    await page.waitForLoadState('networkidle');
-
-    // Select KB
-    const kbSelector = page.getByTestId('kb-selector');
-    await kbSelector.click();
-    const firstKb = page.getByRole('option').first();
-    await firstKb.click();
-
-    // WHEN: Send message
-    const chatInput = page.getByTestId('chat-input');
-    await chatInput.fill('Test message');
-
-    const sendButton = page.getByTestId('send-message-button');
-    await sendButton.click();
-
-    // THEN: Access denied message is displayed
-    const errorMessage = page.getByTestId('chat-error-message');
-    if (await errorMessage.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // THEN: Error message is user-friendly (not raw API error)
       const errorText = await errorMessage.textContent();
-      expect(errorText).toMatch(/access denied|forbidden|permission/i);
-    }
+      expect(errorText).toMatch(/try again|error|failed|something went wrong/i);
+      expect(errorText).not.toContain('500');
+      expect(errorText).not.toContain('Internal Server Error');
 
-    // OR: Toast notification appears
-    const toast = page.locator('[data-sonner-toast]').first();
-    if (await toast.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(toast).toContainText(/access|permission|forbidden/i);
+      // THEN: Retry button is available
+      const retryButton = page.getByTestId('retry-button');
+      if (await retryButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await expect(retryButton).toBeEnabled();
+      }
     }
-  });
+  );
 
-  errorTest('[P1] Chat API 401 Unauthorized redirects to login', async ({
-    page,
-    mockApiError,
-  }) => {
+  errorTest(
+    '[P0] Chat API 403 Forbidden shows access denied message',
+    async ({ page, mockApiError }) => {
+      /**
+       * GIVEN: User attempts to access chat for KB they don't have access to
+       * WHEN: Chat API returns 403 Forbidden
+       * THEN: User sees access denied message, redirected or prompted to select different KB
+       */
+
+      // GIVEN: Set up forbidden response
+      await mockApiError(page, '**/api/v1/chat/stream', ERROR_RESPONSES.FORBIDDEN);
+
+      await chatPage.goto();
+      await page.waitForLoadState('networkidle');
+
+      // Select KB
+      const kbSelector = page.getByTestId('kb-selector');
+      await kbSelector.click();
+      const firstKb = page.getByRole('option').first();
+      await firstKb.click();
+
+      // WHEN: Send message
+      const chatInput = page.getByTestId('chat-input');
+      await chatInput.fill('Test message');
+
+      const sendButton = page.getByTestId('send-message-button');
+      await sendButton.click();
+
+      // THEN: Access denied message is displayed
+      const errorMessage = page.getByTestId('chat-error-message');
+      if (await errorMessage.isVisible({ timeout: 5000 }).catch(() => false)) {
+        const errorText = await errorMessage.textContent();
+        expect(errorText).toMatch(/access denied|forbidden|permission/i);
+      }
+
+      // OR: Toast notification appears
+      const toast = page.locator('[data-sonner-toast]').first();
+      if (await toast.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await expect(toast).toContainText(/access|permission|forbidden/i);
+      }
+    }
+  );
+
+  errorTest('[P1] Chat API 401 Unauthorized redirects to login', async ({ page, mockApiError }) => {
     /**
      * GIVEN: User's session expires
      * WHEN: Chat API returns 401 Unauthorized
@@ -154,10 +151,7 @@ test.describe('Story 5-0: Chat Negative Paths', () => {
     expect(currentUrl).toMatch(/login/);
   });
 
-  errorTest('[P1] Chat API timeout shows timeout error', async ({
-    page,
-    mockNetworkTimeout,
-  }) => {
+  errorTest('[P1] Chat API timeout shows timeout error', async ({ page, mockNetworkTimeout }) => {
     /**
      * GIVEN: User is on chat page with KB selected
      * WHEN: Chat API request times out
@@ -197,48 +191,48 @@ test.describe('Story 5-0: Chat Negative Paths', () => {
     }
   });
 
-  errorTest('[P2] Chat API malformed JSON shows error gracefully', async ({
-    page,
-    mockMalformedResponse,
-  }) => {
-    /**
-     * GIVEN: User is on chat page with KB selected
-     * WHEN: Chat API returns malformed JSON
-     * THEN: Parsing error is handled gracefully, user sees error message
-     */
+  errorTest(
+    '[P2] Chat API malformed JSON shows error gracefully',
+    async ({ page, mockMalformedResponse }) => {
+      /**
+       * GIVEN: User is on chat page with KB selected
+       * WHEN: Chat API returns malformed JSON
+       * THEN: Parsing error is handled gracefully, user sees error message
+       */
 
-    // GIVEN: Set up malformed response
-    await mockMalformedResponse(page, '**/api/v1/chat/stream', 'invalid{{{json');
+      // GIVEN: Set up malformed response
+      await mockMalformedResponse(page, '**/api/v1/chat/stream', 'invalid{{{json');
 
-    await chatPage.goto();
-    await page.waitForLoadState('networkidle');
+      await chatPage.goto();
+      await page.waitForLoadState('networkidle');
 
-    // Select KB
-    const kbSelector = page.getByTestId('kb-selector');
-    await kbSelector.click();
-    const firstKb = page.getByRole('option').first();
-    await firstKb.click();
+      // Select KB
+      const kbSelector = page.getByTestId('kb-selector');
+      await kbSelector.click();
+      const firstKb = page.getByRole('option').first();
+      await firstKb.click();
 
-    // WHEN: Send message
-    const chatInput = page.getByTestId('chat-input');
-    await chatInput.fill('Test message');
+      // WHEN: Send message
+      const chatInput = page.getByTestId('chat-input');
+      await chatInput.fill('Test message');
 
-    const sendButton = page.getByTestId('send-message-button');
-    await sendButton.click();
+      const sendButton = page.getByTestId('send-message-button');
+      await sendButton.click();
 
-    // THEN: Error is handled gracefully
-    const errorMessage = page.getByTestId('chat-error-message');
-    if (await errorMessage.isVisible({ timeout: 10000 }).catch(() => false)) {
-      const errorText = await errorMessage.textContent();
-      expect(errorText).toMatch(/error|failed|try again/i);
+      // THEN: Error is handled gracefully
+      const errorMessage = page.getByTestId('chat-error-message');
+      if (await errorMessage.isVisible({ timeout: 10000 }).catch(() => false)) {
+        const errorText = await errorMessage.textContent();
+        expect(errorText).toMatch(/error|failed|try again/i);
+      }
+
+      // OR: Toast notification appears
+      const toast = page.locator('[data-sonner-toast]').first();
+      if (await toast.isVisible({ timeout: 10000 }).catch(() => false)) {
+        await expect(toast).toContainText(/error|failed/i);
+      }
     }
-
-    // OR: Toast notification appears
-    const toast = page.locator('[data-sonner-toast]').first();
-    if (await toast.isVisible({ timeout: 10000 }).catch(() => false)) {
-      await expect(toast).toContainText(/error|failed/i);
-    }
-  });
+  );
 
   test('[P2] Chat handles KB API error gracefully (no KBs loaded)', async ({ page }) => {
     /**

@@ -1,4 +1,4 @@
-import { FolderOpen } from "lucide-react";
+import { FolderOpen } from 'lucide-react';
 
 export function ExploreKBStep() {
   return (
@@ -10,8 +10,8 @@ export function ExploreKBStep() {
       <div className="space-y-3 text-center">
         <h2 className="text-2xl font-bold">Explore the Sample Knowledge Base</h2>
         <p className="text-muted-foreground max-w-md">
-          We&apos;ve pre-loaded a demo Knowledge Base with sample documents so you
-          can see LumiKB in action right away.
+          We&apos;ve pre-loaded a demo Knowledge Base with sample documents so you can see LumiKB in
+          action right away.
         </p>
       </div>
 
@@ -21,8 +21,7 @@ export function ExploreKBStep() {
           <div className="flex items-center gap-2 rounded-md bg-muted p-3">
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">
-              <span className="font-semibold">KB Selector</span> in the left
-              sidebar
+              <span className="font-semibold">KB Selector</span> in the left sidebar
             </span>
           </div>
           <p className="text-xs text-muted-foreground">

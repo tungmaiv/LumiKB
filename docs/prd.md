@@ -2,7 +2,7 @@
 
 **Author:** Tung Vu
 **Date:** 2025-12-09
-**Version:** 2.1
+**Version:** 2.2
 
 ---
 
@@ -393,6 +393,50 @@ This domain context shapes all functional and non-functional requirements below.
 - **FR35**: System clearly distinguishes AI-generated content from quoted sources
 - **FR35a**: System streams AI responses in real-time (word-by-word) for perceived speed and engagement
 - **FR35b**: Users can see typing/thinking indicators while the system processes their request
+
+### History-Aware Query Rewriting (Chat Memory Enhancement)
+
+- **FR126**: System reformulates follow-up questions to resolve pronouns and references before search
+- **FR126a**: Query rewriting uses a configurable "cheap" LLM model to minimize cost and latency
+- **FR126b**: Rewriting resolves pronouns (he/she/it/they) to specific entities from conversation history
+- **FR126c**: Rewriting expands implicit references ("the same thing", "above") to actual topics
+- **FR127**: Administrators can select the query rewriting model from Admin > System Configuration
+- **FR127a**: Model dropdown shows available chat/completion models from the registry
+- **FR127b**: Recommended models are highlighted (e.g., gpt-3.5-turbo, ollama/llama3.2, claude-3-haiku)
+- **FR127c**: System config persists the selected rewriter model
+- **FR128**: Query rewriting gracefully degrades if unavailable
+- **FR128a**: If rewriting fails (timeout, model unavailable), original query is used
+- **FR128b**: Rewriting is skipped when no conversation history exists (first message)
+- **FR128c**: Rewriting is skipped when query appears standalone (no pronouns/references detected)
+- **FR129**: Debug mode displays query rewriting details
+- **FR129a**: Debug info shows original_query, rewritten_query, rewriter_model, rewrite_latency_ms
+- **FR129b**: Observability traces include "query_rewrite" span with metrics
+
+### Hybrid BM25 + Vector Retrieval (Advanced Search)
+
+- **FR130**: System combines lexical (BM25) and semantic (vector) search for improved retrieval quality
+- **FR130a**: BM25 search handles exact keyword matches, acronyms, and technical terms that embedding models may miss
+- **FR130b**: Vector search handles semantic similarity and conceptual matching
+- **FR130c**: Results from both methods are merged using Reciprocal Rank Fusion (RRF) algorithm
+- **FR131**: Hybrid search is configurable at the Knowledge Base level
+- **FR131a**: Administrators can enable/disable hybrid search per KB from KB Settings
+- **FR131b**: Administrators can configure BM25 weight (0.0-1.0) relative to vector weight
+- **FR131c**: Default configuration is vector-only (weight=0) for backward compatibility
+- **FR132**: System gracefully degrades when BM25 index is unavailable
+- **FR132a**: If Elasticsearch/OpenSearch is down, system falls back to vector-only search
+- **FR132b**: Degradation is logged and visible in observability dashboard
+- **FR132c**: Users receive uninterrupted service (no error displayed) during degradation
+- **FR133**: BM25 index stays synchronized with document lifecycle
+- **FR133a**: Documents are indexed in Elasticsearch/OpenSearch during ingestion
+- **FR133b**: Document deletion removes entries from BM25 index
+- **FR133c**: Re-indexing can be triggered manually by administrators
+- **FR134**: Debug mode displays hybrid search details
+- **FR134a**: Debug info shows vector_results, bm25_results, fused_results with scores
+- **FR134b**: Observability traces include "hybrid_search" span with BM25 and vector latencies
+- **FR135**: Admin UI provides hybrid search configuration
+- **FR135a**: KB Settings page includes "Search Mode" section with hybrid options
+- **FR135b**: System Configuration includes global default hybrid settings
+- **FR135c**: Test search functionality allows comparing vector-only vs hybrid results
 
 ### Document Generation Assist (MAKE Capability)
 

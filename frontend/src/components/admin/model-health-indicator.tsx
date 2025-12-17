@@ -11,22 +11,11 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Activity,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  RefreshCw,
-  Zap,
-} from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Clock, RefreshCw, Zap } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LLMHealthResponse, ModelHealthStatus } from '@/types/llm-config';
 import { cn } from '@/lib/utils';
 
@@ -87,10 +76,15 @@ function SingleModelHealth({ title, status, icon }: SingleModelHealthProps) {
         {status.latency_ms !== null && (
           <div className="flex items-center gap-1 text-sm">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className={cn(
-              status.latency_ms < 500 ? 'text-green-600' :
-              status.latency_ms < 1000 ? 'text-yellow-600' : 'text-orange-600'
-            )}>
+            <span
+              className={cn(
+                status.latency_ms < 500
+                  ? 'text-green-600'
+                  : status.latency_ms < 1000
+                    ? 'text-yellow-600'
+                    : 'text-orange-600'
+              )}
+            >
               {status.latency_ms}ms
             </span>
           </div>
@@ -98,9 +92,7 @@ function SingleModelHealth({ title, status, icon }: SingleModelHealthProps) {
         {status.error_message && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="cursor-help text-xs text-destructive">
-                Error details
-              </span>
+              <span className="cursor-help text-xs text-destructive">Error details</span>
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-sm">
               <p className="text-sm">{status.error_message}</p>

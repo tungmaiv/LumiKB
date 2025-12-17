@@ -20,7 +20,9 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
   });
 
   test.describe('[AC-7.2.1] Admin UI displays current LLM model settings', () => {
-    test('[P0] should display LLM configuration page with all required sections', async ({ page }) => {
+    test('[P0] should display LLM configuration page with all required sections', async ({
+      page,
+    }) => {
       // GIVEN: Admin user is logged in
       await adminPage.loginAsAdmin();
 
@@ -54,9 +56,9 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
       await expect(embeddingInfo.first()).toBeVisible();
 
       // THEN: Should have embedding model selector
-      const embeddingSelector = page.locator('[id*="embedding"]').or(
-        page.getByRole('combobox').filter({ hasText: /embedding|select.*model/i })
-      );
+      const embeddingSelector = page
+        .locator('[id*="embedding"]')
+        .or(page.getByRole('combobox').filter({ hasText: /embedding|select.*model/i }));
       // Model selector should be present (may be hidden in dropdown)
       const selectTriggers = page.locator('[role="combobox"]');
       const triggerCount = await selectTriggers.count();
@@ -224,7 +226,9 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
       // THEN: Should show hot-reload success indicator
       const hotReloadBanner = page.getByText(/hot-reload|without restart/i);
       // Hot-reload banner may appear - check if visible or toast appears
-      const successToast = page.locator('[data-sonner-toast]').filter({ hasText: /success|applied/i });
+      const successToast = page
+        .locator('[data-sonner-toast]')
+        .filter({ hasText: /success|applied/i });
       await expect(hotReloadBanner.or(successToast)).toBeVisible({ timeout: 10000 });
 
       // Restore original value
@@ -245,10 +249,15 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
       const applyButton = page.getByRole('button', { name: /apply changes/i });
 
       // Create a promise to check for loading state
-      const loadingPromise = page.waitForFunction(() => {
-        const button = document.querySelector('button[type="submit"]');
-        return button?.textContent?.toLowerCase().includes('applying');
-      }, { timeout: 5000 }).catch(() => false);
+      const loadingPromise = page
+        .waitForFunction(
+          () => {
+            const button = document.querySelector('button[type="submit"]');
+            return button?.textContent?.toLowerCase().includes('applying');
+          },
+          { timeout: 5000 }
+        )
+        .catch(() => false);
 
       await applyButton.click();
 
@@ -260,7 +269,9 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
   });
 
   test.describe('[AC-7.2.3] Dimension mismatch warning', () => {
-    test('[P1] should show dimension mismatch dialog when changing embedding model with different dimensions', async ({ page }) => {
+    test('[P1] should show dimension mismatch dialog when changing embedding model with different dimensions', async ({
+      page,
+    }) => {
       // This test requires specific mocking of the API response
       // In real E2E, we'd need backend to return dimension_warning
 
@@ -305,7 +316,8 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
                 current_dimensions: 768,
                 new_dimensions: 3072,
                 affected_kbs: ['Test KB 1', 'Test KB 2'],
-                warning_message: 'The new embedding model has different dimensions than the current model.',
+                warning_message:
+                  'The new embedding model has different dimensions than the current model.',
               },
             }),
           });
@@ -455,7 +467,10 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
       // Either redirected away from /admin/config/llm or error displayed
       const currentUrl = page.url();
       const isRedirected = !currentUrl.includes('/admin/config/llm');
-      const hasAccessDenied = await page.getByText(/access denied|permission|admin/i).isVisible({ timeout: 5000 }).catch(() => false);
+      const hasAccessDenied = await page
+        .getByText(/access denied|permission|admin/i)
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
 
       expect(isRedirected || hasAccessDenied).toBeTruthy();
     });
@@ -463,7 +478,7 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
     test('[P1] should show loading state while checking permissions', async ({ page }) => {
       // Add artificial delay to auth check
       await page.route('**/api/v1/users/me', async (route) => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         await route.continue();
       });
 
@@ -550,10 +565,14 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
 
       // THEN: Should show validation error
       const validationError = page.getByText(/must be at least|invalid|minimum/i);
-      const isInvalid = await maxTokensInput.evaluate((el) => (el as HTMLInputElement).validity.valid).catch(() => true);
+      const isInvalid = await maxTokensInput
+        .evaluate((el) => (el as HTMLInputElement).validity.valid)
+        .catch(() => true);
 
       // Either client-side validation or error message
-      expect(!isInvalid || await validationError.isVisible({ timeout: 3000 }).catch(() => false)).toBeTruthy();
+      expect(
+        !isInvalid || (await validationError.isVisible({ timeout: 3000 }).catch(() => false))
+      ).toBeTruthy();
     });
 
     test('[P1] should validate max_tokens maximum value', async ({ page }) => {
@@ -570,10 +589,14 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
 
       // THEN: Should show validation error
       const validationError = page.getByText(/must be at most|invalid|maximum/i);
-      const isInvalid = await maxTokensInput.evaluate((el) => (el as HTMLInputElement).validity.valid).catch(() => true);
+      const isInvalid = await maxTokensInput
+        .evaluate((el) => (el as HTMLInputElement).validity.valid)
+        .catch(() => true);
 
       // Either client-side validation or error message
-      expect(!isInvalid || await validationError.isVisible({ timeout: 3000 }).catch(() => false)).toBeTruthy();
+      expect(
+        !isInvalid || (await validationError.isVisible({ timeout: 3000 }).catch(() => false))
+      ).toBeTruthy();
     });
   });
 
@@ -597,7 +620,10 @@ test.describe('Story 7-2: LLM Configuration E2E Tests', () => {
       const initialFetchCount = fetchCount;
 
       // WHEN: Admin clicks refresh button in the LiteLLM Proxy section
-      const refreshButton = page.locator('button').filter({ has: page.locator('svg') }).first();
+      const refreshButton = page
+        .locator('button')
+        .filter({ has: page.locator('svg') })
+        .first();
       // Find the small refresh button near "Updated X ago"
       const updateText = page.getByText(/Updated.*ago|Updated Never/);
       const refreshButtonNearUpdate = updateText.locator('..').locator('button').first();

@@ -88,10 +88,9 @@ export function useTraces(options: UseTracesOptions = {}) {
       if (options.skip !== undefined) params.set('skip', options.skip.toString());
       if (options.limit !== undefined) params.set('limit', options.limit.toString());
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/observability/traces?${params.toString()}`,
-        { credentials: 'include' }
-      );
+      const res = await fetch(`${API_BASE_URL}/api/v1/observability/traces?${params.toString()}`, {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         if (res.status === 403) {
@@ -120,10 +119,9 @@ export function useTraceDetail(traceId: string | null) {
     queryFn: async (): Promise<TraceDetailResponse> => {
       if (!traceId) throw new Error('Trace ID required');
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/observability/traces/${traceId}`,
-        { credentials: 'include' }
-      );
+      const res = await fetch(`${API_BASE_URL}/api/v1/observability/traces/${traceId}`, {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         if (res.status === 404) {

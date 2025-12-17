@@ -15,6 +15,7 @@ import type {
   LLMConfigUpdateRequest,
   LLMConfigUpdateResponse,
   LLMHealthResponse,
+  RewriterModelResponse,
 } from '@/types/llm-config';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -34,6 +35,13 @@ interface UseLLMConfigReturn {
   testHealth: () => Promise<LLMHealthResponse>;
   refetch: () => Promise<void>;
   lastFetched: Date | null;
+  // Story 8-0: Query Rewriter Model Configuration
+  rewriterModelId: string | null | undefined;
+  isLoadingRewriterModel: boolean;
+  rewriterModelError: Error | null;
+  updateRewriterModel: (modelId: string | null) => Promise<void>;
+  isUpdatingRewriterModel: boolean;
+  fetchRewriterModel: () => Promise<void>;
 }
 
 export function useLLMConfig(): UseLLMConfigReturn {
@@ -46,8 +54,15 @@ export function useLLMConfig(): UseLLMConfigReturn {
   const [isTestingHealth, setIsTestingHealth] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
+  // Story 8-0: Query Rewriter Model state
+  const [rewriterModelId, setRewriterModelId] = useState<string | null | undefined>();
+  const [isLoadingRewriterModel, setIsLoadingRewriterModel] = useState(false);
+  const [rewriterModelError, setRewriterModelError] = useState<Error | null>(null);
+  const [isUpdatingRewriterModel, setIsUpdatingRewriterModel] = useState(false);
+
   // Track if initial fetch is in progress to prevent duplicate calls
   const fetchingRef = useRef(false);
+  const fetchingRewriterRef = useRef(false);
   const mountedRef = useRef(true);
 
   const fetchConfig = useCallback(async () => {
@@ -69,9 +84,7 @@ export function useLLMConfig(): UseLLMConfigReturn {
           throw new Error('Admin access required to view LLM configuration.');
         }
         const errorData = await response.json().catch(() => null);
-        throw new Error(
-          errorData?.detail || `Failed to fetch LLM config: ${response.status}`
-        );
+        throw new Error(errorData?.detail || `Failed to fetch LLM config: ${response.status}`);
       }
 
       const data: LLMConfig = await response.json();
@@ -114,9 +127,7 @@ export function useLLMConfig(): UseLLMConfigReturn {
             throw new Error('Admin access required to update LLM configuration.');
           }
           const errorData = await response.json().catch(() => null);
-          throw new Error(
-            errorData?.detail || `Failed to update LLM config: ${response.status}`
-          );
+          throw new Error(errorData?.detail || `Failed to update LLM config: ${response.status}`);
         }
 
         const data: LLMConfigUpdateResponse = await response.json();
@@ -153,9 +164,7 @@ export function useLLMConfig(): UseLLMConfigReturn {
           throw new Error('Admin access required to test LLM health.');
         }
         const errorData = await response.json().catch(() => null);
-        throw new Error(
-          errorData?.detail || `Failed to test LLM health: ${response.status}`
-        );
+        throw new Error(errorData?.detail || `Failed to test LLM health: ${response.status}`);
       }
 
       const data: LLMHealthResponse = await response.json();
@@ -166,6 +175,96 @@ export function useLLMConfig(): UseLLMConfigReturn {
     }
   }, []);
 
+  // Story 8-0: Fetch query rewriter model configuration
+  const fetchRewriterModel = useCallback(async () => {
+    if (fetchingRewriterRef.current) return;
+    fetchingRewriterRef.current = true;
+    setIsLoadingRewriterModel(true);
+    setRewriterModelError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/config/rewriter-model`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please log in again.');
+        }
+        if (response.status === 403) {
+          throw new Error('Admin access required to view rewriter model configuration.');
+        }
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.detail || `Failed to fetch rewriter model config: ${response.status}`
+        );
+      }
+
+      const data: RewriterModelResponse = await response.json();
+      if (mountedRef.current) {
+        setRewriterModelId(data.model_id);
+      }
+    } catch (err) {
+      if (mountedRef.current) {
+        setRewriterModelError(err instanceof Error ? err : new Error('Unknown error'));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setIsLoadingRewriterModel(false);
+      }
+      fetchingRewriterRef.current = false;
+    }
+  }, []);
+
+  // Story 8-0: Update query rewriter model configuration
+  const updateRewriterModel = useCallback(async (modelId: string | null): Promise<void> => {
+    setIsUpdatingRewriterModel(true);
+    setRewriterModelError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/config/rewriter-model`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ model_id: modelId }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please log in again.');
+        }
+        if (response.status === 403) {
+          throw new Error('Admin access required to update rewriter model configuration.');
+        }
+        const errorData = await response.json().catch(() => null);
+        // Handle Pydantic validation errors (detail is an array) and FastAPI errors (detail is a string)
+        let errorMessage = `Failed to update rewriter model config: ${response.status}`;
+        if (errorData?.detail) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail;
+          } else if (Array.isArray(errorData.detail)) {
+            // Pydantic validation errors are arrays of objects with 'msg' field
+            errorMessage = errorData.detail
+              .map((e: { msg?: string }) => e.msg || 'Validation error')
+              .join(', ');
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data: RewriterModelResponse = await response.json();
+      setRewriterModelId(data.model_id);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      setRewriterModelError(error);
+      throw error;
+    } finally {
+      setIsUpdatingRewriterModel(false);
+    }
+  }, []);
+
   // Auto-fetch on mount and setup polling
   useEffect(() => {
     mountedRef.current = true;
@@ -173,6 +272,11 @@ export function useLLMConfig(): UseLLMConfigReturn {
     // Initial fetch
     if (!config && !isLoading && !error) {
       fetchConfig();
+    }
+
+    // Story 8-0: Also fetch rewriter model config
+    if (rewriterModelId === undefined && !isLoadingRewriterModel && !rewriterModelError) {
+      fetchRewriterModel();
     }
 
     // Setup polling for stale time (30 seconds)
@@ -186,7 +290,17 @@ export function useLLMConfig(): UseLLMConfigReturn {
       mountedRef.current = false;
       clearInterval(intervalId);
     };
-  }, [config, isLoading, error, isUpdating, fetchConfig]);
+  }, [
+    config,
+    isLoading,
+    error,
+    isUpdating,
+    fetchConfig,
+    rewriterModelId,
+    isLoadingRewriterModel,
+    rewriterModelError,
+    fetchRewriterModel,
+  ]);
 
   return {
     config,
@@ -200,5 +314,12 @@ export function useLLMConfig(): UseLLMConfigReturn {
     testHealth,
     refetch: fetchConfig,
     lastFetched,
+    // Story 8-0: Query Rewriter Model
+    rewriterModelId,
+    isLoadingRewriterModel,
+    rewriterModelError,
+    updateRewriterModel,
+    isUpdatingRewriterModel,
+    fetchRewriterModel,
   };
 }

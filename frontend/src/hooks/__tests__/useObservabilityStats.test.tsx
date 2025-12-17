@@ -6,10 +6,10 @@
  * RED PHASE: All tests are designed to FAIL until implementation is complete.
  */
 
-import { renderHook, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import React from "react";
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import React from 'react';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -23,9 +23,7 @@ function createWrapper() {
   });
 
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -38,8 +36,8 @@ function createMockStatsResponse() {
       completionTokens: 25000,
       totalCostUsd: 5.75,
       byModel: [
-        { model: "gpt-4", tokens: 80000, cost: 4.0 },
-        { model: "gpt-3.5-turbo", tokens: 45000, cost: 1.75 },
+        { model: 'gpt-4', tokens: 80000, cost: 4.0 },
+        { model: 'gpt-3.5-turbo', tokens: 45000, cost: 1.75 },
       ],
       trend: [],
     },
@@ -64,7 +62,7 @@ function createMockStatsResponse() {
   };
 }
 
-describe("useObservabilityStats", () => {
+describe('useObservabilityStats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -74,56 +72,48 @@ describe("useObservabilityStats", () => {
     vi.useRealTimers();
   });
 
-  describe("AC5: Period parameter passed to API", () => {
-    it("fetches_stats_for_selected_period", async () => {
+  describe('AC5: Period parameter passed to API', () => {
+    it('fetches_stats_for_selected_period', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => createMockStatsResponse(),
       });
 
       // This will fail until useObservabilityStats is implemented
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result } = renderHook(
-        () => useObservabilityStats({ period: "week" }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useObservabilityStats({ period: 'week' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("period=week"),
+        expect.stringContaining('period=week'),
         expect.any(Object)
       );
     });
 
-    it("refetches_when_period_changes", async () => {
+    it('refetches_when_period_changes', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => createMockStatsResponse(),
       });
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result, rerender } = renderHook(
-        ({ period }) => useObservabilityStats({ period }),
-        {
-          wrapper: createWrapper(),
-          initialProps: { period: "day" as const },
-        }
-      );
+      const { result, rerender } = renderHook(({ period }) => useObservabilityStats({ period }), {
+        wrapper: createWrapper(),
+        initialProps: { period: 'day' as const },
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      rerender({ period: "week" as const });
+      rerender({ period: 'week' as const });
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -131,19 +121,17 @@ describe("useObservabilityStats", () => {
     });
   });
 
-  describe("AC6: Auto-refresh every 30s", () => {
-    it("auto_refreshes_at_configured_interval", async () => {
+  describe('AC6: Auto-refresh every 30s', () => {
+    it('auto_refreshes_at_configured_interval', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => createMockStatsResponse(),
       });
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
       const { result } = renderHook(
-        () => useObservabilityStats({ period: "day", refreshInterval: 30000 }),
+        () => useObservabilityStats({ period: 'day', refreshInterval: 30000 }),
         { wrapper: createWrapper() }
       );
 
@@ -164,20 +152,17 @@ describe("useObservabilityStats", () => {
       });
     });
 
-    it("manual_refresh_triggers_refetch", async () => {
+    it('manual_refresh_triggers_refetch', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => createMockStatsResponse(),
       });
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result } = renderHook(
-        () => useObservabilityStats({ period: "day" }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useObservabilityStats({ period: 'day' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -196,21 +181,18 @@ describe("useObservabilityStats", () => {
     });
   });
 
-  describe("AC9: Independent widget loading", () => {
-    it("handles_parallel_widget_fetching", async () => {
+  describe('AC9: Independent widget loading', () => {
+    it('handles_parallel_widget_fetching', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => createMockStatsResponse(),
       });
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result } = renderHook(
-        () => useObservabilityStats({ period: "day" }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useObservabilityStats({ period: 'day' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -223,19 +205,14 @@ describe("useObservabilityStats", () => {
       expect(result.current.data?.systemHealth).toBeDefined();
     });
 
-    it("handles_individual_widget_errors", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        new Error("Network error")
-      );
+    it('handles_individual_widget_errors', async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result } = renderHook(
-        () => useObservabilityStats({ period: "day" }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useObservabilityStats({ period: 'day' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -244,7 +221,7 @@ describe("useObservabilityStats", () => {
       expect(result.current.error).toBeDefined();
     });
 
-    it("provides_loading_state_per_widget", async () => {
+    it('provides_loading_state_per_widget', async () => {
       let resolvePromise: (value: unknown) => void;
       const promise = new Promise((resolve) => {
         resolvePromise = resolve;
@@ -252,14 +229,11 @@ describe("useObservabilityStats", () => {
 
       (global.fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(promise);
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result } = renderHook(
-        () => useObservabilityStats({ period: "day" }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useObservabilityStats({ period: 'day' }), {
+        wrapper: createWrapper(),
+      });
 
       // Should be loading initially
       expect(result.current.isLoading).toBe(true);
@@ -278,21 +252,18 @@ describe("useObservabilityStats", () => {
     });
   });
 
-  describe("Data transformation", () => {
-    it("transforms_api_response_to_widget_format", async () => {
+  describe('Data transformation', () => {
+    it('transforms_api_response_to_widget_format', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => createMockStatsResponse(),
       });
 
-      const { useObservabilityStats } = await import(
-        "../../useObservabilityStats"
-      );
+      const { useObservabilityStats } = await import('../../useObservabilityStats');
 
-      const { result } = renderHook(
-        () => useObservabilityStats({ period: "day" }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useObservabilityStats({ period: 'day' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

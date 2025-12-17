@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles } from 'lucide-react';
 
 export function WelcomeStep() {
   return (
@@ -18,9 +18,7 @@ export function WelcomeStep() {
         <p className="text-sm leading-relaxed">
           Transform how you access, synthesize, and create knowledge artifacts.
         </p>
-        <p className="text-sm font-medium">
-          Knowledge that never walks out the door.
-        </p>
+        <p className="text-sm font-medium">Knowledge that never walks out the door.</p>
       </div>
     </div>
   );

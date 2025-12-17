@@ -10,13 +10,7 @@ import { useState } from 'react';
 import { Activity, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useTraces } from '@/hooks/useTraces';
@@ -98,19 +92,12 @@ export default function TracesPage() {
           <CardHeader className="pb-0">
             <CardTitle>Trace List</CardTitle>
             <CardDescription>
-              {isLoading ? (
-                <Skeleton className="h-4 w-32" />
-              ) : (
-                `${data?.total || 0} traces found`
-              )}
+              {isLoading ? <Skeleton className="h-4 w-32" /> : `${data?.total || 0} traces found`}
             </CardDescription>
           </CardHeader>
 
           {/* Filters */}
-          <TraceFiltersComponent
-            filters={filters}
-            onFilterChange={handleFilterChange}
-          />
+          <TraceFiltersComponent filters={filters} onFilterChange={handleFilterChange} />
 
           <CardContent className="pt-4 space-y-4">
             {/* Error state */}
@@ -146,10 +133,7 @@ export default function TracesPage() {
         </Card>
 
         {/* Trace Detail Panel (slide-out) */}
-        <TraceDetailPanel
-          traceId={selectedTraceId}
-          onClose={handleCloseDetail}
-        />
+        <TraceDetailPanel traceId={selectedTraceId} onClose={handleCloseDetail} />
       </div>
     </DashboardLayout>
   );

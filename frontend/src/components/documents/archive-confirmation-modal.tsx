@@ -45,8 +45,8 @@ export function ArchiveConfirmationModal({
 
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This document will be removed from search results and the active document list.
-            You can restore it later from the Archive page.
+            This document will be removed from search results and the active document list. You can
+            restore it later from the Archive page.
           </p>
         </div>
 

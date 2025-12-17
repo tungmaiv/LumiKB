@@ -12,12 +12,7 @@
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { FileText, Code } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export type ViewMode = 'original' | 'markdown';
 
@@ -45,11 +40,7 @@ interface ViewModeToggleProps {
  *   onChange={(mode) => setViewMode(mode)}
  * />
  */
-export function ViewModeToggle({
-  markdownAvailable,
-  value,
-  onChange,
-}: ViewModeToggleProps) {
+export function ViewModeToggle({ markdownAvailable, value, onChange }: ViewModeToggleProps) {
   // Handle value change from toggle group
   const handleChange = (newValue: string) => {
     // Only trigger onChange for valid mode values

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { AlertCircle, RotateCw, Search, FileText } from "lucide-react";
+import { AlertCircle, RotateCw, Search, FileText } from 'lucide-react';
 
 import {
   AlertDialog,
@@ -11,7 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
 export interface RecoveryOption {
   type: string;
@@ -51,8 +51,7 @@ export function ErrorRecoveryDialog({
             Generation Failed
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Something went wrong while generating your draft. Here&apos;s what you
-            can do:
+            Something went wrong while generating your draft. Here&apos;s what you can do:
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -73,9 +72,7 @@ export function ErrorRecoveryDialog({
                   >
                     <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
                     <div>
-                      <div className="font-medium text-sm">
-                        {option.description}
-                      </div>
+                      <div className="font-medium text-sm">{option.description}</div>
                     </div>
                   </button>
                 );
@@ -87,20 +84,14 @@ export function ErrorRecoveryDialog({
           <div className="rounded-md bg-muted p-3 text-sm">
             <p className="font-medium mb-1">Error details:</p>
             <p className="text-muted-foreground">{errorMessage}</p>
-            {errorType && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Type: {errorType}
-              </p>
-            )}
+            {errorType && <p className="text-xs text-muted-foreground mt-1">Type: {errorType}</p>}
           </div>
         </div>
 
         <AlertDialogFooter>
           <AlertDialogCancel>Dismiss</AlertDialogCancel>
           {recoveryOptions.length === 0 && (
-            <AlertDialogAction onClick={onClose}>
-              Contact Support
-            </AlertDialogAction>
+            <AlertDialogAction onClick={onClose}>Contact Support</AlertDialogAction>
           )}
         </AlertDialogFooter>
       </AlertDialogContent>

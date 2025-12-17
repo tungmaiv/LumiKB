@@ -189,9 +189,7 @@ export function useGenerationStream(): GenerationStreamResult {
           headers: {
             'Content-Type': 'application/json',
             // Include Last-Event-ID if resuming (Story 7-22 AC-7.22.3)
-            ...(reconnection.lastEventId
-              ? { 'Last-Event-ID': reconnection.lastEventId }
-              : {}),
+            ...(reconnection.lastEventId ? { 'Last-Event-ID': reconnection.lastEventId } : {}),
           },
           credentials: 'include',
           signal: abortController.signal,
@@ -353,12 +351,9 @@ export function useGenerationStream(): GenerationStreamResult {
     reconnection.enablePolling(async () => {
       // Poll for status - this would need a corresponding API endpoint
       try {
-        const response = await fetch(
-          `/api/v1/generate/status/${state.generationId}`,
-          {
-            credentials: 'include',
-          }
-        );
+        const response = await fetch(`/api/v1/generate/status/${state.generationId}`, {
+          credentials: 'include',
+        });
         if (response.ok) {
           const data = await response.json();
           setState((prev) => ({

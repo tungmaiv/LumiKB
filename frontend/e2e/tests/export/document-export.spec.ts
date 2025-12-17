@@ -25,7 +25,8 @@ test.describe('Document Export - Story 4-7', () => {
       data: {
         kb_id: '00000000-0000-0000-0000-000000000001', // Demo KB from seed
         title: 'Test Export Draft',
-        content: '# Authentication System\n\nOur system uses OAuth 2.0 [1] for secure authentication. This aligns with industry standards [2].\n\n## Security\n\nMulti-factor authentication [3] is required.',
+        content:
+          '# Authentication System\n\nOur system uses OAuth 2.0 [1] for secure authentication. This aligns with industry standards [2].\n\n## Security\n\nMulti-factor authentication [3] is required.',
         citations: [
           {
             number: 1,
@@ -34,7 +35,8 @@ test.describe('Document Export - Story 4-7', () => {
             page: 14,
             chunk_index: 42,
             confidence_score: 0.95,
-            snippet: 'OAuth 2.0 with Proof Key for Code Exchange (PKCE) provides enhanced security for authentication flows.',
+            snippet:
+              'OAuth 2.0 with Proof Key for Code Exchange (PKCE) provides enhanced security for authentication flows.',
           },
           {
             number: 2,
@@ -79,7 +81,9 @@ test.describe('Document Export - Story 4-7', () => {
 
   test('[P0] DOCX Export - Happy Path (AC3)', async ({ authenticatedPage }) => {
     // GIVEN: User is on draft editor page with completed draft
-    await expect(authenticatedPage.locator('[data-testid="draft-title"]')).toContainText(draftTitle);
+    await expect(authenticatedPage.locator('[data-testid="draft-title"]')).toContainText(
+      draftTitle
+    );
 
     // WHEN: User clicks Export button
     await authenticatedPage.click('[data-testid="export-button"]');
@@ -96,8 +100,12 @@ test.describe('Document Export - Story 4-7', () => {
 
     // THEN: Verification dialog appears
     await expect(authenticatedPage.locator('[data-testid="verification-dialog"]')).toBeVisible();
-    await expect(authenticatedPage.locator('[data-testid="verification-message"]')).toContainText('Have you verified the sources?');
-    await expect(authenticatedPage.locator('[data-testid="citation-count"]')).toContainText('3 citations');
+    await expect(authenticatedPage.locator('[data-testid="verification-message"]')).toContainText(
+      'Have you verified the sources?'
+    );
+    await expect(authenticatedPage.locator('[data-testid="citation-count"]')).toContainText(
+      '3 citations'
+    );
 
     // WHEN: User clicks "Export Anyway"
     const downloadPromise = authenticatedPage.waitForEvent('download');
@@ -115,7 +123,9 @@ test.describe('Document Export - Story 4-7', () => {
 
   test('[P1] PDF Export - Happy Path (AC4)', async ({ authenticatedPage }) => {
     // GIVEN: User is on draft editor page
-    await expect(authenticatedPage.locator('[data-testid="draft-title"]')).toContainText(draftTitle);
+    await expect(authenticatedPage.locator('[data-testid="draft-title"]')).toContainText(
+      draftTitle
+    );
 
     // WHEN: User exports as PDF
     await authenticatedPage.click('[data-testid="export-button"]');
@@ -137,7 +147,9 @@ test.describe('Document Export - Story 4-7', () => {
 
   test('[P1] Markdown Export - Happy Path (AC5)', async ({ authenticatedPage }) => {
     // GIVEN: User is on draft editor page
-    await expect(authenticatedPage.locator('[data-testid="draft-title"]')).toContainText(draftTitle);
+    await expect(authenticatedPage.locator('[data-testid="draft-title"]')).toContainText(
+      draftTitle
+    );
 
     // WHEN: User exports as Markdown
     await authenticatedPage.click('[data-testid="export-button"]');
@@ -181,7 +193,9 @@ test.describe('Document Export - Story 4-7', () => {
     expect(download.suggestedFilename()).toBeTruthy();
 
     // THEN: Verification dialog closes
-    await expect(authenticatedPage.locator('[data-testid="verification-dialog"]')).not.toBeVisible();
+    await expect(
+      authenticatedPage.locator('[data-testid="verification-dialog"]')
+    ).not.toBeVisible();
   });
 
   test('[P1] Verification Prompt Cancellation (AC2)', async ({ authenticatedPage }) => {
@@ -195,7 +209,9 @@ test.describe('Document Export - Story 4-7', () => {
     await authenticatedPage.click('[data-testid="go-back-button"]');
 
     // THEN: Verification dialog closes
-    await expect(authenticatedPage.locator('[data-testid="verification-dialog"]')).not.toBeVisible();
+    await expect(
+      authenticatedPage.locator('[data-testid="verification-dialog"]')
+    ).not.toBeVisible();
 
     // THEN: Export modal is still open (user can select different format)
     await expect(authenticatedPage.locator('[data-testid="export-modal"]')).toBeVisible();

@@ -103,11 +103,7 @@ async function fetchObservabilityStats(period: TimePeriod): Promise<Observabilit
  * ```
  */
 export function useObservabilityStats(options: UseObservabilityStatsOptions = {}) {
-  const {
-    period = 'day',
-    refreshInterval = 30000,
-    enabled = true,
-  } = options;
+  const { period = 'day', refreshInterval = 30000, enabled = true } = options;
 
   return useQuery({
     queryKey: ['observability-stats', period],

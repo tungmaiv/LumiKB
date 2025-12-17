@@ -177,15 +177,17 @@ development_status:
   7-15-kb-settings-ui-prompts: done  # ✅ DONE 2025-12-10: KB Settings UI - Prompts Panel COMPLETED. All 8 ACs satisfied (System prompt editor, Character count/validation, Variables help, Citation style selector, Uncertainty handling, Response language, Prompt preview, Template loading). PromptsPanel component with Zod validation, preview modal, template confirmation dialog. 38 tests passing. Integrated with KbSettingsModal. Production-ready. See: 7-15-kb-settings-ui-prompts.md
   7-16-kb-settings-presets: done  # ✅ DONE 2025-12-10: KB Settings Presets COMPLETED. All 8 ACs satisfied (Preset dropdown, Legal/Technical/Creative/Code/General presets, Confirmation dialog, Preset detection). 60 tests passing (30 unit + 15 integration + 15 E2E). Backend: kb_presets.py with preset definitions, 3 API endpoints. Frontend: PresetSelector component with AlertDialog. Code review APPROVED. See: 7-16-kb-settings-presets.md
   7-17-service-integration: done  # ✅ DONE 2025-12-10: Service Integration COMPLETED. 5/6 ACs fully satisfied (SearchService KB config, GenerationService KB config, System prompt, Request overrides, Audit logging). AC-7.17.4 (document worker chunking) tracked as tech debt. 27 tests passing (17 integration + 10 E2E). Code review APPROVED WITH NOTES. EXTENDED 2025-12-17: ChunkService now uses KB's embedding model for chunk search via KBConfigResolver. Fixed qdrant-client 1.16+ API (search→query_points). See: 7-17-service-integration.md
-  epic-7-retrospective: optional
+  epic-7-retrospective: done  # ✅ COMPLETED 2025-12-17: Retrospective facilitated. 32 stories delivered (116 SP). Key learnings: Feature flag + Strategy pattern for safe rollouts, KB-level configuration power, RBAC simplicity. Critical action item: Testing documentation gaps identified (API endpoints, credentials, auth flow, hybrid setup). 6 action items documented. See: docs/sprint-artifacts/epic-7-retrospective-2025-12-17.md
 
-  # Epic 8: GraphRAG Integration (16 stories)
+  # Epic 8: GraphRAG Integration (18 stories)
   # NEW 2025-12-08: Knowledge graph-augmented retrieval using Neo4j and LLM-based entity extraction.
   # Core capabilities: Domain schema management, entity extraction, graph-augmented search,
   # retrieval strategy abstraction, schema evolution with re-extraction.
   # Technology: Neo4j Community Edition, LLM-based NER via LiteLLM, configurable domains per KB.
+  # Story 8-0 added 2025-12-17: History-Aware Query Rewriting (chat memory improvement)
   # Story 8-16 added 2025-12-08: E2E Test Automation (split from Story 7-1)
-  # Total Story Points: 65 (was 63, +2 for Story 8-16)
+  # Story 8-17 added 2025-12-17: Hybrid BM25 + Vector Retrieval
+  # Total Story Points: 81 (was 65, +5 for 8-0, +8 for 8-17, +3 for 8-16 correction)
   # Tech Debt Sprint (Pre-Epic 8) - Stories 7-18 through 7-23
   # Purpose: Resolve accumulated tech debt before starting GraphRAG epic
   # Duration: 2025-12-10 to 2025-12-12 (3 days)
@@ -220,9 +222,10 @@ development_status:
   # Feature: Alternative document parser with better table extraction and layout analysis
   # Feature-flagged (LUMIKB_PARSER_DOCLING_ENABLED), KB-level setting (processing.parser_backend)
   # See: docs/sprint-artifacts/7-32-docling-parser-integration.md, correct-course-handover-docling-integration.md
-  7-32-docling-parser-integration: ready-for-dev  # 🚀 READY 2025-12-16: Story + context validated. Docling parser integration with feature flag + KB setting. KB setting: processing.parser_backend (unstructured/docling/auto). All document types (PDF, DOCX, MD). T2 (schema) DONE. 17 ACs, 11 tasks. Context: 7-32-docling-parser-integration.context.xml (2 pts)
+  7-32-docling-parser-integration: done  # ✅ DONE 2025-12-17: Code review APPROVED. 16/17 ACs satisfied (AC-7.32.3 UI deferred as optional). Feature flag LUMIKB_PARSER_DOCLING_ENABLED, KB setting processing.parser_backend (unstructured/docling/auto), strategy pattern in parsing.py, docling_parser.py module. 30 unit + 9 integration tests passing. Ruff clean. Production-ready. (2 pts)
 
-  epic-8: contexted  # ✅ CONTEXTED 2025-12-08: Tech spec generated with comprehensive design, Neo4j infrastructure, domain management, entity extraction, graph-augmented retrieval. See: docs/sprint-artifacts/tech-spec-epic-8.md
+  epic-8: contexted  # ✅ CONTEXTED 2025-12-08: Tech spec generated with comprehensive design, Neo4j infrastructure, domain management, entity extraction, graph-augmented retrieval. UPDATED 2025-12-17: Added Story 8.0 (Query Rewriting) and 8.17 (Hybrid BM25). See: docs/sprint-artifacts/tech-spec-epic-8.md
+  8-0-history-aware-query-rewriting: done  # ✅ DONE 2025-12-17: All 10 ACs satisfied. QueryRewriterService (pronoun/reference resolution, 5s timeout), Admin > LLM Configuration dropdown, ConversationService integration. 14 unit + 9 integration tests. Code review APPROVED. BUG FIX 2025-12-18: Fixed log_llm_call() parameter (trace_id→ctx) that caused follow-up questions to fail. (5 pts)
   8-1-neo4j-docker-infrastructure: backlog  # Neo4j Docker setup, Python driver, health checks (2 pts)
   8-2-domain-data-model: backlog  # PostgreSQL schema for domains, entity types, relationships (3 pts)
   8-3-system-domain-templates: backlog  # 5 pre-built templates: IT Ops, Legal, Sales, PM, HR (3 pts)
@@ -238,7 +241,8 @@ development_status:
   8-13-llm-schema-enrichment: backlog  # Unrecognized entity detection, enrichment suggestions (5 pts)
   8-14-schema-evolution-reextraction: backlog  # Schema versioning, drift detection, re-extraction jobs (5 pts)
   8-15-batch-reprocessing-worker: backlog  # Dedicated Celery worker, rate limiting, progress tracking (3 pts)
-  8-16-e2e-test-automation: backlog  # ✅ NEW 2025-12-08: SPLIT from Story 7-1. Playwright Docker config, GitHub Actions E2E workflow, 70+ E2E tests for Epic 3-8. Depends on Story 7-1. (2 pts) See: 8-16-e2e-test-automation.md
+  8-16-e2e-test-automation: backlog  # ✅ NEW 2025-12-08: SPLIT from Story 7-1. Playwright Docker config, GitHub Actions E2E workflow, 70+ E2E tests for Epic 3-8. Depends on Story 7-1. (5 pts) See: 8-16-e2e-test-automation.md
+  8-17-hybrid-bm25-vector-retrieval: backlog  # ✅ NEW 2025-12-17: Combines lexical (BM25/Elasticsearch) and semantic (vector) search. RRF result fusion. KB-level config. Admin UI. Depends on 8-12. (8 pts)
   epic-8-retrospective: optional
 
   # Epic 9: Hybrid Observability Platform (14 stories)

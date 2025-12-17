@@ -150,15 +150,18 @@ class GenerationService:
                     if model.config
                     else MAX_GENERATION_TOKENS
                 )
+                # Use proxy alias format (db-{uuid}) that LiteLLM proxy recognizes
+                proxy_model_id = f"db-{model.id}"
                 logger.info(
                     "kb_generation_config_loaded",
                     kb_id=kb_id,
                     model_id=model.model_id,
+                    proxy_model_id=proxy_model_id,
                     temperature=kb.temperature,
                     max_tokens=max_tokens,
                 )
                 return GenerationConfig(
-                    model_id=model.model_id,
+                    model_id=proxy_model_id,
                     temperature=kb.temperature,
                     max_tokens=max_tokens,
                 )

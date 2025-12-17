@@ -3,9 +3,9 @@
  * Story 5.20: Role & KB Permission Management UI (AC-5.20.1, AC-5.20.2)
  */
 
-export type PermissionLevel = "READ" | "WRITE" | "ADMIN";
-export type EntityType = "user" | "group";
-export type PermissionSourceType = "direct" | "group";
+export type PermissionLevel = 'READ' | 'WRITE' | 'ADMIN';
+export type EntityType = 'user' | 'group';
+export type PermissionSourceType = 'direct' | 'group';
 
 /**
  * Permission response for a single entity (user or group)
@@ -77,9 +77,9 @@ export interface EffectivePermissionListResponse {
  * Permission level hierarchy for UI display and validation
  */
 export const PERMISSION_LEVELS: { value: PermissionLevel; label: string; description: string }[] = [
-  { value: "READ", label: "Read", description: "Can view documents and search" },
-  { value: "WRITE", label: "Write", description: "Can upload and edit documents" },
-  { value: "ADMIN", label: "Admin", description: "Full control including permissions" },
+  { value: 'READ', label: 'Read', description: 'Can view documents and search' },
+  { value: 'WRITE', label: 'Write', description: 'Can upload and edit documents' },
+  { value: 'ADMIN', label: 'Admin', description: 'Full control including permissions' },
 ];
 
 /**

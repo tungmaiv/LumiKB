@@ -92,9 +92,7 @@ export function StepBreakdown({ steps, isExpanded, onToggleExpand }: StepBreakdo
           {steps.map((step) => {
             // Calculate live elapsed time for in_progress steps
             const displayDuration =
-              step.status === 'in_progress'
-                ? calculateElapsed(step.started_at)
-                : step.duration_ms;
+              step.status === 'in_progress' ? calculateElapsed(step.started_at) : step.duration_ms;
 
             return (
               <tr key={step.step} data-testid={`step-row-${step.step}`}>

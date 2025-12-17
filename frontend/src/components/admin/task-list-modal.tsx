@@ -10,15 +10,15 @@
  * Tasks sorted by started_at DESC (newest first).
  */
 
-import { useState, useMemo, Fragment } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { useState, useMemo, Fragment } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -26,15 +26,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useQueueTasks } from "@/hooks/useQueueTasks";
-import { useBulkRetry } from "@/hooks/useBulkRetry";
-import { StepBreakdown } from "./step-breakdown";
-import { FilterTabs, type FilterType, type FilterCounts } from "./filter-tabs";
-import { BulkRetryDialog, BulkRetryButton } from "./bulk-retry-dialog";
-import type { DocumentStatusFilter } from "@/types/queue";
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useQueueTasks } from '@/hooks/useQueueTasks';
+import { useBulkRetry } from '@/hooks/useBulkRetry';
+import { StepBreakdown } from './step-breakdown';
+import { FilterTabs, type FilterType, type FilterCounts } from './filter-tabs';
+import { BulkRetryDialog, BulkRetryButton } from './bulk-retry-dialog';
+import type { DocumentStatusFilter } from '@/types/queue';
 
 interface TaskListModalProps {
   queueName: string;
@@ -88,7 +88,7 @@ export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) 
   }, [tasks]);
 
   const formatDuration = (durationMs: number | null) => {
-    if (!durationMs) return "N/A";
+    if (!durationMs) return 'N/A';
     const seconds = Math.floor(durationMs / 1000);
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
@@ -97,11 +97,11 @@ export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) 
   };
 
   const formatStartedAt = (startedAt: string | null) => {
-    if (!startedAt) return "N/A";
+    if (!startedAt) return 'N/A';
     try {
       return formatDistanceToNow(new Date(startedAt), { addSuffix: true });
     } catch {
-      return "Invalid date";
+      return 'Invalid date';
     }
   };
 
@@ -198,9 +198,7 @@ export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) 
         )}
 
         {isLoading && (
-          <div className="py-8 text-center text-muted-foreground">
-            Loading tasks...
-          </div>
+          <div className="py-8 text-center text-muted-foreground">Loading tasks...</div>
         )}
 
         {error && (
@@ -219,9 +217,7 @@ export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) 
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">
-                  {/* Selection checkbox header */}
-                </TableHead>
+                <TableHead className="w-10">{/* Selection checkbox header */}</TableHead>
                 <TableHead>Document</TableHead>
                 <TableHead>Task</TableHead>
                 <TableHead>Status</TableHead>
@@ -245,11 +241,10 @@ export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) 
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {task.document_name || (task.document_id ? task.document_id.substring(0, 8) + '...' : 'N/A')}
+                      {task.document_name ||
+                        (task.document_id ? task.document_id.substring(0, 8) + '...' : 'N/A')}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {task.task_name.split(".").pop()}
-                    </TableCell>
+                    <TableCell className="text-sm">{task.task_name.split('.').pop()}</TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(task.document_status)}>
                         {task.document_status}
@@ -267,13 +262,15 @@ export function TaskListModal({ queueName, open, onClose }: TaskListModalProps) 
                       {formatDuration(task.estimated_duration)}
                     </TableCell>
                     <TableCell>
-                      {task.processing_steps && task.processing_steps.length > 0 && !expandedTaskIds.has(task.task_id) && (
-                        <StepBreakdown
-                          steps={task.processing_steps}
-                          isExpanded={false}
-                          onToggleExpand={() => toggleTaskExpand(task.task_id)}
-                        />
-                      )}
+                      {task.processing_steps &&
+                        task.processing_steps.length > 0 &&
+                        !expandedTaskIds.has(task.task_id) && (
+                          <StepBreakdown
+                            steps={task.processing_steps}
+                            isExpanded={false}
+                            onToggleExpand={() => toggleTaskExpand(task.task_id)}
+                          />
+                        )}
                     </TableCell>
                   </TableRow>
                   {/* Expanded step breakdown row */}

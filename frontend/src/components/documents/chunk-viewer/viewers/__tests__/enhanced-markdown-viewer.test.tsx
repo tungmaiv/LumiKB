@@ -70,9 +70,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 6, end: 11 }; // "World"
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert
     const highlightSegment = screen.getByTestId('highlight-segment');
@@ -86,9 +84,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 0, end: 5 }; // "Hello"
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert - should have yellow background with dark mode variant
     const highlightSegment = screen.getByTestId('highlight-segment');
@@ -101,9 +97,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 0, end: 5 }; // "Start"
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert
     const highlightSegment = screen.getByTestId('highlight-segment');
@@ -117,9 +111,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 5, end: 11 }; // "Middle"
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert
     const highlightSegment = screen.getByTestId('highlight-segment');
@@ -132,9 +124,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 11, end: 14 }; // "End"
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert
     const highlightSegment = screen.getByTestId('highlight-segment');
@@ -147,9 +137,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 5, end: 100 }; // end exceeds content length
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert - should clamp to valid range
     // "Short text" - start=5 is 't', end=100 clamped to 10
@@ -163,9 +151,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: -5, end: 4 };
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert - should clamp start to 0
     const highlightSegment = screen.getByTestId('highlight-segment');
@@ -182,9 +168,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 14, end: 20 };
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Fast-forward timer for the scroll delay
     vi.advanceTimersByTime(150);
@@ -264,9 +248,7 @@ describe('EnhancedMarkdownViewer', () => {
     const content = '# Test';
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} showFallbackMessage={true} />
-    );
+    render(<EnhancedMarkdownViewer content={content} showFallbackMessage={true} />);
 
     // Assert
     expect(screen.getByText('Enhanced view:')).toBeInTheDocument();
@@ -278,9 +260,7 @@ describe('EnhancedMarkdownViewer', () => {
     const content = '# Test';
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} showFallbackMessage={false} />
-    );
+    render(<EnhancedMarkdownViewer content={content} showFallbackMessage={false} />);
 
     // Assert
     expect(screen.queryByText('Enhanced view:')).not.toBeInTheDocument();
@@ -381,9 +361,7 @@ describe('EnhancedMarkdownViewer', () => {
     const highlightRange = { start: 5, end: 5 };
 
     // Act
-    render(
-      <EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />
-    );
+    render(<EnhancedMarkdownViewer content={content} highlightRange={highlightRange} />);
 
     // Assert - no highlight segment should be rendered
     expect(screen.queryByTestId('highlight-segment')).not.toBeInTheDocument();

@@ -42,7 +42,10 @@ import { useState, KeyboardEvent } from 'react';
 const createKbSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
   description: z.string().max(2000, 'Description must be less than 2000 characters').optional(),
-  tags: z.array(z.string().max(50, 'Tag must be less than 50 characters')).max(10, 'Maximum 10 tags allowed').optional(),
+  tags: z
+    .array(z.string().max(50, 'Tag must be less than 50 characters'))
+    .max(10, 'Maximum 10 tags allowed')
+    .optional(),
   /** Story 7-10: Optional embedding model from registry (AC-7.10.1) */
   embedding_model_id: z.string().optional(),
   /** Story 7-10: Optional generation model from registry (AC-7.10.1) */
@@ -91,7 +94,10 @@ export function KbCreateModal({ open, onOpenChange }: KbCreateModalProps): React
   };
 
   const removeTag = (tagToRemove: string) => {
-    form.setValue('tags', tags.filter((tag) => tag !== tagToRemove));
+    form.setValue(
+      'tags',
+      tags.filter((tag) => tag !== tagToRemove)
+    );
   };
 
   const handleTagInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -235,7 +241,9 @@ export function KbCreateModal({ open, onOpenChange }: KbCreateModalProps): React
 
             {/* Story 7-10: Model Configuration Section (AC-7.10.1-3, 7.10.6) */}
             <div className="space-y-4 border-t pt-4">
-              <p className="text-sm font-medium text-muted-foreground">Model Configuration (optional)</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Model Configuration (optional)
+              </p>
 
               {/* Embedding Model Selection (AC-7.10.1, 7.10.2) */}
               <FormField

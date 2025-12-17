@@ -9,7 +9,17 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Clock, Layers, User, FileText, Hash, Calendar, AlertCircle, CheckCircle, Timer } from 'lucide-react';
+import {
+  Clock,
+  Layers,
+  User,
+  FileText,
+  Hash,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  Timer,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,11 +53,7 @@ function TraceStatusBadge({ status }: { status: string }) {
     in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
   };
 
-  return (
-    <Badge className={cn(variants[status] || variants.completed)}>
-      {status}
-    </Badge>
-  );
+  return <Badge className={cn(variants[status] || variants.completed)}>{status}</Badge>;
 }
 
 /**
@@ -128,9 +134,7 @@ function getMetadataIcon(key: string) {
  * Format a metadata key for display
  */
 function formatMetadataKey(key: string): string {
-  return key
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -138,10 +142,20 @@ function formatMetadataKey(key: string): string {
  */
 function MetadataDisplay({ metadata }: { metadata: Record<string, unknown> }) {
   // Group important keys first
-  const priorityKeys = ['document_id', 'task_id', 'status', 'chunk_count', 'extracted_chars', 'page_count', 'section_count', 'total_duration_ms', 'error_message'];
+  const priorityKeys = [
+    'document_id',
+    'task_id',
+    'status',
+    'chunk_count',
+    'extracted_chars',
+    'page_count',
+    'section_count',
+    'total_duration_ms',
+    'error_message',
+  ];
   const sortedKeys = [
-    ...priorityKeys.filter(k => k in metadata),
-    ...Object.keys(metadata).filter(k => !priorityKeys.includes(k)),
+    ...priorityKeys.filter((k) => k in metadata),
+    ...Object.keys(metadata).filter((k) => !priorityKeys.includes(k)),
   ];
 
   return (
@@ -156,21 +170,21 @@ function MetadataDisplay({ metadata }: { metadata: Record<string, unknown> }) {
               <div
                 key={key}
                 className={cn(
-                  "flex items-start gap-2 p-2 rounded-md",
-                  isError ? "bg-red-50 dark:bg-red-900/20" : "bg-background"
+                  'flex items-start gap-2 p-2 rounded-md',
+                  isError ? 'bg-red-50 dark:bg-red-900/20' : 'bg-background'
                 )}
               >
-                <div className="mt-0.5 shrink-0">
-                  {getMetadataIcon(key)}
-                </div>
+                <div className="mt-0.5 shrink-0">{getMetadataIcon(key)}</div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-muted-foreground">
                     {formatMetadataKey(key)}
                   </div>
-                  <div className={cn(
-                    "text-sm font-mono break-all",
-                    isError ? "text-red-600 dark:text-red-400" : ""
-                  )}>
+                  <div
+                    className={cn(
+                      'text-sm font-mono break-all',
+                      isError ? 'text-red-600 dark:text-red-400' : ''
+                    )}
+                  >
                     {formatMetadataValue(value)}
                   </div>
                 </div>
@@ -223,9 +237,7 @@ export function TraceDetailPanel({ traceId, onClose }: TraceDetailPanelProps) {
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <span className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    {trace.duration_ms !== null
-                      ? `${trace.duration_ms}ms`
-                      : 'In progress'}
+                    {trace.duration_ms !== null ? `${trace.duration_ms}ms` : 'In progress'}
                   </span>
                   <span className="flex items-center gap-1">
                     <Layers className="h-4 w-4" />

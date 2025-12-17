@@ -5,11 +5,11 @@
  * Tests template fetching and caching behavior
  */
 
-import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
-import { useTemplates, useTemplate, type Template } from "../useTemplates";
-import React from "react";
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
+import { useTemplates, useTemplate, type Template } from '../useTemplates';
+import React from 'react';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -30,7 +30,7 @@ function createWrapper() {
   );
 }
 
-describe("useTemplates", () => {
+describe('useTemplates', () => {
   beforeEach(() => {
     mockFetch.mockClear();
   });
@@ -39,24 +39,24 @@ describe("useTemplates", () => {
     vi.clearAllMocks();
   });
 
-  test("[P1] fetches templates successfully", async () => {
+  test('[P1] fetches templates successfully', async () => {
     // GIVEN: API returns templates successfully
     const mockTemplates: Template[] = [
       {
-        id: "rfp_response",
-        name: "RFP Response Section",
-        description: "Generate a structured RFP response",
-        system_prompt: "You are an expert proposal writer...",
-        sections: ["Executive Summary", "Technical Approach"],
-        example_output: "## Executive Summary...",
+        id: 'rfp_response',
+        name: 'RFP Response Section',
+        description: 'Generate a structured RFP response',
+        system_prompt: 'You are an expert proposal writer...',
+        sections: ['Executive Summary', 'Technical Approach'],
+        example_output: '## Executive Summary...',
       },
       {
-        id: "checklist",
-        name: "Technical Checklist",
-        description: "Create a requirement checklist",
-        system_prompt: "Generate a checklist...",
-        sections: ["Requirements List"],
-        example_output: "- [ ] OAuth 2.0...",
+        id: 'checklist',
+        name: 'Technical Checklist',
+        description: 'Create a requirement checklist',
+        system_prompt: 'Generate a checklist...',
+        sections: ['Requirements List'],
+        example_output: '- [ ] OAuth 2.0...',
       },
     ];
 
@@ -82,12 +82,12 @@ describe("useTemplates", () => {
     expect(result.current.isError).toBe(false);
 
     // AND: Fetch was called with correct URL and credentials
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/generate/templates", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/generate/templates', {
+      credentials: 'include',
     });
   });
 
-  test("[P1] handles fetch error gracefully", async () => {
+  test('[P1] handles fetch error gracefully', async () => {
     // GIVEN: API returns error
     mockFetch.mockResolvedValueOnce({
       ok: false,
@@ -104,18 +104,18 @@ describe("useTemplates", () => {
 
     // THEN: Error state is set
     expect(result.current.error).toBeDefined();
-    expect(result.current.error?.message).toBe("Failed to fetch templates");
+    expect(result.current.error?.message).toBe('Failed to fetch templates');
     expect(result.current.data).toBeUndefined();
   });
 
-  test("[P2] uses infinite staleTime for caching", async () => {
+  test('[P2] uses infinite staleTime for caching', async () => {
     // GIVEN: API returns templates
     const mockTemplates: Template[] = [
       {
-        id: "rfp_response",
-        name: "RFP Response Section",
-        description: "Test",
-        system_prompt: "Test prompt",
+        id: 'rfp_response',
+        name: 'RFP Response Section',
+        description: 'Test',
+        system_prompt: 'Test prompt',
         sections: [],
         example_output: null,
       },
@@ -150,37 +150,37 @@ describe("useTemplates", () => {
     expect(result.current.data).toEqual(mockTemplates);
   });
 
-  test("[P1] returns all 4 templates in production data", async () => {
+  test('[P1] returns all 4 templates in production data', async () => {
     // GIVEN: Real template data structure
     const mockTemplates: Template[] = [
       {
-        id: "rfp_response",
-        name: "RFP Response Section",
-        description: "Generate a structured RFP response",
-        system_prompt: "You are an expert...",
-        sections: ["Executive Summary", "Technical Approach", "Relevant Experience", "Pricing"],
-        example_output: "## Executive Summary...",
+        id: 'rfp_response',
+        name: 'RFP Response Section',
+        description: 'Generate a structured RFP response',
+        system_prompt: 'You are an expert...',
+        sections: ['Executive Summary', 'Technical Approach', 'Relevant Experience', 'Pricing'],
+        example_output: '## Executive Summary...',
       },
       {
-        id: "checklist",
-        name: "Technical Checklist",
-        description: "Create a requirement checklist",
-        system_prompt: "Generate a checklist...",
-        sections: ["Requirements List"],
-        example_output: "- [ ] OAuth...",
+        id: 'checklist',
+        name: 'Technical Checklist',
+        description: 'Create a requirement checklist',
+        system_prompt: 'Generate a checklist...',
+        sections: ['Requirements List'],
+        example_output: '- [ ] OAuth...',
       },
       {
-        id: "gap_analysis",
-        name: "Gap Analysis",
-        description: "Compare requirements",
-        system_prompt: "Generate gap analysis...",
-        sections: ["Gap Analysis Table"],
-        example_output: "| Requirement | Current State |...",
+        id: 'gap_analysis',
+        name: 'Gap Analysis',
+        description: 'Compare requirements',
+        system_prompt: 'Generate gap analysis...',
+        sections: ['Gap Analysis Table'],
+        example_output: '| Requirement | Current State |...',
       },
       {
-        id: "custom",
-        name: "Custom Prompt",
-        description: "Generate based on your instructions",
+        id: 'custom',
+        name: 'Custom Prompt',
+        description: 'Generate based on your instructions',
         system_prompt: "Follow user's custom instructions...",
         sections: [],
         example_output: null,
@@ -202,14 +202,14 @@ describe("useTemplates", () => {
     // THEN: All 4 templates are returned
     expect(result.current.data?.length).toBe(4);
     const templateIds = result.current.data?.map((t) => t.id);
-    expect(templateIds).toContain("rfp_response");
-    expect(templateIds).toContain("checklist");
-    expect(templateIds).toContain("gap_analysis");
-    expect(templateIds).toContain("custom");
+    expect(templateIds).toContain('rfp_response');
+    expect(templateIds).toContain('checklist');
+    expect(templateIds).toContain('gap_analysis');
+    expect(templateIds).toContain('custom');
   });
 });
 
-describe("useTemplate", () => {
+describe('useTemplate', () => {
   beforeEach(() => {
     mockFetch.mockClear();
   });
@@ -218,15 +218,15 @@ describe("useTemplate", () => {
     vi.clearAllMocks();
   });
 
-  test("[P1] fetches single template by ID successfully", async () => {
+  test('[P1] fetches single template by ID successfully', async () => {
     // GIVEN: API returns specific template
     const mockTemplate: Template = {
-      id: "rfp_response",
-      name: "RFP Response Section",
-      description: "Generate a structured RFP response",
-      system_prompt: "You are an expert proposal writer...",
-      sections: ["Executive Summary", "Technical Approach"],
-      example_output: "## Executive Summary...",
+      id: 'rfp_response',
+      name: 'RFP Response Section',
+      description: 'Generate a structured RFP response',
+      system_prompt: 'You are an expert proposal writer...',
+      sections: ['Executive Summary', 'Technical Approach'],
+      example_output: '## Executive Summary...',
     };
 
     mockFetch.mockResolvedValueOnce({
@@ -235,7 +235,7 @@ describe("useTemplate", () => {
     });
 
     // WHEN: Hook is rendered with template ID
-    const { result } = renderHook(() => useTemplate("rfp_response"), {
+    const { result } = renderHook(() => useTemplate('rfp_response'), {
       wrapper: createWrapper(),
     });
 
@@ -244,15 +244,15 @@ describe("useTemplate", () => {
 
     // THEN: Template data is returned
     expect(result.current.data).toEqual(mockTemplate);
-    expect(result.current.data?.id).toBe("rfp_response");
+    expect(result.current.data?.id).toBe('rfp_response');
 
     // AND: Fetch was called with correct URL
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/generate/templates/rfp_response", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/generate/templates/rfp_response', {
+      credentials: 'include',
     });
   });
 
-  test("[P1] handles 404 error for invalid template ID", async () => {
+  test('[P1] handles 404 error for invalid template ID', async () => {
     // GIVEN: API returns 404
     mockFetch.mockResolvedValueOnce({
       ok: false,
@@ -260,7 +260,7 @@ describe("useTemplate", () => {
     });
 
     // WHEN: Hook is rendered with invalid ID
-    const { result } = renderHook(() => useTemplate("invalid_id"), {
+    const { result } = renderHook(() => useTemplate('invalid_id'), {
       wrapper: createWrapper(),
     });
 
@@ -269,12 +269,12 @@ describe("useTemplate", () => {
 
     // THEN: Error state is set
     expect(result.current.error).toBeDefined();
-    expect(result.current.error?.message).toBe("Failed to fetch template: invalid_id");
+    expect(result.current.error?.message).toBe('Failed to fetch template: invalid_id');
   });
 
-  test("[P2] query is disabled when templateId is empty", () => {
+  test('[P2] query is disabled when templateId is empty', () => {
     // GIVEN: Hook is rendered without template ID
-    const { result } = renderHook(() => useTemplate(""), {
+    const { result } = renderHook(() => useTemplate(''), {
       wrapper: createWrapper(),
     });
 
@@ -284,13 +284,13 @@ describe("useTemplate", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  test("[P2] uses infinite staleTime for caching", async () => {
+  test('[P2] uses infinite staleTime for caching', async () => {
     // GIVEN: API returns template
     const mockTemplate: Template = {
-      id: "checklist",
-      name: "Technical Checklist",
-      description: "Test",
-      system_prompt: "Test prompt",
+      id: 'checklist',
+      name: 'Technical Checklist',
+      description: 'Test',
+      system_prompt: 'Test prompt',
       sections: [],
       example_output: null,
     };
@@ -308,7 +308,7 @@ describe("useTemplate", () => {
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
 
-    const { result, rerender } = renderHook(() => useTemplate("checklist"), { wrapper });
+    const { result, rerender } = renderHook(() => useTemplate('checklist'), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 

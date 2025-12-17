@@ -82,13 +82,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
   describe('[P0] AC-7.27.11: Filter tabs', () => {
     it('should render all four filter tabs', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       expect(screen.getByTestId('tab-all')).toBeInTheDocument();
       expect(screen.getByTestId('tab-active')).toBeInTheDocument();
@@ -97,13 +91,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
     });
 
     it('should have correct text labels for each tab', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       expect(screen.getByTestId('tab-all')).toHaveTextContent('All');
       expect(screen.getByTestId('tab-active')).toHaveTextContent('Active');
@@ -112,25 +100,13 @@ describe('FilterTabs Component (Story 7-27)', () => {
     });
 
     it('should use tablist role for container', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
 
     it('should use tab role for each filter button', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       const tabs = screen.getAllByRole('tab');
       expect(tabs).toHaveLength(4);
@@ -139,13 +115,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
   describe('[P0] AC-7.27.12: Failed count badge', () => {
     it('should show count badge on Failed tab when failed count > 0', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       const badge = screen.getByTestId('failed-count-badge');
       expect(badge).toBeInTheDocument();
@@ -166,11 +136,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
     it('should update badge when failed count changes', () => {
       const { rerender } = render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />
       );
 
       expect(screen.getByTestId('failed-count-badge')).toHaveTextContent('(3)');
@@ -187,13 +153,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
     });
 
     it('should display badge within Failed tab button', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       const failedTab = screen.getByTestId('tab-failed');
       const badge = within(failedTab).getByTestId('failed-count-badge');
@@ -206,11 +166,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
       const onFilterChange = vi.fn();
 
       render(
-        <FilterTabs
-          activeFilter="active"
-          onFilterChange={onFilterChange}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="active" onFilterChange={onFilterChange} counts={defaultCounts} />
       );
 
       await user.click(screen.getByTestId('tab-all'));
@@ -222,11 +178,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
       const onFilterChange = vi.fn();
 
       render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="all" onFilterChange={onFilterChange} counts={defaultCounts} />
       );
 
       await user.click(screen.getByTestId('tab-active'));
@@ -238,11 +190,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
       const onFilterChange = vi.fn();
 
       render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="all" onFilterChange={onFilterChange} counts={defaultCounts} />
       );
 
       await user.click(screen.getByTestId('tab-pending'));
@@ -254,11 +202,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
       const onFilterChange = vi.fn();
 
       render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="all" onFilterChange={onFilterChange} counts={defaultCounts} />
       );
 
       await user.click(screen.getByTestId('tab-failed'));
@@ -270,11 +214,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
       const onFilterChange = vi.fn();
 
       render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={onFilterChange}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="all" onFilterChange={onFilterChange} counts={defaultCounts} />
       );
 
       await user.click(screen.getByTestId('tab-failed'));
@@ -286,13 +226,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
   describe('[P0] AC-7.27.14: Filter persistence during modal session', () => {
     it('should highlight active filter tab', () => {
-      render(
-        <FilterTabs
-          activeFilter="failed"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="failed" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       const failedTab = screen.getByTestId('tab-failed');
       expect(failedTab).toHaveClass('active-tab');
@@ -300,13 +234,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
     });
 
     it('should not highlight inactive tabs', () => {
-      render(
-        <FilterTabs
-          activeFilter="failed"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="failed" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       const allTab = screen.getByTestId('tab-all');
       expect(allTab).not.toHaveClass('active-tab');
@@ -315,21 +243,13 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
     it('should update highlighted tab when activeFilter prop changes', () => {
       const { rerender } = render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />
       );
 
       expect(screen.getByTestId('tab-all')).toHaveClass('active-tab');
 
       rerender(
-        <FilterTabs
-          activeFilter="failed"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="failed" onFilterChange={vi.fn()} counts={defaultCounts} />
       );
 
       expect(screen.getByTestId('tab-all')).not.toHaveClass('active-tab');
@@ -338,11 +258,7 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
     it('should maintain selection state across rerenders', () => {
       const { rerender } = render(
-        <FilterTabs
-          activeFilter="pending"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
+        <FilterTabs activeFilter="pending" onFilterChange={vi.fn()} counts={defaultCounts} />
       );
 
       // Rerender with same activeFilter
@@ -361,26 +277,14 @@ describe('FilterTabs Component (Story 7-27)', () => {
 
   describe('[P1] Accessibility', () => {
     it('should have aria-selected attribute on tabs', () => {
-      render(
-        <FilterTabs
-          activeFilter="active"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="active" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       expect(screen.getByTestId('tab-active')).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByTestId('tab-all')).toHaveAttribute('aria-selected', 'false');
     });
 
     it('should have aria-controls pointing to panel', () => {
-      render(
-        <FilterTabs
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          counts={defaultCounts}
-        />
-      );
+      render(<FilterTabs activeFilter="all" onFilterChange={vi.fn()} counts={defaultCounts} />);
 
       expect(screen.getByTestId('tab-all')).toHaveAttribute('aria-controls', 'all-panel');
       expect(screen.getByTestId('tab-failed')).toHaveAttribute('aria-controls', 'failed-panel');

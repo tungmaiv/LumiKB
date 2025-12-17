@@ -17,6 +17,7 @@ import {
   Users2,
   Wrench,
   Cpu,
+  Bot,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -44,9 +45,7 @@ function NavLink({ href, icon: Icon, label, isActive }: NavLinkProps): React.Rea
         'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-        isActive
-          ? 'bg-accent text-accent-foreground'
-          : 'text-muted-foreground'
+        isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
       )}
       aria-current={isActive ? 'page' : undefined}
       aria-label={label}
@@ -117,6 +116,7 @@ export function MainNav({ className }: MainNavProps): React.ReactElement {
     { href: '/admin/groups', icon: Users2, label: 'Groups' },
     { href: '/admin/kb-permissions', icon: Shield, label: 'KB Permissions' },
     { href: '/admin/config', icon: Settings, label: 'System Config' },
+    { href: '/admin/config/llm', icon: Bot, label: 'LLM Configuration' },
     { href: '/admin/models', icon: Cpu, label: 'Model Registry' },
   ];
 
@@ -151,9 +151,7 @@ export function MainNav({ className }: MainNavProps): React.ReactElement {
                 'flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 'hover:bg-accent hover:text-accent-foreground',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                isOnOperationsRoute
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground'
+                isOnOperationsRoute ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
               )}
               aria-label="Operations menu"
             >
@@ -192,9 +190,7 @@ export function MainNav({ className }: MainNavProps): React.ReactElement {
                 'flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 'hover:bg-accent hover:text-accent-foreground',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                isOnAdminRoute
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground'
+                isOnAdminRoute ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
               )}
               aria-label="Admin menu"
             >

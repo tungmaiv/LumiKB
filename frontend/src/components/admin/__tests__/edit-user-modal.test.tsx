@@ -223,13 +223,7 @@ describe('EditUserModal', () => {
        */
 
       // WHEN: Render modal with self as user
-      render(
-        <EditUserModal
-          {...defaultProps}
-          user={mockUser}
-          currentUserId={mockUser.id}
-        />
-      );
+      render(<EditUserModal {...defaultProps} user={mockUser} currentUserId={mockUser.id} />);
 
       // THEN: Toggle is disabled
       const toggle = screen.getByRole('switch');
@@ -276,11 +270,7 @@ describe('EditUserModal', () => {
 
       // WHEN: Render modal
       render(
-        <EditUserModal
-          {...defaultProps}
-          onOpenChange={onOpenChange}
-          onUpdateUser={onUpdateUser}
-        />
+        <EditUserModal {...defaultProps} onOpenChange={onOpenChange} onUpdateUser={onUpdateUser} />
       );
 
       // WHEN: Toggle status and save

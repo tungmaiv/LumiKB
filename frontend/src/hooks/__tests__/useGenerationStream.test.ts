@@ -63,9 +63,7 @@ describe('useGenerationStream', () => {
         controller.enqueue(
           new TextEncoder().encode('data: {"type":"token","content":"OAuth "}\n\n')
         );
-        controller.enqueue(
-          new TextEncoder().encode('data: {"type":"token","content":"2.0 "}\n\n')
-        );
+        controller.enqueue(new TextEncoder().encode('data: {"type":"token","content":"2.0 "}\n\n'));
         controller.enqueue(
           new TextEncoder().encode('data: {"type":"token","content":"implementation"}\n\n')
         );

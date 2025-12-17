@@ -205,7 +205,11 @@ describe('KBActionsMenu', () => {
       const user = userEvent.setup();
       render(
         <KBActionsMenu
-          kb={createMockKB({ id: 'kb-to-restore', name: 'Test KB', archived_at: '2025-01-15T00:00:00Z' })}
+          kb={createMockKB({
+            id: 'kb-to-restore',
+            name: 'Test KB',
+            archived_at: '2025-01-15T00:00:00Z',
+          })}
         />
       );
 
@@ -264,7 +268,9 @@ describe('KBActionsMenu', () => {
     it('[P0] calls remove when confirmed with correct name', async () => {
       const user = userEvent.setup();
       render(
-        <KBActionsMenu kb={createMockKB({ id: 'kb-to-delete', name: 'My KB', document_count: 0 })} />
+        <KBActionsMenu
+          kb={createMockKB({ id: 'kb-to-delete', name: 'My KB', document_count: 0 })}
+        />
       );
 
       await user.click(screen.getByRole('button', { name: /KB actions/i }));

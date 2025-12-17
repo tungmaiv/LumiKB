@@ -42,9 +42,7 @@ const StepStatusBadge = ({
       {status === 'in_progress' && (
         <span data-testid="spinner" className="animate-spin" aria-hidden="true" />
       )}
-      {status === 'error' && (
-        <span data-testid="error-icon" aria-hidden="true" />
-      )}
+      {status === 'error' && <span data-testid="error-icon" aria-hidden="true" />}
       {status}
     </span>
   );
@@ -188,10 +186,7 @@ describe('StepStatusBadge Component (Story 7-27)', () => {
 
     it('should have distinct aria-label for each status', () => {
       const { rerender } = render(<StepStatusBadge status="done" />);
-      expect(screen.getByTestId('step-status-badge')).toHaveAttribute(
-        'aria-label',
-        'Status: done'
-      );
+      expect(screen.getByTestId('step-status-badge')).toHaveAttribute('aria-label', 'Status: done');
 
       rerender(<StepStatusBadge status="in_progress" />);
       expect(screen.getByTestId('step-status-badge')).toHaveAttribute(

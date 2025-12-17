@@ -74,11 +74,7 @@ function getSpanColor(spanType: string, status: string): string {
 /**
  * Calculate span position on the timeline
  */
-function calculateSpanPosition(
-  span: SpanDetail,
-  traceStartTime: Date,
-  totalDuration: number
-) {
+function calculateSpanPosition(span: SpanDetail, traceStartTime: Date, totalDuration: number) {
   const spanStart = new Date(span.started_at);
   const relativeStartMs = spanStart.getTime() - traceStartTime.getTime();
   const startPercent = (relativeStartMs / totalDuration) * 100;
@@ -201,9 +197,7 @@ export function WaterfallTimeline({
   }
 
   // Get trace start time from first span
-  const traceStartTime = new Date(
-    Math.min(...spans.map((s) => new Date(s.started_at).getTime()))
-  );
+  const traceStartTime = new Date(Math.min(...spans.map((s) => new Date(s.started_at).getTime())));
 
   // Build hierarchical span tree and flatten for rendering
   const spanTree = buildSpanTree(spans);

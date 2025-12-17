@@ -85,8 +85,8 @@ export default function OperationsAuditPage() {
               <h1 className="text-2xl font-bold">Audit Logs</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              View and filter system audit logs for security investigations,
-              compliance reporting, and troubleshooting
+              View and filter system audit logs for security investigations, compliance reporting,
+              and troubleshooting
             </p>
           </div>
           {/* Export Button */}
@@ -104,11 +104,7 @@ export default function OperationsAuditPage() {
           <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-destructive"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
+                <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
                   <path
                     fillRule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -117,9 +113,7 @@ export default function OperationsAuditPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-destructive">
-                  Error loading audit logs
-                </h3>
+                <h3 className="text-sm font-medium text-destructive">Error loading audit logs</h3>
                 <p className="mt-1 text-sm text-destructive/80">
                   {error instanceof Error ? error.message : 'Unknown error'}
                 </p>

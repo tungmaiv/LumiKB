@@ -2,8 +2,8 @@
  * Hook for fetching and updating system configuration settings.
  */
 
-import { useState } from "react";
-import { ConfigSetting, ConfigUpdateResponse } from "@/types/config";
+import { useState } from 'react';
+import { ConfigSetting, ConfigUpdateResponse } from '@/types/config';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -30,7 +30,7 @@ export function useSystemConfig(): UseSystemConfigReturn {
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/config`, {
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -40,7 +40,7 @@ export function useSystemConfig(): UseSystemConfigReturn {
       const data = await response.json();
       setConfigs(data);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unknown error"));
+      setError(err instanceof Error ? err : new Error('Unknown error'));
     } finally {
       setIsLoading(false);
     }
@@ -52,11 +52,11 @@ export function useSystemConfig(): UseSystemConfigReturn {
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/config/${key}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        credentials: "include",
+        credentials: 'include',
         body: JSON.stringify({ value }),
       });
 
@@ -79,7 +79,7 @@ export function useSystemConfig(): UseSystemConfigReturn {
       // Refetch to ensure consistency
       await fetchConfigs();
     } catch (err) {
-      setUpdateError(err instanceof Error ? err : new Error("Unknown error"));
+      setUpdateError(err instanceof Error ? err : new Error('Unknown error'));
       throw err;
     } finally {
       setIsUpdating(false);

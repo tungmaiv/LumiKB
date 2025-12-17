@@ -238,9 +238,7 @@ export function AuditLogTable({
                 <td className="whitespace-nowrap px-4 py-3 text-sm">
                   {formatTimestamp(event.timestamp)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-                  {event.action}
-                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">{event.action}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                   {event.user_email || 'System'}
                 </td>
@@ -248,9 +246,7 @@ export function AuditLogTable({
                   {event.resource_type || 'N/A'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-muted-foreground">
-                  {event.resource_id
-                    ? event.resource_id.slice(0, 8) + '...'
-                    : 'N/A'}
+                  {event.resource_id ? event.resource_id.slice(0, 8) + '...' : 'N/A'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm">
                   {getStatusBadge(event.status)}
@@ -273,7 +269,6 @@ export function AuditLogTable({
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }

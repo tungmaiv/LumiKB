@@ -54,8 +54,8 @@ export function ArchiveKBDialog({
                 </span>
               )}
               <span className="block">
-                Archived Knowledge Bases are hidden from search results and the main list.
-                You can restore them later from the archive.
+                Archived Knowledge Bases are hidden from search results and the main list. You can
+                restore them later from the archive.
               </span>
             </div>
           </AlertDialogDescription>

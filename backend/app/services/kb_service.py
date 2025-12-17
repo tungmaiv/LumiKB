@@ -77,25 +77,52 @@ class KBService:
             - Creates ADMIN permission for the creator
             - Validates model IDs reference active models of correct type
             - Creates Qdrant collection with embedding model dimensions (AC-7.10.4)
+            - Uses system default models when no model IDs provided
         """
-        # Validate embedding model if provided (AC-7.10.2)
+        # Get model IDs - use provided or fall back to system defaults
+        embedding_model_id = data.embedding_model_id
+        generation_model_id = data.generation_model_id
+
+        # If no embedding model provided, use system default
+        if not embedding_model_id:
+            default_embedding = await self._get_default_model(ModelType.EMBEDDING)
+            if default_embedding:
+                embedding_model_id = default_embedding.id
+                logger.info(
+                    "using_default_embedding_model",
+                    model_id=str(embedding_model_id),
+                    model_name=default_embedding.name,
+                )
+
+        # If no generation model provided, use system default
+        if not generation_model_id:
+            default_generation = await self._get_default_model(ModelType.GENERATION)
+            if default_generation:
+                generation_model_id = default_generation.id
+                logger.info(
+                    "using_default_generation_model",
+                    model_id=str(generation_model_id),
+                    model_name=default_generation.name,
+                )
+
+        # Validate embedding model (AC-7.10.2)
         embedding_model: LLMModel | None = None
-        if data.embedding_model_id:
+        if embedding_model_id:
             embedding_model = await self._validate_model(
-                data.embedding_model_id,
+                embedding_model_id,
                 ModelType.EMBEDDING,
                 "Embedding model",
             )
 
-        # Validate generation model if provided (AC-7.10.2)
-        if data.generation_model_id:
+        # Validate generation model (AC-7.10.2)
+        if generation_model_id:
             await self._validate_model(
-                data.generation_model_id,
+                generation_model_id,
                 ModelType.GENERATION,
                 "Generation model",
             )
 
-        # Create the KB
+        # Create the KB with resolved model IDs (either provided or defaults)
         kb = KnowledgeBase(
             name=data.name,
             description=data.description,
@@ -103,8 +130,8 @@ class KBService:
             owner_id=user.id,
             status="active",
             settings={},
-            embedding_model_id=data.embedding_model_id,
-            generation_model_id=data.generation_model_id,
+            embedding_model_id=embedding_model_id,
+            generation_model_id=generation_model_id,
             similarity_threshold=data.similarity_threshold,
             search_top_k=data.search_top_k,
             temperature=data.temperature,
@@ -137,12 +164,14 @@ class KBService:
             kb_id=str(kb.id),
             name=kb.name,
             owner_id=str(user.id),
-            embedding_model_id=str(data.embedding_model_id)
-            if data.embedding_model_id
+            embedding_model_id=str(embedding_model_id) if embedding_model_id else None,
+            generation_model_id=str(generation_model_id)
+            if generation_model_id
             else None,
-            generation_model_id=str(data.generation_model_id)
-            if data.generation_model_id
-            else None,
+            used_default_embedding=data.embedding_model_id is None
+            and embedding_model_id is not None,
+            used_default_generation=data.generation_model_id is None
+            and generation_model_id is not None,
             qdrant_collection=kb.qdrant_collection_name,
             vector_size=kb.qdrant_vector_size,
         )
@@ -186,6 +215,24 @@ class KBService:
             )
 
         return model
+
+    async def _get_default_model(self, model_type: ModelType) -> LLMModel | None:
+        """Get the system default model for a given type.
+
+        Args:
+            model_type: The type of model (EMBEDDING or GENERATION).
+
+        Returns:
+            The default LLMModel if one exists and is active, None otherwise.
+        """
+        result = await self.session.execute(
+            select(LLMModel).where(
+                LLMModel.type == model_type.value,
+                LLMModel.is_default == True,  # noqa: E712
+                LLMModel.status == ModelStatus.ACTIVE.value,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def _create_qdrant_collection(
         self,

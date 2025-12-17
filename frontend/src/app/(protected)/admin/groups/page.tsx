@@ -70,9 +70,7 @@ export default function GroupsPage() {
 
   // Fetch single group for membership modal OR expanded row
   // We need to fetch when either the modal is open OR a row is expanded
-  const groupIdToFetch = membershipModalOpen
-    ? selectedGroup?.id ?? null
-    : expandedGroupId;
+  const groupIdToFetch = membershipModalOpen ? (selectedGroup?.id ?? null) : expandedGroupId;
 
   const {
     group: membershipGroup,

@@ -94,9 +94,7 @@ test.describe('Story 7-16: KB Settings Presets', () => {
   });
 
   test.describe('[P0] AC-7.16.1: Quick Preset Dropdown', () => {
-    test('displays preset selector at top of settings modal', async ({
-      authenticatedPage,
-    }) => {
+    test('displays preset selector at top of settings modal', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User opens KB settings modal
        * WHEN: Modal is displayed
@@ -282,9 +280,7 @@ test.describe('Story 7-16: KB Settings Presets', () => {
       // Confirmation dialog should appear
       await expect(page.getByRole('alertdialog')).toBeVisible();
       await expect(page.getByText('Apply Preset?')).toBeVisible();
-      await expect(
-        page.getByText(/custom settings that will be overwritten/)
-      ).toBeVisible();
+      await expect(page.getByText(/custom settings that will be overwritten/)).toBeVisible();
     });
 
     test('applies preset when user confirms', async ({ authenticatedPage }) => {
@@ -353,9 +349,7 @@ test.describe('Story 7-16: KB Settings Presets', () => {
       );
     });
 
-    test('applies preset directly when no custom changes exist', async ({
-      authenticatedPage,
-    }) => {
+    test('applies preset directly when no custom changes exist', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User has not made any custom changes
        * WHEN: User selects a preset
@@ -384,9 +378,7 @@ test.describe('Story 7-16: KB Settings Presets', () => {
   });
 
   test.describe('[P0] AC-7.16.8: Preset Detection', () => {
-    test('detects and displays Legal preset when settings match', async ({
-      authenticatedPage,
-    }) => {
+    test('detects and displays Legal preset when settings match', async ({ authenticatedPage }) => {
       /**
        * GIVEN: KB has Legal preset settings
        * WHEN: User opens settings modal
@@ -415,9 +407,7 @@ test.describe('Story 7-16: KB Settings Presets', () => {
       await expect(page.locator('#preset-selector')).toContainText('Legal');
     });
 
-    test('shows Custom when settings do not match any preset', async ({
-      authenticatedPage,
-    }) => {
+    test('shows Custom when settings do not match any preset', async ({ authenticatedPage }) => {
       /**
        * GIVEN: KB has custom settings that don't match any preset
        * WHEN: User opens settings modal
@@ -451,9 +441,7 @@ test.describe('Story 7-16: KB Settings Presets', () => {
       await expect(page.locator('#preset-selector')).toContainText('Custom');
     });
 
-    test('updates to Custom when user modifies preset settings', async ({
-      authenticatedPage,
-    }) => {
+    test('updates to Custom when user modifies preset settings', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User has applied Legal preset
        * WHEN: User modifies a setting value

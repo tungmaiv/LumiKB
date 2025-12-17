@@ -16,11 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { AuditLogFilter } from '@/types/audit';
 import { EVENT_TYPES, RESOURCE_TYPES } from '@/types/audit';
 
@@ -175,11 +171,7 @@ export function AuditLogFilters({
                 <Input
                   id="start-date"
                   type="datetime-local"
-                  value={
-                    localFilters.start_date
-                      ? localFilters.start_date.slice(0, 16)
-                      : ''
-                  }
+                  value={localFilters.start_date ? localFilters.start_date.slice(0, 16) : ''}
                   onChange={(e) =>
                     setLocalFilters({
                       ...localFilters,
@@ -199,17 +191,11 @@ export function AuditLogFilters({
                 <Input
                   id="end-date"
                   type="datetime-local"
-                  value={
-                    localFilters.end_date
-                      ? localFilters.end_date.slice(0, 16)
-                      : ''
-                  }
+                  value={localFilters.end_date ? localFilters.end_date.slice(0, 16) : ''}
                   onChange={(e) =>
                     setLocalFilters({
                       ...localFilters,
-                      end_date: e.target.value
-                        ? new Date(e.target.value).toISOString()
-                        : undefined,
+                      end_date: e.target.value ? new Date(e.target.value).toISOString() : undefined,
                     })
                   }
                 />

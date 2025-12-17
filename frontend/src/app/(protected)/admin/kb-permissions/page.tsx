@@ -3,37 +3,37 @@
  * Story 5.20: Role & KB Permission Management UI (AC-5.20.1, AC-5.20.2, AC-5.20.3, AC-5.20.6)
  */
 
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, UserPlus, Users } from "lucide-react";
-import { toast } from "sonner";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Shield, UserPlus, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   KBPermissionsTable,
   AddUserPermissionModal,
   AddGroupPermissionModal,
   EditPermissionModal,
-} from "@/components/admin/kb-permissions";
-import { useKBPermissions } from "@/hooks/useKBPermissions";
-import { useUsers } from "@/hooks/useUsers";
-import { useGroups } from "@/hooks/useGroups";
-import { useKBStore } from "@/lib/stores/kb-store";
-import type { PermissionExtended, PermissionCreate, PermissionUpdate } from "@/types/permission";
+} from '@/components/admin/kb-permissions';
+import { useKBPermissions } from '@/hooks/useKBPermissions';
+import { useUsers } from '@/hooks/useUsers';
+import { useGroups } from '@/hooks/useGroups';
+import { useKBStore } from '@/lib/stores/kb-store';
+import type { PermissionExtended, PermissionCreate, PermissionUpdate } from '@/types/permission';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface KnowledgeBase {
   id: string;
@@ -50,14 +50,14 @@ export default function KBPermissionsPage() {
   const { kbs: storeKbs, activeKb, setActiveKb, fetchKbs } = useKBStore();
 
   // KB selection state
-  const [kbId, setKbId] = useState<string | null>(searchParams.get("kb_id"));
+  const [kbId, setKbId] = useState<string | null>(searchParams.get('kb_id'));
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKBs, setLoadingKBs] = useState(true);
 
   // Pagination state
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
   // Modal states
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -79,7 +79,7 @@ export default function KBPermissionsPage() {
     isUpdating,
     isRevoking,
   } = useKBPermissions({
-    kbId: kbId || "",
+    kbId: kbId || '',
     page,
     limit,
     enabled: !!kbId,
@@ -92,18 +92,12 @@ export default function KBPermissionsPage() {
 
   // Compute existing IDs to exclude from add modals
   const existingUserIds = useMemo(
-    () =>
-      permissions
-        .filter((p) => p.entity_type === "user")
-        .map((p) => p.entity_id),
+    () => permissions.filter((p) => p.entity_type === 'user').map((p) => p.entity_id),
     [permissions]
   );
 
   const existingGroupIds = useMemo(
-    () =>
-      permissions
-        .filter((p) => p.entity_type === "group")
-        .map((p) => p.entity_id),
+    () => permissions.filter((p) => p.entity_type === 'group').map((p) => p.entity_id),
     [permissions]
   );
 
@@ -112,7 +106,7 @@ export default function KBPermissionsPage() {
     const fetchKnowledgeBases = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/v1/knowledge-bases/`, {
-          credentials: "include",
+          credentials: 'include',
         });
 
         if (res.ok) {
@@ -120,7 +114,7 @@ export default function KBPermissionsPage() {
           setKnowledgeBases(Array.isArray(response) ? response : response.data || []);
         }
       } catch (err) {
-        console.error("Failed to fetch knowledge bases:", err);
+        console.error('Failed to fetch knowledge bases:', err);
       } finally {
         setLoadingKBs(false);
       }
@@ -145,7 +139,7 @@ export default function KBPermissionsPage() {
 
   // Initialize from sidebar's active KB if no URL param provided
   useEffect(() => {
-    if (!kbId && activeKb && !searchParams.get("kb_id")) {
+    if (!kbId && activeKb && !searchParams.get('kb_id')) {
       setKbId(activeKb.id);
       router.replace(`/admin/kb-permissions?kb_id=${activeKb.id}`);
     }
@@ -162,7 +156,7 @@ export default function KBPermissionsPage() {
     (newKbId: string) => {
       setKbId(newKbId);
       setPage(1);
-      setSearch("");
+      setSearch('');
       router.push(`/admin/kb-permissions?kb_id=${newKbId}`);
 
       // Sync with sidebar
@@ -196,17 +190,17 @@ export default function KBPermissionsPage() {
   const handleDeletePermission = useCallback(
     async (permission: PermissionExtended) => {
       try {
-        if (permission.entity_type === "user") {
+        if (permission.entity_type === 'user') {
           await revokeUserPermission(permission.entity_id);
         } else {
           await revokeGroupPermission(permission.entity_id);
         }
-        toast.success("Permission revoked successfully");
+        toast.success('Permission revoked successfully');
       } catch (err) {
         if (err instanceof Error) {
           toast.error(err.message);
         } else {
-          toast.error("Failed to revoke permission");
+          toast.error('Failed to revoke permission');
         }
         throw err;
       }
@@ -218,12 +212,12 @@ export default function KBPermissionsPage() {
     async (data: PermissionCreate) => {
       try {
         await grantPermission(data);
-        toast.success("Permission granted successfully");
+        toast.success('Permission granted successfully');
       } catch (err) {
         if (err instanceof Error) {
           toast.error(err.message);
         } else {
-          toast.error("Failed to grant permission");
+          toast.error('Failed to grant permission');
         }
         throw err;
       }
@@ -235,12 +229,12 @@ export default function KBPermissionsPage() {
     async (id: string, data: PermissionUpdate) => {
       try {
         await updatePermission(id, data);
-        toast.success("Permission updated successfully");
+        toast.success('Permission updated successfully');
       } catch (err) {
         if (err instanceof Error) {
           toast.error(err.message);
         } else {
-          toast.error("Failed to update permission");
+          toast.error('Failed to update permission');
         }
         throw err;
       }
@@ -263,7 +257,7 @@ export default function KBPermissionsPage() {
                 Manage user and group access to Knowledge Bases
               </p>
             </div>
-            <Button variant="outline" onClick={() => router.push("/admin")}>
+            <Button variant="outline" onClick={() => router.push('/admin')}>
               Back to Dashboard
             </Button>
           </div>
@@ -271,9 +265,7 @@ export default function KBPermissionsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Select Knowledge Base</CardTitle>
-              <CardDescription>
-                Choose a knowledge base to manage permissions
-              </CardDescription>
+              <CardDescription>Choose a knowledge base to manage permissions</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingKBs ? (
@@ -311,11 +303,9 @@ export default function KBPermissionsPage() {
           <h1 className="text-2xl font-bold mb-6">KB Permissions</h1>
           <div className="rounded-lg border border-destructive bg-destructive/10 p-6">
             <p className="text-sm text-destructive mb-4">
-              {error instanceof Error ? error.message : "Failed to load permissions"}
+              {error instanceof Error ? error.message : 'Failed to load permissions'}
             </p>
-            <Button onClick={() => router.push("/admin")}>
-              Return to Admin Dashboard
-            </Button>
+            <Button onClick={() => router.push('/admin')}>Return to Admin Dashboard</Button>
           </div>
         </div>
       </DashboardLayout>
@@ -330,9 +320,7 @@ export default function KBPermissionsPage() {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <Shield className="h-8 w-8" />
-              <h1 className="text-2xl font-bold">
-                {selectedKB?.name || "KB Permissions"}
-              </h1>
+              <h1 className="text-2xl font-bold">{selectedKB?.name || 'KB Permissions'}</h1>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               Manage user and group access permissions

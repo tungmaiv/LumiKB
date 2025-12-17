@@ -19,9 +19,12 @@ export interface DocumentTimelineResponse {
 }
 
 async function fetchDocumentTimeline(documentId: string): Promise<DocumentTimelineResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/observability/documents/${documentId}/timeline`, {
-    credentials: 'include',
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/observability/documents/${documentId}/timeline`,
+    {
+      credentials: 'include',
+    }
+  );
 
   if (!response.ok) {
     if (response.status === 404) {

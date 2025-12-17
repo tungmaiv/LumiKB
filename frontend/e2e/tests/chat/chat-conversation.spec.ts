@@ -278,12 +278,15 @@ async function sendChatMessage(page: Page, message: string) {
 
 async function waitForChatResponse(page: Page, timeout = 10000): Promise<string> {
   // Wait for thinking indicator to appear and disappear
-  await page.locator('[data-testid="thinking-indicator"]').waitFor({ state: 'visible', timeout: 1000 }).catch(() => {});
+  await page
+    .locator('[data-testid="thinking-indicator"]')
+    .waitFor({ state: 'visible', timeout: 1000 })
+    .catch(() => {});
   await page.locator('[data-testid="thinking-indicator"]').waitFor({ state: 'hidden', timeout });
 
   // Get latest AI message
   const aiMessage = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
   await aiMessage.waitFor({ state: 'visible', timeout });
 
-  return await aiMessage.textContent() || '';
+  return (await aiMessage.textContent()) || '';
 }

@@ -52,11 +52,7 @@ export function ProcessingTimeline({ documentId }: ProcessingTimelineProps) {
 
         <div className="space-y-4">
           {events.map((event, index) => (
-            <TimelineStep
-              key={event.id}
-              event={event}
-              isLast={index === events.length - 1}
-            />
+            <TimelineStep key={event.id} event={event} isLast={index === events.length - 1} />
           ))}
         </div>
       </div>

@@ -35,7 +35,8 @@ const mockMessages: ChatMessageItem[] = [
     trace_id: 'trace-2',
     session_id: 'session-1',
     role: 'assistant',
-    content: 'Based on the documentation, the return policy allows returns within 30 days of purchase.',
+    content:
+      'Based on the documentation, the return policy allows returns within 30 days of purchase.',
     user_id: null,
     kb_id: 'kb-1',
     created_at: new Date().toISOString(),
@@ -109,9 +110,7 @@ describe('ConversationThread', () => {
     expect(
       screen.getByText(/Based on the documentation, the return policy allows returns/)
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Yes, there are exceptions for sale items/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Yes, there are exceptions for sale items/)).toBeInTheDocument();
   });
 
   it('displays citations for assistant messages (AC4)', () => {

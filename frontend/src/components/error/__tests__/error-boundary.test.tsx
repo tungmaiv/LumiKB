@@ -66,9 +66,7 @@ describe('ErrorBoundary', () => {
       );
 
       expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-      expect(
-        screen.getByText('An error occurred while loading this content')
-      ).toBeInTheDocument();
+      expect(screen.getByText('An error occurred while loading this content')).toBeInTheDocument();
     });
 
     it('shows error message in development mode', () => {

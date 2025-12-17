@@ -14,12 +14,15 @@ from app.core.auth import current_active_user
 from app.core.database import get_async_session
 from app.core.logging import get_logger
 from app.core.redis import get_redis_client
+from app.integrations.litellm_client import embedding_client
 from app.models.user import User
 from app.schemas.chat import ChatRequest
 from app.services.audit_service import AuditService, get_audit_service
+from app.services.config_service import ConfigService
 from app.services.conversation_service import ConversationService, NoDocumentsError
 from app.services.kb_service import get_kb_permission_service
 from app.services.observability_service import ObservabilityService, TraceContext
+from app.services.query_rewriter_service import QueryRewriterService
 from app.services.search_service import SearchService, get_search_service
 
 logger = get_logger()
@@ -38,9 +41,18 @@ async def get_conversation_service(
         search_service: Search service dependency
         session: Database session for KB model lookup (Story 7-10)
         redis_client: Redis client for KB config caching (Story 7-17)
+
+    Note: QueryRewriterService is injected for history-aware query rewriting (Story 8-0).
     """
+    # Story 8-0: Create QueryRewriterService with LLM client and config service
+    config_service = ConfigService(session)
+    query_rewriter = QueryRewriterService(embedding_client, config_service)
+
     return ConversationService(
-        search_service, session=session, redis_client=redis_client
+        search_service,
+        session=session,
+        redis_client=redis_client,
+        query_rewriter=query_rewriter,
     )
 
 

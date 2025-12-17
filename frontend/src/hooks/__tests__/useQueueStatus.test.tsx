@@ -151,17 +151,13 @@ describe('useQueueStatus', () => {
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(mockUnavailableQueues);
-    expect(result.current.data?.every((q) => q.status === 'unavailable')).toBe(
-      true
-    );
+    expect(result.current.data?.every((q) => q.status === 'unavailable')).toBe(true);
   });
 
   it('[P1] should handle network errors', async () => {
     // Arrange
     localStorage.setItem('token', 'test-token');
-    (global.fetch as Mock).mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    (global.fetch as Mock).mockRejectedValueOnce(new Error('Network error'));
 
     // Act
     const { result } = renderHook(() => useQueueStatus(), {

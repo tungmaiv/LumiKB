@@ -91,7 +91,9 @@ export function createActiveDocument(overrides: Partial<ArchivedDocument> = {}):
 /**
  * Create an archived document
  */
-export function createArchivedDocument(overrides: Partial<ArchivedDocument> = {}): ArchivedDocument {
+export function createArchivedDocument(
+  overrides: Partial<ArchivedDocument> = {}
+): ArchivedDocument {
   return createMockDocument('archived', {
     name: 'archived-document.pdf',
     archived_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
@@ -117,7 +119,9 @@ export function createFailedDocument(
 /**
  * Create a processing document
  */
-export function createProcessingDocument(overrides: Partial<ArchivedDocument> = {}): ArchivedDocument {
+export function createProcessingDocument(
+  overrides: Partial<ArchivedDocument> = {}
+): ArchivedDocument {
   return createMockDocument('processing', {
     name: 'processing-document.pdf',
     chunk_count: 0,

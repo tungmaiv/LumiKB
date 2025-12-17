@@ -73,6 +73,12 @@ class GenerationModelConfig(BaseModel):
     top_p_default: float = Field(
         default=1.0, ge=0.0, le=1.0, description="Default top_p value"
     )
+    timeout_seconds: float = Field(
+        default=120.0,
+        ge=1.0,
+        le=600.0,
+        description="Request timeout in seconds (default 120s, max 10 min)",
+    )
     cost_per_1m_input: float = Field(
         default=0.0, ge=0.0, description="Cost per 1M input tokens (USD)"
     )
@@ -105,6 +111,12 @@ class NERModelConfig(BaseModel):
     )
     top_k_default: int = Field(
         default=30, ge=1, le=100, description="Default top_k value (20-40 recommended)"
+    )
+    timeout_seconds: float = Field(
+        default=30.0,
+        ge=1.0,
+        le=300.0,
+        description="Request timeout in seconds (default 30s for fast NER)",
     )
     response_format: ResponseFormatLiteral = Field(
         default="json", description="Response format (json for strict output)"

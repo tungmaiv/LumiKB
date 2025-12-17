@@ -3,53 +3,33 @@
  * Story 5-23 (AC-5.23.2): Filter by file type, status, or processing step
  */
 
-"use client";
+'use client';
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Filter, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Filter, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import type {
-  ProcessingFilters,
-  DocumentStatus,
-  ProcessingStep,
-} from "@/types/processing";
-import {
-  DOC_STATUS_LABELS,
-  STEP_LABELS,
-  PROCESSING_STEPS_ORDER,
-} from "@/types/processing";
+} from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { ProcessingFilters, DocumentStatus, ProcessingStep } from '@/types/processing';
+import { DOC_STATUS_LABELS, STEP_LABELS, PROCESSING_STEPS_ORDER } from '@/types/processing';
 
-const DOCUMENT_STATUSES: DocumentStatus[] = [
-  "pending",
-  "processing",
-  "ready",
-  "failed",
-];
+const DOCUMENT_STATUSES: DocumentStatus[] = ['pending', 'processing', 'ready', 'failed'];
 
-const FILE_TYPES = ["pdf", "docx", "doc", "txt", "xlsx", "pptx", "md"];
+const FILE_TYPES = ['pdf', 'docx', 'doc', 'txt', 'xlsx', 'pptx', 'md'];
 
 export interface ProcessingFilterBarProps {
   filters: ProcessingFilters;
   onFiltersChange: (filters: ProcessingFilters) => void;
 }
 
-export function ProcessingFilterBar({
-  filters,
-  onFiltersChange,
-}: ProcessingFilterBarProps) {
+export function ProcessingFilterBar({ filters, onFiltersChange }: ProcessingFilterBarProps) {
   const [localFilters, setLocalFilters] = useState<ProcessingFilters>(filters);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -76,7 +56,7 @@ export function ProcessingFilterBar({
   };
 
   const handleQuickSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       handleApplyFilters();
     }
   };
@@ -90,10 +70,8 @@ export function ProcessingFilterBar({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search documents..."
-              value={localFilters.name || ""}
-              onChange={(e) =>
-                setLocalFilters({ ...localFilters, name: e.target.value })
-              }
+              value={localFilters.name || ''}
+              onChange={(e) => setLocalFilters({ ...localFilters, name: e.target.value })}
               onKeyDown={handleQuickSearch}
               className="pl-9"
             />
@@ -129,11 +107,11 @@ export function ProcessingFilterBar({
                   File Type
                 </label>
                 <Select
-                  value={localFilters.file_type || "__all__"}
+                  value={localFilters.file_type || '__all__'}
                   onValueChange={(value) =>
                     setLocalFilters({
                       ...localFilters,
-                      file_type: value === "__all__" ? undefined : value,
+                      file_type: value === '__all__' ? undefined : value,
                     })
                   }
                 >
@@ -157,14 +135,11 @@ export function ProcessingFilterBar({
                   Status
                 </label>
                 <Select
-                  value={localFilters.status || "__all__"}
+                  value={localFilters.status || '__all__'}
                   onValueChange={(value) =>
                     setLocalFilters({
                       ...localFilters,
-                      status:
-                        value === "__all__"
-                          ? undefined
-                          : (value as DocumentStatus),
+                      status: value === '__all__' ? undefined : (value as DocumentStatus),
                     })
                   }
                 >
@@ -188,14 +163,11 @@ export function ProcessingFilterBar({
                   Processing Step
                 </label>
                 <Select
-                  value={localFilters.current_step || "__all__"}
+                  value={localFilters.current_step || '__all__'}
                   onValueChange={(value) =>
                     setLocalFilters({
                       ...localFilters,
-                      current_step:
-                        value === "__all__"
-                          ? undefined
-                          : (value as ProcessingStep),
+                      current_step: value === '__all__' ? undefined : (value as ProcessingStep),
                     })
                   }
                 >
@@ -219,13 +191,13 @@ export function ProcessingFilterBar({
                   Sort By
                 </label>
                 <Select
-                  value={`${localFilters.sort_by || "created_at"}_${
-                    localFilters.sort_order || "desc"
+                  value={`${localFilters.sort_by || 'created_at'}_${
+                    localFilters.sort_order || 'desc'
                   }`}
                   onValueChange={(value) => {
-                    const [sortBy, sortOrder] = value.split("_") as [
-                      ProcessingFilters["sort_by"],
-                      ProcessingFilters["sort_order"]
+                    const [sortBy, sortOrder] = value.split('_') as [
+                      ProcessingFilters['sort_by'],
+                      ProcessingFilters['sort_order'],
                     ];
                     setLocalFilters({
                       ...localFilters,
@@ -238,16 +210,10 @@ export function ProcessingFilterBar({
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="created_at_desc">
-                      Newest First
-                    </SelectItem>
+                    <SelectItem value="created_at_desc">Newest First</SelectItem>
                     <SelectItem value="created_at_asc">Oldest First</SelectItem>
-                    <SelectItem value="original_filename_asc">
-                      Name (A-Z)
-                    </SelectItem>
-                    <SelectItem value="original_filename_desc">
-                      Name (Z-A)
-                    </SelectItem>
+                    <SelectItem value="original_filename_asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="original_filename_desc">Name (Z-A)</SelectItem>
                     <SelectItem value="status_asc">Status (A-Z)</SelectItem>
                     <SelectItem value="status_desc">Status (Z-A)</SelectItem>
                   </SelectContent>
@@ -260,11 +226,7 @@ export function ProcessingFilterBar({
               <Button onClick={handleApplyFilters} className="px-6">
                 Apply Filters
               </Button>
-              <Button
-                onClick={handleResetFilters}
-                variant="outline"
-                className="px-6"
-              >
+              <Button onClick={handleResetFilters} variant="outline" className="px-6">
                 Reset
               </Button>
             </div>

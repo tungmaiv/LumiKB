@@ -77,9 +77,7 @@ function StatusBadge({ status }: { status: string }) {
  * Format operation type for display
  */
 function formatOperationType(name: string): string {
-  return name
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -95,12 +93,7 @@ export function TraceListSkeleton() {
   );
 }
 
-export function TraceList({
-  traces,
-  selectedTraceId,
-  onSelectTrace,
-  isLoading,
-}: TraceListProps) {
+export function TraceList({ traces, selectedTraceId, onSelectTrace, isLoading }: TraceListProps) {
   if (isLoading) {
     return <TraceListSkeleton />;
   }
@@ -129,16 +122,11 @@ export function TraceList({
         {traces.map((trace) => (
           <TableRow
             key={trace.trace_id}
-            className={cn(
-              'cursor-pointer',
-              selectedTraceId === trace.trace_id && 'bg-muted'
-            )}
+            className={cn('cursor-pointer', selectedTraceId === trace.trace_id && 'bg-muted')}
             onClick={() => onSelectTrace(trace.trace_id)}
             data-testid={`trace-row-${trace.trace_id}`}
           >
-            <TableCell className="font-medium">
-              {formatOperationType(trace.name)}
-            </TableCell>
+            <TableCell className="font-medium">{formatOperationType(trace.name)}</TableCell>
             <TableCell>
               {trace.document_id ? (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
@@ -152,9 +140,7 @@ export function TraceList({
             <TableCell>
               <StatusBadge status={trace.status} />
             </TableCell>
-            <TableCell className="font-mono text-sm">
-              {formatDuration(trace.duration_ms)}
-            </TableCell>
+            <TableCell className="font-mono text-sm">{formatDuration(trace.duration_ms)}</TableCell>
             <TableCell>{trace.span_count}</TableCell>
             <TableCell className="text-muted-foreground text-sm">
               {formatDistanceToNow(new Date(trace.started_at), { addSuffix: true })}

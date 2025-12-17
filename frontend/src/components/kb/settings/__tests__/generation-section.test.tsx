@@ -44,18 +44,13 @@ function TestWrapper({ children, defaultValues, onSubmit }: TestWrapperProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>
-        {children(form)}
-      </form>
+      <form onSubmit={form.handleSubmit(onSubmit || vi.fn())}>{children(form)}</form>
     </FormProvider>
   );
 }
 
 // Helper to render with form
-function renderWithForm(
-  defaultValues?: Partial<KBSettingsFormData>,
-  disabled = false
-) {
+function renderWithForm(defaultValues?: Partial<KBSettingsFormData>, disabled = false) {
   const onSubmit = vi.fn();
   const result = render(
     <TestWrapper defaultValues={defaultValues} onSubmit={onSubmit}>
@@ -228,23 +223,17 @@ describe('GenerationSection', () => {
   describe('[P2] Descriptions', () => {
     it('shows temperature description with range', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/controls randomness.*0\.0.*2\.0/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/controls randomness.*0\.0.*2\.0/i)).toBeInTheDocument();
     });
 
     it('shows top_p description with range', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/limits token selection.*0\.0.*1\.0/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/limits token selection.*0\.0.*1\.0/i)).toBeInTheDocument();
     });
 
     it('shows max_tokens description with range', () => {
       renderWithForm();
-      expect(
-        screen.getByText(/maximum number of tokens.*100.*16,000/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/maximum number of tokens.*100.*16,000/i)).toBeInTheDocument();
     });
   });
 });

@@ -154,24 +154,13 @@ describe('ModelHealthIndicator', () => {
 
   describe('Loading State', () => {
     it('should display loading message when isLoading is true and no health data', () => {
-      render(
-        <ModelHealthIndicator
-          {...defaultProps}
-          health={undefined}
-          isLoading={true}
-        />
-      );
+      render(<ModelHealthIndicator {...defaultProps} health={undefined} isLoading={true} />);
 
       expect(screen.getByText('Loading health status...')).toBeInTheDocument();
     });
 
     it('should display health data when available even if loading', () => {
-      render(
-        <ModelHealthIndicator
-          {...defaultProps}
-          isLoading={true}
-        />
-      );
+      render(<ModelHealthIndicator {...defaultProps} isLoading={true} />);
 
       // Should show health data, not loading message
       expect(screen.queryByText('Loading health status...')).not.toBeInTheDocument();
@@ -206,13 +195,7 @@ describe('ModelHealthIndicator', () => {
     });
 
     it('should disable button when isLoading is true', () => {
-      render(
-        <ModelHealthIndicator
-          {...defaultProps}
-          health={undefined}
-          isLoading={true}
-        />
-      );
+      render(<ModelHealthIndicator {...defaultProps} health={undefined} isLoading={true} />);
 
       const button = screen.getByRole('button', { name: /test connection/i });
       expect(button).toBeDisabled();
@@ -277,13 +260,7 @@ describe('ModelHealthIndicator', () => {
 
   describe('No Health Data', () => {
     it('should not display badges when no health data available', () => {
-      render(
-        <ModelHealthIndicator
-          {...defaultProps}
-          health={undefined}
-          isLoading={false}
-        />
-      );
+      render(<ModelHealthIndicator {...defaultProps} health={undefined} isLoading={false} />);
 
       expect(screen.queryByText('All Healthy')).not.toBeInTheDocument();
       expect(screen.queryByText('Issues Detected')).not.toBeInTheDocument();

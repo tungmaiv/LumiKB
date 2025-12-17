@@ -91,3 +91,19 @@ export interface LLMHealthResponse {
   generation_health: ModelHealthStatus | null;
   overall_healthy: boolean;
 }
+
+/**
+ * Response for query rewriter model configuration.
+ * Story 8-0: History-Aware Query Rewriting
+ */
+export interface RewriterModelResponse {
+  model_id: string | null;
+}
+
+/**
+ * Request to update query rewriter model configuration.
+ * Story 8-0: History-Aware Query Rewriting
+ */
+export interface RewriterModelUpdateRequest {
+  model_id: string | null;
+}

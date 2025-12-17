@@ -47,7 +47,7 @@ describe('useKBRecommendations', () => {
       kb_id: '550e8400-e29b-41d4-a716-446655440003',
       kb_name: 'Public KB',
       description: 'Popular public knowledge base',
-      score: 0.80,
+      score: 0.8,
       reason: 'Popular across all users',
       last_accessed: null,
       is_cold_start: true,
@@ -146,15 +146,14 @@ describe('useKBRecommendations', () => {
   });
 
   it('sets isLoading during fetch', async () => {
-    const mockFetch = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(
-            () => resolve({ ok: true, json: async () => mockRecommendations }),
-            100
+    const mockFetch = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ ok: true, json: async () => mockRecommendations }), 100)
           )
-        )
-    );
+      );
     global.fetch = mockFetch;
 
     const { result } = renderHook(() => useKBRecommendations(), { wrapper });
@@ -229,7 +228,8 @@ describe('useKBRecommendations', () => {
       <QueryClientProvider client={retryQueryClient}>{children}</QueryClientProvider>
     );
 
-    const mockFetch = vi.fn()
+    const mockFetch = vi
+      .fn()
       .mockResolvedValueOnce({ ok: false, status: 500 })
       .mockResolvedValueOnce({ ok: true, json: async () => mockRecommendations });
     global.fetch = mockFetch;

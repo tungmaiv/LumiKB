@@ -26,13 +26,17 @@ vi.mock('@/hooks/useDocumentChunks', () => ({
 // Mock react-resizable-panels
 vi.mock('react-resizable-panels', () => ({
   Panel: ({ children }: { children: ReactNode }) => <div data-testid="panel">{children}</div>,
-  PanelGroup: ({ children }: { children: ReactNode }) => <div data-testid="panel-group">{children}</div>,
+  PanelGroup: ({ children }: { children: ReactNode }) => (
+    <div data-testid="panel-group">{children}</div>
+  ),
   PanelResizeHandle: () => <div data-testid="resize-handle" />,
 }));
 
 // Mock react-pdf to avoid DOMMatrix error in jsdom
 vi.mock('react-pdf', () => ({
-  Document: ({ children }: { children: ReactNode }) => <div data-testid="pdf-document">{children}</div>,
+  Document: ({ children }: { children: ReactNode }) => (
+    <div data-testid="pdf-document">{children}</div>
+  ),
   Page: () => <div data-testid="pdf-page" />,
   pdfjs: { GlobalWorkerOptions: { workerSrc: '' } },
 }));
@@ -141,14 +145,9 @@ describe('DocumentChunkViewer', () => {
 
   it('[P0] should render split-pane layout on desktop - AC-5.26.1', () => {
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="test.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="test.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('document-chunk-viewer')).toBeInTheDocument();
@@ -161,14 +160,9 @@ describe('DocumentChunkViewer', () => {
     (useDocumentContent as ReturnType<typeof vi.fn>).mockReturnValue(mockTextContent);
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="document.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="document.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('text-viewer')).toBeInTheDocument();
@@ -179,14 +173,9 @@ describe('DocumentChunkViewer', () => {
     (useDocumentContent as ReturnType<typeof vi.fn>).mockReturnValue(mockMarkdownContent);
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="readme.md"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="readme.md" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('markdown-viewer')).toBeInTheDocument();
@@ -201,14 +190,9 @@ describe('DocumentChunkViewer', () => {
     });
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="test.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="test.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert - should show loading spinner
     expect(screen.getByTestId('document-chunk-viewer')).toBeInTheDocument();
@@ -224,14 +208,9 @@ describe('DocumentChunkViewer', () => {
     });
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="test.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="test.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByText('Failed to load document')).toBeInTheDocument();
@@ -264,14 +243,9 @@ describe('DocumentChunkViewer', () => {
     });
 
     // Act - .txt extension should use text viewer
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="document.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="document.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('text-viewer')).toBeInTheDocument();
@@ -289,14 +263,9 @@ describe('DocumentChunkViewer', () => {
     window.dispatchEvent(new Event('resize'));
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="test.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="test.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert - should show mobile toggle button
     await waitFor(() => {
@@ -314,14 +283,9 @@ describe('DocumentChunkViewer', () => {
     window.dispatchEvent(new Event('resize'));
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="test.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="test.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('mobile-chunks-toggle')).toBeInTheDocument();
@@ -355,14 +319,9 @@ describe('DocumentChunkViewer', () => {
 
   it('[P2] should render chunk sidebar in split-pane - AC-5.26.2', () => {
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="test.txt"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="test.txt" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert
     expect(screen.getByTestId('chunk-sidebar')).toBeInTheDocument();
@@ -395,14 +354,9 @@ describe('DocumentChunkViewer', () => {
     });
 
     // Act
-    render(
-      <DocumentChunkViewer
-        kbId="kb-123"
-        documentId="doc-456"
-        filename="document.xyz"
-      />,
-      { wrapper: createWrapper() }
-    );
+    render(<DocumentChunkViewer kbId="kb-123" documentId="doc-456" filename="document.xyz" />, {
+      wrapper: createWrapper(),
+    });
 
     // Assert - should default to text viewer
     expect(screen.getByTestId('text-viewer')).toBeInTheDocument();

@@ -61,7 +61,8 @@ export function DeleteModelDialog({
           <div className="flex justify-between">
             <span className="text-muted-foreground">Provider</span>
             <span>
-              {PROVIDER_INFO[model.provider]?.icon} {PROVIDER_INFO[model.provider]?.name || model.provider}
+              {PROVIDER_INFO[model.provider]?.icon}{' '}
+              {PROVIDER_INFO[model.provider]?.name || model.provider}
             </span>
           </div>
           <div className="flex justify-between">
@@ -72,7 +73,8 @@ export function DeleteModelDialog({
 
         {model.is_default && (
           <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800">
-            This model is set as the default {model.type} model. You cannot delete it until you set another model as the default.
+            This model is set as the default {model.type} model. You cannot delete it until you set
+            another model as the default.
           </div>
         )}
 

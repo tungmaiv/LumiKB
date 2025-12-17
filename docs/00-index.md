@@ -13,7 +13,7 @@
 |--------|-------|
 | Current Epic | Epic 7: Infrastructure & DevOps |
 | Epics Completed | 6 of 8 (Epic 1-6 DONE) |
-| Total Stories | 93 stories across 8 epics |
+| Total Stories | 96 stories across 8 epics |
 | Stories Done | 68 |
 | Overall Progress | **73%** |
 
@@ -28,7 +28,7 @@
 | 5 | Administration & Polish | 25/25 | **COMPLETED** |
 | 6 | Document Lifecycle Management | 9/9 | **COMPLETED** |
 | 7 | Infrastructure & DevOps | 0/10 | **BACKLOG** |
-| 8 | GraphRAG Integration | 0/15 | **BACKLOG** |
+| 8 | GraphRAG Integration | 0/18 | **BACKLOG** |
 
 ---
 

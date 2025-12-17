@@ -2,9 +2,9 @@
  * System configuration types.
  */
 
-export type ConfigDataType = "integer" | "float" | "boolean" | "string";
+export type ConfigDataType = 'integer' | 'float' | 'boolean' | 'string';
 
-export type ConfigCategory = "Security" | "Processing" | "Rate Limits";
+export type ConfigCategory = 'Security' | 'Processing' | 'Rate Limits';
 
 export interface ConfigSetting {
   key: string;

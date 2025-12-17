@@ -20,14 +20,7 @@ describe('ExportModal - AC1: Format Selection', () => {
     const onExport = vi.fn();
     const onClose = vi.fn();
 
-    render(
-      <ExportModal
-        open={true}
-        onClose={onClose}
-        onExport={onExport}
-        citationCount={5}
-      />
-    );
+    render(<ExportModal open={true} onClose={onClose} onExport={onExport} citationCount={5} />);
 
     // THEN: All format options are visible
     expect(screen.getByTestId('format-option-docx')).toBeInTheDocument();
@@ -50,14 +43,7 @@ describe('ExportModal - AC1: Format Selection', () => {
     const onExport = vi.fn();
     const onClose = vi.fn();
 
-    render(
-      <ExportModal
-        open={true}
-        onClose={onClose}
-        onExport={onExport}
-        citationCount={3}
-      />
-    );
+    render(<ExportModal open={true} onClose={onClose} onExport={onExport} citationCount={3} />);
 
     // WHEN: User selects DOCX format
     const docxOption = screen.getByTestId('format-option-docx');

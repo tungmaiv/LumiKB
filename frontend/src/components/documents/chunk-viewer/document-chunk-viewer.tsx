@@ -11,14 +11,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import {
-  GripVertical,
-  FileText,
-  Loader2,
-  ChevronUp,
-  ChevronDown,
-  Layers,
-} from 'lucide-react';
+import { GripVertical, FileText, Loader2, ChevronUp, ChevronDown, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDocumentContent } from '@/hooks/useDocumentContent';
 import { ChunkSidebar } from './chunk-sidebar';
@@ -151,9 +144,7 @@ export function DocumentChunkViewer({
         <div className="flex flex-col items-center justify-center h-full text-center p-4">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
           <div className="text-destructive mb-2">Failed to load document</div>
-          <div className="text-sm text-muted-foreground">
-            {error?.message || 'Unknown error'}
-          </div>
+          <div className="text-sm text-muted-foreground">{error?.message || 'Unknown error'}</div>
         </div>
       );
     }
@@ -169,31 +160,14 @@ export function DocumentChunkViewer({
         );
 
       case 'docx':
-        return (
-          <DOCXViewer
-            html={html}
-            text={text}
-            highlightRange={highlightRange}
-          />
-        );
+        return <DOCXViewer html={html} text={text} highlightRange={highlightRange} />;
 
       case 'markdown':
-        return (
-          <MarkdownViewer
-            content={text}
-            highlightRange={highlightRange}
-          />
-        );
+        return <MarkdownViewer content={text} highlightRange={highlightRange} />;
 
       case 'text':
       default:
-        return (
-          <TextViewer
-            content={text}
-            highlightRange={highlightRange}
-            showLineNumbers={true}
-          />
-        );
+        return <TextViewer content={text} highlightRange={highlightRange} showLineNumbers={true} />;
     }
   };
 

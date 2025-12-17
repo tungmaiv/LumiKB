@@ -225,7 +225,9 @@ export default function SearchPage() {
           <main className="flex-1 overflow-y-auto p-6">
             <div className="max-w-3xl mx-auto mt-12 text-center">
               <h2 className="text-2xl font-bold mb-4">No matches found</h2>
-              <p className="text-gray-600 mb-6">Try different terms or search all Knowledge Bases</p>
+              <p className="text-gray-600 mb-6">
+                Try different terms or search all Knowledge Bases
+              </p>
               <div className="space-y-2">
                 <p className="text-sm text-[#3B82F6]">Suggested actions:</p>
                 <ul className="text-sm text-gray-600 space-y-1">
@@ -243,117 +245,116 @@ export default function SearchPage() {
   return (
     <DashboardLayout>
       <div className="flex h-full relative">
-      {/* Center Panel: Search Results */}
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Search className="h-8 w-8" />
-            <h2 className="text-2xl font-bold">Search Results</h2>
-          </div>
-          {/* Generate Draft Button (Story 4.9) */}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setGenerationModalOpen(true)}
-            disabled={!answer}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Generate Draft
-          </Button>
-        </div>
-        {query && <p className="text-sm text-gray-600 mb-6">Query: &quot;{query}&quot;</p>}
-
-        {/* Answer Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          {isLoading && !answer ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
+        {/* Center Panel: Search Results */}
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Search className="h-8 w-8" />
+              <h2 className="text-2xl font-bold">Search Results</h2>
             </div>
-          ) : (
-            <>
-              <div
-                className="prose max-w-none text-base leading-relaxed"
-                data-testid="search-answer"
-                role="region"
-                aria-live="polite"
-                aria-label="Search answer"
-              >
-                {renderAnswerWithCitations(answer)}
-              </div>
-              {confidence !== null && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <ConfidenceIndicator confidence={confidence} />
-                </div>
-              )}
+            {/* Generate Draft Button (Story 4.9) */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setGenerationModalOpen(true)}
+              disabled={!answer}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Draft
+            </Button>
+          </div>
+          {query && <p className="text-sm text-gray-600 mb-6">Query: &quot;{query}&quot;</p>}
 
-              {/* Verify All Button (Story 3.10, AC1) */}
-              {answer && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <VerifyAllButton
-                    answerId={query} // Using query as answerId for now
-                    citations={citations}
-                    isStreaming={isLoading}
-                  />
-                </div>
-              )}
-
-              {/* Verification Controls (Story 3.10, AC2, AC3, AC5) */}
-              {isVerifying && <VerificationControls citations={citations} />}
-            </>
-          )}
-        </div>
-
-        {/* Search Result Cards (Story 3.8) */}
-        {(searchResults.length > 0 || similarLoading) && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4">
-              {chunkId ? 'Similar Results' : 'Sources'}
-            </h3>
-            {similarLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
+          {/* Answer Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+            {isLoading && !answer ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
               </div>
             ) : (
-              <div className="space-y-4">
-                {searchResults.map((result, index) => (
-                  <SearchResultCard
-                    key={`${result.documentId}-${index}`}
-                    result={result}
-                    query={query}
-                    onUseInDraft={handleUseInDraft}
-                    onView={handleView}
-                    onFindSimilar={handleFindSimilar}
-                    index={index}
-                  />
-                ))}
-              </div>
+              <>
+                <div
+                  className="prose max-w-none text-base leading-relaxed"
+                  data-testid="search-answer"
+                  role="region"
+                  aria-live="polite"
+                  aria-label="Search answer"
+                >
+                  {renderAnswerWithCitations(answer)}
+                </div>
+                {confidence !== null && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <ConfidenceIndicator confidence={confidence} />
+                  </div>
+                )}
+
+                {/* Verify All Button (Story 3.10, AC1) */}
+                {answer && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <VerifyAllButton
+                      answerId={query} // Using query as answerId for now
+                      citations={citations}
+                      isStreaming={isLoading}
+                    />
+                  </div>
+                )}
+
+                {/* Verification Controls (Story 3.10, AC2, AC3, AC5) */}
+                {isVerifying && <VerificationControls citations={citations} />}
+              </>
             )}
           </div>
-        )}
-      </main>
 
+          {/* Search Result Cards (Story 3.8) */}
+          {(searchResults.length > 0 || similarLoading) && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">
+                {chunkId ? 'Similar Results' : 'Sources'}
+              </h3>
+              {similarLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {searchResults.map((result, index) => (
+                    <SearchResultCard
+                      key={`${result.documentId}-${index}`}
+                      result={result}
+                      query={query}
+                      onUseInDraft={handleUseInDraft}
+                      onView={handleView}
+                      onFindSimilar={handleFindSimilar}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </main>
 
-      {/* Citation Preview Modal */}
-      <CitationPreviewModal
-        citation={previewCitation}
-        open={previewModalOpen}
-        onOpenChange={setPreviewModalOpen}
-        onOpenDocument={handleOpenDocument}
-      />
+        {/* Citation Preview Modal */}
+        <CitationPreviewModal
+          citation={previewCitation}
+          open={previewModalOpen}
+          onOpenChange={setPreviewModalOpen}
+          onOpenDocument={handleOpenDocument}
+        />
 
-      {/* Draft Selection Panel (Story 3.8, AC4 + Story 4.4, AC6) */}
-      <DraftSelectionPanel kbId={kbIds?.[0] || ''} />
+        {/* Draft Selection Panel (Story 3.8, AC4 + Story 4.4, AC6) */}
+        <DraftSelectionPanel kbId={kbIds?.[0] || ''} />
 
-      {/* Generation Modal (Story 4.9) */}
-      <GenerationModal
-        open={generationModalOpen}
-        onClose={() => setGenerationModalOpen(false)}
-        onGenerate={handleGenerate}
-      />
+        {/* Generation Modal (Story 4.9) */}
+        <GenerationModal
+          open={generationModalOpen}
+          onClose={() => setGenerationModalOpen(false)}
+          onGenerate={handleGenerate}
+        />
       </div>
     </DashboardLayout>
   );

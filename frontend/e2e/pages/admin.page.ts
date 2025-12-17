@@ -200,7 +200,9 @@ export class AdminPage extends BasePage {
   /**
    * Get step statuses from the processing details modal
    */
-  async getProcessingStepStatuses(): Promise<Array<{ step: string; status: string; duration: string }>> {
+  async getProcessingStepStatuses(): Promise<
+    Array<{ step: string; status: string; duration: string }>
+  > {
     const steps = this.page.locator('[data-testid="processing-step"]');
     const count = await steps.count();
     const statuses: Array<{ step: string; status: string; duration: string }> = [];
@@ -231,7 +233,9 @@ export class AdminPage extends BasePage {
   /**
    * Apply processing filter by current step
    */
-  async filterProcessingByStep(step: 'upload' | 'parse' | 'chunk' | 'embed' | 'index' | 'complete' | 'all') {
+  async filterProcessingByStep(
+    step: 'upload' | 'parse' | 'chunk' | 'embed' | 'index' | 'complete' | 'all'
+  ) {
     const stepDropdown = this.page.getByRole('combobox', { name: /step/i });
     await stepDropdown.click();
     await this.page.getByRole('option', { name: new RegExp(step, 'i') }).click();
@@ -322,7 +326,11 @@ export class AdminPage extends BasePage {
    * Get current temperature value from the LLM config form
    */
   async getTemperatureValue(): Promise<string> {
-    const temperatureDisplay = this.page.locator('text=Temperature').locator('..').locator('span').last();
+    const temperatureDisplay = this.page
+      .locator('text=Temperature')
+      .locator('..')
+      .locator('span')
+      .last();
     return (await temperatureDisplay.textContent())?.trim() || '';
   }
 
@@ -369,7 +377,10 @@ export class AdminPage extends BasePage {
    */
   async isDimensionMismatchDialogVisible(): Promise<boolean> {
     const dialog = this.page.getByRole('alertdialog').or(this.page.locator('[role="dialog"]'));
-    const hasDimensionText = await dialog.getByText(/dimension.*mismatch/i).isVisible().catch(() => false);
+    const hasDimensionText = await dialog
+      .getByText(/dimension.*mismatch/i)
+      .isVisible()
+      .catch(() => false);
     return hasDimensionText;
   }
 

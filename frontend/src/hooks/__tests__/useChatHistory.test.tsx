@@ -10,11 +10,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
-import {
-  useChatSessions,
-  useChatMessages,
-  useChatHistorySearch,
-} from '../useChatHistory';
+import { useChatSessions, useChatMessages, useChatHistorySearch } from '../useChatHistory';
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -30,9 +26,7 @@ function createWrapper() {
   });
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -180,9 +174,7 @@ describe('useChatMessages', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/observability/chat-history')
     );
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('session_id=session-123')
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('session_id=session-123'));
   });
 
   it('supports pagination via getNextPageParam', async () => {
@@ -244,10 +236,9 @@ describe('useChatHistorySearch', () => {
       json: () => Promise.resolve(mockData),
     });
 
-    const { result } = renderHook(
-      () => useChatHistorySearch({ searchQuery: 'test' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useChatHistorySearch({ searchQuery: 'test' }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);

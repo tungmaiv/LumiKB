@@ -89,9 +89,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
   });
 
   test.describe('[P0] AC-7.14.1: Tab Structure', () => {
-    test('displays tabs: General, Models, Advanced, Prompts', async ({
-      authenticatedPage,
-    }) => {
+    test('displays tabs: General, Models, Advanced, Prompts', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User opens KB settings modal
        * WHEN: Modal is displayed
@@ -134,9 +132,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
   });
 
   test.describe('[P0] AC-7.14.2: Chunking Section', () => {
-    test('displays chunking section with strategy dropdown', async ({
-      authenticatedPage,
-    }) => {
+    test('displays chunking section with strategy dropdown', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on General tab
        * WHEN: Viewing Chunking section
@@ -161,9 +157,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect(page.getByRole('option', { name: /semantic/i })).toBeVisible();
     });
 
-    test('displays chunk size slider with range 100-2000', async ({
-      authenticatedPage,
-    }) => {
+    test('displays chunk size slider with range 100-2000', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on General tab
        * WHEN: Viewing Chunking section
@@ -185,9 +179,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect(slider).toHaveAttribute('aria-valuemax', '2000');
     });
 
-    test('displays chunk overlap slider with range 0-500', async ({
-      authenticatedPage,
-    }) => {
+    test('displays chunk overlap slider with range 0-500', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on General tab
        * WHEN: Viewing Chunking section
@@ -209,9 +201,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
   });
 
   test.describe('[P0] AC-7.14.3: Retrieval Section', () => {
-    test('displays retrieval section with all controls', async ({
-      authenticatedPage,
-    }) => {
+    test('displays retrieval section with all controls', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on General tab
        * WHEN: Viewing Retrieval section
@@ -250,9 +240,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect(slider).toHaveAttribute('aria-valuemax', '100');
     });
 
-    test('shows MMR lambda slider only when MMR is enabled', async ({
-      authenticatedPage,
-    }) => {
+    test('shows MMR lambda slider only when MMR is enabled', async ({ authenticatedPage }) => {
       /**
        * GIVEN: MMR toggle is OFF
        * WHEN: User enables MMR toggle
@@ -299,9 +287,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
   });
 
   test.describe('[P0] AC-7.14.4: Generation Section', () => {
-    test('displays generation section with all controls', async ({
-      authenticatedPage,
-    }) => {
+    test('displays generation section with all controls', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on General tab
        * WHEN: Viewing Generation section
@@ -320,9 +306,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect(page.locator('[data-testid="generation-max-tokens-input"]')).toBeVisible();
     });
 
-    test('displays temperature slider with range 0.0-2.0', async ({
-      authenticatedPage,
-    }) => {
+    test('displays temperature slider with range 0.0-2.0', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User is on General tab
        * WHEN: Viewing Generation section
@@ -342,9 +326,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
   });
 
   test.describe('[P1] AC-7.14.5: Reset to Defaults', () => {
-    test('shows confirmation dialog before resetting', async ({
-      authenticatedPage,
-    }) => {
+    test('shows confirmation dialog before resetting', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User has modified settings
        * WHEN: User clicks Reset to Defaults
@@ -365,9 +347,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect(page.getByText(/reset.*defaults/i)).toBeVisible();
     });
 
-    test('resets all settings to defaults on confirmation', async ({
-      authenticatedPage,
-    }) => {
+    test('resets all settings to defaults on confirmation', async ({ authenticatedPage }) => {
       /**
        * GIVEN: Confirmation dialog is shown
        * WHEN: User confirms reset
@@ -468,9 +448,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
   });
 
   test.describe('[P1] AC-7.14.7: Validation Feedback', () => {
-    test('shows error styling for invalid temperature value', async ({
-      authenticatedPage,
-    }) => {
+    test('shows error styling for invalid temperature value', async ({ authenticatedPage }) => {
       /**
        * GIVEN: User enters invalid value (temperature > 2.0)
        * THEN: Field shows error styling
@@ -497,9 +475,7 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect(saveButton).toBeVisible();
     });
 
-    test('disables save button when validation errors exist', async ({
-      authenticatedPage,
-    }) => {
+    test('disables save button when validation errors exist', async ({ authenticatedPage }) => {
       /**
        * GIVEN: Form has validation errors
        * THEN: Save button is disabled
@@ -549,9 +525,10 @@ test.describe('Story 7-14: KB Settings UI - General Panel', () => {
       await expect.poll(() => settingsRequested).toBe(true);
 
       // Verify form shows fetched value
-      await expect(
-        page.locator('[data-testid="chunking-size-slider"]')
-      ).toHaveAttribute('aria-valuenow', '1024');
+      await expect(page.locator('[data-testid="chunking-size-slider"]')).toHaveAttribute(
+        'aria-valuenow',
+        '1024'
+      );
     });
   });
 });

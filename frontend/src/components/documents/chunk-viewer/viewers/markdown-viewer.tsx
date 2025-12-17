@@ -100,25 +100,16 @@ export function MarkdownViewer({
             components={{
               // Custom heading styles
               h1: ({ children }) => (
-                <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b">
-                  {children}
-                </h1>
+                <h1 className="text-2xl font-bold mt-6 mb-4 pb-2 border-b">{children}</h1>
               ),
-              h2: ({ children }) => (
-                <h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>
-              ),
-              h3: ({ children }) => (
-                <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>
-              ),
+              h2: ({ children }) => <h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>,
               // Code blocks
               code: ({ className, children, ...props }) => {
                 const isInline = !className;
                 if (isInline) {
                   return (
-                    <code
-                      className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono"
-                      {...props}
-                    >
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                       {children}
                     </code>
                   );
@@ -133,9 +124,7 @@ export function MarkdownViewer({
                 );
               },
               pre: ({ children }) => (
-                <pre className="bg-muted rounded-lg overflow-x-auto my-4">
-                  {children}
-                </pre>
+                <pre className="bg-muted rounded-lg overflow-x-auto my-4">{children}</pre>
               ),
               // Links
               a: ({ href, children }) => (
@@ -149,9 +138,7 @@ export function MarkdownViewer({
                 </a>
               ),
               // Lists
-              ul: ({ children }) => (
-                <ul className="list-disc pl-6 my-3 space-y-1">{children}</ul>
-              ),
+              ul: ({ children }) => <ul className="list-disc pl-6 my-3 space-y-1">{children}</ul>,
               ol: ({ children }) => (
                 <ol className="list-decimal pl-6 my-3 space-y-1">{children}</ol>
               ),
@@ -172,18 +159,12 @@ export function MarkdownViewer({
                   {children}
                 </th>
               ),
-              td: ({ children }) => (
-                <td className="border border-border px-3 py-2">{children}</td>
-              ),
+              td: ({ children }) => <td className="border border-border px-3 py-2">{children}</td>,
               // Horizontal rule
               hr: () => <hr className="my-6 border-border" />,
               // Images
               img: ({ src, alt }) => (
-                <img
-                  src={src}
-                  alt={alt || ''}
-                  className="max-w-full h-auto rounded-lg my-4"
-                />
+                <img src={src} alt={alt || ''} className="max-w-full h-auto rounded-lg my-4" />
               ),
             }}
           >

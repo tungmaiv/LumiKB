@@ -317,7 +317,8 @@ export default function DocumentChunksPage() {
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
           <div className="text-muted-foreground mb-2">No document content available</div>
           <div className="text-sm text-muted-foreground">
-            The document content could not be loaded. This may happen if the document is still processing or the content format is not supported.
+            The document content could not be loaded. This may happen if the document is still
+            processing or the content format is not supported.
           </div>
         </div>
       );
@@ -336,25 +337,17 @@ export default function DocumentChunksPage() {
               text={text}
               highlightRange={highlightRange}
               isLoading={isLoadingContent}
-              error={isContentError ? (contentError?.message || 'Failed to load content') : undefined}
+              error={isContentError ? contentError?.message || 'Failed to load content' : undefined}
             />
           </>
         );
 
       case 'markdown':
-        return (
-          <MarkdownViewer content={text} highlightRange={highlightRange} />
-        );
+        return <MarkdownViewer content={text} highlightRange={highlightRange} />;
 
       case 'text':
       default:
-        return (
-          <TextViewer
-            content={text}
-            highlightRange={highlightRange}
-            showLineNumbers={true}
-          />
-        );
+        return <TextViewer content={text} highlightRange={highlightRange} showLineNumbers={true} />;
     }
   };
 
@@ -412,9 +405,7 @@ export default function DocumentChunksPage() {
           </Button>
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold truncate">{documentInfo?.name}</h1>
-            <p className="text-xs text-muted-foreground">
-              {documentInfo?.chunk_count} chunks
-            </p>
+            <p className="text-xs text-muted-foreground">{documentInfo?.chunk_count} chunks</p>
           </div>
           {/* Story 7-31: View mode toggle - AC-7.31.1 */}
           <ViewModeToggle
@@ -507,9 +498,7 @@ export default function DocumentChunksPage() {
         <PanelGroup direction="horizontal" className="h-full">
           {/* Document content pane (left side) - IsolatedScrollPanel captures wheel events */}
           <Panel defaultSize={65} minSize={30} className="overflow-hidden">
-            <IsolatedScrollPanel>
-              {renderViewer()}
-            </IsolatedScrollPanel>
+            <IsolatedScrollPanel>{renderViewer()}</IsolatedScrollPanel>
           </Panel>
 
           {/* Resize handle */}

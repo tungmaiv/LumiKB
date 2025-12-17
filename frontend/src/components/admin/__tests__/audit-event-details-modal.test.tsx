@@ -38,13 +38,7 @@ describe('AuditEventDetailsModal Component', () => {
 
   describe('[P1] Modal displays event details', () => {
     it('should display modal when isOpen is true', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(screen.getByText(/audit event details/i)).toBeInTheDocument();
@@ -52,24 +46,14 @@ describe('AuditEventDetailsModal Component', () => {
 
     it('should not display modal when isOpen is false', () => {
       render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={false}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={mockAuditEvent} isOpen={false} onClose={mockOnClose} />
       );
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('should display event ID', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       // Event ID label and value
       expect(screen.getByText('Event ID')).toBeInTheDocument();
@@ -77,26 +61,14 @@ describe('AuditEventDetailsModal Component', () => {
     });
 
     it('should display event type (action)', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('Event Type')).toBeInTheDocument();
       expect(screen.getByText('search')).toBeInTheDocument();
     });
 
     it('should display timestamp in formatted format', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('Timestamp')).toBeInTheDocument();
       // Formatted: 2025-12-02 10:00:00 UTC
@@ -104,26 +76,14 @@ describe('AuditEventDetailsModal Component', () => {
     });
 
     it('should display status', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('Status')).toBeInTheDocument();
       expect(screen.getByText('success')).toBeInTheDocument();
     });
 
     it('should display user information', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('User ID')).toBeInTheDocument();
       expect(screen.getByText('user-123')).toBeInTheDocument();
@@ -132,13 +92,7 @@ describe('AuditEventDetailsModal Component', () => {
     });
 
     it('should display resource information', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('Resource Type')).toBeInTheDocument();
       expect(screen.getByText('knowledge_base')).toBeInTheDocument();
@@ -147,13 +101,7 @@ describe('AuditEventDetailsModal Component', () => {
     });
 
     it('should display duration in milliseconds', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('Duration')).toBeInTheDocument();
       expect(screen.getByText('150ms')).toBeInTheDocument();
@@ -161,11 +109,7 @@ describe('AuditEventDetailsModal Component', () => {
 
     it('should return null when event is null', () => {
       const { container } = render(
-        <AuditEventDetailsModal
-          event={null}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={null} isOpen={true} onClose={mockOnClose} />
       );
 
       // Should render nothing
@@ -175,13 +119,7 @@ describe('AuditEventDetailsModal Component', () => {
 
   describe('[P1] IP address and PII display', () => {
     it('should display redacted IP address with privacy note', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('IP Address')).toBeInTheDocument();
       expect(screen.getByText('XXX.XXX.XXX.XXX')).toBeInTheDocument();
@@ -195,11 +133,7 @@ describe('AuditEventDetailsModal Component', () => {
       };
 
       render(
-        <AuditEventDetailsModal
-          event={unredactedEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={unredactedEvent} isOpen={true} onClose={mockOnClose} />
       );
 
       expect(screen.getByText('192.168.1.100')).toBeInTheDocument();
@@ -212,13 +146,7 @@ describe('AuditEventDetailsModal Component', () => {
         ip_address: null,
       };
 
-      render(
-        <AuditEventDetailsModal
-          event={eventWithoutIP}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={eventWithoutIP} isOpen={true} onClose={mockOnClose} />);
 
       // Find the N/A after IP Address label
       const ipSection = screen.getByText('IP Address').parentElement;
@@ -228,13 +156,7 @@ describe('AuditEventDetailsModal Component', () => {
 
   describe('[P1] Event details JSON display', () => {
     it('should display event details as formatted JSON', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText('Event Details')).toBeInTheDocument();
       // Check for JSON content
@@ -245,13 +167,7 @@ describe('AuditEventDetailsModal Component', () => {
     });
 
     it('should display sensitive field warning when password present', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByText(/sensitive fields have been redacted/i)).toBeInTheDocument();
     });
@@ -283,11 +199,7 @@ describe('AuditEventDetailsModal Component', () => {
       };
 
       render(
-        <AuditEventDetailsModal
-          event={eventWithoutDetails}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={eventWithoutDetails} isOpen={true} onClose={mockOnClose} />
       );
 
       const preElement = document.querySelector('pre');
@@ -297,13 +209,7 @@ describe('AuditEventDetailsModal Component', () => {
 
   describe('[P2] Modal close functionality', () => {
     it('should call onClose when dialog is closed via onOpenChange', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       // Shadcn Dialog uses onOpenChange prop which maps to onClose
       // Find and click the close button
@@ -322,11 +228,7 @@ describe('AuditEventDetailsModal Component', () => {
       };
 
       render(
-        <AuditEventDetailsModal
-          event={eventWithNullStatus}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={eventWithNullStatus} isOpen={true} onClose={mockOnClose} />
       );
 
       // Find Status section and verify N/A
@@ -341,11 +243,7 @@ describe('AuditEventDetailsModal Component', () => {
       };
 
       render(
-        <AuditEventDetailsModal
-          event={eventWithNullDuration}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={eventWithNullDuration} isOpen={true} onClose={mockOnClose} />
       );
 
       // Find Duration section and verify N/A
@@ -360,11 +258,7 @@ describe('AuditEventDetailsModal Component', () => {
       };
 
       render(
-        <AuditEventDetailsModal
-          event={eventWithNullEmail}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
+        <AuditEventDetailsModal event={eventWithNullEmail} isOpen={true} onClose={mockOnClose} />
       );
 
       // Find User Email section and verify System
@@ -394,13 +288,7 @@ describe('AuditEventDetailsModal Component', () => {
 
   describe('[P2] Accessibility', () => {
     it('should have accessible dialog role', () => {
-      render(
-        <AuditEventDetailsModal
-          event={mockAuditEvent}
-          isOpen={true}
-          onClose={mockOnClose}
-        />
-      );
+      render(<AuditEventDetailsModal event={mockAuditEvent} isOpen={true} onClose={mockOnClose} />);
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();

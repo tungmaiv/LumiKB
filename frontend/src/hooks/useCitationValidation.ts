@@ -12,8 +12,8 @@ import { useDebounce } from './useDebounce';
  * Types of validation warnings
  */
 export type ValidationWarningType =
-  | 'orphaned_citation'  // Citation marker [n] in content but no matching source
-  | 'unused_citation';   // Source exists but marker [n] not in content
+  | 'orphaned_citation' // Citation marker [n] in content but no matching source
+  | 'unused_citation'; // Source exists but marker [n] not in content
 
 /**
  * Validation warning with details
@@ -117,17 +117,13 @@ export function useCitationValidation(
     const markersInContent = extractCitationMarkers(debouncedContent);
 
     // Get citation numbers from sources
-    const citationNumbers = new Set(citations.map(c => c.number));
+    const citationNumbers = new Set(citations.map((c) => c.number));
 
     // Find orphaned citations (in content but not in sources) - AC-7.21.1
-    const orphanedCitations = [...markersInContent].filter(
-      n => !citationNumbers.has(n)
-    );
+    const orphanedCitations = [...markersInContent].filter((n) => !citationNumbers.has(n));
 
     // Find unused citations (in sources but not in content) - AC-7.21.2
-    const unusedCitations = [...citationNumbers].filter(
-      n => !markersInContent.has(n)
-    );
+    const unusedCitations = [...citationNumbers].filter((n) => !markersInContent.has(n));
 
     return { orphanedCitations, unusedCitations };
   }, [debouncedContent, citations]);
@@ -142,25 +138,27 @@ export function useCitationValidation(
     const dismissedUnused = dismissedWarnings.get('unused_citation') || new Set();
 
     // Filter orphaned citations that aren't dismissed
-    const activeOrphaned = orphanedCitations.filter(n => !dismissedOrphaned.has(n));
+    const activeOrphaned = orphanedCitations.filter((n) => !dismissedOrphaned.has(n));
     if (activeOrphaned.length > 0) {
       result.push({
         type: 'orphaned_citation',
-        message: activeOrphaned.length === 1
-          ? `Citation [${activeOrphaned[0]}] references a missing source`
-          : `Citations [${activeOrphaned.join('], [')}] reference missing sources`,
+        message:
+          activeOrphaned.length === 1
+            ? `Citation [${activeOrphaned[0]}] references a missing source`
+            : `Citations [${activeOrphaned.join('], [')}] reference missing sources`,
         citationNumbers: activeOrphaned,
       });
     }
 
     // Filter unused citations that aren't dismissed
-    const activeUnused = unusedCitations.filter(n => !dismissedUnused.has(n));
+    const activeUnused = unusedCitations.filter((n) => !dismissedUnused.has(n));
     if (activeUnused.length > 0) {
       result.push({
         type: 'unused_citation',
-        message: activeUnused.length === 1
-          ? `Source [${activeUnused[0]}] is defined but never used`
-          : `Sources [${activeUnused.join('], [')}] are defined but never used`,
+        message:
+          activeUnused.length === 1
+            ? `Source [${activeUnused[0]}] is defined but never used`
+            : `Sources [${activeUnused.join('], [')}] are defined but never used`,
         citationNumbers: activeUnused,
       });
     }
@@ -169,16 +167,19 @@ export function useCitationValidation(
   }, [validationResult, dismissedWarnings]);
 
   // Dismiss a warning type with current citation numbers (AC-7.21.5)
-  const dismissWarning = useCallback((type: ValidationWarningType) => {
-    const { orphanedCitations, unusedCitations } = validationResult;
-    const numbers = type === 'orphaned_citation' ? orphanedCitations : unusedCitations;
+  const dismissWarning = useCallback(
+    (type: ValidationWarningType) => {
+      const { orphanedCitations, unusedCitations } = validationResult;
+      const numbers = type === 'orphaned_citation' ? orphanedCitations : unusedCitations;
 
-    setDismissedWarnings(prev => {
-      const next = new Map(prev);
-      next.set(type, new Set(numbers));
-      return next;
-    });
-  }, [validationResult]);
+      setDismissedWarnings((prev) => {
+        const next = new Map(prev);
+        next.set(type, new Set(numbers));
+        return next;
+      });
+    },
+    [validationResult]
+  );
 
   // Reset all dismissed warnings
   const resetDismissed = useCallback(() => {
@@ -186,16 +187,19 @@ export function useCitationValidation(
   }, []);
 
   // Check if a warning type is currently dismissed
-  const isWarningDismissed = useCallback((type: ValidationWarningType): boolean => {
-    const dismissed = dismissedWarnings.get(type);
-    if (!dismissed || dismissed.size === 0) return false;
+  const isWarningDismissed = useCallback(
+    (type: ValidationWarningType): boolean => {
+      const dismissed = dismissedWarnings.get(type);
+      if (!dismissed || dismissed.size === 0) return false;
 
-    const { orphanedCitations, unusedCitations } = validationResult;
-    const currentNumbers = type === 'orphaned_citation' ? orphanedCitations : unusedCitations;
+      const { orphanedCitations, unusedCitations } = validationResult;
+      const currentNumbers = type === 'orphaned_citation' ? orphanedCitations : unusedCitations;
 
-    // Warning is dismissed only if all current numbers are in dismissed set
-    return currentNumbers.every(n => dismissed.has(n));
-  }, [dismissedWarnings, validationResult]);
+      // Warning is dismissed only if all current numbers are in dismissed set
+      return currentNumbers.every((n) => dismissed.has(n));
+    },
+    [dismissedWarnings, validationResult]
+  );
 
   return {
     warnings,
@@ -223,9 +227,7 @@ export function renumberCitations(
   numbersToRemove: number[]
 ): { content: string; citations: Citation[] } {
   // Remove specified citations
-  const filteredCitations = citations.filter(
-    c => !numbersToRemove.includes(c.number)
-  );
+  const filteredCitations = citations.filter((c) => !numbersToRemove.includes(c.number));
 
   // Create mapping from old numbers to new numbers
   const numberMap = new Map<number, number>();
@@ -236,7 +238,7 @@ export function renumberCitations(
     });
 
   // Update citation numbers
-  const updatedCitations = filteredCitations.map(c => ({
+  const updatedCitations = filteredCitations.map((c) => ({
     ...c,
     number: numberMap.get(c.number) || c.number,
   }));
@@ -246,10 +248,7 @@ export function renumberCitations(
 
   // First, remove markers for deleted citations
   for (const num of numbersToRemove) {
-    updatedContent = updatedContent.replace(
-      new RegExp(`\\[${num}\\]`, 'g'),
-      ''
-    );
+    updatedContent = updatedContent.replace(new RegExp(`\\[${num}\\]`, 'g'), '');
   }
 
   // Then, replace remaining markers with placeholders (to avoid collision)
@@ -259,20 +258,14 @@ export function renumberCitations(
     if (newNum !== undefined) {
       // Use a placeholder to avoid collision during renumbering
       const placeholder = `__CITATION_${oldNum}__`;
-      updatedContent = updatedContent.replace(
-        new RegExp(`\\[${oldNum}\\]`, 'g'),
-        placeholder
-      );
+      updatedContent = updatedContent.replace(new RegExp(`\\[${oldNum}\\]`, 'g'), placeholder);
     }
   }
 
   // Finally, replace placeholders with new numbers
   for (const [oldNum, newNum] of numberMap.entries()) {
     const placeholder = `__CITATION_${oldNum}__`;
-    updatedContent = updatedContent.replace(
-      new RegExp(placeholder, 'g'),
-      `[${newNum}]`
-    );
+    updatedContent = updatedContent.replace(new RegExp(placeholder, 'g'), `[${newNum}]`);
   }
 
   return {

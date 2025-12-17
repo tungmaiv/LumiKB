@@ -116,9 +116,12 @@ describe('useDraftEditor', () => {
       });
 
       // THEN: Auto-save triggered
-      expect(draftsApi.updateDraft).toHaveBeenCalledWith('draft-123', expect.objectContaining({
-        content: 'Auto-save test',
-      }));
+      expect(draftsApi.updateDraft).toHaveBeenCalledWith(
+        'draft-123',
+        expect.objectContaining({
+          content: 'Auto-save test',
+        })
+      );
     });
 
     it('should debounce multiple content changes within 5 seconds', async () => {
@@ -247,18 +250,18 @@ describe('useDraftEditor', () => {
         confidence: 0.9,
       };
 
-      const { result } = renderHook(() => useDraftEditor({
-        ...defaultOptions,
-        initialCitations: [mockCitation, citation2],
-      }));
+      const { result } = renderHook(() =>
+        useDraftEditor({
+          ...defaultOptions,
+          initialCitations: [mockCitation, citation2],
+        })
+      );
 
       expect(result.current.citations).toHaveLength(2);
 
       // WHEN: Removing citation 1 via setCitations filter
       act(() => {
-        result.current.setCitations(
-          result.current.citations.filter(c => c.number !== 1)
-        );
+        result.current.setCitations(result.current.citations.filter((c) => c.number !== 1));
       });
 
       // THEN: Citation removed
@@ -272,7 +275,10 @@ describe('useDraftEditor', () => {
       // GIVEN: useDraftEditor with pending save
       let resolveUpdate: () => void;
       (draftsApi.updateDraft as ReturnType<typeof vi.fn>).mockImplementation(
-        () => new Promise(resolve => { resolveUpdate = resolve as () => void; })
+        () =>
+          new Promise((resolve) => {
+            resolveUpdate = resolve as () => void;
+          })
       );
 
       const { result } = renderHook(() => useDraftEditor(defaultOptions));

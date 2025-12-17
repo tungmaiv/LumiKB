@@ -40,7 +40,14 @@ import { PROVIDER_INFO, MODEL_TYPE_INFO, MODEL_STATUS_INFO } from '@/types/llm-m
 const DEFAULT_PAGE_SIZE = 10;
 
 const MODEL_TYPES: ModelType[] = ['embedding', 'generation'];
-const MODEL_PROVIDERS: ModelProvider[] = ['ollama', 'openai', 'azure', 'gemini', 'anthropic', 'cohere'];
+const MODEL_PROVIDERS: ModelProvider[] = [
+  'ollama',
+  'openai',
+  'azure',
+  'gemini',
+  'anthropic',
+  'cohere',
+];
 const MODEL_STATUSES: ModelStatus[] = ['active', 'inactive', 'deprecated'];
 
 export default function ModelsPage() {
@@ -235,7 +242,7 @@ export default function ModelsPage() {
           <Select
             value={typeFilter || 'all'}
             onValueChange={(value) => {
-              setTypeFilter(value === 'all' ? undefined : value as ModelType);
+              setTypeFilter(value === 'all' ? undefined : (value as ModelType));
               setPage(1); // Reset to first page when filter changes
             }}
           >
@@ -255,7 +262,7 @@ export default function ModelsPage() {
           <Select
             value={providerFilter || 'all'}
             onValueChange={(value) => {
-              setProviderFilter(value === 'all' ? undefined : value as ModelProvider);
+              setProviderFilter(value === 'all' ? undefined : (value as ModelProvider));
               setPage(1); // Reset to first page when filter changes
             }}
           >
@@ -275,7 +282,7 @@ export default function ModelsPage() {
           <Select
             value={statusFilter || 'all'}
             onValueChange={(value) => {
-              setStatusFilter(value === 'all' ? undefined : value as ModelStatus);
+              setStatusFilter(value === 'all' ? undefined : (value as ModelStatus));
               setPage(1); // Reset to first page when filter changes
             }}
           >
@@ -297,7 +304,6 @@ export default function ModelsPage() {
               Clear Filters
             </Button>
           )}
-
         </div>
 
         {/* Pagination - Above Table */}

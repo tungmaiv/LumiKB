@@ -280,7 +280,9 @@ describe('EditGroupModal', () => {
        * THEN: Error message is displayed
        */
       const user = userEvent.setup();
-      const onUpdateGroup = vi.fn().mockRejectedValue(new Error('A group with this name already exists'));
+      const onUpdateGroup = vi
+        .fn()
+        .mockRejectedValue(new Error('A group with this name already exists'));
 
       // WHEN: Render and try to update
       render(<EditGroupModal {...defaultProps} onUpdateGroup={onUpdateGroup} />);

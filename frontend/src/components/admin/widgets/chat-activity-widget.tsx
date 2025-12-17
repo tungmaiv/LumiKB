@@ -17,13 +17,7 @@ import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ChatMetrics } from '@/hooks/useObservabilityStats';
 
@@ -59,7 +53,13 @@ function formatDuration(ms: number | null): string {
   return `${Math.round(ms)}ms`;
 }
 
-export function ChatActivityWidget({ data, isLoading, error, onRetry, trend }: ChatActivityWidgetProps) {
+export function ChatActivityWidget({
+  data,
+  isLoading,
+  error,
+  onRetry,
+  trend,
+}: ChatActivityWidgetProps) {
   const router = useRouter();
 
   const handleClick = () => {
@@ -167,12 +167,8 @@ function ChatActivityWidgetError({ error, onRetry }: ChatActivityWidgetErrorProp
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center justify-center py-4 text-center">
-          <p className="text-sm text-muted-foreground mb-2">
-            Failed to load chat activity data
-          </p>
-          <p className="text-xs text-destructive mb-3 max-w-[200px] truncate">
-            {error.message}
-          </p>
+          <p className="text-sm text-muted-foreground mb-2">Failed to load chat activity data</p>
+          <p className="text-xs text-destructive mb-3 max-w-[200px] truncate">{error.message}</p>
           {onRetry && (
             <Button
               variant="outline"

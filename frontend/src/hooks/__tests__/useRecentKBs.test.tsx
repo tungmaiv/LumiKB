@@ -64,14 +64,11 @@ describe('useRecentKBs', () => {
     renderHook(() => useRecentKBs(), { wrapper });
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/users/me/recent-kbs',
-        {
-          headers: {
-            Authorization: 'Bearer test-token',
-          },
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/api/v1/users/me/recent-kbs', {
+        headers: {
+          Authorization: 'Bearer test-token',
+        },
+      });
     });
   });
 
@@ -130,15 +127,14 @@ describe('useRecentKBs', () => {
   });
 
   it('sets isLoading during fetch', async () => {
-    const mockFetch = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(
-            () => resolve({ ok: true, json: async () => mockRecentKBs }),
-            100
+    const mockFetch = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ ok: true, json: async () => mockRecentKBs }), 100)
           )
-        )
-    );
+      );
     global.fetch = mockFetch;
 
     const { result } = renderHook(() => useRecentKBs(), { wrapper });
@@ -178,7 +174,8 @@ describe('useRecentKBs', () => {
       <QueryClientProvider client={retryQueryClient}>{children}</QueryClientProvider>
     );
 
-    const mockFetch = vi.fn()
+    const mockFetch = vi
+      .fn()
       .mockResolvedValueOnce({ ok: false, status: 500 })
       .mockResolvedValueOnce({ ok: true, json: async () => mockRecentKBs });
     global.fetch = mockFetch;

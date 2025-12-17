@@ -52,14 +52,13 @@ export function ChunkSidebar({
   const parentRef = useRef<HTMLDivElement>(null);
   const lastDataKeyRef = useRef<string>('');
 
-  const { chunks, total, hasMore, isLoading, isError, error } =
-    useDocumentChunks({
-      kbId,
-      documentId,
-      searchQuery,
-      cursor,
-      limit: 50,
-    });
+  const { chunks, total, hasMore, isLoading, isError, error } = useDocumentChunks({
+    kbId,
+    documentId,
+    searchQuery,
+    cursor,
+    limit: 50,
+  });
 
   // Create a stable key from chunk IDs to detect actual data changes
   const dataKey = chunks.map((c) => c.chunk_id).join(',');
@@ -206,9 +205,7 @@ export function ChunkSidebar({
             size="sm"
             disabled={selectedChunkIndex === 0}
             onClick={() => {
-              const prevChunk = allChunks.find(
-                (c) => c.chunk_index === selectedChunkIndex - 1
-              );
+              const prevChunk = allChunks.find((c) => c.chunk_index === selectedChunkIndex - 1);
               if (prevChunk) onChunkClick?.(prevChunk);
             }}
             data-testid="prev-chunk-btn"
@@ -224,9 +221,7 @@ export function ChunkSidebar({
             size="sm"
             disabled={selectedChunkIndex >= total - 1}
             onClick={() => {
-              const nextChunk = allChunks.find(
-                (c) => c.chunk_index === selectedChunkIndex + 1
-              );
+              const nextChunk = allChunks.find((c) => c.chunk_index === selectedChunkIndex + 1);
               if (nextChunk) onChunkClick?.(nextChunk);
             }}
             data-testid="next-chunk-btn"

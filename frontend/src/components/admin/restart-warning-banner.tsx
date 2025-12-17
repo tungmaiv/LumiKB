@@ -2,19 +2,16 @@
  * Warning banner displayed when config changes require service restart.
  */
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, X } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, X } from 'lucide-react';
 
 interface RestartWarningBannerProps {
   changedKeys: string[];
   onDismiss: () => void;
 }
 
-export function RestartWarningBanner({
-  changedKeys,
-  onDismiss,
-}: RestartWarningBannerProps) {
+export function RestartWarningBanner({ changedKeys, onDismiss }: RestartWarningBannerProps) {
   if (changedKeys.length === 0) return null;
 
   return (
@@ -24,14 +21,14 @@ export function RestartWarningBanner({
       <AlertDescription className="text-amber-800">
         {changedKeys.length === 1 ? (
           <p>
-            Configuration setting <strong>{changedKeys[0]}</strong> has been
-            changed. A service restart is required for this change to take effect.
+            Configuration setting <strong>{changedKeys[0]}</strong> has been changed. A service
+            restart is required for this change to take effect.
           </p>
         ) : (
           <div>
             <p className="mb-2">
-              {changedKeys.length} configuration settings have been changed and
-              require a service restart:
+              {changedKeys.length} configuration settings have been changed and require a service
+              restart:
             </p>
             <ul className="list-disc list-inside">
               {changedKeys.map((key) => (
@@ -41,12 +38,7 @@ export function RestartWarningBanner({
           </div>
         )}
       </AlertDescription>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2"
-        onClick={onDismiss}
-      >
+      <Button variant="ghost" size="sm" className="absolute top-2 right-2" onClick={onDismiss}>
         <X className="h-4 w-4" />
       </Button>
     </Alert>

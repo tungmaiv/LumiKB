@@ -59,9 +59,7 @@ export function OperatorGuard({ children }: OperatorGuardProps) {
           <p className="text-sm text-muted-foreground">
             You do not have permission to access this page.
           </p>
-          <p className="text-xs text-muted-foreground">
-            Operator access (level 2+) is required.
-          </p>
+          <p className="text-xs text-muted-foreground">Operator access (level 2+) is required.</p>
         </div>
       </div>
     );

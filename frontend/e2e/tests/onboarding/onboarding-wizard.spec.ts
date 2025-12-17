@@ -17,7 +17,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Onboarding Wizard - First Time User Experience', () => {
   test.describe('[P0] Critical User Journeys', () => {
-    test('[P0] should display wizard automatically for new user on first login', async ({ page }) => {
+    test('[P0] should display wizard automatically for new user on first login', async ({
+      page,
+    }) => {
       // GIVEN: A new user with onboarding_completed = false
       // Mock API response for new user
       await page.route('**/api/v1/users/me', async (route) => {
@@ -57,7 +59,9 @@ test.describe('Onboarding Wizard - First Time User Experience', () => {
       await expect(dialog.getByText('Step 1 of 5')).toBeVisible();
     });
 
-    test('[P0] should mark onboarding complete and prevent re-display on subsequent login', async ({ page }) => {
+    test('[P0] should mark onboarding complete and prevent re-display on subsequent login', async ({
+      page,
+    }) => {
       // GIVEN: A new user completes onboarding wizard
 
       // Step 1: Mock initial user state (onboarding_completed = false)
@@ -73,8 +77,8 @@ test.describe('Onboarding Wizard - First Time User Experience', () => {
       });
 
       // Network-first pattern: Intercept completion API call BEFORE navigation
-      const completionPromise = page.waitForRequest((req) =>
-        req.url().includes('/api/v1/users/me/onboarding') && req.method() === 'PUT'
+      const completionPromise = page.waitForRequest(
+        (req) => req.url().includes('/api/v1/users/me/onboarding') && req.method() === 'PUT'
       );
 
       // Mock completion API response
@@ -152,8 +156,8 @@ test.describe('Onboarding Wizard - First Time User Experience', () => {
       });
 
       // Network-first: Intercept skip API call BEFORE clicking
-      const skipPromise = page.waitForRequest((req) =>
-        req.url().includes('/api/v1/users/me/onboarding') && req.method() === 'PUT'
+      const skipPromise = page.waitForRequest(
+        (req) => req.url().includes('/api/v1/users/me/onboarding') && req.method() === 'PUT'
       );
 
       await page.route('**/api/v1/users/me/onboarding', async (route) => {

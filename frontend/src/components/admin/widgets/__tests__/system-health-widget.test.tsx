@@ -6,13 +6,13 @@
  * RED PHASE: All tests are designed to FAIL until implementation is complete.
  */
 
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { vi, describe, it, expect, beforeEach } from "vitest";
-import { useRouter } from "next/navigation";
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { useRouter } from 'next/navigation';
 
 // Mock next/navigation
-vi.mock("next/navigation", () => ({
+vi.mock('next/navigation', () => ({
   useRouter: vi.fn(),
 }));
 
@@ -38,12 +38,10 @@ function renderWithProviders(ui: React.ReactElement) {
     },
   });
 
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
-describe("SystemHealthWidget", () => {
+describe('SystemHealthWidget', () => {
   const mockRouter = { push: vi.fn() };
 
   beforeEach(() => {
@@ -51,143 +49,131 @@ describe("SystemHealthWidget", () => {
     (useRouter as ReturnType<typeof vi.fn>).mockReturnValue(mockRouter);
   });
 
-  describe("AC4: Trace success rate and p95 latency", () => {
-    it("renders_trace_success_rate", async () => {
+  describe('AC4: Trace success rate and p95 latency', () => {
+    it('renders_trace_success_rate', async () => {
       const data = createSystemHealthData();
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-success-rate")).toBeInTheDocument();
+        expect(screen.getByTestId('health-success-rate')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId("health-success-rate")).toHaveTextContent(
-        "98.5%"
-      );
+      expect(screen.getByTestId('health-success-rate')).toHaveTextContent('98.5%');
     });
 
-    it("renders_p95_latency", async () => {
+    it('renders_p95_latency', async () => {
       const data = createSystemHealthData();
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-p95-latency")).toBeInTheDocument();
+        expect(screen.getByTestId('health-p95-latency')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId("health-p95-latency")).toHaveTextContent(
-        "450ms"
-      );
+      expect(screen.getByTestId('health-p95-latency')).toHaveTextContent('450ms');
     });
 
-    it("renders_error_count", async () => {
+    it('renders_error_count', async () => {
       const data = createSystemHealthData();
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-error-count")).toBeInTheDocument();
+        expect(screen.getByTestId('health-error-count')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId("health-error-count")).toHaveTextContent("12");
+      expect(screen.getByTestId('health-error-count')).toHaveTextContent('12');
     });
 
-    it("shows_healthy_indicator_for_high_success_rate", async () => {
+    it('shows_healthy_indicator_for_high_success_rate', async () => {
       const data = createSystemHealthData({ traceSuccessRate: 99.9 });
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-status-indicator")).toHaveClass(
-          "text-green-500"
-        );
+        expect(screen.getByTestId('health-status-indicator')).toHaveClass('text-green-500');
       });
     });
 
-    it("shows_warning_indicator_for_degraded_success_rate", async () => {
+    it('shows_warning_indicator_for_degraded_success_rate', async () => {
       const data = createSystemHealthData({ traceSuccessRate: 92.5 });
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-status-indicator")).toHaveClass(
-          "text-yellow-500"
-        );
+        expect(screen.getByTestId('health-status-indicator')).toHaveClass('text-yellow-500');
       });
     });
 
-    it("shows_critical_indicator_for_low_success_rate", async () => {
+    it('shows_critical_indicator_for_low_success_rate', async () => {
       const data = createSystemHealthData({ traceSuccessRate: 85.0 });
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-status-indicator")).toHaveClass(
-          "text-destructive"
-        );
+        expect(screen.getByTestId('health-status-indicator')).toHaveClass('text-destructive');
       });
     });
   });
 
-  describe("AC7: Sparkline charts for trends", () => {
-    it("renders_sparkline_for_trend", async () => {
+  describe('AC7: Sparkline charts for trends', () => {
+    it('renders_sparkline_for_trend', async () => {
       const data = createSystemHealthData();
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("health-sparkline")).toBeInTheDocument();
+        expect(screen.getByTestId('health-sparkline')).toBeInTheDocument();
       });
     });
   });
 
-  describe("AC8: Click navigation", () => {
-    it("navigates_to_system_metrics_on_click", async () => {
+  describe('AC8: Click navigation', () => {
+    it('navigates_to_system_metrics_on_click', async () => {
       const data = createSystemHealthData();
 
-      const SystemHealthWidget = await import("../system-health-widget").then(
+      const SystemHealthWidget = await import('../system-health-widget').then(
         (m) => m.SystemHealthWidget
       );
 
       renderWithProviders(<SystemHealthWidget data={data} period="day" />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("system-health-widget")).toBeInTheDocument();
+        expect(screen.getByTestId('system-health-widget')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId("system-health-widget"));
+      fireEvent.click(screen.getByTestId('system-health-widget'));
 
-      expect(mockRouter.push).toHaveBeenCalledWith(
-        "/admin/observability/system"
-      );
+      expect(mockRouter.push).toHaveBeenCalledWith('/admin/observability/system');
     });
   });
 });

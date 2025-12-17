@@ -20,10 +20,7 @@
  */
 
 import { test as authTest, expect } from '../../fixtures/auth.fixture';
-import {
-  test as errorTest,
-  ERROR_RESPONSES,
-} from '../../fixtures/error-scenarios.fixture';
+import { test as errorTest, ERROR_RESPONSES } from '../../fixtures/error-scenarios.fixture';
 import { waitForNetworkIdle } from '../../utils/test-helpers';
 import { createAdminStats } from '../../fixtures/admin-stats.factory';
 
@@ -59,7 +56,10 @@ test.describe('Story 5-1: Admin Dashboard Negative Paths', () => {
     }
   });
 
-  test('[P0] Unauthenticated user receives 401 and redirects to login', async ({ page, mockApiError }) => {
+  test('[P0] Unauthenticated user receives 401 and redirects to login', async ({
+    page,
+    mockApiError,
+  }) => {
     /**
      * GIVEN: User is not authenticated
      * WHEN: User attempts to access /admin directly
@@ -89,11 +89,7 @@ test.describe('Story 5-1: Admin Dashboard Negative Paths', () => {
      * THEN: Error message is displayed with retry option
      */
 
-    await mockApiError(
-      page,
-      '**/api/v1/admin/stats',
-      ERROR_RESPONSES.INTERNAL_SERVER_ERROR
-    );
+    await mockApiError(page, '**/api/v1/admin/stats', ERROR_RESPONSES.INTERNAL_SERVER_ERROR);
 
     await page.goto('/admin');
     await page.waitForLoadState('networkidle');
@@ -139,7 +135,10 @@ test.describe('Story 5-1: Admin Dashboard Negative Paths', () => {
     }
   });
 
-  test('[P2] Dashboard handles malformed JSON response', async ({ page, mockMalformedResponse }) => {
+  test('[P2] Dashboard handles malformed JSON response', async ({
+    page,
+    mockMalformedResponse,
+  }) => {
     /**
      * GIVEN: Admin stats API returns invalid JSON
      * WHEN: Admin attempts to load dashboard
@@ -307,8 +306,7 @@ test.describe('Story 5-1: Admin Dashboard Negative Paths', () => {
 
       // Look for retry button
       const retryButton =
-        page.getByTestId('retry-button') ||
-        page.getByRole('button', { name: /retry|try again/i });
+        page.getByTestId('retry-button') || page.getByRole('button', { name: /retry|try again/i });
 
       if (await retryButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         // WHEN: Click retry

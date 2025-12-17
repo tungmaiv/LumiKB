@@ -9,29 +9,13 @@
  */
 
 /** Processing pipeline steps in order */
-export type ProcessingStep =
-  | "upload"
-  | "parse"
-  | "chunk"
-  | "embed"
-  | "index"
-  | "complete";
+export type ProcessingStep = 'upload' | 'parse' | 'chunk' | 'embed' | 'index' | 'complete';
 
 /** Status of individual processing step */
-export type StepStatus =
-  | "pending"
-  | "in_progress"
-  | "done"
-  | "error"
-  | "skipped";
+export type StepStatus = 'pending' | 'in_progress' | 'done' | 'error' | 'skipped';
 
 /** Document processing status */
-export type DocumentStatus =
-  | "pending"
-  | "processing"
-  | "ready"
-  | "failed"
-  | "archived";
+export type DocumentStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'archived';
 
 /** Information about a single processing step */
 export interface ProcessingStepInfo {
@@ -159,46 +143,46 @@ export interface ProcessingFilters {
   page_size?: number;
 
   /** Sort field */
-  sort_by?: "created_at" | "updated_at" | "original_filename" | "status";
+  sort_by?: 'created_at' | 'updated_at' | 'original_filename' | 'status';
 
   /** Sort order */
-  sort_order?: "asc" | "desc";
+  sort_order?: 'asc' | 'desc';
 }
 
 /** Human-readable labels for processing steps */
 export const STEP_LABELS: Record<ProcessingStep, string> = {
-  upload: "Upload",
-  parse: "Parse",
-  chunk: "Chunk",
-  embed: "Embed",
-  index: "Index",
-  complete: "Complete",
+  upload: 'Upload',
+  parse: 'Parse',
+  chunk: 'Chunk',
+  embed: 'Embed',
+  index: 'Index',
+  complete: 'Complete',
 };
 
 /** Human-readable labels for step statuses */
 export const STATUS_LABELS: Record<StepStatus, string> = {
-  pending: "Pending",
-  in_progress: "In Progress",
-  done: "Done",
-  error: "Error",
-  skipped: "Skipped",
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  done: 'Done',
+  error: 'Error',
+  skipped: 'Skipped',
 };
 
 /** Human-readable labels for document statuses */
 export const DOC_STATUS_LABELS: Record<DocumentStatus, string> = {
-  pending: "Pending",
-  processing: "Processing",
-  ready: "Ready",
-  failed: "Failed",
-  archived: "Archived",
+  pending: 'Pending',
+  processing: 'Processing',
+  ready: 'Ready',
+  failed: 'Failed',
+  archived: 'Archived',
 };
 
 /** Processing steps in order for progress display */
 export const PROCESSING_STEPS_ORDER: ProcessingStep[] = [
-  "upload",
-  "parse",
-  "chunk",
-  "embed",
-  "index",
-  "complete",
+  'upload',
+  'parse',
+  'chunk',
+  'embed',
+  'index',
+  'complete',
 ];

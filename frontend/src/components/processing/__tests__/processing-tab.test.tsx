@@ -21,18 +21,16 @@ beforeAll(() => {
 
 // Mock the DocumentProcessingTable child component
 vi.mock('../document-processing-table', () => ({
-  DocumentProcessingTable: vi.fn(
-    ({ documents, isLoading, onDocumentClick }) => (
-      <div data-testid="document-table">
-        {isLoading && <span data-testid="loading">Loading...</span>}
-        {documents.map((doc: { id: string; original_filename: string }) => (
-          <div key={doc.id} data-testid={`doc-${doc.id}`}>
-            <button onClick={() => onDocumentClick(doc.id)}>{doc.original_filename}</button>
-          </div>
-        ))}
-      </div>
-    )
-  ),
+  DocumentProcessingTable: vi.fn(({ documents, isLoading, onDocumentClick }) => (
+    <div data-testid="document-table">
+      {isLoading && <span data-testid="loading">Loading...</span>}
+      {documents.map((doc: { id: string; original_filename: string }) => (
+        <div key={doc.id} data-testid={`doc-${doc.id}`}>
+          <button onClick={() => onDocumentClick(doc.id)}>{doc.original_filename}</button>
+        </div>
+      ))}
+    </div>
+  )),
 }));
 
 vi.mock('../processing-details-modal', () => ({

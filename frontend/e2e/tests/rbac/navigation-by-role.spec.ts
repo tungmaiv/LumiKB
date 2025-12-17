@@ -36,7 +36,10 @@ const ADMIN_USER = {
 };
 
 // Helper to mock authenticated user with specific permission level
-async function mockAuthenticatedUser(page: Page, user: { email: string; permission_level: number }) {
+async function mockAuthenticatedUser(
+  page: Page,
+  user: { email: string; permission_level: number }
+) {
   await page.route('**/api/v1/users/me', async (route) => {
     await route.fulfill({
       status: 200,
@@ -89,7 +92,9 @@ test.describe('Story 7-11: RBAC Navigation', () => {
       await expect(page.getByRole('button', { name: /admin menu/i })).not.toBeVisible();
     });
 
-    test('[P0] Basic user cannot access operations routes directly (AC-7.11.16)', async ({ page }) => {
+    test('[P0] Basic user cannot access operations routes directly (AC-7.11.16)', async ({
+      page,
+    }) => {
       /**
        * GIVEN: User is authenticated with permission_level 1 (USER)
        * WHEN: User navigates directly to /operations
@@ -251,7 +256,9 @@ test.describe('Story 7-11: RBAC Navigation', () => {
       await mockAuthenticatedUser(page, ADMIN_USER);
     });
 
-    test('[P0] Administrator sees both Operations and Admin dropdowns (AC-7.11.1)', async ({ page }) => {
+    test('[P0] Administrator sees both Operations and Admin dropdowns (AC-7.11.1)', async ({
+      page,
+    }) => {
       /**
        * GIVEN: User is authenticated with permission_level 3 (ADMINISTRATOR)
        * WHEN: User views the main navigation
@@ -444,7 +451,7 @@ test.describe('Story 7-11: Route Protection', () => {
 
     // Delay auth response
     await page.route('**/api/v1/users/me', async (route) => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

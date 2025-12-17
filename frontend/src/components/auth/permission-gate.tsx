@@ -34,11 +34,7 @@ export interface PermissionGateProps {
  * Conditionally renders children based on user's permission level.
  * Uses cumulative permission model: higher levels inherit all lower permissions.
  */
-export function PermissionGate({
-  level,
-  children,
-  fallback = null,
-}: PermissionGateProps) {
+export function PermissionGate({ level, children, fallback = null }: PermissionGateProps) {
   const hasPermission = useHasPermission(level);
 
   if (!hasPermission) {
@@ -52,10 +48,7 @@ export function PermissionGate({
  * Convenience component for Operator-level gating (level 2+)
  * AC-7.11.12: Upload/delete documents, create KBs
  */
-export function OperatorGate({
-  children,
-  fallback = null,
-}: Omit<PermissionGateProps, 'level'>) {
+export function OperatorGate({ children, fallback = null }: Omit<PermissionGateProps, 'level'>) {
   return (
     <PermissionGate level={PermissionLevel.OPERATOR} fallback={fallback}>
       {children}
@@ -67,10 +60,7 @@ export function OperatorGate({
  * Convenience component for Administrator-level gating (level 3)
  * AC-7.11.13: Full access including KB deletion, user management
  */
-export function AdminGate({
-  children,
-  fallback = null,
-}: Omit<PermissionGateProps, 'level'>) {
+export function AdminGate({ children, fallback = null }: Omit<PermissionGateProps, 'level'>) {
   return (
     <PermissionGate level={PermissionLevel.ADMINISTRATOR} fallback={fallback}>
       {children}

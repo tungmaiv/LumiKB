@@ -20,6 +20,7 @@ from app.schemas.chat import (
     ChunkDebugInfo,
     DebugInfo,
     KBParamsDebugInfo,
+    QueryRewriteDebugInfo,
     TimingDebugInfo,
 )
 from app.schemas.citation import Citation
@@ -34,6 +35,7 @@ from app.schemas.search import SearchResultSchema
 from app.services.citation_service import CitationService
 from app.services.kb_config_resolver import DEFAULT_SYSTEM_PROMPT, KBConfigResolver
 from app.services.observability_service import ObservabilityService, TraceContext
+from app.services.query_rewriter_service import QueryRewriterService, RewriteResult
 from app.services.search_service import SearchService
 
 if TYPE_CHECKING:
@@ -109,6 +111,7 @@ class ConversationService:
         citation_service: CitationService | None = None,
         session: AsyncSession | None = None,
         redis_client: Redis | None = None,
+        query_rewriter: QueryRewriterService | None = None,
     ):
         """Initialize conversation service.
 
@@ -117,6 +120,7 @@ class ConversationService:
             citation_service: Citation service for extracting citations (default: new instance)
             session: Database session for KB model lookup (optional)
             redis_client: Redis client for KB config caching (optional)
+            query_rewriter: Query rewriter service for history-aware rewriting (optional)
         """
         self.search_service = search_service
         self.citation_service = citation_service or CitationService()
@@ -124,6 +128,7 @@ class ConversationService:
         self._session = session
         self._redis_client = redis_client
         self._kb_config_resolver: KBConfigResolver | None = None
+        self._query_rewriter = query_rewriter
         if session and redis_client:
             self._kb_config_resolver = KBConfigResolver(session, redis_client)
 
@@ -149,14 +154,16 @@ class ConversationService:
             kb = result.unique().scalar_one_or_none()
 
             if kb and kb.generation_model:
-                model_id = kb.generation_model.model_id
+                # Use proxy alias format (db-{uuid}) that LiteLLM proxy recognizes
+                proxy_model_id = f"db-{kb.generation_model.id}"
                 logger.info(
                     "using_kb_generation_model",
                     kb_id=kb_id,
-                    model_id=model_id,
+                    model_id=kb.generation_model.model_id,
+                    proxy_model_id=proxy_model_id,
                     model_name=kb.generation_model.name,
                 )
-                return model_id
+                return proxy_model_id
             else:
                 logger.debug(
                     "kb_has_no_generation_model",
@@ -402,16 +409,19 @@ class ConversationService:
         chunks: list[SearchResultSchema],
         retrieval_ms: float,
         context_assembly_ms: float,
+        rewrite_result: RewriteResult | None = None,
     ) -> DebugInfo:
         """Build debug info from RAG pipeline data.
 
         AC-9.15.11: Constructs DebugInfo with kb_params, chunks_retrieved, timing.
+        Story 8-0: Adds query_rewrite info when history-aware rewriting is performed.
 
         Args:
             prompt_config: KB prompt configuration
             chunks: Retrieved chunks with scores
             retrieval_ms: Time spent on retrieval in milliseconds
             context_assembly_ms: Time spent on context assembly in milliseconds
+            rewrite_result: Query rewriting result (optional, Story 8-0)
 
         Returns:
             DebugInfo with pipeline telemetry
@@ -437,16 +447,29 @@ class ConversationService:
             for chunk in chunks
         ]
 
-        # Build timing debug info
+        # Build timing debug info (include rewrite time if available)
         timing = TimingDebugInfo(
             retrieval_ms=retrieval_ms,
             context_assembly_ms=context_assembly_ms,
+            query_rewrite_ms=rewrite_result.latency_ms if rewrite_result else 0,
         )
+
+        # Build query rewrite debug info (Story 8-0)
+        query_rewrite = None
+        if rewrite_result:
+            query_rewrite = QueryRewriteDebugInfo(
+                original_query=rewrite_result.original_query,
+                rewritten_query=rewrite_result.rewritten_query,
+                was_rewritten=rewrite_result.was_rewritten,
+                model_used=rewrite_result.model_used,
+                latency_ms=rewrite_result.latency_ms,
+            )
 
         return DebugInfo(
             kb_params=kb_params,
             chunks_retrieved=chunks_debug,
             timing=timing,
+            query_rewrite=query_rewrite,
         )
 
     async def send_message(
@@ -482,12 +505,32 @@ class ConversationService:
         # 1. Retrieve conversation history
         history = await self.get_history(session_id, kb_id)
 
+        # 1.5. Story 8-0: Rewrite query using conversation history
+        rewrite_result: RewriteResult | None = None
+        search_query = message  # Default to original message
+
+        if self._query_rewriter and history:
+            rewrite_result = await self._query_rewriter.rewrite_with_history(
+                query=message,
+                chat_history=history,
+                trace_ctx=trace_ctx,
+            )
+            if rewrite_result.was_rewritten:
+                search_query = rewrite_result.rewritten_query
+                logger.info(
+                    "query_rewritten_for_search",
+                    original=message[:100],
+                    rewritten=search_query[:100],
+                    latency_ms=round(rewrite_result.latency_ms, 2),
+                )
+
         # 2. Perform RAG retrieval with observability span and timing
+        # Uses rewritten query if available, otherwise original message
         retrieval_start = time.time()
         if trace_ctx:
             async with obs.span(trace_ctx, "retrieval", "retrieval") as _span_id:
                 search_response = await self.search_service.search(
-                    query=message,
+                    query=search_query,
                     kb_ids=[kb_id],
                     user_id=user_id,
                     limit=10,
@@ -495,7 +538,7 @@ class ConversationService:
                 )
         else:
             search_response = await self.search_service.search(
-                query=message,
+                query=search_query,
                 kb_ids=[kb_id],
                 user_id=user_id,
                 limit=10,
@@ -637,6 +680,7 @@ class ConversationService:
                 chunks=search_response.results,
                 retrieval_ms=retrieval_ms,
                 context_assembly_ms=context_assembly_ms,
+                rewrite_result=rewrite_result,  # Story 8-0: Include query rewrite info
             )
             response_data["debug_info"] = debug_info.model_dump()
             logger.info(
@@ -645,6 +689,9 @@ class ConversationService:
                 chunks_count=len(search_response.results),
                 retrieval_ms=retrieval_ms,
                 context_assembly_ms=context_assembly_ms,
+                query_rewritten=rewrite_result.was_rewritten
+                if rewrite_result
+                else False,
             )
 
         return response_data
@@ -691,12 +738,32 @@ class ConversationService:
         # 2. Retrieve conversation history
         history = await self.get_history(session_id, kb_id)
 
+        # 2.5. Story 8-0: Rewrite query using conversation history
+        rewrite_result: RewriteResult | None = None
+        search_query = message  # Default to original message
+
+        if self._query_rewriter and history:
+            rewrite_result = await self._query_rewriter.rewrite_with_history(
+                query=message,
+                chat_history=history,
+                trace_ctx=trace_ctx,
+            )
+            if rewrite_result.was_rewritten:
+                search_query = rewrite_result.rewritten_query
+                logger.info(
+                    "query_rewritten_for_stream_search",
+                    original=message[:100],
+                    rewritten=search_query[:100],
+                    latency_ms=round(rewrite_result.latency_ms, 2),
+                )
+
         # 3. Perform RAG retrieval (with observability span and timing)
+        # Uses rewritten query if available, otherwise original message
         retrieval_start = time.time()
         if trace_ctx:
             async with obs.span(trace_ctx, "retrieval", "retrieval") as _span_id:
                 search_response = await self.search_service.search(
-                    query=message,
+                    query=search_query,
                     kb_ids=[kb_id],
                     user_id=user_id,
                     limit=10,
@@ -704,7 +771,7 @@ class ConversationService:
                 )
         else:
             search_response = await self.search_service.search(
-                query=message,
+                query=search_query,
                 kb_ids=[kb_id],
                 user_id=user_id,
                 limit=10,
@@ -763,6 +830,7 @@ class ConversationService:
                 chunks=search_response.results,
                 retrieval_ms=retrieval_ms,
                 context_assembly_ms=context_assembly_ms,
+                rewrite_result=rewrite_result,  # Story 8-0: Include query rewrite info
             )
             yield {"type": "debug", "data": debug_info.model_dump()}
             logger.info(
@@ -771,6 +839,9 @@ class ConversationService:
                 chunks_count=len(search_response.results),
                 retrieval_ms=retrieval_ms,
                 context_assembly_ms=context_assembly_ms,
+                query_rewritten=rewrite_result.was_rewritten
+                if rewrite_result
+                else False,
             )
 
         # 5. Yield status: Generating

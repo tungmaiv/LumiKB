@@ -41,16 +41,8 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserRead | null>(null);
 
   // Data fetching
-  const {
-    users,
-    pagination,
-    isLoading,
-    error,
-    createUser,
-    updateUser,
-    isCreating,
-    isUpdating,
-  } = useUsers({ page, pageSize });
+  const { users, pagination, isLoading, error, createUser, updateUser, isCreating, isUpdating } =
+    useUsers({ page, pageSize });
 
   // Update URL when page changes
   const handlePageChange = (newPage: number) => {
@@ -130,9 +122,7 @@ export default function UsersPage() {
               <Users className="h-8 w-8" />
               <h1 className="text-2xl font-bold">User Management</h1>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              View and manage user accounts
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">View and manage user accounts</p>
           </div>
           <Button onClick={() => setCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

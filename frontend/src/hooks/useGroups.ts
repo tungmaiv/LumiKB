@@ -145,10 +145,7 @@ async function deleteGroupApi(id: string): Promise<void> {
   }
 }
 
-async function addMembersApi(
-  groupId: string,
-  userIds: string[]
-): Promise<GroupMemberAddResponse> {
+async function addMembersApi(groupId: string, userIds: string[]): Promise<GroupMemberAddResponse> {
   const res = await fetch(`${API_BASE_URL}/api/v1/admin/groups/${groupId}/members`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -166,14 +163,11 @@ async function addMembersApi(
 }
 
 async function removeMemberApi(groupId: string, userId: string): Promise<void> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/v1/admin/groups/${groupId}/members/${userId}`,
-    {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/v1/admin/groups/${groupId}/members/${userId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  });
 
   if (!res.ok) {
     if (res.status === 404) throw new Error('Group or membership not found');
@@ -207,8 +201,7 @@ export function useGroups({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: GroupUpdate }) =>
-      updateGroupApi(id, data),
+    mutationFn: ({ id, data }: { id: string; data: GroupUpdate }) => updateGroupApi(id, data),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData<PaginatedGroupResponse>(queryKey);

@@ -17,10 +17,7 @@ export default function ObservabilityPage() {
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6">
-        <ObservabilityDashboard
-          initialPeriod="day"
-          refreshInterval={30000}
-        />
+        <ObservabilityDashboard initialPeriod="day" refreshInterval={30000} />
       </div>
     </DashboardLayout>
   );

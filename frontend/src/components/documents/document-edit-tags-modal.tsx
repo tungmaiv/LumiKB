@@ -105,8 +105,7 @@ export function DocumentEditTagsModal({
       onTagsUpdated?.(result.tags || []);
       onOpenChange(false);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to update tags';
+      const message = error instanceof Error ? error.message : 'Failed to update tags';
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
@@ -134,8 +133,7 @@ export function DocumentEditTagsModal({
         <DialogHeader>
           <DialogTitle>Edit Document Tags</DialogTitle>
           <DialogDescription>
-            Manage tags for &quot;{documentName}&quot;. Tags help organize and filter
-            documents.
+            Manage tags for &quot;{documentName}&quot;. Tags help organize and filter documents.
           </DialogDescription>
         </DialogHeader>
 
@@ -150,9 +148,7 @@ export function DocumentEditTagsModal({
             />
           </div>
 
-          {submitError && (
-            <p className="text-sm text-destructive">{submitError}</p>
-          )}
+          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
         </div>
 
         <DialogFooter>

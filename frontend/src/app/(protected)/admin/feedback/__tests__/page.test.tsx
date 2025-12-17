@@ -34,8 +34,16 @@ vi.mock('recharts', () => ({
     <div data-testid="pie" data-items={data.length} />
   ),
   Cell: () => <div data-testid="pie-cell" />,
-  LineChart: ({ children, data }: { children: ReactNode; data: Array<{ date: string; count: number }> }) => (
-    <div data-testid="line-chart" data-items={data.length}>{children}</div>
+  LineChart: ({
+    children,
+    data,
+  }: {
+    children: ReactNode;
+    data: Array<{ date: string; count: number }>;
+  }) => (
+    <div data-testid="line-chart" data-items={data.length}>
+      {children}
+    </div>
   ),
   Line: () => <div data-testid="line" />,
   XAxis: () => <div data-testid="x-axis" />,

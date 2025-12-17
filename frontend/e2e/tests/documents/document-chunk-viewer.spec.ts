@@ -111,13 +111,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       // Login and navigate
       await dashboardPage.loginAsUser();
@@ -154,13 +160,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -211,13 +223,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(47) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(47) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -243,13 +261,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -278,28 +302,34 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        const url = new URL(route.request().url());
-        searchQuery = url.searchParams.get('search') || '';
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          const url = new URL(route.request().url());
+          searchQuery = url.searchParams.get('search') || '';
 
-        if (searchQuery === 'authentication') {
-          // Return filtered results
-          await route.fulfill({
-            status: 200,
-            json: createMockChunksResponse(3, 'authentication'),
-          });
-        } else {
-          // Return all chunks
-          await route.fulfill({
-            status: 200,
-            json: createMockChunksResponse(47),
-          });
+          if (searchQuery === 'authentication') {
+            // Return filtered results
+            await route.fulfill({
+              status: 200,
+              json: createMockChunksResponse(3, 'authentication'),
+            });
+          } else {
+            // Return all chunks
+            await route.fulfill({
+              status: 200,
+              json: createMockChunksResponse(47),
+            });
+          }
         }
-      });
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -331,20 +361,26 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        const url = new URL(route.request().url());
-        const search = url.searchParams.get('search') || '';
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          const url = new URL(route.request().url());
+          const search = url.searchParams.get('search') || '';
 
-        if (search) {
-          await route.fulfill({ status: 200, json: createMockChunksResponse(3, search) });
-        } else {
-          await route.fulfill({ status: 200, json: createMockChunksResponse(47) });
+          if (search) {
+            await route.fulfill({ status: 200, json: createMockChunksResponse(3, search) });
+          } else {
+            await route.fulfill({ status: 200, json: createMockChunksResponse(47) });
+          }
         }
-      });
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -380,13 +416,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -415,13 +457,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -445,16 +493,22 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        // Delay response
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          // Delay response
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -477,13 +531,19 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(5) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 500, json: { detail: 'Internal server error' } });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 500, json: { detail: 'Internal server error' } });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -505,16 +565,22 @@ test.describe('Document Chunk Viewer - E2E', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({
-          status: 200,
-          json: { chunks: [], total: 0, has_more: false, next_cursor: null },
-        });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({
+            status: 200,
+            json: { chunks: [], total: 0, has_more: false, next_cursor: null },
+          });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -545,7 +611,8 @@ test.describe('Story 7-31: View Mode Toggle', () => {
   // Mock markdown content response
   const mockMarkdownContentResponse = {
     document_id: 'doc-txt-001',
-    markdown_content: '# Test Document\n\nThis is the markdown content.\n\n## Section 1\n\nSome text here.',
+    markdown_content:
+      '# Test Document\n\nThis is the markdown content.\n\n## Section 1\n\nSome text here.',
     generated_at: '2025-12-11T10:00:00Z',
   };
 
@@ -566,17 +633,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
+        }
+      );
 
       // WHEN: User opens chunk viewer
       await dashboardPage.loginAsUser();
@@ -605,17 +681,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
+        }
+      );
 
       // WHEN: User opens chunk viewer
       await dashboardPage.loginAsUser();
@@ -639,17 +724,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 404, json: { detail: 'Markdown content not available' } });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 404, json: { detail: 'Markdown content not available' } });
+        }
+      );
 
       // WHEN: User opens chunk viewer
       await dashboardPage.loginAsUser();
@@ -675,17 +769,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 404, json: { detail: 'Markdown not available' } });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 404, json: { detail: 'Markdown not available' } });
+        }
+      );
 
       // WHEN: User opens chunk viewer
       await dashboardPage.loginAsUser();
@@ -709,17 +812,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 404, json: { detail: 'Markdown not available' } });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 404, json: { detail: 'Markdown not available' } });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -747,17 +859,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -793,17 +914,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -839,17 +969,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();
@@ -882,17 +1021,26 @@ test.describe('Story 7-31: View Mode Toggle', () => {
         await route.fulfill({ status: 200, json: mockDocumentsResponse });
       });
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*', async (route) => {
-        await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/chunks*',
+        async (route) => {
+          await route.fulfill({ status: 200, json: createMockChunksResponse(8) });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockTextContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/full-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockTextContentResponse });
+        }
+      );
 
-      await page.route('**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content', async (route) => {
-        await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
-      });
+      await page.route(
+        '**/api/v1/knowledge-bases/kb-test-chunks/documents/doc-txt-001/markdown-content',
+        async (route) => {
+          await route.fulfill({ status: 200, json: mockMarkdownContentResponse });
+        }
+      );
 
       await dashboardPage.loginAsUser();
       await dashboardPage.goto();

@@ -79,8 +79,7 @@ describe('useExport Hook', () => {
         get: (name: string) => {
           if (name === 'content-type')
             return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          if (name === 'content-disposition')
-            return 'attachment; filename="Test_Draft.docx"';
+          if (name === 'content-disposition') return 'attachment; filename="Test_Draft.docx"';
           return null;
         },
       },
@@ -206,9 +205,7 @@ describe('useExport Hook', () => {
 
   it('[P2] should handle network error gracefully', async () => {
     // GIVEN: Network error occurs
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
 
     // WHEN: Export is called
     const { result } = renderHook(() => useExport(defaultOptions));

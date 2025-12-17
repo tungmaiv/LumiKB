@@ -68,18 +68,14 @@ function renderWithQueryClient(component: React.ReactNode) {
     },
   });
 
-  return render(
-    <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
 }
 
 describe('SessionDetailPanel', () => {
   it('renders panel when sessionId is provided (AC5)', () => {
     const onClose = vi.fn();
 
-    renderWithQueryClient(
-      <SessionDetailPanel sessionId="session-123" onClose={onClose} />
-    );
+    renderWithQueryClient(<SessionDetailPanel sessionId="session-123" onClose={onClose} />);
 
     // Panel should be visible with conversation
     expect(screen.getByText('Conversation')).toBeInTheDocument();
@@ -88,9 +84,7 @@ describe('SessionDetailPanel', () => {
   it('does not render when sessionId is null', () => {
     const onClose = vi.fn();
 
-    renderWithQueryClient(
-      <SessionDetailPanel sessionId={null} onClose={onClose} />
-    );
+    renderWithQueryClient(<SessionDetailPanel sessionId={null} onClose={onClose} />);
 
     // Panel should not be visible
     expect(screen.queryByText('Conversation')).not.toBeInTheDocument();
@@ -99,9 +93,7 @@ describe('SessionDetailPanel', () => {
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
 
-    renderWithQueryClient(
-      <SessionDetailPanel sessionId="session-123" onClose={onClose} />
-    );
+    renderWithQueryClient(<SessionDetailPanel sessionId="session-123" onClose={onClose} />);
 
     // Find and click close button
     const closeButton = screen.getByRole('button', { name: /close/i });
@@ -113,9 +105,7 @@ describe('SessionDetailPanel', () => {
   it('displays messages from the conversation', () => {
     const onClose = vi.fn();
 
-    renderWithQueryClient(
-      <SessionDetailPanel sessionId="session-123" onClose={onClose} />
-    );
+    renderWithQueryClient(<SessionDetailPanel sessionId="session-123" onClose={onClose} />);
 
     // Check that messages are displayed
     expect(screen.getByText('Test question')).toBeInTheDocument();
@@ -125,9 +115,7 @@ describe('SessionDetailPanel', () => {
   it('has export button', () => {
     const onClose = vi.fn();
 
-    renderWithQueryClient(
-      <SessionDetailPanel sessionId="session-123" onClose={onClose} />
-    );
+    renderWithQueryClient(<SessionDetailPanel sessionId="session-123" onClose={onClose} />);
 
     // Check for export button
     const exportButton = screen.getByRole('button', { name: /export/i });
@@ -137,9 +125,7 @@ describe('SessionDetailPanel', () => {
   it('handles keyboard escape to close', () => {
     const onClose = vi.fn();
 
-    renderWithQueryClient(
-      <SessionDetailPanel sessionId="session-123" onClose={onClose} />
-    );
+    renderWithQueryClient(<SessionDetailPanel sessionId="session-123" onClose={onClose} />);
 
     // Press Escape key
     fireEvent.keyDown(document, { key: 'Escape' });

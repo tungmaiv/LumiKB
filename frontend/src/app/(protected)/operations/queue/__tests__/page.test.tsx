@@ -135,9 +135,7 @@ describe('OperationsQueuePage Component (Story 5-4, Story 7-11)', () => {
       render(<OperationsQueuePage />, { wrapper: createWrapper() });
 
       // Should show error message
-      expect(
-        screen.getByText(/unable to connect to task queue/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/unable to connect to task queue/i)).toBeInTheDocument();
 
       // Should not show queue cards
       expect(screen.queryByText('document_processing')).not.toBeInTheDocument();

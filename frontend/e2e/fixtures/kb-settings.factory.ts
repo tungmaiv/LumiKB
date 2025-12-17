@@ -80,7 +80,8 @@ export const DEFAULT_GENERATION: GenerationConfig = {
 };
 
 export const DEFAULT_PROMPTS: PromptsConfig = {
-  system_prompt: 'You are a helpful assistant for {kb_name}. Use the provided context to answer questions accurately.',
+  system_prompt:
+    'You are a helpful assistant for {kb_name}. Use the provided context to answer questions accurately.',
   context_template: 'Context:\n{context}\n\nQuestion: {query}',
   citation_style: 'inline',
   uncertainty_handling: 'acknowledge',
@@ -91,27 +92,19 @@ export const DEFAULT_PROMPTS: PromptsConfig = {
 // Factory Functions
 // =============================================================================
 
-export function createChunkingConfig(
-  overrides?: Partial<ChunkingConfig>
-): ChunkingConfig {
+export function createChunkingConfig(overrides?: Partial<ChunkingConfig>): ChunkingConfig {
   return { ...DEFAULT_CHUNKING, ...overrides };
 }
 
-export function createRetrievalConfig(
-  overrides?: Partial<RetrievalConfig>
-): RetrievalConfig {
+export function createRetrievalConfig(overrides?: Partial<RetrievalConfig>): RetrievalConfig {
   return { ...DEFAULT_RETRIEVAL, ...overrides };
 }
 
-export function createGenerationConfig(
-  overrides?: Partial<GenerationConfig>
-): GenerationConfig {
+export function createGenerationConfig(overrides?: Partial<GenerationConfig>): GenerationConfig {
   return { ...DEFAULT_GENERATION, ...overrides };
 }
 
-export function createPromptsConfig(
-  overrides?: Partial<PromptsConfig>
-): PromptsConfig {
+export function createPromptsConfig(overrides?: Partial<PromptsConfig>): PromptsConfig {
   return { ...DEFAULT_PROMPTS, ...overrides };
 }
 
@@ -170,28 +163,32 @@ export const PROMPT_TEMPLATES = {
   default_rag: {
     id: 'default_rag',
     name: 'Default RAG',
-    system_prompt: 'You are a helpful assistant for {kb_name}. Use the provided context to answer questions accurately.',
+    system_prompt:
+      'You are a helpful assistant for {kb_name}. Use the provided context to answer questions accurately.',
     citation_style: 'inline' as CitationStyle,
     uncertainty_handling: 'acknowledge' as UncertaintyHandling,
   },
   strict_citations: {
     id: 'strict_citations',
     name: 'Strict Citations',
-    system_prompt: 'You are a precise assistant. Only answer based on the provided context. Always cite sources using [1], [2] notation.',
+    system_prompt:
+      'You are a precise assistant. Only answer based on the provided context. Always cite sources using [1], [2] notation.',
     citation_style: 'inline' as CitationStyle,
     uncertainty_handling: 'refuse' as UncertaintyHandling,
   },
   conversational: {
     id: 'conversational',
     name: 'Conversational',
-    system_prompt: 'You are a friendly assistant. Answer naturally while incorporating information from the context when relevant.',
+    system_prompt:
+      'You are a friendly assistant. Answer naturally while incorporating information from the context when relevant.',
     citation_style: 'none' as CitationStyle,
     uncertainty_handling: 'best_effort' as UncertaintyHandling,
   },
   technical_documentation: {
     id: 'technical_documentation',
     name: 'Technical Documentation',
-    system_prompt: 'You are a technical documentation assistant. Provide detailed, accurate answers with references to source documents.',
+    system_prompt:
+      'You are a technical documentation assistant. Provide detailed, accurate answers with references to source documents.',
     citation_style: 'footnote' as CitationStyle,
     uncertainty_handling: 'acknowledge' as UncertaintyHandling,
   },
