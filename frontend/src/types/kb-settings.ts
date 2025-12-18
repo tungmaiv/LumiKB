@@ -183,6 +183,11 @@ export interface KBSettings {
    * retrieved chunks, similarity scores, KB parameters, and timing metrics.
    */
   debug_mode: boolean;
+  /**
+   * Maximum number of chat sessions to store per user for this KB (1-50, default 10).
+   * Older sessions are automatically pruned when the limit is exceeded.
+   */
+  max_chat_sessions: number;
 }
 
 // =============================================================================
@@ -266,6 +271,7 @@ export const DEFAULT_KB_SETTINGS: KBSettings = {
   embedding: DEFAULT_EMBEDDING_CONFIG,
   preset: null,
   debug_mode: false,
+  max_chat_sessions: 10,
 };
 
 // =============================================================================
@@ -292,6 +298,7 @@ export interface KBSettingsUpdate {
   embedding?: Partial<EmbeddingConfig>;
   preset?: string | null;
   debug_mode?: boolean;
+  max_chat_sessions?: number;
 }
 
 // =============================================================================
@@ -316,6 +323,7 @@ export const KB_SETTINGS_CONSTRAINTS = {
     frequency_penalty: { min: -2.0, max: 2.0 },
     presence_penalty: { min: -2.0, max: 2.0 },
   },
+  max_chat_sessions: { min: 1, max: 50 },
 } as const;
 
 // =============================================================================

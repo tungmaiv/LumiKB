@@ -20,7 +20,7 @@ so that I can troubleshoot retrieval quality and verify that KB-level prompt con
 - [x] **AC-9.15.5:** System prompt supports variable interpolation: `{kb_name}`, `{context}`, `{query}`
 - [x] **AC-9.15.6:** If KB system_prompt is empty, fallback to system default (`DEFAULT_SYSTEM_PROMPT`)
 - [x] **AC-9.15.7:** `citation_style` affects LLM instruction in system prompt (inline/footnote/none)
-- [x] **AC-9.15.8:** `response_language` instruction appended to system prompt when not "en"
+- [x] **AC-9.15.8:** `response_language` instruction appended to system prompt AND user message when not "en" (see BF-9.15.1)
 - [x] **AC-9.15.9:** `uncertainty_handling` affects LLM behavior when confidence is low
 
 ### Debug Mode Output
@@ -327,6 +327,7 @@ Claude Opus 4.5
 | 2025-12-16 | Reformatted to BMAD template with tasks/subtasks | SM Agent (Bob) |
 | 2025-12-16 | Story context XML generated, status -> ready-for-dev | Dev Agent (Claude) |
 | 2025-12-16 | Implementation verified complete, all ACs checked, status -> done | Dev Agent (Amelia) |
+| 2025-12-18 | BF-9.15.1: Fixed response_language not working - added user message instruction | Dev Agent (Claude) |
 
 ---
 
@@ -410,6 +411,34 @@ Claude Opus 4.5
 ### Recommendation
 
 **APPROVE** - All acceptance criteria satisfied with comprehensive test coverage. Implementation follows established patterns and properly integrates with existing KB configuration infrastructure. Minor linting warnings are cosmetic and do not affect functionality.
+
+---
+
+## Bug Fixes
+
+### BF-9.15.1: Response Language Setting Not Working (2025-12-18)
+
+**Problem:** Users set `response_language: "vi"` (Vietnamese) in KB settings, but chat responses were still in English despite the Debug Info panel confirming the setting was correctly saved and applied.
+
+**Root Cause:** LLMs follow user message instructions more reliably than system prompt instructions, especially when the system prompt contains lots of other content (context chunks, custom prompts, etc.). The original implementation only added the language instruction to the system prompt.
+
+**Failed Attempts:**
+1. Emphatic instruction at first position in instructions list - LLM ignored (instruction ended up at END)
+2. Prefix system prompt with language instruction - LLM still ignored
+3. Sandwich approach (prefix + suffix in system prompt) - LLM still ignored
+
+**Discovery:** When user explicitly added "please respond in vietnamese" to their message, the LLM correctly responded in Vietnamese. This proved LLMs follow user message instructions more reliably.
+
+**Fix:** Implemented a three-layer approach for maximum compliance:
+1. **System prompt prefix**: `[CRITICAL: RESPOND ONLY IN {LANG}. DO NOT USE ENGLISH.]`
+2. **System prompt suffix**: `[REMINDER: Your entire response MUST be in {lang}...]`
+3. **User message instruction** (KEY FIX): `[Please respond entirely in {lang}.]`
+
+**Files Modified:**
+- `backend/app/services/conversation_service.py` - Added `response_language` parameter to `_build_prompt()` and appends language instruction to user message (lines 1117, 1167-1176)
+- `backend/tests/unit/test_conversation_prompt_config.py` - Added 2 new unit tests for user message language instruction
+
+**AC Update:** AC-9.15.8 now states "response_language instruction appended to system prompt AND user message when not 'en'" for reliability.
 
 ---
 

@@ -289,6 +289,16 @@ class KBSettings(BaseModel):
             "similarity scores, KB parameters, and timing metrics."
         ),
     )
+    max_chat_sessions: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description=(
+            "Maximum number of chat sessions to store per user for this KB. "
+            "Older sessions are automatically pruned when the limit is exceeded. "
+            "Used for session history feature."
+        ),
+    )
 
     model_config = {"extra": "forbid"}
 

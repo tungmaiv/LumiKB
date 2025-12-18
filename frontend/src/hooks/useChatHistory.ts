@@ -33,11 +33,10 @@ export interface ChatHistoryDebugInfo {
     uncertainty_handling: string;
   };
   chunks_retrieved?: Array<{
-    document_id: string;
-    chunk_index: number;
-    relevance_score: number;
-    document_name?: string;
-    preview?: string;
+    preview: string;
+    similarity_score: number;
+    document_name: string;
+    page_number?: number;
   }>;
   timing?: {
     retrieval_ms: number;

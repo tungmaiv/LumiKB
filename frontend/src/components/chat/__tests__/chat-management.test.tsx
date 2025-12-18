@@ -18,6 +18,9 @@ vi.mock('@/lib/hooks/use-chat-stream', () => ({
     restoreMessages: vi.fn(),
     abortStream: vi.fn(),
     debugInfo: null,
+    conversationId: undefined,
+    loadSession: vi.fn(),
+    resetConversation: vi.fn(),
   })),
 }));
 
@@ -103,6 +106,10 @@ describe('ChatContainer - Management UI', () => {
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: 'conv-test-123',
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     const mockClearChat = vi.fn();
@@ -148,6 +155,10 @@ describe('ChatContainer - Management UI', () => {
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: undefined,
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -219,6 +230,10 @@ describe('ChatContainer - Management UI', () => {
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: 'conv-test-123',
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -245,6 +260,10 @@ describe('ChatContainer - Management UI', () => {
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: 'conv-test-123',
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     render(<ChatContainer kbId="test-kb-id" />);
@@ -283,6 +302,10 @@ describe('ChatContainer - Management UI', () => {
         restoreMessages: vi.fn(),
         abortStream: vi.fn(),
         debugInfo: null,
+        queryRewriteDebug: null,
+        conversationId: 'conv-test-123',
+        loadSession: vi.fn(),
+        resetConversation: vi.fn(),
       });
 
       vi.mocked(useChatManagement).mockImplementation((callbacks) => {
@@ -352,6 +375,10 @@ describe('ChatContainer - Management UI', () => {
         restoreMessages: vi.fn(),
         abortStream: vi.fn(),
         debugInfo: null,
+        queryRewriteDebug: null,
+        conversationId: undefined,
+        loadSession: vi.fn(),
+        resetConversation: vi.fn(),
       });
 
       // Component mounts and should load undo buffer from localStorage

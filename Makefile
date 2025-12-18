@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: dev dev-stop dev-restart test lint migrate seed docker-build clean help test-backend test-unit test-integration test-all test-coverage test-frontend test-frontend-watch test-frontend-coverage test-e2e test-e2e-ui test-e2e-headed logs logs-errors logs-warnings logs-follow logs-celery logs-backend prune-doc prune-all check-consistency fix-consistency clear-observability
+.PHONY: dev dev-stop dev-restart test lint migrate seed docker-build clean help test-backend test-unit test-integration test-all test-coverage test-frontend test-frontend-watch test-frontend-coverage test-e2e test-e2e-ui test-e2e-headed logs logs-errors logs-warnings logs-follow logs-celery logs-backend dev-backend-logs prune-doc prune-all check-consistency fix-consistency clear-observability
 
 # Default target
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make dev-restart          Restart infrastructure services"
 	@echo "  make dev-backend          Start backend server (uvicorn on port 8000)"
 	@echo "  make dev-frontend         Start frontend server (Next.js dev mode)"
+	@echo "  make dev-backend-logs     Start backend with output to logs/backend.log"
 	@echo ""
 	@echo "Logs:"
 	@echo "  make logs                 View all container logs"
@@ -87,6 +88,13 @@ dev-backend:
 
 dev-frontend:
 	cd frontend && npm run dev
+
+dev-backend-logs:
+	@mkdir -p logs
+	@echo "Starting backend with logs output to logs/backend.log"
+	@echo "Use 'tail -f logs/backend.log' in another terminal to follow"
+	@echo "Press Ctrl+C to stop"
+	cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 2>&1 | tee ../logs/backend.log
 
 # Logs
 logs:

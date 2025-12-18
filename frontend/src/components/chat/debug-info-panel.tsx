@@ -223,6 +223,19 @@ export function DebugInfoPanel({ debugInfo, className }: DebugInfoPanelProps) {
                     </span>
                   </div>
                 </div>
+                {/* Story 8-0.1: Display extracted topics (AC-8.0.1.5) */}
+                {query_rewrite.extracted_topics && query_rewrite.extracted_topics.length > 0 && (
+                  <div className="flex flex-col mt-2">
+                    <span className="text-muted-foreground">Extracted Topics:</span>
+                    <div className="flex flex-wrap gap-1 mt-1" data-testid="debug-extracted-topics">
+                      {query_rewrite.extracted_topics.map((topic, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-[10px] font-normal">
+                          {topic}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           )}

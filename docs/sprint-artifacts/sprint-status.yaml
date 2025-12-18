@@ -226,6 +226,7 @@ development_status:
 
   epic-8: contexted  # ✅ CONTEXTED 2025-12-08: Tech spec generated with comprehensive design, Neo4j infrastructure, domain management, entity extraction, graph-augmented retrieval. UPDATED 2025-12-17: Added Story 8.0 (Query Rewriting) and 8.17 (Hybrid BM25). See: docs/sprint-artifacts/tech-spec-epic-8.md
   8-0-history-aware-query-rewriting: done  # ✅ DONE 2025-12-17: All 10 ACs satisfied. QueryRewriterService (pronoun/reference resolution, 5s timeout), Admin > LLM Configuration dropdown, ConversationService integration. 14 unit + 9 integration tests. Code review APPROVED. BUG FIX 2025-12-18: Fixed log_llm_call() parameter (trace_id→ctx) that caused follow-up questions to fail. (5 pts)
+  8-0.1-query-rewriter-improvements: ready-for-dev  # ✅ READY 2025-12-18: Bug fix story for query rewriter issues (context loss, typo handling, format preservation). 6 ACs, improved prompt with sequential reference examples, key topic extraction algorithm. Context: 8-0.1-query-rewriter-improvements.context.xml (5 pts)
   8-1-neo4j-docker-infrastructure: backlog  # Neo4j Docker setup, Python driver, health checks (2 pts)
   8-2-domain-data-model: backlog  # PostgreSQL schema for domains, entity types, relationships (3 pts)
   8-3-system-domain-templates: backlog  # 5 pre-built templates: IT Ops, Legal, Sales, PM, HR (3 pts)

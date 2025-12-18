@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Lock,
   Bug,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +53,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useKBStore } from '@/lib/stores/kb-store';
 import { useAvailableModels } from '@/hooks/useAvailableModels';
@@ -91,6 +93,8 @@ const modelSchema = z.object({
 const advancedSchema = z.object({
   // Story 9-15: Debug mode (AC-9.15.2)
   debug_mode: z.boolean().optional().default(false),
+  // Chat session history limit
+  max_chat_sessions: z.number().min(1).max(50).optional().default(10),
 });
 
 const kbSettingsSchema = modelSchema
@@ -189,6 +193,8 @@ export function KbSettingsModal({
     },
     // Story 9-15: Debug mode (AC-9.15.2)
     debug_mode: settings?.debug_mode ?? false,
+    // Chat session history limit
+    max_chat_sessions: settings?.max_chat_sessions ?? 10,
   });
 
   // Cast zodResolver result to fix type inference with complex merged schemas
@@ -225,6 +231,7 @@ export function KbSettingsModal({
       // Update prompts settings (Story 7-15)
       // Update processing settings (Story 7-32, AC-7.32.3)
       // Update debug mode (Story 9-15, AC-9.15.2)
+      // Update chat session limit
       await updateSettings({
         chunking: data.chunking,
         retrieval: data.retrieval,
@@ -232,6 +239,7 @@ export function KbSettingsModal({
         processing: data.processing,
         prompts: data.prompts,
         debug_mode: data.debug_mode,
+        max_chat_sessions: data.max_chat_sessions,
       });
 
       onOpenChange(false);
@@ -302,7 +310,10 @@ export function KbSettingsModal({
       (settings?.prompts?.response_language ?? defaultPromptsPanelValues.prompts.response_language);
 
   // Story 9-15: Check if debug mode has changed (AC-9.15.2)
-  const hasAdvancedChanges = formValues.debug_mode !== (settings?.debug_mode ?? false);
+  // Also check chat session limit
+  const hasAdvancedChanges =
+    formValues.debug_mode !== (settings?.debug_mode ?? false) ||
+    formValues.max_chat_sessions !== (settings?.max_chat_sessions ?? 10);
 
   const hasChanges =
     hasModelChanges || hasGeneralChanges || hasPromptsChanges || hasAdvancedChanges;
@@ -534,6 +545,52 @@ export function KbSettingsModal({
                             troubleshooting.
                           </FormDescription>
                         </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Chat History Section */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium">Chat History Settings</h3>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="max_chat_sessions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          Max Saved Chat Sessions
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <History className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p>
+                                Maximum number of chat sessions stored per user for this KB. Older
+                                sessions are automatically pruned when the limit is exceeded.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={50}
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 10)}
+                            disabled={isDisabled}
+                            className="w-32"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Number of chat sessions to keep (1-50). Default: 10
+                        </FormDescription>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

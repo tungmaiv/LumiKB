@@ -94,6 +94,19 @@ class NoDocumentsError(Exception):
         super().__init__(self.message)
 
 
+class NoMatchingDocumentsError(Exception):
+    """Raised when search returns no results but KB has documents."""
+
+    def __init__(self, kb_id: str, query: str):
+        self.kb_id = kb_id
+        self.query = query
+        self.message = (
+            "No matching documents found for your query. "
+            "Try rephrasing or asking a more specific question."
+        )
+        super().__init__(self.message)
+
+
 class ConversationService:
     """Service for managing multi-turn RAG conversations.
 
@@ -131,6 +144,33 @@ class ConversationService:
         self._query_rewriter = query_rewriter
         if session and redis_client:
             self._kb_config_resolver = KBConfigResolver(session, redis_client)
+
+    async def _check_kb_has_documents(self, kb_id: str) -> bool:
+        """Check if KB has any indexed documents in Qdrant.
+
+        Args:
+            kb_id: Knowledge Base ID string
+
+        Returns:
+            True if KB has documents (points_count > 0), False otherwise
+        """
+        try:
+            collection_info = (
+                await self.search_service.qdrant_service.get_collection_info(
+                    uuid.UUID(kb_id)
+                )
+            )
+            if collection_info:
+                points_count = collection_info.get("points_count", 0)
+                return points_count > 0
+            return False
+        except Exception as e:
+            logger.warning(
+                "kb_document_check_failed",
+                kb_id=kb_id,
+                error=str(e),
+            )
+            return False  # Assume no documents on error (safer)
 
     async def _get_kb_generation_model(self, kb_id: str) -> str | None:
         """Get KB-specific generation model ID.
@@ -340,12 +380,6 @@ class ConversationService:
                 "Integrate source information naturally into the text."
             )
 
-        # AC-9.15.8: Response language instruction
-        if prompt_config.response_language != "en":
-            lang_code = prompt_config.response_language
-            lang_name = LANGUAGE_NAMES.get(lang_code, lang_code.upper())
-            instructions.append(f"Respond in {lang_name}.")
-
         # AC-9.15.9: Uncertainty handling instruction
         if prompt_config.uncertainty_handling == UncertaintyHandling.ACKNOWLEDGE:
             instructions.append(
@@ -366,6 +400,23 @@ class ConversationService:
         # Append instructions to system prompt
         if instructions:
             system_prompt += "\n\n" + "\n".join(instructions)
+
+        # AC-9.15.8: Response language instruction - sandwich approach
+        # Add at BOTH beginning and end for maximum compliance
+        if prompt_config.response_language != "en":
+            lang_code = prompt_config.response_language
+            lang_name = LANGUAGE_NAMES.get(lang_code, lang_code.upper())
+            # Prepend at beginning
+            prefix = (
+                f"[CRITICAL: RESPOND ONLY IN {lang_name.upper()}. "
+                f"DO NOT USE ENGLISH.]\n\n"
+            )
+            # Append at end as reminder
+            suffix = (
+                f"\n\n[REMINDER: Your entire response MUST be in {lang_name}. "
+                f"Translate all content to {lang_name}. Do not respond in English.]"
+            )
+            system_prompt = prefix + system_prompt + suffix
 
         return system_prompt
 
@@ -454,7 +505,7 @@ class ConversationService:
             query_rewrite_ms=rewrite_result.latency_ms if rewrite_result else 0,
         )
 
-        # Build query rewrite debug info (Story 8-0)
+        # Build query rewrite debug info (Story 8-0, enhanced in Story 8-0.1)
         query_rewrite = None
         if rewrite_result:
             query_rewrite = QueryRewriteDebugInfo(
@@ -463,6 +514,7 @@ class ConversationService:
                 was_rewritten=rewrite_result.was_rewritten,
                 model_used=rewrite_result.model_used,
                 latency_ms=rewrite_result.latency_ms,
+                extracted_topics=rewrite_result.extracted_topics,  # Story 8-0.1
             )
 
         return DebugInfo(
@@ -523,6 +575,16 @@ class ConversationService:
                     rewritten=search_query[:100],
                     latency_ms=round(rewrite_result.latency_ms, 2),
                 )
+            elif rewrite_result.extracted_topics:
+                # Fallback: enhance query with extracted topics when rewriting failed
+                topics_str = " ".join(rewrite_result.extracted_topics[:3])
+                search_query = f"{message} {topics_str}"
+                logger.info(
+                    "query_enhanced_with_fallback_topics",
+                    original=message[:100],
+                    enhanced=search_query[:100],
+                    topics=rewrite_result.extracted_topics,
+                )
 
         # 2. Perform RAG retrieval with observability span and timing
         # Uses rewritten query if available, otherwise original message
@@ -547,7 +609,12 @@ class ConversationService:
         retrieval_ms = (time.time() - retrieval_start) * 1000
 
         if not search_response.results:
-            raise NoDocumentsError(kb_id)
+            # Check if KB actually has documents (to differentiate error messages)
+            has_documents = await self._check_kb_has_documents(kb_id)
+            if has_documents:
+                raise NoMatchingDocumentsError(kb_id, search_query)
+            else:
+                raise NoDocumentsError(kb_id)
 
         # 3. Resolve KB prompt configuration (AC-9.15.4 through AC-9.15.9)
         prompt_config = await self._resolve_kb_prompt_config(kb_id)
@@ -574,14 +641,22 @@ class ConversationService:
         if trace_ctx:
             async with obs.span(trace_ctx, "context_assembly", "retrieval") as _span_id:
                 prompt_messages = self._build_prompt(
-                    history, message, search_response.results, system_prompt
+                    history,
+                    message,
+                    search_response.results,
+                    system_prompt,
+                    response_language=prompt_config.response_language,
                 )
                 context_tokens = self._count_tokens(
                     "\n".join(msg["content"] for msg in prompt_messages)
                 )
         else:
             prompt_messages = self._build_prompt(
-                history, message, search_response.results, system_prompt
+                history,
+                message,
+                search_response.results,
+                system_prompt,
+                response_language=prompt_config.response_language,
             )
             context_tokens = 0
         context_assembly_ms = (time.time() - context_assembly_start) * 1000
@@ -756,6 +831,32 @@ class ConversationService:
                     rewritten=search_query[:100],
                     latency_ms=round(rewrite_result.latency_ms, 2),
                 )
+            elif rewrite_result.extracted_topics:
+                # Fallback: enhance query with extracted topics when rewriting failed
+                topics_str = " ".join(rewrite_result.extracted_topics[:3])
+                search_query = f"{message} {topics_str}"
+                logger.info(
+                    "query_enhanced_with_fallback_topics",
+                    original=message[:100],
+                    enhanced=search_query[:100],
+                    topics=rewrite_result.extracted_topics,
+                )
+
+            # Emit query rewrite debug info BEFORE search (so we can debug NoDocumentsError)
+            # This is emitted early so even if search returns 0 results, we can see what happened
+            if debug_mode_enabled and rewrite_result:
+                yield {
+                    "type": "query_rewrite_debug",
+                    "data": {
+                        "original_query": rewrite_result.original_query,
+                        "rewritten_query": rewrite_result.rewritten_query,
+                        "was_rewritten": rewrite_result.was_rewritten,
+                        "model_used": rewrite_result.model_used,
+                        "latency_ms": rewrite_result.latency_ms,
+                        "extracted_topics": rewrite_result.extracted_topics,
+                        "history_count": len(history),
+                    },
+                }
 
         # 3. Perform RAG retrieval (with observability span and timing)
         # Uses rewritten query if available, otherwise original message
@@ -780,7 +881,12 @@ class ConversationService:
         retrieval_ms = (time.time() - retrieval_start) * 1000
 
         if not search_response.results:
-            raise NoDocumentsError(kb_id)
+            # Check if KB actually has documents (to differentiate error messages)
+            has_documents = await self._check_kb_has_documents(kb_id)
+            if has_documents:
+                raise NoMatchingDocumentsError(kb_id, search_query)
+            else:
+                raise NoDocumentsError(kb_id)
 
         # Yield retrieval metrics event for observability
         yield {
@@ -811,15 +917,31 @@ class ConversationService:
             query=message,
         )
 
+        # DEBUG: Log system prompt to verify language instruction
+        logger.info(
+            "system_prompt_built",
+            kb_id=kb_id,
+            response_language=prompt_config.response_language,
+            system_prompt_preview=system_prompt[:500],
+        )
+
         # 5. Build prompt with history + context (with observability span)
         if trace_ctx:
             async with obs.span(trace_ctx, "context_assembly", "retrieval") as _span_id:
                 prompt_messages = self._build_prompt(
-                    history, message, search_response.results, system_prompt
+                    history,
+                    message,
+                    search_response.results,
+                    system_prompt,
+                    response_language=prompt_config.response_language,
                 )
         else:
             prompt_messages = self._build_prompt(
-                history, message, search_response.results, system_prompt
+                history,
+                message,
+                search_response.results,
+                system_prompt,
+                response_language=prompt_config.response_language,
             )
         context_assembly_ms = (time.time() - context_assembly_start) * 1000
 
@@ -1078,6 +1200,7 @@ class ConversationService:
         message: str,
         chunks: list[SearchResultSchema],
         system_prompt: str | None = None,
+        response_language: str = "en",
     ) -> list[dict[str, str]]:
         """Build prompt with context window management.
 
@@ -1089,6 +1212,8 @@ class ConversationService:
             message: Current user message
             chunks: Retrieved context chunks
             system_prompt: Dynamic system prompt from KB config (optional, defaults to legacy)
+            response_language: Language code for response (e.g., "vi", "es"). If not "en",
+                              appends language instruction to user message for better compliance.
 
         Returns:
             List of message dicts for LLM API
@@ -1128,8 +1253,15 @@ class ConversationService:
             }
         )
 
-        # Add current query
-        messages.append({"role": "user", "content": message})
+        # Add current query with language instruction if non-English
+        # AC-9.15.8: LLMs follow user message instructions more reliably than system prompt
+        user_content = message
+        if response_language != "en":
+            lang_name = LANGUAGE_NAMES.get(response_language, response_language.upper())
+            # Append language instruction to user message for maximum compliance
+            user_content = f"{message}\n\n[Please respond entirely in {lang_name}.]"
+
+        messages.append({"role": "user", "content": user_content})
 
         logger.debug(
             "prompt_built",
@@ -1137,6 +1269,7 @@ class ConversationService:
             context_chunks=len(chunks),
             total_messages=len(messages),
             using_kb_prompt=system_prompt is not None,
+            response_language=response_language,
         )
 
         return messages

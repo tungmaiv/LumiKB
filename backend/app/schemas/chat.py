@@ -30,10 +30,11 @@ class KBParamsDebugInfo(BaseModel):
 
 
 class QueryRewriteDebugInfo(BaseModel):
-    """Debug information for query rewriting (Story 8-0).
+    """Debug information for query rewriting (Story 8-0, enhanced in Story 8-0.1).
 
     Shows the original query, rewritten query, and rewriting metadata.
     Only populated when chat history exists and rewriting is attempted.
+    Story 8-0.1: Added extracted_topics for better context visibility.
     """
 
     original_query: str = Field(..., description="Original user query")
@@ -46,6 +47,10 @@ class QueryRewriteDebugInfo(BaseModel):
     )
     latency_ms: float = Field(
         ..., ge=0, description="Time spent on rewriting in milliseconds"
+    )
+    extracted_topics: list[str] = Field(
+        default_factory=list,
+        description="Key topics extracted from conversation context (Story 8-0.1)",
     )
 
 
@@ -175,3 +180,104 @@ class ChatResponse(BaseModel):
             }
         }
     }
+
+
+# =============================================================================
+# User Session History Schemas (Story 8-0: Chat Session Persistence)
+# =============================================================================
+
+
+class UserChatSessionItem(BaseModel):
+    """A single chat session for the user session list."""
+
+    conversation_id: str = Field(..., description="Unique conversation ID")
+    kb_id: str = Field(..., description="Knowledge Base ID")
+    message_count: int = Field(..., ge=0, description="Number of messages in session")
+    first_message_preview: str = Field(
+        ..., max_length=200, description="Preview of first user message (max 200 chars)"
+    )
+    last_message_at: str = Field(..., description="ISO 8601 timestamp of last message")
+    first_message_at: str = Field(
+        ..., description="ISO 8601 timestamp of first message"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "conversation_id": "conv-550e8400-e29b-41d4-a716-446655440000",
+                "kb_id": "550e8400-e29b-41d4-a716-446655440000",
+                "message_count": 8,
+                "first_message_preview": "How does OAuth 2.0 work?",
+                "last_message_at": "2025-12-18T10:30:00Z",
+                "first_message_at": "2025-12-18T10:00:00Z",
+            }
+        }
+    }
+
+
+class UserChatSessionsResponse(BaseModel):
+    """Response for user's chat sessions list."""
+
+    sessions: list[UserChatSessionItem] = Field(
+        ..., description="List of user's chat sessions"
+    )
+    total: int = Field(..., ge=0, description="Total number of sessions available")
+    max_sessions: int = Field(
+        ..., ge=1, description="Maximum sessions allowed (from KB settings)"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "sessions": [
+                    {
+                        "conversation_id": "conv-abc123",
+                        "kb_id": "kb-uuid",
+                        "message_count": 8,
+                        "first_message_preview": "How does OAuth 2.0 work?",
+                        "last_message_at": "2025-12-18T10:30:00Z",
+                        "first_message_at": "2025-12-18T10:00:00Z",
+                    }
+                ],
+                "total": 1,
+                "max_sessions": 10,
+            }
+        }
+    }
+
+
+class UserChatMessageItem(BaseModel):
+    """A single message in a chat session."""
+
+    role: str = Field(..., description="Message role: 'user' or 'assistant'")
+    content: str = Field(..., description="Message content")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    citations: list[Citation] = Field(
+        default_factory=list, description="Citations for assistant messages"
+    )
+    confidence: float | None = Field(
+        None, ge=0.0, le=1.0, description="Confidence score for assistant messages"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "role": "assistant",
+                "content": "OAuth 2.0 uses authorization codes [1]...",
+                "timestamp": "2025-12-18T10:30:00Z",
+                "citations": [],
+                "confidence": 0.87,
+            }
+        }
+    }
+
+
+class UserChatSessionMessagesResponse(BaseModel):
+    """Response for messages in a specific chat session."""
+
+    conversation_id: str = Field(..., description="Conversation ID")
+    kb_id: str = Field(..., description="Knowledge Base ID")
+    messages: list[UserChatMessageItem] = Field(
+        ..., description="Messages in chronological order"
+    )
+    message_count: int = Field(..., ge=0, description="Total message count")

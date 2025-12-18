@@ -198,16 +198,16 @@ describe('ConversationThread - Debug Info Display (Story 9-15)', () => {
       },
       chunks_retrieved: [
         {
-          document_id: 'doc-1',
-          chunk_index: 0,
-          relevance_score: 0.92,
+          preview: 'This is the first chunk preview text...',
+          similarity_score: 0.92,
           document_name: 'Test Document',
+          page_number: 1,
         },
         {
-          document_id: 'doc-1',
-          chunk_index: 1,
-          relevance_score: 0.85,
+          preview: 'This is the second chunk preview text...',
+          similarity_score: 0.85,
           document_name: 'Test Document',
+          page_number: 2,
         },
       ],
       timing: {
@@ -304,10 +304,10 @@ describe('ConversationThread - Debug Info Display (Story 9-15)', () => {
     // Chunks section should be visible
     expect(screen.getByTestId('debug-chunks')).toBeInTheDocument();
     expect(screen.getByText('Retrieved Chunks (2)')).toBeInTheDocument();
-    // Chunk indices
-    expect(screen.getByText('#0')).toBeInTheDocument();
-    expect(screen.getByText('#1')).toBeInTheDocument();
-    // Relevance scores as percentages
+    // Page numbers (updated from chunk indices)
+    expect(screen.getByText('p.1')).toBeInTheDocument();
+    expect(screen.getByText('p.2')).toBeInTheDocument();
+    // Similarity scores as percentages
     expect(screen.getByText('92.0%')).toBeInTheDocument();
     expect(screen.getByText('85.0%')).toBeInTheDocument();
   });

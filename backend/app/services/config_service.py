@@ -952,7 +952,9 @@ class ConfigService:
 
         if config_record and config_record.value:
             try:
-                return UUID(str(config_record.value))
+                # UUID is stored as JSON string with quotes, strip them
+                model_uuid_str = str(config_record.value).strip('"')
+                return UUID(model_uuid_str)
             except (ValueError, TypeError):
                 logger.warning(
                     "invalid_rewriter_model_uuid",

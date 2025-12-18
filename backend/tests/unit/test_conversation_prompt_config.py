@@ -294,7 +294,7 @@ class TestBuildSystemPrompt:
         assert "Do not include citation markers" in result
 
     def test_response_language_non_english(self, service: ConversationService):
-        """AC-9.15.8: response_language adds instruction when not 'en'."""
+        """AC-9.15.8: response_language adds sandwich instructions (start + end)."""
         config = KBPromptConfig(
             system_prompt="Base prompt.",
             response_language="es",
@@ -307,7 +307,11 @@ class TestBuildSystemPrompt:
             query="Query",
         )
 
-        assert "Respond in Spanish" in result
+        # Verify critical language instruction at BEGINNING and END
+        assert result.startswith("[CRITICAL: RESPOND ONLY IN SPANISH")
+        assert "DO NOT USE ENGLISH" in result
+        assert "REMINDER: Your entire response MUST be in Spanish" in result
+        assert "Base prompt." in result  # Original prompt still present
 
     def test_response_language_english_no_instruction(
         self, service: ConversationService
@@ -477,6 +481,44 @@ class TestBuildPrompt:
         # Last message should be user
         assert result[-1]["role"] == "user"
         assert result[-1]["content"] == user_question
+
+    def test_appends_language_instruction_to_user_message(
+        self, service: ConversationService, sample_chunks: list[SearchResultSchema]
+    ):
+        """AC-9.15.8: Appends language instruction to user message for non-English."""
+        user_question = "What is topic A?"
+
+        result = service._build_prompt(
+            history=[],
+            message=user_question,
+            chunks=sample_chunks,
+            system_prompt="System",
+            response_language="vi",  # Vietnamese
+        )
+
+        # Last message should be user with language instruction appended
+        assert result[-1]["role"] == "user"
+        assert user_question in result[-1]["content"]
+        assert "[Please respond entirely in Vietnamese.]" in result[-1]["content"]
+
+    def test_no_language_instruction_for_english(
+        self, service: ConversationService, sample_chunks: list[SearchResultSchema]
+    ):
+        """AC-9.15.8: No language instruction appended for English."""
+        user_question = "What is topic A?"
+
+        result = service._build_prompt(
+            history=[],
+            message=user_question,
+            chunks=sample_chunks,
+            system_prompt="System",
+            response_language="en",  # English (default)
+        )
+
+        # Last message should be user without language instruction
+        assert result[-1]["role"] == "user"
+        assert result[-1]["content"] == user_question
+        assert "[Please respond entirely in" not in result[-1]["content"]
 
 
 class TestBuildDebugInfo:

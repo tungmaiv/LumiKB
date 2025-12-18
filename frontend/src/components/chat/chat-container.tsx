@@ -5,18 +5,21 @@
 
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import { useChatStream } from '@/lib/hooks/use-chat-stream';
+import { useChatStream, clearStoredConversationId } from '@/lib/hooks/use-chat-stream';
 import { useChatManagement } from '@/hooks/useChatManagement';
+import { useChatSessions, type ChatSessionMessagesResponse } from '@/hooks/useChatSessions';
 import type { ChatMessage as ChatMessageType } from '@/lib/api/chat';
 import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
 import { ClearChatDialog } from './clear-chat-dialog';
+import { SessionSelector } from './session-selector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, MessageSquarePlus, Trash2, Undo2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle, Loader2, MessageSquarePlus, Trash2, Undo2 } from 'lucide-react';
 
 export interface ChatContainerProps {
   kbId: string;
@@ -29,11 +32,105 @@ export interface ChatContainerProps {
  * Manages message list, streaming, and input
  */
 export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerProps) {
-  const { messages, isStreaming, sendMessage, error, clearMessages, restoreMessages, abortStream } =
-    useChatStream({
-      kbId,
-      conversationId,
-    });
+  const {
+    messages,
+    isStreaming,
+    sendMessage,
+    error,
+    clearMessages,
+    restoreMessages,
+    abortStream,
+    conversationId: currentConversationId,
+    loadSession,
+    resetConversation,
+  } = useChatStream({
+    kbId,
+    conversationId,
+  });
+
+  // Session restore hook - fetch messages from backend for stored session
+  const { loadSession: fetchSessionMessages } = useChatSessions({
+    kbId,
+    autoFetch: false, // Don't fetch session list, only use loadSession
+  });
+
+  // Track if we've attempted to restore the session (to prevent re-fetching)
+  const hasAttemptedRestore = useRef(false);
+  // Track if session restore is in progress
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
+
+  // Auto-restore session on mount if we have a stored conversation_id but no messages
+  useEffect(() => {
+    const restoreStoredSession = async () => {
+      // Only restore if:
+      // 1. We have a conversation ID (from localStorage)
+      // 2. No messages loaded yet (fresh mount)
+      // 3. Not currently streaming
+      // 4. Haven't already attempted restore
+      if (
+        currentConversationId &&
+        messages.length === 0 &&
+        !isStreaming &&
+        !hasAttemptedRestore.current
+      ) {
+        hasAttemptedRestore.current = true;
+        setIsRestoringSession(true);
+
+        try {
+          const sessionData = await fetchSessionMessages(currentConversationId);
+
+          if (sessionData && sessionData.messages.length > 0) {
+            // Convert API messages to ChatMessage format (same as handleSessionSelect)
+            const convertedMessages: ChatMessageType[] = sessionData.messages.map((msg) => ({
+              role: msg.role as 'user' | 'assistant',
+              content: msg.content,
+              timestamp: new Date(msg.timestamp),
+              citations: msg.citations.map((c) => ({
+                number: c.number,
+                documentId: c.document_id,
+                documentName: c.document_name,
+                pageNumber: c.page_number,
+                sectionHeader: c.section_header,
+                excerpt: c.excerpt,
+                confidence: c.confidence,
+              })),
+              confidence: msg.confidence ?? undefined,
+            }));
+
+            // Load session into chat (sets conversationId and messages)
+            loadSession(sessionData.conversation_id, convertedMessages);
+          } else if (!sessionData) {
+            // Session not found (404) or fetch failed - clear stored conversation ID
+            // This handles expired Redis sessions (24h TTL)
+            clearStoredConversationId(kbId);
+            resetConversation();
+          }
+        } catch (err) {
+          console.error('Failed to restore session:', err);
+          // Clear stored ID on error to prevent endless retries
+          clearStoredConversationId(kbId);
+          resetConversation();
+        } finally {
+          setIsRestoringSession(false);
+        }
+      }
+    };
+
+    void restoreStoredSession();
+  }, [
+    currentConversationId,
+    messages.length,
+    isStreaming,
+    kbId,
+    fetchSessionMessages,
+    loadSession,
+    resetConversation,
+  ]);
+
+  // Reset restore flag when kbId changes (switching knowledge bases)
+  useEffect(() => {
+    hasAttemptedRestore.current = false;
+  }, [kbId]);
 
   // Undo buffer state (stores cleared messages for 30s)
   // Initialize from localStorage to survive page reload (Option A fix)
@@ -109,6 +206,9 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
   const handleNewChat = async () => {
     try {
       await startNewChat(kbId);
+      // Reset conversation state - clears conversationId AND messages
+      // This ensures next message creates a fresh session
+      resetConversation();
       // Clear undo buffer when starting new chat
       setUndoBuffer([]);
       localStorage.removeItem('chat-undo-buffer');
@@ -117,6 +217,43 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
       console.error('Failed to start new chat:', err);
     }
   };
+
+  /**
+   * Handle loading a past session from the session selector (Story 8-0).
+   * Converts API response messages to ChatMessage format and loads them.
+   */
+  const handleSessionSelect = useCallback(
+    (session: ChatSessionMessagesResponse) => {
+      // Convert API messages to ChatMessage format
+      const convertedMessages: ChatMessageType[] = session.messages.map((msg) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+        citations: msg.citations.map((c) => ({
+          number: c.number,
+          documentId: c.document_id,
+          documentName: c.document_name,
+          pageNumber: c.page_number,
+          sectionHeader: c.section_header,
+          excerpt: c.excerpt,
+          confidence: c.confidence,
+        })),
+        confidence: msg.confidence ?? undefined,
+      }));
+
+      // Load session into chat
+      loadSession(session.conversation_id, convertedMessages);
+
+      // Clear undo buffer when switching sessions
+      setUndoBuffer([]);
+      localStorage.removeItem('chat-undo-buffer');
+
+      toast.success('Session loaded', {
+        description: `Loaded ${Math.ceil(session.message_count / 2)} messages`,
+      });
+    },
+    [loadSession]
+  );
 
   // Keyboard shortcut: Cmd/Ctrl+Shift+N for New Chat
   useEffect(() => {
@@ -195,6 +332,13 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
             Clear Chat
           </Button>
 
+          <SessionSelector
+            kbId={kbId}
+            currentConversationId={currentConversationId}
+            onSessionSelect={handleSessionSelect}
+            disabled={isStreaming || isManagementLoading}
+          />
+
           {undoAvailable && (
             <Button
               variant="outline"
@@ -226,7 +370,34 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
 
       {/* Message List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages-container">
-        {messages.length === 0 && (
+        {/* Loading state when restoring session */}
+        {isRestoringSession && (
+          <div
+            className="flex flex-col items-center justify-center mt-8 gap-4"
+            data-testid="session-restore-loading"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="text-muted-foreground">Restoring your conversation...</p>
+            {/* Skeleton messages for visual feedback */}
+            <div className="w-full max-w-2xl space-y-4 mt-4">
+              <div className="flex justify-end">
+                <Skeleton className="h-12 w-3/4 rounded-lg" />
+              </div>
+              <div className="flex justify-start">
+                <Skeleton className="h-24 w-4/5 rounded-lg" />
+              </div>
+              <div className="flex justify-end">
+                <Skeleton className="h-10 w-1/2 rounded-lg" />
+              </div>
+              <div className="flex justify-start">
+                <Skeleton className="h-20 w-3/4 rounded-lg" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state - only show if not loading and no messages */}
+        {!isRestoringSession && messages.length === 0 && (
           <div className="text-center text-muted-foreground mt-8">
             <p>Start a conversation by asking a question about this Knowledge Base.</p>
           </div>
@@ -258,7 +429,7 @@ export function ChatContainer({ kbId, kbName, conversationId }: ChatContainerPro
       {/* Input */}
       <ChatInput
         onSendMessage={sendMessage}
-        disabled={isStreaming}
+        disabled={isStreaming || isRestoringSession}
         placeholder="Ask a question about this Knowledge Base..."
       />
 

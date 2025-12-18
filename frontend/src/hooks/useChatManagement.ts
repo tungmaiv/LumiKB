@@ -5,6 +5,21 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { clearStoredConversationId } from '@/lib/hooks/use-chat-stream';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+/**
+ * Clear all chat undo-related data from localStorage.
+ * Call this on logout to ensure fresh state on re-login.
+ */
+export function clearChatUndoData(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('chat-undo-buffer');
+  localStorage.removeItem('chat-undo-available');
+  localStorage.removeItem('chat-undo-kb-id');
+  localStorage.removeItem('chat-undo-expires');
+}
 
 interface ChatManagementCallbacks {
   /** Called when messages should be cleared */
@@ -114,8 +129,11 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
     localStorage.removeItem('chat-undo-kb-id');
     localStorage.removeItem('chat-undo-expires');
 
+    // Clear stored conversation_id so next message starts a fresh session
+    clearStoredConversationId(kbId);
+
     try {
-      const response = await fetch(`/api/v1/chat/new?kb_id=${kbId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/chat/new?kb_id=${kbId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +165,7 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
     callbacks?.onAbortStream?.();
 
     try {
-      const response = await fetch(`/api/v1/chat/clear?kb_id=${kbId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/chat/clear?kb_id=${kbId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +236,7 @@ export function useChatManagement(callbacks?: ChatManagementCallbacks): ChatMana
     if (undoIntervalRef.current) clearInterval(undoIntervalRef.current);
 
     try {
-      const response = await fetch(`/api/v1/chat/undo-clear?kb_id=${kbId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/chat/undo-clear?kb_id=${kbId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

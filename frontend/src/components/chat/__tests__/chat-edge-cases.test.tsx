@@ -47,6 +47,10 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       restoreMessages: vi.fn(),
       abortStream: mockAbortStream,
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: 'conv-test-123',
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     vi.mocked(useChatManagement).mockImplementation((callbacks) => ({
@@ -117,6 +121,10 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: undefined,
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     vi.mocked(useChatManagement).mockReturnValue({
@@ -178,6 +186,10 @@ describe('ChatContainer - Edge Cases (AC-6)', () => {
       restoreMessages: vi.fn(),
       abortStream: vi.fn(),
       debugInfo: null,
+      queryRewriteDebug: null,
+      conversationId: 'conv-test-123',
+      loadSession: vi.fn(),
+      resetConversation: vi.fn(),
     });
 
     vi.mocked(useChatManagement).mockReturnValue({

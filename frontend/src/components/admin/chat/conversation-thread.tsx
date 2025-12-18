@@ -261,12 +261,14 @@ function DebugInfoSection({ debugInfo }: { debugInfo: ChatHistoryDebugInfo }) {
                     className="flex items-center justify-between text-xs bg-muted/30 rounded px-2.5 py-1.5 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <Badge
-                        variant="outline"
-                        className="font-mono text-[10px] h-5 px-1.5 shrink-0"
-                      >
-                        #{chunk.chunk_index}
-                      </Badge>
+                      {chunk.page_number && (
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-[10px] h-5 px-1.5 shrink-0"
+                        >
+                          p.{chunk.page_number}
+                        </Badge>
+                      )}
                       {chunk.document_name && (
                         <span
                           className="truncate text-muted-foreground"
@@ -280,10 +282,10 @@ function DebugInfoSection({ debugInfo }: { debugInfo: ChatHistoryDebugInfo }) {
                       variant="secondary"
                       className={cn(
                         'font-mono text-[10px] h-5 px-1.5 shrink-0',
-                        getScoreColor(chunk.relevance_score)
+                        getScoreColor(chunk.similarity_score)
                       )}
                     >
-                      {(chunk.relevance_score * 100).toFixed(1)}%
+                      {(chunk.similarity_score * 100).toFixed(1)}%
                     </Badge>
                   </div>
                 ))}

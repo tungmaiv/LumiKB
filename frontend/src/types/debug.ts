@@ -46,10 +46,11 @@ export interface TimingDebugInfo {
 }
 
 /**
- * Debug information for query rewriting (Story 8-0)
+ * Debug information for query rewriting (Story 8-0, enhanced in Story 8-0.1)
  *
  * Shows the original query, rewritten query, and rewriting metadata.
  * Only populated when chat history exists and rewriting is attempted.
+ * Story 8-0.1: Added extracted_topics for better context visibility.
  */
 export interface QueryRewriteDebugInfo {
   /** Original user query */
@@ -62,6 +63,8 @@ export interface QueryRewriteDebugInfo {
   model_used: string;
   /** Time spent on rewriting in milliseconds */
   latency_ms: number;
+  /** Key topics extracted from conversation context (Story 8-0.1) */
+  extracted_topics?: string[];
 }
 
 /**

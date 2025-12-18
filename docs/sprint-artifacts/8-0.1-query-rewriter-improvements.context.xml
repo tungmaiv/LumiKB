@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context story-id="8-0.1" title="Query Rewriter Improvements">
+  <story>
+    <asA>user engaging in multi-turn conversations with LumiKB</asA>
+    <iWant>the query rewriter to better understand conversational context, tolerate typos, and preserve response formatting expectations</iWant>
+    <soThat>follow-up questions like "how about a day after tha" correctly resolve to "What is covered on Day 7?" when discussing a study plan</soThat>
+  </story>
+
+  <summary>
+    Improve the query rewriter to handle sequential references ("how about next"),
+    typos ("tha" → "that"), and format preservation. Adds key topic extraction from
+    assistant responses to improve context resolution for follow-up questions.
+  </summary>
+
+  <key-files>
+    <file path="backend/app/services/query_rewriter_service.py" purpose="Core rewriter service to modify">
+      <note>580 lines - implements RewriteResult dataclass and rewrite_with_history()</note>
+      <note>REWRITE_PROMPT at lines 65-90 - needs new rules for sequential refs, typos, format hints</note>
+      <note>_summarize_answer() at lines 445-476 - takes first 800 chars, needs topic extraction</note>
+      <note>_format_history() at line 443 - truncates to 400 chars, preserve but enhance</note>
+      <note>_is_standalone() - pronoun/reference detection heuristics to extend</note>
+      <note>B+C Hybrid approach: explicit last Q&A pair + earlier summarized history</note>
+    </file>
+    <file path="frontend/src/types/debug.ts" purpose="Debug info types">
+      <note>84 lines - contains QueryRewriteDebugInfo interface</note>
+      <note>Need to add extracted_topics: string[] field</note>
+    </file>
+    <file path="frontend/src/components/chat/debug-info-panel.tsx" purpose="Debug panel component">
+      <note>288 lines - displays query rewrite section at lines 168-228</note>
+      <note>Need to add display for extracted topics</note>
+    </file>
+    <file path="backend/tests/unit/test_query_rewriter_service.py" purpose="Unit tests">
+      <note>565 lines - 17 existing unit tests across 8 test classes</note>
+      <note>TestRewriteWithHistory, TestIsStandalone, TestFormatHistory</note>
+      <note>TestExtractConversationContext, TestSummarizeAnswer, TestCleanRewrittenQuery</note>
+      <note>TestSequentialQueries, TestFormatEarlierHistory</note>
+      <note>Need to add 8 new tests for ACs</note>
+    </file>
+  </key-files>
+
+  <existing-patterns>
+    <pattern name="REWRITE_PROMPT">
+      <description>Current prompt structure from query_rewriter_service.py</description>
+      <code><![CDATA[
+REWRITE_PROMPT = """You are a query rewriter for a conversational search system.
+
+Given a chat history and the latest user question, your task is to reformulate
+the question as a standalone query that can be understood without the chat history.
+
+## Most Recent Exchange (IMPORTANT - use this for context resolution):
+User asked: {last_user_question}
+Assistant answered about: {last_answer_summary}
+
+## Earlier Conversation Context:
+{earlier_history}
+
+## Current User Question:
+{query}
+
+## Rules:
+1. Resolve all pronouns (he/she/it/they) to specific entities mentioned in history
+2. Expand implicit references ("the same thing", "that", "above") to actual topics
+3. Do NOT answer the question - only reformulate it
+4. If the question is already standalone, return it unchanged
+5. Keep the reformulated question concise (similar length to original)
+
+Reformulated question:"""
+]]></code>
+    </pattern>
+    <pattern name="_summarize_answer">
+      <description>Current answer summarization from lines 445-476</description>
+      <code><![CDATA[
+def _summarize_answer(self, answer: str) -> str:
+    """Summarize assistant answer for history context.
+
+    Takes first 800 chars and truncates at sentence boundary.
+    """
+    if not answer:
+        return ""
+
+    max_len = 800
+    if len(answer) <= max_len:
+        return answer.strip()
+
+    # Truncate at sentence boundary
+    truncated = answer[:max_len]
+    last_period = truncated.rfind(". ")
+    if last_period > max_len // 2:
+        return truncated[:last_period + 1].strip()
+    return truncated.strip() + "..."
+]]></code>
+    </pattern>
+    <pattern name="RewriteResult Dataclass">
+      <description>Return type from rewrite_with_history()</description>
+      <code><![CDATA[
+@dataclass
+class RewriteResult:
+    """Result of query rewriting operation."""
+    original_query: str
+    rewritten_query: str
+    was_rewritten: bool
+    model_used: str
+    latency_ms: float
+    # TO ADD: extracted_topics: list[str] = field(default_factory=list)
+]]></code>
+    </pattern>
+    <pattern name="QueryRewriteDebugInfo">
+      <description>Frontend debug info interface from types/debug.ts</description>
+      <code><![CDATA[
+export interface QueryRewriteDebugInfo {
+  original_query: string;
+  rewritten_query: string;
+  was_rewritten: boolean;
+  model_used: string;
+  latency_ms: number;
+  // TO ADD: extracted_topics?: string[];
+}
+]]></code>
+    </pattern>
+  </existing-patterns>
+
+  <implementation-notes>
+    <note type="task-1">
+      **Task 1: Improve Answer Summarization (AC-8.0.1.3)**
+
+      Create new method _extract_key_topics(text: str) -> list[str]:
+      1. Extract markdown headers: re.findall(r'^##?\s*(.+?)$', text, re.MULTILINE)
+      2. Extract numbered items: re.findall(r'(?:Day|Step|Phase|Chapter)\s+\d+[A-Z]?', text, re.IGNORECASE)
+      3. Extract bold topics: re.findall(r'\*\*([^*]+)\*\*', text)
+      4. Dedupe and limit to 5 topics
+      5. Prioritize LAST numbered items (most relevant for follow-ups)
+
+      Update _summarize_answer() to include extracted topics in summary.
+    </note>
+    <note type="task-2">
+      **Task 2: Add Typo Tolerance (AC-8.0.1.2)**
+
+      Add to REWRITE_PROMPT Rules section:
+      "TYPOS: Correct obvious typos BEFORE interpreting:
+       - 'tha' → 'that', 'wha' → 'what', 'tel' → 'tell', 'teh' → 'the'"
+    </note>
+    <note type="task-3">
+      **Task 3: Add Sequential Reference Examples (AC-8.0.1.1)**
+
+      Add few-shot examples to REWRITE_PROMPT:
+      ```
+      Example - Sequential Reference:
+      History:
+        Human: Tell me about Day 6 in the study plan
+        Assistant: Day 6 covers Phase C: Data and Application Architecture...
+      Question: how about a day after tha
+      Reformulated: What is covered on Day 7 of the study plan?
+
+      Example - Previous Reference:
+      History:
+        Human: What is Phase D about?
+        Assistant: Phase D covers Technology Architecture...
+      Question: and the one before
+      Reformulated: What is Phase C about in the TOGAF framework?
+      ```
+
+      Add rule: "SEQUENTIAL: 'next', 'previous', 'after that' → Identify sequence and compute target"
+    </note>
+    <note type="task-4">
+      **Task 4: Add Format Preservation Instruction (AC-8.0.1.4)**
+
+      Add to REWRITE_PROMPT:
+      "FORMAT HINTS: If previous answer was a numbered list, phrase query to elicit similar format
+       - Example: 'List the topics covered on Day 7' vs 'What is Day 7 about?'"
+    </note>
+    <note type="task-5">
+      **Task 5: Update Debug Panel (AC-8.0.1.5)**
+
+      1. Add extracted_topics: list[str] to RewriteResult dataclass
+      2. Update QueryRewriteDebugInfo in frontend/src/types/debug.ts
+      3. Display in debug-info-panel.tsx: "Topics: [Day 6, Phase C]"
+    </note>
+    <note type="architecture">
+      **Architecture Constraints (from Story 8-0)**
+
+      - Service Injection: QueryRewriterService injected into ConversationService
+      - Graceful Degradation: Timeout/error returns original query - never blocks chat
+      - LiteLLM Routing: Uses model path like `openai/db-{uuid}`
+      - Config Lookup: Rewriter model resolved from system_config at call time
+      - Bug Fix: Always use `ctx=trace_ctx` when calling observability methods (not `trace_id=`)
+    </note>
+  </implementation-notes>
+
+  <acceptance-criteria-mapping>
+    <criterion id="AC-8.0.1.1" description="Sequential references resolved correctly">
+      <examples>
+        - "how about next" after Day 6 discussion → "What is covered on Day 7?"
+        - "and the one before" after Phase D discussion → "What is Phase C?"
+      </examples>
+      <implementation>Add sequential reference examples and rule to REWRITE_PROMPT</implementation>
+    </criterion>
+    <criterion id="AC-8.0.1.2" description="Typos handled gracefully">
+      <examples>
+        - "wha about tha" → Corrects to "what about that" before resolving
+        - "tel me more" → Corrects to "tell me more"
+      </examples>
+      <implementation>Add typo correction rule to REWRITE_PROMPT</implementation>
+    </criterion>
+    <criterion id="AC-8.0.1.3" description="Key topic extraction from answers">
+      <examples>
+        - Extract numbered items (Day 1, Day 2, etc.)
+        - Extract headers (**Phase A:**, **Step 1:**, etc.)
+        - Prioritize LAST topic discussed
+      </examples>
+      <implementation>Create _extract_key_topics() method, update _summarize_answer()</implementation>
+    </criterion>
+    <criterion id="AC-8.0.1.4" description="Format preservation hints">
+      <examples>
+        - If previous answer was numbered list, hint similar format expected
+        - "List the topics covered on Day 7" vs "What is Day 7 about?"
+      </examples>
+      <implementation>Add format preservation rule to REWRITE_PROMPT</implementation>
+    </criterion>
+    <criterion id="AC-8.0.1.5" description="Debug panel shows extracted topics">
+      <implementation>
+        - Add extracted_topics to RewriteResult and QueryRewriteDebugInfo
+        - Display in debug panel: "Topics: [Day 6, Phase C]"
+      </implementation>
+    </criterion>
+    <criterion id="AC-8.0.1.6" description="All existing tests continue to pass">
+      <implementation>Run existing 14 unit + 9 integration tests, ensure no regressions</implementation>
+    </criterion>
+  </acceptance-criteria-mapping>
+
+  <dependencies>
+    <backend>
+      <dependency>pytest, pytest-asyncio, pytest-cov - Testing framework</dependency>
+      <dependency>litellm - LLM client for query rewriting</dependency>
+      <dependency>langfuse - Observability/tracing</dependency>
+      <dependency>pydantic - RewriteResult dataclass</dependency>
+    </backend>
+    <frontend>
+      <dependency>vitest - Unit testing framework</dependency>
+      <dependency>@testing-library/react - Component testing</dependency>
+      <dependency>typescript - Type definitions</dependency>
+    </frontend>
+    <story>Story 8-0 (History-Aware Query Rewriting) - COMPLETED</story>
+  </dependencies>
+
+  <test-strategy>
+    <standards>
+      <standard>Backend: pytest with asyncio, mark tests as @pytest.mark.unit or @pytest.mark.integration</standard>
+      <standard>Frontend: vitest + React Testing Library, tests in __tests__ folders</standard>
+      <standard>KISS/DRY/YAGNI principles - minimal changes, no over-engineering</standard>
+    </standards>
+    <locations>
+      <location>backend/tests/unit/test_query_rewriter_service.py - 17 existing tests</location>
+      <location>backend/tests/integration/test_query_rewriter_api.py - 10 existing tests</location>
+    </locations>
+    <new-tests>
+      <test-group name="Sequential References (AC-8.0.1.1)">
+        <test>test_sequential_next_reference - "how about next" after Day 6 → Day 7</test>
+        <test>test_sequential_previous_reference - "and the one before" after Phase D → Phase C</test>
+      </test-group>
+      <test-group name="Typo Handling (AC-8.0.1.2)">
+        <test>test_typo_correction_tha - "wha about tha" → corrected before context resolution</test>
+        <test>test_typo_correction_multiple - "tel me mroe about teh ADM" → corrected</test>
+      </test-group>
+      <test-group name="Topic Extraction (AC-8.0.1.3)">
+        <test>test_extract_key_topics_numbered - extracts Day 1, Day 2, etc.</test>
+        <test>test_extract_key_topics_headers - extracts markdown headers</test>
+      </test-group>
+      <test-group name="Format Preservation (AC-8.0.1.4)">
+        <test>test_format_hint_numbered_list - detects list format, hints similar</test>
+        <test>test_format_hint_prose - prose format doesn't add list hints</test>
+      </test-group>
+      <test-group name="Integration (AC-8.0.1.5, AC-8.0.1.6)">
+        <test>test_end_to_end_context_resolution - full flow with sequential refs</test>
+        <test>test_typo_plus_context_combo - typo + context resolution together</test>
+        <test>test_debug_info_includes_topics - extracted_topics in debug response</test>
+        <test>test_regression_existing_tests_pass - all 23 existing tests still pass</test>
+      </test-group>
+    </new-tests>
+  </test-strategy>
+
+  <constraints>
+    <constraint type="design">KISS/DRY/YAGNI - minimal changes to existing code</constraint>
+    <constraint type="performance">Key topic extraction must be fast (&lt;10ms)</constraint>
+    <constraint type="reliability">Graceful degradation - never block chat on rewriter failure</constraint>
+    <constraint type="compatibility">Maintain all existing test coverage</constraint>
+    <constraint type="observability">Use ctx=trace_ctx for observability calls (not trace_id=)</constraint>
+  </constraints>
+</story-context>
